@@ -153,6 +153,10 @@ ol.rivals{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:c
 .seg{font:inherit;font-size:14px;cursor:pointer;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 12px;display:inline-flex;align-items:center}
 .seg.on.A{border-color:var(--a);background:var(--a-soft)}.seg.on.B{border-color:var(--b);background:var(--b-soft)}
 .datebar .field{min-width:230px;flex:1}
+.mtcs{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.mtc{font:inherit;cursor:pointer;color:var(--fg);text-align:left;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--tc) 18%,transparent));border:1px solid color-mix(in srgb,var(--tc) 45%,var(--line));border-radius:10px;padding:8px 12px;display:flex;flex-direction:column;gap:3px;min-width:190px;flex:0 1 230px}
+.mtc.on{border-color:var(--tc);box-shadow:0 0 0 1px var(--tc) inset;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--tc) 38%,transparent))}
+.mtc .mtn{display:flex;align-items:center;gap:8px}.mtc b{font-size:13px;text-transform:uppercase;letter-spacing:.03em}.mtc small{color:var(--muted);font-size:11px}
 .opps{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin:8px 0 20px}
 .opp{font:inherit;text-align:left;cursor:pointer;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;min-width:0}
 .opp:hover{border-color:var(--fg)}
@@ -1004,15 +1008,15 @@ table.rank td.ic,.pgrid .rank td.ic{text-align:left}table.rank th:nth-child(2),.
 .calpop{position:absolute;z-index:30;top:100%;left:0;margin-top:6px;box-shadow:0 12px 34px rgba(0,0,0,.55);border-radius:12px}.calpop .cal{max-width:262px;width:262px;padding:10px}.calpop .day{height:28px;font-size:12px}.calpop .calhead button{width:28px;height:28px}.calpop .cjump{max-height:120px}
 .mpickrow .oppcol{flex:1 1 380px;min-width:0}.mpickrow .opps{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}.mpickrow .opp{flex:0 1 210px;padding:8px 10px;gap:4px}
 .wlb{width:100%;max-width:400px;margin:8px auto 4px;display:grid;gap:2px;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-variant-numeric:tabular-nums}.pdgrid .wlb{margin:0 auto}
-.wlrow{display:flex;gap:14px;align-items:stretch;justify-content:center;flex-wrap:wrap;margin:8px 0 4px}.wlrow .wlb{margin:0;width:auto;max-width:none;flex:0 0 380px}
-.lub{flex:0 1 400px;min-width:260px;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:12px;padding:6px 8px;display:flex;flex-direction:column;min-height:0}
+.wlrow{display:flex;gap:14px;align-items:stretch;justify-content:center;flex-wrap:wrap;margin:8px 0 4px}.wlrow .wlb{margin:0;width:auto;max-width:none;flex:0 0 330px}
+.lub{flex:1 1 480px;min-width:300px;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:12px;padding:6px 8px;display:flex;flex-direction:column;min-height:0}
 .lub.in{margin-top:8px;flex:none;width:100%}
 .luh{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;text-align:center;padding:1px 0 4px}
-.lul{overflow:auto;max-height:118px;display:flex;flex-direction:column;gap:2px}
+.lul{overflow-y:auto;overflow-x:hidden;max-height:178px;display:flex;flex-direction:column;gap:2px}
 .lur{display:flex;align-items:center;gap:8px;padding:3px 6px;border-radius:7px;font-size:12px;cursor:pointer;background:none;border:0;color:var(--fg);text-align:left;width:100%}
 .lur:hover{background:rgba(255,255,255,.06)}.lur.on{background:rgba(224,176,32,.14)}
 .lur .cbx{flex:none;width:14px;height:14px;border:1.5px solid var(--muted);border-radius:4px;line-height:11px;font-size:11px;text-align:center;color:#111}.lur.on .cbx{background:#e0b020;border-color:#e0b020}
-.lur .ln{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.lur .lg{color:var(--muted);font-size:11px;white-space:nowrap}.lur .lw{font-family:var(--mono);font-weight:700;min-width:38px;text-align:right}
+.lur .ln{flex:1 1 auto;min-width:0;white-space:normal;line-height:1.25}.lur .lg{color:var(--muted);font-size:11px;white-space:nowrap}.lur .lw{font-family:var(--mono);font-weight:700;min-width:42px;text-align:right}.lw.pw{color:#3fbf72}.lw.pl{color:#e8575f}
 .lur.all{font-weight:700;border-bottom:1px solid var(--line);border-radius:7px 7px 0 0}
 .lus{font-size:10.5px;color:var(--muted);text-align:center;padding-top:3px}
 .wlr{display:grid;grid-template-columns:62px 1fr 1.7fr 1fr;gap:8px;align-items:center;padding:3px 0}
@@ -1965,6 +1969,7 @@ const FK=k=>k==='A'?FSA:k==='B'?FSB:{get flt(){return flt},get tfs(){return tfs}
 const tstrip=(t,extra)=>`<div class="tstrip" data-tc="${esc(t)}" style="--tc:${tcol(t)}${extra||''}">${logo(t,'l40')}<b>${esc(t)}</b></div>`;
 // everything one team shows in the deep dive; key = 'A'/'B' (compare 2 teams, own filters) or '' (1 team / pool)
 const LUS={'':null,A:null,B:null},LUK={'':[],A:[],B:[]};
+const wrC=(w,l)=>!(w+l)?'':w>l?'pw':w<l?'pl':'';
 function luApply(team,items,key,stack){
   const PL=(FULL&&FULL.pickPlayers&&FULL.pickPlayers[team.toUpperCase()])||[],tg2n={};
   for(const p of PL)for(const g of p.tags||[])tg2n[g]=p.name;
@@ -1981,9 +1986,9 @@ function luApply(team,items,key,stack){
   const all=!sel||list.every(e=>sel.has(e.k)),nsel=sel?list.filter(e=>sel.has(e.k)).length:list.length;
   const fk=key?` data-fk="${key}"`:'';
   const on=e=>!sel||sel.has(e.k);
-  const rows=list.map((e,i)=>`<button type="button" class="lur${on(e)?' on':''}"${fk} data-lu="${i}" title="${esc(e.k)} · last played ${esc(fmtDate(e.d))}"><span class="cbx">${on(e)?'✓':''}</span><span class="ln">${esc(e.k)}</span><span class="lg">${e.g} games · ${e.s} sets</span><span class="lw" style="${e.w+e.l?wrHeat(e.w/(e.w+e.l)):''}">${e.w+e.l?Math.round(100*e.w/(e.w+e.l))+'%':'–'}</span></button>`).join('');
+  const rows=list.map((e,i)=>`<button type="button" class="lur${on(e)?' on':''}"${fk} data-lu="${i}" title="${esc(e.k)} · last played ${esc(fmtDate(e.d))}"><span class="cbx">${on(e)?'✓':''}</span><span class="ln">${esc(e.k)}</span><span class="lg">${e.g} games · ${e.s} sets</span><span class="lw ${wrC(e.w,e.l)}">${e.w+e.l?Math.round(100*e.w/(e.w+e.l))+'%':'–'}</span></button>`).join('');
   const tg=list.reduce((a,e)=>[a[0]+e.g,a[1]+e.s,a[2]+e.w,a[3]+e.l],[0,0,0,0]);
-  const html=list.length?`<div class="lub${stack?' in':''}"><div class="luh">Lineups · players who played together</div><div class="lul"><button type="button" class="lur all${all?' on':''}"${fk} data-luall="1"><span class="cbx">${all?'✓':''}</span><span class="ln">ALL</span><span class="lg">${tg[0]} games · ${tg[1]} sets</span><span class="lw">${tg[2]+tg[3]?Math.round(100*tg[2]/(tg[2]+tg[3]))+'%':'–'}</span></button>${rows}</div><div class="lus">${nsel} of ${list.length} lineups selected</div></div>`:'';
+  const html=list.length?`<div class="lub${stack?' in':''}"><div class="luh">Lineups · players who played together</div><div class="lul"><button type="button" class="lur all${all?' on':''}"${fk} data-luall="1"><span class="cbx">${all?'✓':''}</span><span class="ln">ALL</span><span class="lg">${tg[0]} games · ${tg[1]} sets</span><span class="lw ${wrC(tg[2],tg[3])}">${tg[2]+tg[3]?Math.round(100*tg[2]/(tg[2]+tg[3]))+'%':'–'}</span></button>${rows}</div><div class="lus">${nsel} of ${list.length} lineups selected</div></div>`:'';
   const out=sel?items.filter(x=>{const k=keyOf(x);return !k||sel.has(k)}):items;
   return {items:out,html};
 }
@@ -2268,15 +2273,23 @@ function scrimHTML(r,team){
     <table class="rank tiny"><thead><tr><th></th><th></th><th>Map</th><th class="num">Sets</th><th class="num">Wins</th><th class="num">WR</th></tr></thead><tbody>${mrows}</tbody></table></div>
     <div class="sptwrap"><div class="teamblk"><div class="sptc"><span class="tbox2">${esc(team)}</span></div><div class="splg">${plyTbl(sets,0)}</div></div><div class="teamblk"><div class="sptc"><span class="tbox2">${r.named?esc(nm):r.players.map(esc).join(' · ')}</span></div><div class="splg">${plyTbl(sets,1)}</div></div></div></div>`;
 }
+let msTeam=null,_msK='',_msV=null;
+// every date with sets of listed teams: date -> team -> {n sets, rivals}
+function msIndex(){const k=ds.matches.length+'|'+(ds.matches[0]&&ds.matches[0].i)+'|'+allTeams().length;if(_msK===k&&_msV)return _msV;
+  const T=new Set(allTeams()),V={};
+  for(const m of ds.matches){if(m.s)continue;
+    for(const [x,y] of [[m.a,m.b],[m.b,m.a]]){if(!T.has(x))continue;const D=V[m.d]||(V[m.d]={}),e=D[x]||(D[x]={n:0,riv:{}});e.n++;e.riv[T.has(y)?y:'']=1}}
+  _msK=k;_msV=V;return V}
 function datesTab(){
-  if(scope==='pool')return '<p class="msg">The match selector works with one team or with two teams. Choose "1 team" or "Compare 2 teams" above.</p>';
-  const one=scope==='one',team=one?curOne():teamOf(dateTeam),mine=one||dateTeam==='A'?'a':'b',other=mine==='a'?'b':'a';
-  const mf=null,dates=Engine.datesFor(ds,DB,team,mf); // the match selector always shows every map (it ignores the maps chosen in Team stats)
-  if(!dates.length)return '<p class="msg" style="margin-top:12px">This team has no sets'+(mf?' on the selected maps':'')+' in the data.</p>';
-  if(!dateSel||!dates.some(x=>x.d===dateSel)){dateSel=dates[0].d;rivalSel=0;calMonth=dateSel.slice(0,7)}
-  const seg=one?`<span class="teamrow">${logo(team,'l28')}<b style="color:${tcol(team)}">${esc(team)}</b></span>`:['A','B'].map(s=>`<button type="button" class="seg${s===dateTeam?' on '+s:''}" data-dt="${s}" aria-pressed="${s===dateTeam}">${logo(teamOf(s),'l20')}${esc(teamOf(s))}</button>`).join('');
+  const IX=msIndex(),dates=Object.keys(IX).sort().reverse().map(d=>({d,n:Object.keys(IX[d]).length,rivals:0}));
+  if(!dates.length)return '<p class="msg" style="margin-top:12px">There are no sets in the data for this period.</p>';
+  if(!dateSel||!IX[dateSel]){dateSel=dates[0].d;rivalSel=0;calMonth=dateSel.slice(0,7)}
+  const dayT=Object.entries(IX[dateSel]).map(([n,e])=>({n:n,sets:e.n,riv:Object.keys(e.riv)})).sort((a,b)=>b.sets-a.sets||(a.n<b.n?-1:1));
+  if(!msTeam||!IX[dateSel][msTeam]){msTeam=dayT[0].n;rivalSel=0}
+  const team=msTeam,mine='a',other='b',mf=null; // the match selector always shows every map (it ignores the maps chosen in Team stats)
   const played=new Set(dates.map(x=>x.d));
   const info=dates.find(x=>x.d===dateSel);
+  const tcards=dayT.map(e=>{const rv=e.riv.filter(Boolean),nrv=e.riv.length-rv.length;return `<button type="button" class="mtc${e.n===team?' on':''}" data-mt="${esc(e.n)}" style="--tc:${tcol(e.n)}"><span class="mtn">${logo(e.n,'l28')}<b>${esc(e.n)}</b>${tdot(e.n)}</span><small>${plural(e.sets,'set')}${rv.length||nrv?' · vs '+esc(rv.concat(nrv?['other']:[]).join(', ')):''}</small></button>`}).join('');
   const day=Engine.dayMatches(ds,DB,team,dateSel,mf).filter(r=>r.w+r.l+r.d>0);
   if(rivalSel>=day.length)rivalSel=0;
   const cards=day.map((r,i)=>{
@@ -2298,9 +2311,10 @@ function datesTab(){
     const tbl=logTable(r.sets.map(x=>Object.assign({d:dateSel,myTeam:team,opTeam:r.named?r.name:''},x)),{});
     detail=`<div class="mviewrow"><div class="seg2" role="group" aria-label="View"><button type="button" data-mv="cards" aria-pressed="${matchView==='cards'}">Detail</button><button type="button" data-mv="table" aria-pressed="${matchView==='table'}">Table</button></div></div><div class="mbox">${mheadHTML(r,team)}${matchView==='cards'?`<div class="sets">${sets}</div>`:''}${scrimHTML(r,team)}</div>${matchView==='table'?tbl:''}<p class="foot" style="margin-top:12px">A match is every set played against the same rival on that day. Each card is one set: the CSV rounds with the same map, players and brawlers in the same order (3 at most) are grouped, and the number on the left is the round score. The score at the top counts sets won. A single-round game (dimmed) is shown but does not count in the score, the stats or the prediction.</p>`;
   }
-  return `<div class="lbl" style="margin:14px 0 6px">Team</div><div class="segs" style="margin-bottom:14px">${seg}</div>
-    <div class="mpickrow"><div class="dbox"><button type="button" class="dbtn${calOpen?' open':''}" data-calopen="1" aria-expanded="${calOpen}"><span class="dl">Date</span><b>${fmtDate(dateSel)}</b><small>${plural(info.n,'set')} · ${info.rivals} ${info.rivals===1?'match':'matches'}</small><span class="dcar">▾</span></button>${calOpen?`<div class="calpop">${calendarHTML(played,dates)}</div>`:''}</div>
-    <div class="oppcol"><div class="lbl">Opponents on ${fmtDate(dateSel)}</div><div class="opps">${cards}</div></div></div>
+  return `<div class="mpickrow" style="margin-top:14px"><div class="dbox"><button type="button" class="dbtn${calOpen?' open':''}" data-calopen="1" aria-expanded="${calOpen}"><span class="dl">Date</span><b>${fmtDate(dateSel)}</b><small>${plural(dayT.length,'team')} played</small><span class="dcar">▾</span></button>${calOpen?`<div class="calpop">${calendarHTML(played,dates)}</div>`:''}</div>
+    <div class="oppcol"><div class="lbl">Teams that played on ${fmtDate(dateSel)} · ${dayT.length}</div><div class="mtcs">${tcards}</div></div></div>
+    <div class="mpickrow" style="margin-top:0">
+    <div class="oppcol"><div class="lbl">${esc(team)} · matches on ${fmtDate(dateSel)}</div><div class="opps">${cards}</div></div></div>
     <div class="mpickdet">${detail}</div>
     <div class="mtop" style="margin-top:18px">${recentHTML(team,mf)}</div>`;
 }
@@ -2941,6 +2955,7 @@ $('detailpanel').addEventListener('click',e=>{
   const lua=e.target.closest('[data-luall]');if(lua){const k=lua.dataset.fk||'',keys=LUK[k]||[],s=LUS[k];LUS[k]=(!s||keys.every(x=>s.has(x)))?(s?new Set():new Set()):null;if(!s)LUS[k]=new Set();renderDetail();return}
   const lu=e.target.closest('[data-lu]');if(lu){const k=lu.dataset.fk||'',keys=LUK[k]||[],nm=keys[+lu.dataset.lu];let s=LUS[k]?new Set(LUS[k]):new Set(keys);if(s.has(nm))s.delete(nm);else s.add(nm);LUS[k]=keys.every(x=>s.has(x))?null:s;renderDetail();return}
   const cr=e.target.closest('[data-clear]');if(cr&&!cr.disabled){if(cr.dataset.fk)clrFS(cr.dataset.fk);else clrF();renderDetail();return}
+  const mtc=e.target.closest('[data-mt]');if(mtc){msTeam=mtc.dataset.mt;rivalSel=0;renderDetail();return}
   const dt=e.target.closest('[data-dt]');if(dt){dateTeam=dt.dataset.dt;dateSel=null;rivalSel=0;calMonth=null;renderDetail();return}
   const ri=e.target.closest('[data-ri]');if(ri){rivalSel=+ri.dataset.ri;renderDetail();const t=document.querySelector('.mviewrow');if(t)t.scrollIntoView({behavior:'smooth',block:'start'});return}
   const dy=e.target.closest('[data-day]');if(dy){dateSel=dy.dataset.day;rivalSel=+(dy.dataset.lri||0);calMonth=dateSel.slice(0,7);calOpen=false;const fromList=!!dy.closest('.recent');renderDetail();if(fromList){const t=document.querySelector('.mpickrow');if(t)t.scrollIntoView({behavior:'smooth',block:'start'})}return}
