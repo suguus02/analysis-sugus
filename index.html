@@ -996,6 +996,22 @@ table.rank td.ic,.pgrid .rank td.ic{text-align:left}table.rank th:nth-child(2),.
 .todaybox{margin-top:6px;text-align:center}.todaybtn{font:inherit;font-size:12px;color:var(--muted);background:transparent;border:1px solid var(--line);border-radius:99px;padding:3px 11px;cursor:pointer}.todaybtn i{display:inline-block;width:7px;height:7px;border-radius:50%;background:#3ecf6e;margin-right:6px}.todaybtn:hover{color:var(--fg)}.todaylist{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:8px}.todayt{display:inline-flex;align-items:center;gap:5px;font-size:12px;border:1px solid var(--line);border-radius:8px;padding:2px 8px;background:var(--bg)}.todayt small{color:var(--muted)}
 .mpk.pr .mc-in{padding:5px 7px}.mpk.pr .mc-pr{margin-top:2px}
 .tdot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#3ecf6e;box-shadow:0 0 0 2px rgba(62,207,110,.28);flex:none}.tile,.tsel{position:relative}.tile>.tdot,.tsel .tdot{position:absolute;top:7px;right:7px;z-index:2}
+.bpop .bsearch{position:sticky;top:0;z-index:3;width:100%;box-sizing:border-box;margin:0 0 6px;padding:7px 10px;font-size:13px}
+.fwrap .fgroup{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px}.fwrap .fgroup .ftl{flex:none;margin:0}.fwrap .fgroup .frow{flex:1 1 340px;margin-top:0}.fwrap .fgroup .seg2{margin:0!important;flex:none}.fwrap .fgroup .tpick{flex:1 1 170px;min-width:0}.fwrap .fbar{align-items:stretch}
+.mpickrow{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;margin:6px 0 16px}.dbox{position:relative;flex:none}
+.dbtn{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:8px 38px 8px 14px;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:1px;min-width:190px;position:relative}.dbtn:hover,.dbtn.open{border-color:var(--a)}
+.dbtn .dl{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:700}.dbtn b{font-family:var(--display);font-size:19px}.dbtn small{font-size:12px;color:var(--muted)}.dbtn .dcar{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.calpop{position:absolute;z-index:30;top:100%;left:0;margin-top:6px;box-shadow:0 12px 34px rgba(0,0,0,.55);border-radius:12px}.calpop .cal{max-width:262px;width:262px;padding:10px}.calpop .day{height:28px;font-size:12px}.calpop .calhead button{width:28px;height:28px}.calpop .cjump{max-height:120px}
+.mpickrow .oppcol{flex:1 1 380px;min-width:0}.mpickrow .opps{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}.mpickrow .opp{flex:0 1 210px;padding:8px 10px;gap:4px}
+.wlb{width:100%;max-width:400px;margin:8px auto 4px;display:grid;gap:2px;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-variant-numeric:tabular-nums}.pdgrid .wlb{margin:0 auto}
+.wlr{display:grid;grid-template-columns:62px 1fr 1.7fr 1fr;gap:8px;align-items:center;padding:3px 0}
+.wlr+.wlr{border-top:1px solid var(--line)}
+.wlh{padding:0 0 2px}.wlh span{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;text-align:center}
+.wlab{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.wn{font-family:var(--mono);font-weight:700;font-size:18px;text-align:center}.wn.w{color:#3fbf72}.wn.l{color:#e8575f}
+.wmid{display:flex;flex-direction:column;align-items:center;gap:3px}.wpct{display:block;min-width:76px;text-align:center;border-radius:8px;padding:3px 8px;font-family:var(--mono);font-size:14px;font-weight:700}
+.wbar{display:none;width:100%;height:5px;border-radius:3px;background:#e8575f;overflow:hidden}.wbar u{display:block;height:100%;background:#3fbf72;text-decoration:none}
+.wlb.v2 .wbar{display:block}.wlb.v2 .wpct{background:transparent!important;color:var(--fg)!important;padding:0;font-size:15px}
 </style>
 
 <div class="wrap">
@@ -1857,7 +1873,7 @@ function render(){
 
 // ---------- detail: brawlers, combos, rivals, matches by date ----------
 let tfs={own:{n:1,k:''},enemy:{n:1,k:''}};
-let view=['stats','draft','pred','suggest','check','bal'].includes(store.get('tvt:view'))?store.get('tvt:view'):'stats',tab='stats',statMaps=[],oneTeam=null,comboKind='duos',focus='A',scope='one',poolTeams=null,subject='own',flt={own:['','',''],enemy:['','','']},onlyRepeat=false,comboRes='all',showSingles=true,matchView='cards',dateTeam='A',dateSel=null,rivalSel=0,calMonth=null;
+let view=['stats','draft','pred','suggest','check','bal'].includes(store.get('tvt:view'))?store.get('tvt:view'):'stats',tab='stats',statMaps=[],oneTeam=null,comboKind='duos',focus='A',scope='one',poolTeams=null,subject='own',flt={own:['','',''],enemy:['','','']},onlyRepeat=false,comboRes='all',showSingles=true,matchView='cards',dateTeam='A',dateSel=null,rivalSel=0,calMonth=null,calOpen=false;
 const teamOf=s=>s==='A'?sel.a:sel.b;
 const ALL='__all__',SEL='__sel__';
 function teamLabel(r,cls,size){ // named rival (with logo) or 3 players stacked
@@ -1882,7 +1898,7 @@ function logTable(items,o){
   const ic=w=>w===1?'<span class="ck win">✓</span>':w===0?'<span class="ck lose">✕</span>':'<span class="ck draw">＝</span>';
   const pl=(arr,tg,tm)=>[0,1,2].map(k=>`<td class="pn">${pnHTML(arr[k],tg&&tg[k],o.noTag,isSub(tm,tg&&tg[k]))}</td>`).join('');
   const br=arr=>[0,1,2].map(k=>`<td class="bn">${arr[k]?(bimg(arr[k],'bi tbl')||esc(arr[k])):'—'}</td>`).join('');
-  const rows=items.map(x=>`<tr class="${x.s?'solo':''}"><td>${ic(x.win)}</td><td class="sc">${esc(x.sc||'')}</td><td class="dt">${fmtDate(x.d)}</td><td class="mpn">${esc(x.map)}${x.s?'<small>single game</small>':''}</td>${o.team?`<td class="pn">${esc(x.team||'')}</td>`:''}${pl(x.myNames,x.myTags,x.myTeam||x.team)}${br(x.mine)}<td class="vsx">vs</td>${br(x.theirs)}${pl(x.opNames,x.opTags,x.opTeam||o.opTeam)}${o.opp?`<td class="op">${esc(x.opp||'')}</td>`:''}<td class="gty">${x.ty==='tournament'?'<span class="tg tt">Tournament</span>':x.ty==='friendly'?'<span class="tg tf">Friendly</span>':''}</td></tr>`).join('');
+  const rows=items.map(x=>`<tr class="${x.s?'solo':''}"><td>${ic(x.win)}</td><td class="sc">${esc(x.sc||'')}</td><td class="dt">${fmtDate(x.d)}</td><td class="mpn"${(()=>{const md=modeOfMap(x.map),c=md&&MODE_COL[mkey(md)];return c?` style="color:${c}"`:''})()}>${esc(x.map)}${x.s?'<small>single game</small>':''}</td>${o.team?`<td class="pn">${esc(x.team||'')}</td>`:''}${pl(x.myNames,x.myTags,x.myTeam||x.team)}${br(x.mine)}<td class="vsx">vs</td>${br(x.theirs)}${pl(x.opNames,x.opTags,x.opTeam||o.opTeam)}${o.opp?`<td class="op">${esc(x.opp||'')}</td>`:''}<td class="gty">${x.ty==='tournament'?'<span class="tg tt">Tournament</span>':x.ty==='friendly'?'<span class="tg tf">Friendly</span>':''}</td></tr>`).join('');
   return `<div class="mbox"><div class="scrollx" style="${o.tall?'':'max-height:none'}"><table class="ltbl"><thead><tr><th></th><th>Score</th><th>Date</th><th>Map</th>${o.team?'<th>Team</th>':''}<th colspan="3">Players</th><th colspan="3">Brawlers</th><th></th><th colspan="3">Brawlers</th><th colspan="3">Players</th>${o.opp?'<th>Opponent</th>':''}<th>Type</th></tr></thead><tbody>${rows||'<tr><td colspan="19">No sets</td></tr>'}</tbody></table></div></div>`;
 }
 function compareHTML(){
@@ -1969,14 +1985,18 @@ function ddBuild(team,cls,key,pool){
   const CS=Engine.comboStats(sub,subject,0,[]);
   let combos=comboKind==='duos'?CS.duos:CS.trios;
   if(onlyRepeat)combos=combos.filter(x=>x.n>1);
-  const selects=(side,label)=>`<div class="fgroup" style="${fcol(side)}"><div class="lbl ftl">${label}</div><div class="frow">${[0,1,2].map(k=>{const cur=flt[side][k];return `<details class="bpick"><summary>${cur?(bimg(cur,'bi')||'')+'<span>'+esc(cur)+'</span>':'<span class="any">Any brawler</span>'}</summary><div class="bpop"><button type="button" class="bopt"${fk} data-fv="${side}:${k}:"><span>Any</span></button>${fa[side][k].map(([b,n])=>`<button type="button" class="bopt${cur===b?' on':''}"${fk} data-fv="${side}:${k}:${esc(b)}" title="${esc(b)} (${n})">${bimg(b,'bi')||''}<span>${esc(b)}</span><small>${n}</small></button>`).join('')}</div></details>`}).join('')}</div></div>`;
+  const selects=(side,label)=>`<div class="fgroup" style="${fcol(side)}"><div class="lbl ftl">${label}</div><div class="frow">${[0,1,2].map(k=>{const cur=flt[side][k];return `<details class="bpick"><summary>${cur?(bimg(cur,'bi')||'')+'<span>'+esc(cur)+'</span>':'<span class="any">Any brawler</span>'}</summary><div class="bpop"><input type="text" class="dr-input bsearch" placeholder="Type a brawler and press Enter" autocomplete="off" spellcheck="false" aria-label="Search brawler"><button type="button" class="bopt"${fk} data-fv="${side}:${k}:"><span>Any</span></button>${fa[side][k].map(([b,n])=>`<button type="button" class="bopt${cur===b?' on':''}"${fk} data-fv="${side}:${k}:${esc(b)}" title="${esc(b)} (${n})">${bimg(b,'bi')||''}<span>${esc(b)}</span><small>${n}</small></button>`).join('')}</div></details>`}).join('')}</div></div>`;
   const own=subject==='own';
+  const wlHTML=(()=>{let sw=0,sl=0,gw=0,gl=0;for(const x of sub){if(x.s)continue;if(x.win===1)sw++;else if(x.win===0)sl++;const m=String(x.sc||'').match(/(\d+)\D+(\d+)/);if(m){gw+=+m[1];gl+=+m[2]}}
+    const pc=(w,l)=>w+l?(100*w/(w+l)).toFixed(2).replace('.',',')+'%':'–';
+    const row=(lab,w,l)=>{const t=w+l,r=t?w/t:0;return `<div class="wlr"><span class="wlab">${lab}</span><span class="wn w">${w}</span><span class="wmid"><b class="wpct" style="${t?wrHeat(r):''}">${pc(w,l)}</b><i class="wbar"><u style="width:${Math.round(r*100)}%"></u></i></span><span class="wn l">${l}</span></div>`};
+    return `<div class="wlb" title="Wins and losses of the sets that match the filters (single games not counted)"><div class="wlr wlh"><span></span><span>Won</span><span>Win rate</span><span>Lost</span></div>${row('Games',gw,gl)}${row('Sets',sw,sl)}</div>`})();
   const what=own?esc(team)+(pool?'':'\'s')+' brawlers':'Brawlers used against '+esc(team);
   const what2=own?esc(team)+(pool?'':'\'s')+' combos':'Combos used against '+esc(team);
   const wrl=`of ${esc(team)}`;
   const logAll=sub.slice().sort((x,y)=>y.d<x.d?-1:y.d>x.d?1:y.i-x.i);
   const nSingles=logAll.filter(x=>x.s).length,log=logAll.filter(x=>(showSingles||!x.s)&&(comboRes==='all'||(comboRes==='win'?x.win===1:x.win===0)));
-  return {team,cls,key,pool,CS,combos,active,items0,sub,what,what2,wrl,log,nSingles,mapCols,
+  return {team,cls,key,pool,wlHTML,CS,combos,active,items0,sub,what,what2,wrl,log,nSingles,mapCols,
     selects:(l1,l2)=>selects('own',l1)+selects('enemy',l2),tsel:(l1,l2)=>tsel('own',l1)+tsel('enemy',l2),
     summary:`<div class="toolrow"><button type="button" class="btn quiet"${fk} data-clear="1"${active?'':' disabled'}>Clear filters</button><span class="sumline"><b>${CS.games}</b> counted sets${active?' match the filters':''} on ${esc(filterLabel())}${CS.games<15?'<span class="flag">low data</span>':''}</span></div>`,
     logTitle:`Set log · ${log.filter(x=>!x.s).length} sets${active?' matching the filters':''}${log.some(x=>x.s)?` · ${log.filter(x=>x.s).length} single game${log.filter(x=>x.s).length===1?'':'s'} (not counted)`:''}`,
@@ -1994,6 +2014,7 @@ function deepDive(){
   const subjSeg=`<div class="seg2" role="group" aria-label="Which side"><button type="button" data-subj="own" aria-pressed="${subject==='own'}">${pool?'Brawlers of '+esc(team):esc(team)+'\'s brawlers'}</button><button type="button" data-subj="enemy" aria-pressed="${subject==='enemy'}">Brawlers used against ${esc(team)}</button></div>`;
   return `<h3 class="sec-h">${pool?'Pooled team stats':'Team deep dive'}</h3>
     ${pool?'':one?'<div style="margin:2px 0 12px;display:flex;justify-content:center">'+tstrip(team,';min-width:260px')+'</div>':'<div class="segs" style="justify-content:center">'+teamSeg+'</div>'}
+    ${D.wlHTML}
     <div class="toolrow">${subjSeg}</div>
     <p class="msg" style="margin:0 0 10px">${desc}</p>
     <div class="pdgrid${pool?'':' p3'}"><div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0" title="${D.what}">${own?'Brawlers':'Brawlers used against'}${active?' (filtered)':''} · ${CS.picks.length}</div></div>
@@ -2004,7 +2025,7 @@ function deepDive(){
       <div class="scroll pds">${rankTable(combos,cls,comboKind==='duos'?'Duo':'Full Combo',[],D.wrl)}</div></div>${pool?'':rivCol(team,cls)}</div>${D.np}
     <div class="fwrap" style="margin-top:18px">
     <div class="fbar">${D.selects('Filter: '+(pool?'selected teams':esc(team))+' brawlers','Filter: enemy brawlers')}</div>
-    <div class="fbar" style="margin-top:0">${D.tsel('Filter: '+(pool?'selected teams':esc(team))+' brawler types','Filter: enemy brawler types')}</div>
+    <div class="fbar" style="margin-top:0">${D.tsel('Filter: '+(pool?'selected teams':esc(team))+' types','Filter: enemy types')}</div>
     ${D.summary}
     </div>
     <div class="toolrow" style="justify-content:center"><div class="ttl" style="margin:0">${D.logTitle}</div>${resSeg()}${nSingles||!showSingles?`<label class="chk"><input type="checkbox" data-sgl="1"${showSingles?' checked':''}> Show single games (${nSingles})</label>`:''}</div>
@@ -2025,9 +2046,9 @@ function pairDeep(){
   return `<h3 class="sec-h">Team deep dive</h3>
     <div class="toolrow">${subjSeg}<div class="seg2" role="group" aria-label="Combo size"><button type="button" data-ck="duos" aria-pressed="${comboKind==='duos'}">Duos</button><button type="button" data-ck="trios" aria-pressed="${comboKind==='trios'}">Full Combo</button></div><label class="chk" title="Only combos used more than once"><input type="checkbox" data-rep="1"${onlyRepeat?' checked':''}> Only repeated</label></div>
     <p class="msg" style="margin:0 0 10px">Win rate is always the one of the team in each column${own?'':' (its results in the sets where the rival used that brawler)'}. Each team has its own filters below.</p>
-    <div class="pdgrid p4">${tstrip(sel.a,';grid-column:span 2')}${tstrip(sel.b,';grid-column:span 2')}${col(A,'p')}${col(A,'c')}${col(B,'p')}${col(B,'c')}</div>
+    <div class="pdgrid p4">${tstrip(sel.a,';grid-column:span 2')}${tstrip(sel.b,';grid-column:span 2')}<div style="grid-column:span 2">${A.wlHTML}</div><div style="grid-column:span 2">${B.wlHTML}</div>${col(A,'p')}${col(A,'c')}${col(B,'p')}${col(B,'c')}</div>
     ${two(D=>`<div>${D.np}</div>`)}
-    <div class="pair2 fwrap" style="margin-top:18px">${[A,B].map(D=>`<div class="pfilt">${tstrip(D.team)}<div class="fbar">${D.selects('Filter: '+esc(D.team)+' brawlers','Filter: enemy brawlers')}</div><div class="fbar" style="margin-top:0">${D.tsel('Filter: '+esc(D.team)+' brawler types','Filter: enemy brawler types')}</div>${D.summary}</div>`).join('')}</div>
+    <div class="pair2 fwrap" style="margin-top:18px">${[A,B].map(D=>`<div class="pfilt">${tstrip(D.team)}<div class="fbar">${D.selects('Filter: '+esc(D.team)+' brawlers','Filter: enemy brawlers')}</div><div class="fbar" style="margin-top:0">${D.tsel('Filter: '+esc(D.team)+' types','Filter: enemy types')}</div>${D.summary}</div>`).join('')}</div>
     <div class="toolrow" style="justify-content:center;margin-top:14px"><div class="ttl" style="margin:0">Set log</div>${resSeg()}${nSingles||!showSingles?`<label class="chk"><input type="checkbox" data-sgl="1"${showSingles?' checked':''}> Show single games (${nSingles})</label>`:''}</div>
     ${[A,B].map(D=>`<div class="plog">${tstrip(D.team)}<p class="msg" style="margin:6px 0 0;text-align:center">${D.logTitle}</p>${D.logHTML}</div>`).join('')}
     <div class="pair2" style="margin-top:6px">${[A,B].map(D=>`<div>${tstrip(D.team)}${D.types}</div>`).join('')}</div>
@@ -2243,7 +2264,10 @@ function datesTab(){
     detail=`<div class="mviewrow"><div class="seg2" role="group" aria-label="View"><button type="button" data-mv="cards" aria-pressed="${matchView==='cards'}">Detail</button><button type="button" data-mv="table" aria-pressed="${matchView==='table'}">Table</button></div></div><div class="mbox">${mheadHTML(r,team)}${matchView==='cards'?`<div class="sets">${sets}</div>`:''}${scrimHTML(r,team)}</div>${matchView==='table'?tbl:''}<p class="foot" style="margin-top:12px">A match is every set played against the same rival on that day. Each card is one set: the CSV rounds with the same map, players and brawlers in the same order (3 at most) are grouped, and the number on the left is the round score. The score at the top counts sets won. A single-round game (dimmed) is shown but does not count in the score, the stats or the prediction.</p>`;
   }
   return `<div class="lbl" style="margin:14px 0 6px">Team</div><div class="segs" style="margin-bottom:14px">${seg}</div>
-    <div class="mtop">${recentHTML(team,mf)}<div class="calrow">${calendarHTML(played,dates)}<div class="oppcol"><div class="lbl">Opponents on ${fmtDate(dateSel)}</div><p class="msg" style="margin:2px 0 0;font-size:13px">${plural(info.n,'set')} in ${info.rivals} ${info.rivals===1?'match':'matches'}</p><div class="opps">${cards}</div></div></div></div>${detail}`;
+    <div class="mpickrow"><div class="dbox"><button type="button" class="dbtn${calOpen?' open':''}" data-calopen="1" aria-expanded="${calOpen}"><span class="dl">Date</span><b>${fmtDate(dateSel)}</b><small>${plural(info.n,'set')} · ${info.rivals} ${info.rivals===1?'match':'matches'}</small><span class="dcar">▾</span></button>${calOpen?`<div class="calpop">${calendarHTML(played,dates)}</div>`:''}</div>
+    <div class="oppcol"><div class="lbl">Opponents on ${fmtDate(dateSel)}</div><div class="opps">${cards}</div></div></div>
+    <div class="mpickdet">${detail}</div>
+    <div class="mtop" style="margin-top:18px">${recentHTML(team,mf)}</div>`;
 }
 function applyView(){
   document.querySelectorAll('.mnav').forEach(b=>b.setAttribute('aria-selected',(b.dataset.view===view||(b.dataset.view==='draft'&&view==='suggest'))?'true':'false'));
@@ -2865,7 +2889,8 @@ $('statsscope').addEventListener('click',e=>{
   if(e.target.closest('[data-pall]')){poolTeams=allTeams();rs();return}
   if(e.target.closest('[data-pnone]')){poolTeams=[];rs()}
 });
-document.addEventListener('click',e=>{if(!e.target.isConnected)return;document.querySelectorAll('details.bpick[open]').forEach(d=>{if(!d.contains(e.target))d.open=false})});
+document.addEventListener('click',e=>{if(calOpen&&e.target.isConnected&&!e.target.closest('.dbox')&&!e.target.closest('[data-calopen]')){calOpen=false;renderDetail();return}
+  if(!e.target.isConnected)return;document.querySelectorAll('details.bpick[open]').forEach(d=>{if(!d.contains(e.target))d.open=false})});
 $('detailpanel').addEventListener('click',e=>{
   const tb=e.target.closest('.tabbtn');if(tb){tab=tb.dataset.tab;renderDetail();return}
   const sm=e.target.closest('[data-sm]');if(sm){const m=sm.dataset.sm;if(!m)statMaps=[];else{const i=statMaps.indexOf(m);if(i>=0)statMaps.splice(i,1);else statMaps.push(m)}renderDetail();return}
@@ -2881,7 +2906,8 @@ $('detailpanel').addEventListener('click',e=>{
   const cr=e.target.closest('[data-clear]');if(cr&&!cr.disabled){if(cr.dataset.fk)clrFS(cr.dataset.fk);else clrF();renderDetail();return}
   const dt=e.target.closest('[data-dt]');if(dt){dateTeam=dt.dataset.dt;dateSel=null;rivalSel=0;calMonth=null;renderDetail();return}
   const ri=e.target.closest('[data-ri]');if(ri){rivalSel=+ri.dataset.ri;renderDetail();const t=document.querySelector('.mviewrow');if(t)t.scrollIntoView({behavior:'smooth',block:'start'});return}
-  const dy=e.target.closest('[data-day]');if(dy){dateSel=dy.dataset.day;rivalSel=+(dy.dataset.lri||0);calMonth=dateSel.slice(0,7);const fromList=!!dy.closest('.recent');renderDetail();if(fromList){const t=document.querySelector('.mviewrow');if(t)t.scrollIntoView({behavior:'smooth',block:'start'})}return}
+  const dy=e.target.closest('[data-day]');if(dy){dateSel=dy.dataset.day;rivalSel=+(dy.dataset.lri||0);calMonth=dateSel.slice(0,7);calOpen=false;const fromList=!!dy.closest('.recent');renderDetail();if(fromList){const t=document.querySelector('.mpickrow');if(t)t.scrollIntoView({behavior:'smooth',block:'start'})}return}
+  const co=e.target.closest('[data-calopen]');if(co){calOpen=!calOpen;renderDetail();return}
   const cl=e.target.closest('[data-cal]');if(cl&&!cl.disabled){const [y,m]=calMonth.split('-').map(Number);const d=new Date(Date.UTC(y,m-1+(+cl.dataset.cal),1));calMonth=d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0');renderDetail();return}
 });
 $('detailpanel').addEventListener('change',e=>{
@@ -4161,6 +4187,13 @@ document.addEventListener('input',e=>{if(e.target.id!=='tpQ')return;const q=e.ta
   o.querySelectorAll('[data-mt]').forEach(b=>{b.hidden=!!q&&!b.dataset.mt.toLowerCase().includes(q)});
   o.querySelectorAll('.glab').forEach(g=>{let n=g.nextElementSibling,any=false;while(n&&!n.classList.contains('glab')){if(!n.hidden)any=true;n=n.nextElementSibling}g.hidden=!any})});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&TP)tpClose()});
+// typeable brawler filter in the set log filters: type, Enter picks the first match
+document.addEventListener('toggle',e=>{const d=e.target;if(d&&d.matches&&d.matches('details.bpick')&&d.open){const i=d.querySelector('.bsearch');if(i&&!matchMedia('(pointer:coarse)').matches)setTimeout(()=>i.focus(),20)}},true);
+document.addEventListener('input',e=>{const i=e.target;if(!i.classList||!i.classList.contains('bsearch'))return;const q=i.value.trim().toLowerCase();
+  i.closest('.bpop').querySelectorAll('.bopt[title]').forEach(b=>{b.hidden=!!q&&!(b.querySelector('span').textContent.toLowerCase().includes(q))})});
+document.addEventListener('keydown',e=>{const i=e.target;if(!i.classList||!i.classList.contains('bsearch'))return;
+  if(e.key==='Enter'){e.preventDefault();const q=i.value.trim().toLowerCase(),L=[...i.closest('.bpop').querySelectorAll('.bopt[title]')].filter(b=>!b.hidden),ex=L.find(b=>b.querySelector('span').textContent.toLowerCase()===q);const b=ex||L[0];if(b)b.click()}
+  else if(e.key==='Escape'){const d=i.closest('details');if(d)d.open=false}});
 
 // ---- Drafts tab inside Team Stats
 function draftTeams(){return scope==='one'?[curOne()]:scope==='pool'?(poolTeams||[]):[sel.a,sel.b].filter(Boolean)}
