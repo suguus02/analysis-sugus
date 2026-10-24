@@ -1004,6 +1004,17 @@ table.rank td.ic,.pgrid .rank td.ic{text-align:left}table.rank th:nth-child(2),.
 .calpop{position:absolute;z-index:30;top:100%;left:0;margin-top:6px;box-shadow:0 12px 34px rgba(0,0,0,.55);border-radius:12px}.calpop .cal{max-width:262px;width:262px;padding:10px}.calpop .day{height:28px;font-size:12px}.calpop .calhead button{width:28px;height:28px}.calpop .cjump{max-height:120px}
 .mpickrow .oppcol{flex:1 1 380px;min-width:0}.mpickrow .opps{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}.mpickrow .opp{flex:0 1 210px;padding:8px 10px;gap:4px}
 .wlb{width:100%;max-width:400px;margin:8px auto 4px;display:grid;gap:2px;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-variant-numeric:tabular-nums}.pdgrid .wlb{margin:0 auto}
+.wlrow{display:flex;gap:14px;align-items:stretch;justify-content:center;flex-wrap:wrap;margin:8px 0 4px}.wlrow .wlb{margin:0;width:auto;max-width:none;flex:0 0 380px}
+.lub{flex:0 1 400px;min-width:260px;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:12px;padding:6px 8px;display:flex;flex-direction:column;min-height:0}
+.lub.in{margin-top:8px;flex:none;width:100%}
+.luh{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;text-align:center;padding:1px 0 4px}
+.lul{overflow:auto;max-height:118px;display:flex;flex-direction:column;gap:2px}
+.lur{display:flex;align-items:center;gap:8px;padding:3px 6px;border-radius:7px;font-size:12px;cursor:pointer;background:none;border:0;color:var(--fg);text-align:left;width:100%}
+.lur:hover{background:rgba(255,255,255,.06)}.lur.on{background:rgba(224,176,32,.14)}
+.lur .cbx{flex:none;width:14px;height:14px;border:1.5px solid var(--muted);border-radius:4px;line-height:11px;font-size:11px;text-align:center;color:#111}.lur.on .cbx{background:#e0b020;border-color:#e0b020}
+.lur .ln{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.lur .lg{color:var(--muted);font-size:11px;white-space:nowrap}.lur .lw{font-family:var(--mono);font-weight:700;min-width:38px;text-align:right}
+.lur.all{font-weight:700;border-bottom:1px solid var(--line);border-radius:7px 7px 0 0}
+.lus{font-size:10.5px;color:var(--muted);text-align:center;padding-top:3px}
 .wlr{display:grid;grid-template-columns:62px 1fr 1.7fr 1fr;gap:8px;align-items:center;padding:3px 0}
 .wlr+.wlr{border-top:1px solid var(--line)}
 .wlh{padding:0 0 2px}.wlh span{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;text-align:center}
@@ -1916,7 +1927,7 @@ function compareHTML(){
     <div class="cmphead"><div class="teamrow" style="justify-content:flex-end;color:var(--a)">${logo(sel.a,'l28')}<b>${esc(sel.a)}</b></div><div></div><div class="teamrow" style="color:var(--b)"><b>${esc(sel.b)}</b>${logo(sel.b,'l28')}</div></div>
     <div class="cmp">${rows||'<p class="msg">No brawlers in common in the top 20 for this selection.</p>'}</div>`;
 }
-const clrF=()=>{flt={own:['','',''],enemy:['','','']};tfs={own:{n:1,k:''},enemy:{n:1,k:''}};if(typeof clrFS==='function')clrFS()};
+const clrF=()=>{LUS['']=null;flt={own:['','',''],enemy:['','','']};tfs={own:{n:1,k:''},enemy:{n:1,k:''}};if(typeof clrFS==='function')clrFS()};
 let TLIST=TYPE_ORDER.slice();
 function tvec(x,side){const k='_t'+side;if(x[k])return x[k];const v=new Array(TLIST.length).fill(0);for(const b of (side==='own'?x.mine:x.theirs))if(b){const i=TLIST.indexOf(typeOf(b));if(i>=0)v[i]++}return x[k]=v}
 function kvec(key){const v=new Array(TLIST.length).fill(0);if(key)for(const q of key.split(' + ')){const i=TLIST.indexOf(q);if(i>=0)v[i]++}return v}
@@ -1949,14 +1960,38 @@ function recentHTML(team,mf){
   return `<div class="recent"><div class="ttl" style="margin-top:0">Latest scrims · last ${dts.length} days played${mf?' · selected maps only':''}</div><div class="lslist">${rows||'<p class="msg">No sets</p>'}</div></div>`;
 }
 const FSA={flt:{own:['','',''],enemy:['','','']},tfs:{own:{n:1,k:''},enemy:{n:1,k:''}}},FSB={flt:{own:['','',''],enemy:['','','']},tfs:{own:{n:1,k:''},enemy:{n:1,k:''}}};
-const clrFS=k=>{for(const [n,F] of [['A',FSA],['B',FSB]])if(!k||k===n){F.flt={own:['','',''],enemy:['','','']};F.tfs={own:{n:1,k:''},enemy:{n:1,k:''}}}};
+const clrFS=k=>{for(const [n,F] of [['A',FSA],['B',FSB]])if(!k||k===n){LUS[n]=null;F.flt={own:['','',''],enemy:['','','']};F.tfs={own:{n:1,k:''},enemy:{n:1,k:''}}}};
 const FK=k=>k==='A'?FSA:k==='B'?FSB:{get flt(){return flt},get tfs(){return tfs}};
 const tstrip=(t,extra)=>`<div class="tstrip" data-tc="${esc(t)}" style="--tc:${tcol(t)}${extra||''}">${logo(t,'l40')}<b>${esc(t)}</b></div>`;
 // everything one team shows in the deep dive; key = 'A'/'B' (compare 2 teams, own filters) or '' (1 team / pool)
+const LUS={'':null,A:null,B:null},LUK={'':[],A:[],B:[]};
+function luApply(team,items,key,stack){
+  const PL=(FULL&&FULL.pickPlayers&&FULL.pickPlayers[team.toUpperCase()])||[],tg2n={};
+  for(const p of PL)for(const g of p.tags||[])tg2n[g]=p.name;
+  const keyOf=x=>[...new Set(x.myTags.map((g,k)=>g==null?null:(tg2n[g]||x.myNames[k]||PLAYER_NAMES[g]||g)).filter(Boolean))].sort((a,b)=>a<b?-1:1).join(' · ');
+  const L={};
+  for(const x of items){const k=keyOf(x);if(!k)continue;const e=L[k]||(L[k]={k,g:0,s:0,w:0,l:0,d:''});
+    if(x.s)continue;const m=String(x.sc||'').match(/(\d+)\D+(\d+)/);if(m){e.g+=(+m[1])+(+m[2])}
+    if(x.win===1){e.s++;e.w++}else if(x.win===0){e.s++;e.l++}else e.s++;if(x.d>e.d)e.d=x.d}
+  const list=Object.values(L).filter(e=>e.s).sort((a,b)=>b.g-a.g||b.s-a.s||(a.k<b.k?-1:1));
+  LUK[key]=list.map(e=>e.k);
+  let sel=LUS[key];
+  if(sel){sel=new Set([...sel].filter(k=>L[k]));if(!sel.size&&LUS[key]&&LUS[key].size&&false)sel=null}
+  if(sel&&!list.some(e=>sel.has(e.k)))sel=LUS[key]=null;
+  const all=!sel||list.every(e=>sel.has(e.k)),nsel=sel?list.filter(e=>sel.has(e.k)).length:list.length;
+  const fk=key?` data-fk="${key}"`:'';
+  const on=e=>!sel||sel.has(e.k);
+  const rows=list.map((e,i)=>`<button type="button" class="lur${on(e)?' on':''}"${fk} data-lu="${i}" title="${esc(e.k)} · last played ${esc(fmtDate(e.d))}"><span class="cbx">${on(e)?'✓':''}</span><span class="ln">${esc(e.k)}</span><span class="lg">${e.g} games · ${e.s} sets</span><span class="lw" style="${e.w+e.l?wrHeat(e.w/(e.w+e.l)):''}">${e.w+e.l?Math.round(100*e.w/(e.w+e.l))+'%':'–'}</span></button>`).join('');
+  const tg=list.reduce((a,e)=>[a[0]+e.g,a[1]+e.s,a[2]+e.w,a[3]+e.l],[0,0,0,0]);
+  const html=list.length?`<div class="lub${stack?' in':''}"><div class="luh">Lineups · players who played together</div><div class="lul"><button type="button" class="lur all${all?' on':''}"${fk} data-luall="1"><span class="cbx">${all?'✓':''}</span><span class="ln">ALL</span><span class="lg">${tg[0]} games · ${tg[1]} sets</span><span class="lw">${tg[2]+tg[3]?Math.round(100*tg[2]/(tg[2]+tg[3]))+'%':'–'}</span></button>${rows}</div><div class="lus">${nsel} of ${list.length} lineups selected</div></div>`:'';
+  const out=sel?items.filter(x=>{const k=keyOf(x);return !k||sel.has(k)}):items;
+  return {items:out,html};
+}
 function ddBuild(team,cls,key,pool){
   const F=FK(key),flt=F.flt,tfs=F.tfs;
   let items;
   if(pool){const pt=(poolTeams||(poolTeams=allTeams())).filter(x=>M.D.off.includes(x));items=[];for(const t of pt)for(const x of Engine.setList(ds,DB,t,mapsFilter()))items.push(Object.assign({team:t},x))}else items=Engine.setList(ds,DB,team,mapsFilter());
+  let LU=null;if(!pool){LU=luApply(team,items,key,!!key);items=LU.items}
   TLIST=[...new Set([...TYPE_ORDER,...Object.values(BTYPE),'OTHER'])];
   const items0=items,base=Engine.applyFilter(items0.filter(x=>!x.s),flt.own,flt.enemy);
   const tOpts={};
@@ -1996,7 +2031,7 @@ function ddBuild(team,cls,key,pool){
   const wrl=`of ${esc(team)}`;
   const logAll=sub.slice().sort((x,y)=>y.d<x.d?-1:y.d>x.d?1:y.i-x.i);
   const nSingles=logAll.filter(x=>x.s).length,log=logAll.filter(x=>(showSingles||!x.s)&&(comboRes==='all'||(comboRes==='win'?x.win===1:x.win===0)));
-  return {team,cls,key,pool,wlHTML,CS,combos,active,items0,sub,what,what2,wrl,log,nSingles,mapCols,
+  return {team,cls,key,pool,wlHTML,lu:LU?LU.html:'',CS,combos,active,items0,sub,what,what2,wrl,log,nSingles,mapCols,
     selects:(l1,l2)=>selects('own',l1)+selects('enemy',l2),tsel:(l1,l2)=>tsel('own',l1)+tsel('enemy',l2),
     summary:`<div class="toolrow"><button type="button" class="btn quiet"${fk} data-clear="1"${active?'':' disabled'}>Clear filters</button><span class="sumline"><b>${CS.games}</b> counted sets${active?' match the filters':''} on ${esc(filterLabel())}${CS.games<15?'<span class="flag">low data</span>':''}</span></div>`,
     logTitle:`Set log · ${log.filter(x=>!x.s).length} sets${active?' matching the filters':''}${log.some(x=>x.s)?` · ${log.filter(x=>x.s).length} single game${log.filter(x=>x.s).length===1?'':'s'} (not counted)`:''}`,
@@ -2014,7 +2049,7 @@ function deepDive(){
   const subjSeg=`<div class="seg2" role="group" aria-label="Which side"><button type="button" data-subj="own" aria-pressed="${subject==='own'}">${pool?'Brawlers of '+esc(team):esc(team)+'\'s brawlers'}</button><button type="button" data-subj="enemy" aria-pressed="${subject==='enemy'}">Brawlers used against ${esc(team)}</button></div>`;
   return `<h3 class="sec-h">${pool?'Pooled team stats':'Team deep dive'}</h3>
     ${pool?'':one?'<div style="margin:2px 0 12px;display:flex;justify-content:center">'+tstrip(team,';min-width:260px')+'</div>':'<div class="segs" style="justify-content:center">'+teamSeg+'</div>'}
-    ${D.wlHTML}
+    ${pool?D.wlHTML:`<div class="wlrow">${D.wlHTML}${D.lu}</div>`}
     <div class="toolrow">${subjSeg}</div>
     <p class="msg" style="margin:0 0 10px">${desc}</p>
     <div class="pdgrid${pool?'':' p3'}"><div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0" title="${D.what}">${own?'Brawlers':'Brawlers used against'}${active?' (filtered)':''} · ${CS.picks.length}</div></div>
@@ -2046,7 +2081,7 @@ function pairDeep(){
   return `<h3 class="sec-h">Team deep dive</h3>
     <div class="toolrow">${subjSeg}<div class="seg2" role="group" aria-label="Combo size"><button type="button" data-ck="duos" aria-pressed="${comboKind==='duos'}">Duos</button><button type="button" data-ck="trios" aria-pressed="${comboKind==='trios'}">Full Combo</button></div><label class="chk" title="Only combos used more than once"><input type="checkbox" data-rep="1"${onlyRepeat?' checked':''}> Only repeated</label></div>
     <p class="msg" style="margin:0 0 10px">Win rate is always the one of the team in each column${own?'':' (its results in the sets where the rival used that brawler)'}. Each team has its own filters below.</p>
-    <div class="pdgrid p4">${tstrip(sel.a,';grid-column:span 2')}${tstrip(sel.b,';grid-column:span 2')}<div style="grid-column:span 2">${A.wlHTML}</div><div style="grid-column:span 2">${B.wlHTML}</div>${col(A,'p')}${col(A,'c')}${col(B,'p')}${col(B,'c')}</div>
+    <div class="pdgrid p4">${tstrip(sel.a,';grid-column:span 2')}${tstrip(sel.b,';grid-column:span 2')}<div style="grid-column:span 2">${A.wlHTML}${A.lu}</div><div style="grid-column:span 2">${B.wlHTML}${B.lu}</div>${col(A,'p')}${col(A,'c')}${col(B,'p')}${col(B,'c')}</div>
     ${two(D=>`<div>${D.np}</div>`)}
     <div class="pair2 fwrap" style="margin-top:18px">${[A,B].map(D=>`<div class="pfilt">${tstrip(D.team)}<div class="fbar">${D.selects('Filter: '+esc(D.team)+' brawlers','Filter: enemy brawlers')}</div><div class="fbar" style="margin-top:0">${D.tsel('Filter: '+esc(D.team)+' types','Filter: enemy types')}</div>${D.summary}</div>`).join('')}</div>
     <div class="toolrow" style="justify-content:center;margin-top:14px"><div class="ttl" style="margin:0">Set log</div>${resSeg()}${nSingles||!showSingles?`<label class="chk"><input type="checkbox" data-sgl="1"${showSingles?' checked':''}> Show single games (${nSingles})</label>`:''}</div>
@@ -2225,7 +2260,7 @@ function mheadHTML(r,team){
 function scrimHTML(r,team){
   const all=r.sets,real0=all.filter(s=>!s.s),sets=real0.length?real0:all,M2={};
   for(const s of sets){const e=M2[s.map]||(M2[s.map]={n:0,w:0});e.n++;e.w+=s.win===1?1:s.win===0.5?.5:0}
-  const mrows=Object.entries(M2).sort((a,b)=>b[1].n-a[1].n).map(([m,e])=>`<tr><td class="ic">${modeIcon(m)}</td><td class="ic">${mimg(m,'th')||''}</td><td class="mn">${esc(m)}</td><td class="num">${e.n}</td><td class="num">${e.w}</td><td class="num heat" style="${wrHeat(e.w/e.n)}">${Math.round(100*e.w/e.n)}%</td></tr>`).join('');
+  const mrows=Object.entries(M2).sort((a,b)=>b[1].n-a[1].n).map(([m,e])=>`<tr><td class="ic">${modeIcon(m)}</td><td class="ic">${mimg(m,'th')||''}</td><td class="mn"${mapCol(m)}>${esc(m)}</td><td class="num">${e.n}</td><td class="num">${e.w}</td><td class="num heat" style="${wrHeat(e.w/e.n)}">${Math.round(100*e.w/e.n)}%</td></tr>`).join('');
   const nm=r.named?r.name:'Rival';
   return `<div class="scrim"><div class="sumbox"><div class="spt">Scrim summary</div>
     <div class="sumline"><b>${esc(team)}</b> ${r.w>r.l?'won':r.w<r.l?'lost':'drew'} <b>${r.w}-${r.l}</b> against <b>${esc(nm)}</b></div>
@@ -2236,7 +2271,7 @@ function scrimHTML(r,team){
 function datesTab(){
   if(scope==='pool')return '<p class="msg">The match selector works with one team or with two teams. Choose "1 team" or "Compare 2 teams" above.</p>';
   const one=scope==='one',team=one?curOne():teamOf(dateTeam),mine=one||dateTeam==='A'?'a':'b',other=mine==='a'?'b':'a';
-  const mf=mapsFilter(),dates=Engine.datesFor(ds,DB,team,mf);
+  const mf=null,dates=Engine.datesFor(ds,DB,team,mf); // the match selector always shows every map (it ignores the maps chosen in Team stats)
   if(!dates.length)return '<p class="msg" style="margin-top:12px">This team has no sets'+(mf?' on the selected maps':'')+' in the data.</p>';
   if(!dateSel||!dates.some(x=>x.d===dateSel)){dateSel=dates[0].d;rivalSel=0;calMonth=dateSel.slice(0,7)}
   const seg=one?`<span class="teamrow">${logo(team,'l28')}<b style="color:${tcol(team)}">${esc(team)}</b></span>`:['A','B'].map(s=>`<button type="button" class="seg${s===dateTeam?' on '+s:''}" data-dt="${s}" aria-pressed="${s===dateTeam}">${logo(teamOf(s),'l20')}${esc(teamOf(s))}</button>`).join('');
@@ -2258,7 +2293,7 @@ function datesTab(){
     const sets=r.sets.map((s,i)=>{
       const [sc,st]=s.win===1?['win','Victory']:s.win===0?['lose','Defeat']:['draw','Draw'];
       const trio=(brs,names,tags,tm)=>`<div class="trio">${brs.map((b,k)=>`<div class="bcell"><span class="bnm">${esc(b||'—')}</span>${bimg(b,'bi card')}<span class="pbold${isSub(tm,tags&&tags[k])?' sub':''}"${isSub(tm,tags&&tags[k])?` title="${SUBT}"`:''}>${esc(sheetName(tags&&tags[k],names[k])||'—').replace('|','|<wbr>')}</span></div>`).join('')}</div>`;
-      return `<div class="set${s.s?' solo':''}"><div class="sethead"><span class="res ${sc}">${st.toUpperCase()}${s.s?'<small>single game · not counted</small>':''}</span><span class="setmap">${esc(s.map)}</span><span class="mapimg">${mimg(s.map,'')}</span></div><div class="matchup"><span class="setno" title="Round score">${esc(s.sc||'')}</span>${trio(s.mine,s.myNames,s.myTags,team)}<span class="vs">VS</span>${trio(s.theirs,s.opNames,s.opTags,r.named?r.name:'')}</div></div>`;
+      return `<div class="set${s.s?' solo':''}"><div class="sethead"><span class="res ${sc}">${st.toUpperCase()}${s.s?'<small>single game · not counted</small>':''}</span><span class="setmap"${mapCol(s.map)}>${esc(s.map)}</span><span class="mapimg">${mimg(s.map,'')}</span></div><div class="matchup"><span class="setno" title="Round score">${esc(s.sc||'')}</span>${trio(s.mine,s.myNames,s.myTags,team)}<span class="vs">VS</span>${trio(s.theirs,s.opNames,s.opTags,r.named?r.name:'')}</div></div>`;
     }).join('');
     const tbl=logTable(r.sets.map(x=>Object.assign({d:dateSel,myTeam:team,opTeam:r.named?r.name:''},x)),{});
     detail=`<div class="mviewrow"><div class="seg2" role="group" aria-label="View"><button type="button" data-mv="cards" aria-pressed="${matchView==='cards'}">Detail</button><button type="button" data-mv="table" aria-pressed="${matchView==='table'}">Table</button></div></div><div class="mbox">${mheadHTML(r,team)}${matchView==='cards'?`<div class="sets">${sets}</div>`:''}${scrimHTML(r,team)}</div>${matchView==='table'?tbl:''}<p class="foot" style="margin-top:12px">A match is every set played against the same rival on that day. Each card is one set: the CSV rounds with the same map, players and brawlers in the same order (3 at most) are grouped, and the number on the left is the round score. The score at the top counts sets won. A single-round game (dimmed) is shown but does not count in the score, the stats or the prediction.</p>`;
@@ -2903,6 +2938,8 @@ $('detailpanel').addEventListener('click',e=>{
   const fc=e.target.closest('[data-focus]');if(fc){focus=fc.dataset.focus;clrF();renderDetail();return}
   const sj=e.target.closest('[data-subj]');if(sj){subject=sj.dataset.subj;renderDetail();return}
   const mv=e.target.closest('[data-mv]');if(mv){matchView=mv.dataset.mv;renderDetail();return}
+  const lua=e.target.closest('[data-luall]');if(lua){const k=lua.dataset.fk||'',keys=LUK[k]||[],s=LUS[k];LUS[k]=(!s||keys.every(x=>s.has(x)))?(s?new Set():new Set()):null;if(!s)LUS[k]=new Set();renderDetail();return}
+  const lu=e.target.closest('[data-lu]');if(lu){const k=lu.dataset.fk||'',keys=LUK[k]||[],nm=keys[+lu.dataset.lu];let s=LUS[k]?new Set(LUS[k]):new Set(keys);if(s.has(nm))s.delete(nm);else s.add(nm);LUS[k]=keys.every(x=>s.has(x))?null:s;renderDetail();return}
   const cr=e.target.closest('[data-clear]');if(cr&&!cr.disabled){if(cr.dataset.fk)clrFS(cr.dataset.fk);else clrF();renderDetail();return}
   const dt=e.target.closest('[data-dt]');if(dt){dateTeam=dt.dataset.dt;dateSel=null;rivalSel=0;calMonth=null;renderDetail();return}
   const ri=e.target.closest('[data-ri]');if(ri){rivalSel=+ri.dataset.ri;renderDetail();const t=document.querySelector('.mviewrow');if(t)t.scrollIntoView({behavior:'smooth',block:'start'});return}
@@ -3586,6 +3623,7 @@ function sgHTML(){
 
 // ---- Team card (summary + PNG export)
 const CARD_RED='#e63950';
+const mapCol=m=>{const md=modeOfMap(m),c=md&&MODE_COL[mkey(md)];return c?` style="color:${c}"`:''};
 function modeOfMap(m){const e=MODELIST.find(([mode,l])=>l.some(n=>mkey(n)===mkey(m)));return e?e[0]:''}
 function cardChart(days){
   if(!days.length)return '<p class="msg">No sets in this period.</p>';
