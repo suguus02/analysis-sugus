@@ -994,6 +994,7 @@ table.rank td.ic,.pgrid .rank td.ic{text-align:left}table.rank th:nth-child(2),.
 .pgrid.p6{margin-top:16px}.pdgrid.p4{margin-top:16px}
 .todaybox{margin-top:6px;text-align:center}.todaybtn{font:inherit;font-size:12px;color:var(--muted);background:transparent;border:1px solid var(--line);border-radius:99px;padding:3px 11px;cursor:pointer}.todaybtn i{display:inline-block;width:7px;height:7px;border-radius:50%;background:#3ecf6e;margin-right:6px}.todaybtn:hover{color:var(--fg)}.todaylist{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:8px}.todayt{display:inline-flex;align-items:center;gap:5px;font-size:12px;border:1px solid var(--line);border-radius:8px;padding:2px 8px;background:var(--bg)}.todayt small{color:var(--muted)}
 .mpk.pr .mc-in{padding:5px 7px}.mpk.pr .mc-pr{margin-top:2px}
+.tdot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#3ecf6e;box-shadow:0 0 0 2px rgba(62,207,110,.28);flex:none}.tile,.tsel{position:relative}.tile>.tdot,.tsel .tdot{position:absolute;top:7px;right:7px;z-index:2}
 </style>
 
 <div class="wrap">
@@ -1010,7 +1011,6 @@ table.rank td.ic,.pgrid .rank td.ic{text-align:left}table.rank th:nth-child(2),.
       <div class="pgrp ctr"><span class="lbl ttl">Period</span><div id="rcal"></div></div>
       <div class="hdrleft">
     <div class="sheetrow" style="margin-top:0;justify-content:center"><button class="btn sheetmain" id="sheetGo" type="button" title="Reads again only the rows after the permanent ones (fast)"><svg class="ricon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>Refresh games</button><button class="btn quiet sheetall" id="sheetAll" type="button" title="Reads every row of the sheet again (slow). Use it after changing the permanent rows.">Refresh Whole Document</button><span class="msg" id="sheetInfo"></span></div>
-        <div id="todayBox" class="todaybox"></div>
         <div class="pgrp ctr"><span class="lbl ttl">Games</span><div class="prow"><div class="seg2" id="fType" role="group" aria-label="Game type"><button type="button" data-ty="all" aria-pressed="true">All</button><button type="button" data-ty="tournament" aria-pressed="false">Tournament</button><button type="button" data-ty="friendly" aria-pressed="false">Friendly</button></div></div></div>
       </div>
     </div>
@@ -1792,7 +1792,6 @@ function h2hHTML(A,B){
 function periodText(){const ty=(typeof flt2!=='undefined'&&flt2&&flt2.type)?flt2.type:'all';return (FULL&&ds&&ds.matches.length?'games in the selected period and type':'selected period')}
 function render(){
   if(!M)return;
-  try{todayRender()}catch(e){}
   if(view==='bal')renderBal();
   $('h2hpanel').hidden=true;
   const D=M.D;
@@ -2061,7 +2060,7 @@ function scopeHTML(){
   const regs=[...new Set(off.map(t=>REGION[t]).filter(Boolean))];
   const leg=`<div class="reglegend">${regs.map(r=>`<span><i style="background:${REGC[r]}"></i>${r}</span>`).join('')}</div>`;
   const box=(open,label,inner,cls,tc)=>`<button type="button" class="tsel${cls?' '+cls:''}" data-tpopen="${open}" data-tc="${esc((tc||[]).join('¦'))}"><span class="tsel-sh"></span><span class="tsel-in"><span class="tsel-l">${label}</span>${inner}</span></button>`;
-  const one1=t=>t?`${logo(t,'l40')}<span class="tsel-t"><b>${esc(t)}</b><small>${wt(t)}</small></span>`:`<span class="tsel-t"><b>Select team</b></span>`;
+  const one1=t=>t?`${tdot(t)}${logo(t,'l40')}<span class="tsel-t"><b>${esc(t)}</b><small>${wt(t)}</small></span>`:`<span class="tsel-t"><b>Select team</b></span>`;
   let body='';
   if(scope==='one'){body=`<div class="tselrow">${box('one','Team',one1(curOne()),'',[curOne()])}</div><p class="msg" style="margin:8px 0 0">Pick one team. Every number on the page is that team's own record, and the box takes the colour of its logo.</p>`}
   else if(scope==='pool'){const pt=(poolTeams||(poolTeams=allTeams())).filter(x=>off.includes(x));
@@ -3166,19 +3165,11 @@ async function sheetCheck(){
     }else updateSheetInfo();
   }catch(e){}
 }
-function todayRender(){
-  const el=$('todayBox');if(!el)return;
-  if(!FULL||!FULL.matches){el.innerHTML='';return}
-  const t=todayISO(),T={},known=new Set(allTeams());
-  for(const m of FULL.matches){if(balND(m.d)!==t||/tourn/i.test(m.ty||''))continue;
-    for(const x of [m.a,m.b]){if(!x||!known.has(x))continue;const e=T[x]||(T[x]={t:x,n:0,w:0});e.n++;e.w+=(x===m.a?m.y:1-m.y)===1?1:0}}
-  const L=Object.values(T).sort((a,b)=>b.n-a.n||a.t.localeCompare(b.t));
-  const open=el.dataset.open==='1';
-  el.innerHTML=`<button type="button" class="todaybtn" data-today="1" aria-expanded="${open}"><i></i>Today: ${L.length} ${L.length===1?'team':'teams'} played scrims</button>`+(open?`<div class="todaylist">${L.length?L.map(x=>`<span class="todayt" title="${esc(x.t)} · ${plural(x.n,'game')}">${logo(x.t,'l20')}<b>${esc(x.t)}</b><small>${x.n}</small></span>`).join(''):'<span class="msg">No scrims in the data yet today.</span>'}</div>`:'');
-}
-document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-today]');if(!b)return;const el=$('todayBox');el.dataset.open=el.dataset.open==='1'?'0':'1';todayRender()});
+let _ptK='',_ptV={};
+function playedToday(){const t=todayISO(),k=t+'|'+(FULL?FULL.matches.length:0);if(k===_ptK)return _ptV;_ptK=k;_ptV={};if(!FULL||!FULL.matches)return _ptV;
+  for(const m of FULL.matches){if(balND(m.d)!==t||/tourn/i.test(m.ty||''))continue;for(const x of [m.a,m.b])if(x)_ptV[x]=(_ptV[x]||0)+1}return _ptV}
+const tdot=t=>{const n=playedToday()[t];return n?`<i class="tdot" title="Played scrims today · ${plural(n,'game')}"></i>`:''};
 function updateSheetInfo(){
-  todayRender();
   const el=$('sheetInfo');if(!el)return;
   el.textContent=FULL&&FULL.source==='Google Sheets'?`Updated ${hhmm(FULL.syncedAt||Date.now())} · checked ${hhmm(lastCheck||FULL.syncedAt||Date.now())} · checks every 10 min`+(FULL.missing&&FULL.missing.length?` · no players linked yet for: ${FULL.missing.join(', ')} (write their 3 tags next to the team in the Picks sheet, columns J to L)`:'')+(FULL.syncNote?` · last refresh: ${FULL.syncNote}`:''):'';
 }
@@ -4109,7 +4100,7 @@ const TPCB={};
 function tpBox(key,label,cur,fn,o){o=o||{};TPCB[key]={fn,cur,none:o.none||'',excl:o.excl||[]};
   const WR=wrAll(),wt=t=>WR[t]&&WR[t].n?wrTxt(WR[t]):(M.D.off.includes(t)?'–':'NO DATA');
   if(o.small)return `<button type="button" class="tpsm" data-tpopen="cb:${esc(key)}" title="Change team">${cur?`<b>${esc(cur)}</b>`:`<b>${esc(o.none||'Select team')}</b>`}<span>▾</span></button>`;
-  const inner=cur?`${logo(cur,'l40')}<span class="tsel-t"><b>${esc(cur)}</b><small>${wt(cur)}</small></span>`:`<span class="tsel-t"><b>${esc(o.none||'Select team')}</b></span>`;
+  const inner=cur?`${tdot(cur)}${logo(cur,'l40')}<span class="tsel-t"><b>${esc(cur)}</b><small>${wt(cur)}</small></span>`:`<span class="tsel-t"><b>${esc(o.none||'Select team')}</b></span>`;
   return `<button type="button" class="tsel${o.cls?' '+o.cls:''}" data-tpopen="cb:${esc(key)}" data-tc="${esc(cur||'')}"><span class="tsel-sh"></span><span class="tsel-in"><span class="tsel-l">${label}</span>${inner}</span></button>`}
 function tpTeams(){const off=allTeams();if(TP&&TP.mode==='cb'){const c=TPCB[TP.key]||{excl:[]};return off.filter(t=>!c.excl.includes(t))}return TP&&TP.mode==='pair'?off.filter(t=>M.D.off.includes(t)):off}
 function tpSetPair(s,team){const i=M.D.off.indexOf(team);if(i<0)return;const me=$('sel'+s),ot=$('sel'+(s==='A'?'B':'A'));if(+ot.value===i)ot.value=me.value;me.value=i;render()}
@@ -4132,7 +4123,7 @@ function tpRender(){
   let o=$('teamov');if(o)o.remove();if(!TP||!M)return;
   const W=wrAll(),teams=tpTeams(),wt=t=>W[t]&&W[t].n?wrTxt(W[t]):(M.D.off.includes(t)?'–':'NO DATA');
   const pool=TP.mode==='pool';
-  const body=grpOrder(teams,W).map(([l,ts])=>`<div class="glab${pool?' glab-click':''}"${pool?` data-tpgrp="${esc(ts.join('|'))}" title="Click to add or remove the whole group"`:''}>${l}${pool?' <em>· select all</em>':''}</div>${ts.map(t=>{const r=REGION[t],s=tpState(t);return `<button type="button" class="tile${s?' '+s:''}"${r?` data-reg="${esc(r)}"`:''} data-mt="${esc(t)}" aria-pressed="${!!s}" title="${esc(t)} · win rate ${wt(t)} sets">${logo(t,'l40')}<span>${esc(t)}</span><small class="twr">${wt(t)}</small></button>`}).join('')}`).join('');
+  const body=grpOrder(teams,W).map(([l,ts])=>`<div class="glab${pool?' glab-click':''}"${pool?` data-tpgrp="${esc(ts.join('|'))}" title="Click to add or remove the whole group"`:''}>${l}${pool?' <em>· select all</em>':''}</div>${ts.map(t=>{const r=REGION[t],s=tpState(t);return `<button type="button" class="tile${s?' '+s:''}"${r?` data-reg="${esc(r)}"`:''} data-mt="${esc(t)}" aria-pressed="${!!s}" title="${esc(t)} · win rate ${wt(t)} sets">${tdot(t)}${logo(t,'l40')}<span>${esc(t)}</span><small class="twr">${wt(t)}</small></button>`}).join('')}`).join('');
   const regs=[...new Set(teams.map(t=>REGION[t]).filter(Boolean))];
   const leg=`<div class="reglegend">${regs.map(r=>`<span><i style="background:${REGC[r]}"></i>${r}</span>`).join('')}</div>`;
   const el=document.createElement('div');el.id='teamov';el.className='dr-ov';
