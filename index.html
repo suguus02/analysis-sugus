@@ -742,6 +742,7 @@ textarea.dr-input{resize:vertical;font-size:14px}
 .dr-sfil{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin:6px 0 12px}
 .dr-tabs{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-bottom:14px}
 .dr-tabs .tt{font-weight:700;font-size:13px;margin-bottom:2px}.dr-tabs .tablewrap{margin-top:4px;max-height:420px;overflow:auto}
+.dr-sub{font-weight:800;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--line)}
 .dr-tabs .dr-wide2{grid-column:span 2}@media(max-width:900px){.dr-tabs .dr-wide2{grid-column:auto}}
 .dr-tabs .dr-mini{margin-left:10px;vertical-align:middle}.dr-tabs .lsep{border-left:1px solid var(--line)}
 .dmaps{text-align:left;white-space:normal}.dmc{display:inline-block;font-size:11px;font-weight:600;background:rgba(255,255,255,.06);border-radius:5px;padding:1px 6px;margin:1px 3px 1px 0;white-space:nowrap}
@@ -2958,6 +2959,7 @@ $('detailpanel').addEventListener('click',e=>{
   const lua=e.target.closest('[data-luall]');if(lua){const k=lua.dataset.fk||'',keys=LUK[k]||[],s=LUS[k];LUS[k]=(!s||keys.every(x=>s.has(x)))?(s?new Set():new Set()):null;if(!s)LUS[k]=new Set();renderDetail();return}
   const lu=e.target.closest('[data-lu]');if(lu){const k=lu.dataset.fk||'',keys=LUK[k]||[],nm=keys[+lu.dataset.lu];let s=LUS[k]?new Set(LUS[k]):new Set(keys);if(s.has(nm))s.delete(nm);else s.add(nm);LUS[k]=keys.every(x=>s.has(x))?null:s;renderDetail();return}
   const cr=e.target.closest('[data-clear]');if(cr&&!cr.disabled){if(cr.dataset.fk)clrFS(cr.dataset.fk);else clrF();renderDetail();return}
+  const dem=e.target.closest('[data-drem]');if(dem){DR.eMode=dem.dataset.drem;renderDetail();return}
   const dbc=e.target.closest('[data-drbc]');if(dbc){DR.bComb=dbc.dataset.drbc;renderDetail();return}
   const dgc=e.target.closest('[data-drgc]');if(dgc){DR.gComb=dgc.dataset.drgc;renderDetail();return}
   const mtc=e.target.closest('[data-mt]');if(mtc){msTeam=mtc.dataset.mt;rivalSel=0;renderDetail();return}
@@ -3261,7 +3263,7 @@ function updateSheetInfo(){
 const DR_HEAD=['Id','Date','Mode','Map','Coin','Blue','Red','BlueBan1','BlueBan2','BlueBan3','RedBan1','RedBan2','RedBan3','Pick1','Pick2','Pick3','Pick4','Pick5','Pick6','BlueGlobal1','BlueGlobal2','RedGlobal1','RedGlobal2','Winner','Notes','Saved'];
 const DRAFT_API={url:'https://script.google.com/macros/s/AKfycbywZBCQCDPvyo_GzljALFo5FqRgst82m7f63DYfifssu98z8q9giuhRGC929Nj9AK8waw/exec',token:'SUGUS'}; // filled in once the Apps Script web app is deployed
 const drCfg=()=>({url:DRAFT_API.url||store.get('tvt:drurl')||'',token:DRAFT_API.token||store.get('tvt:drtok')||''});
-const DR={fOrder:'',list:[],local:[],loaded:false,err:'',cur:null,pop:null,confirm:null,fTeam:'',fMap:'',sMap:'',sCoin:'',bComb:'trios',gComb:'single',link:null,busy:false,msg:'',bad:false};
+const DR={fOrder:'',list:[],local:[],loaded:false,err:'',cur:null,pop:null,confirm:null,fTeam:'',fMap:'',sMap:'',sCoin:'',eMode:'team',bComb:'trios',gComb:'single',link:null,busy:false,msg:'',bad:false};
 try{DR.list=JSON.parse(store.get('tvt:drafts')||'[]')}catch(e){}
 try{DR.local=JSON.parse(store.get('tvt:drlocal')||'[]')}catch(e){}
 const pickSide=(coin,n)=>{const o=coin==='blue'?'red':'blue';return (n===1||n===4||n===5)?coin:o};
@@ -4259,20 +4261,21 @@ function drTopChips(map,limit){const arr=Object.entries(map).sort((a,b)=>b[1]-a[
   return arr.length?arr.map(([n,c])=>`<span class="dr-tc">${bimg(n,'bi')||''}${esc(n)} <b>×${c}</b></span>`).join(''):'<span class="msg">–</span>'}
 const bI=n=>`<span title="${esc(n)}">${bimg(n,'bi')||esc(n)}</span>`;
 const pc2=(w,n)=>n?`<td class="num heat" style="${wrHeat(w/n)}">${Math.round(w/n*100)}%</td>`:'<td class="num msg">–</td>';
-function drTablesFor(list,teams,pickFocus){
+function drTablesBlock(list,teams,mode){
   const pk={},bn={},gbS={},gbD={},bnT={},bnD={};let w=0,l=0,nd=0;
   const ent=(m,k,mk)=>m[k]||(m[k]=mk());
   for(const d of list){let used=false;
     for(const s of ['b','r']){const full=s==='b'?'blue':'red',team=d[full];if(!teams.includes(team))continue;used=true;
-      const won=d.winner===full,known=!drUnk(d),first=known&&d.coin===full;if(d.winner){if(won)w++;else l++}
-      [1,2,3,4,5,6].filter(n=>pickSide(d.coin,n)===full).forEach(n=>{const b=d.picks[n-1];if(!b)return;
+      if(d.winner){if(d.winner===full)w++;else l++}
+      const ts=mode==='enemy'?(s==='b'?'r':'b'):s,tf=ts==='b'?'blue':'red',won=d.winner===tf,known=!drUnk(d),first=known&&d.coin===tf;
+      [1,2,3,4,5,6].filter(n=>pickSide(d.coin,n)===tf).forEach(n=>{const b=d.picks[n-1];if(!b)return;
         const e=ent(pk,b,()=>({n:0,w:0,f:{n:0,w:0},z:{n:0,w:0}}));e.n++;if(won)e.w++;
         if(known&&n===1){e.f.n++;if(won)e.f.w++}if(known&&n===6){e.z.n++;if(won)e.z.w++}});
-      const bs=d.bans[s].filter(Boolean);
+      const bs=d.bans[ts].filter(Boolean);
       bs.forEach(b=>{const e=ent(bn,b,()=>({n:0,f:0,z:0}));e.n++;if(known){if(first)e.f++;else e.z++}});
       const comb=(arr,size,out)=>{const k=[...arr].sort().join(' + ');if(arr.length===size)ent(out,k,()=>({n:0})).n++};
       comb(bs,3,bnT);if(bs.length>=2)for(let i=0;i<bs.length;i++)for(let j=i+1;j<bs.length;j++)comb([bs[i],bs[j]],2,bnD);
-      const gs=d.gb[s].filter(Boolean);
+      const gs=d.gb[ts].filter(Boolean);
       gs.forEach(b=>{const e=ent(gbS,b,()=>({n:0,maps:{}}));e.n++;if(d.map)e.maps[d.map]=(e.maps[d.map]||0)+1});
       if(gs.length===2){const k=[...gs].sort().join(' + '),e=ent(gbD,k,()=>({n:0,maps:{}}));e.n++;if(d.map)e.maps[d.map]=(e.maps[d.map]||0)+1}}
     if(used)nd++}
@@ -4290,7 +4293,13 @@ function drTablesFor(list,teams,pickFocus){
   const bcRows=srt(bcM).map(([k,e],i)=>`<tr><td class="rk">${i+1}</td><td class="ic">${ics(k)}</td><td class="num">${e.n}</td></tr>`).join('');
   const gc=DR.gComb==='duos'?'duos':'single',gM=gc==='duos'?gbD:gbS;
   const gRows=srt(gM).map(([k,e],i)=>`<tr><td class="rk">${i+1}</td><td class="ic">${ics(k)}</td><td class="num">${e.n}</td><td class="dmaps">${mapsH(e.maps)}</td></tr>`).join('');
-  return sum+`<div class="dr-tabs">${wrap('Picks',pkH,pkRows,'dr-wide2')}${wrap('Bans',bnH,bnRows,'dr-wide2')}${wrap('Banned together (one team)','<tr><th class="rk"></th><th>'+(bc==='duos'?'Duo':'Trio')+'</th><th class="num">Times</th></tr>',bcRows,'',sw('data-drbc',bc,['trios','Trios'],['duos','Duos']))}${wrap('Global bans','<tr><th class="rk"></th><th>'+(gc==='duos'?'Duo':'Brawler')+'</th><th class="num">Times</th><th>Maps</th></tr>',gRows,'dr-wide2',sw('data-drgc',gc,['single','Single'],['duos','Duos']))}</div>`}
+  return {sum,tabs:`<div class="dr-tabs">${wrap('Picks',pkH,pkRows,'dr-wide2')}${wrap('Bans',bnH,bnRows,'dr-wide2')}${wrap('Banned together (one team)','<tr><th class="rk"></th><th>'+(bc==='duos'?'Duo':'Trio')+'</th><th class="num">Times</th></tr>',bcRows,'',sw('data-drbc',bc,['trios','Trios'],['duos','Duos']))}${wrap('Global bans','<tr><th class="rk"></th><th>'+(gc==='duos'?'Duo':'Brawler')+'</th><th class="num">Times</th><th>Maps</th></tr>',gRows,'dr-wide2',sw('data-drgc',gc,['single','Single'],['duos','Duos']))}</div>`}}
+function drTablesFor(list,teams,pickFocus){
+  const m=DR.eMode==='enemy'?'enemy':DR.eMode==='both'?'both':'team';
+  const seg=`<span class="seg2" style="margin:0 0 10px"><button type="button" data-drem="team" aria-pressed="${m==='team'}">Selected team</button><button type="button" data-drem="enemy" aria-pressed="${m==='enemy'}">Enemies</button><button type="button" data-drem="both" aria-pressed="${m==='both'}">Both</button></span>`;
+  const A=m!=='enemy'?drTablesBlock(list,teams,'team'):null,B=m!=='team'?drTablesBlock(list,teams,'enemy'):null;
+  const head=(txt)=>`<div class="dr-sub">${txt}</div>`;
+  return (A||B).sum+seg+(A?(m==='both'?head('Selected team'):'')+A.tabs:'')+(B?(m==='both'?head('Enemies (the rivals in these drafts)'):'')+B.tabs:'')}
 function draftsTab(){
   const T=draftTeams(),all=drAll();
   const base=all.filter(d=>scope==='pair'?(T.length===2&&((d.blue===T[0]&&d.red===T[1])||(d.blue===T[1]&&d.red===T[0]))):T.includes(d.blue)||T.includes(d.red));
