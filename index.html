@@ -2324,7 +2324,7 @@ function datesTab(){
 }
 function applyView(){
   document.querySelectorAll('.mnav').forEach(b=>b.setAttribute('aria-selected',(b.dataset.view===view||(b.dataset.view==='draft'&&view==='suggest'))?'true':'false'));
-  $('predview').hidden=view!=='pred';$('statsview').hidden=view!=='stats';$('tourview').hidden=view!=='tour';$('checkview').hidden=view!=='check';$('brawlview').hidden=view!=='brawl';$('balview').hidden=view!=='bal';$('draftview').hidden=view!=='draft'&&view!=='suggest';$('statsscope').hidden=view!=='stats';$('pickpanel').hidden=view==='tour'||view==='check'||view==='brawl'||view==='bal'||view==='draft'||view==='suggest'||view==='stats';
+  $('predview').hidden=view!=='pred';$('statsview').hidden=view!=='stats';$('tourview').hidden=view!=='tour';$('checkview').hidden=view!=='check';$('brawlview').hidden=view!=='brawl';$('balview').hidden=view!=='bal';$('draftview').hidden=view!=='draft'&&view!=='suggest';$('statsscope').hidden=view!=='stats'||tab==='scout'||tab==='match';$('pickpanel').hidden=view==='tour'||view==='check'||view==='brawl'||view==='bal'||view==='draft'||view==='suggest'||view==='stats';
   if(view==='check')renderCheck();if(view==='brawl'){renderBrawl();brLoad()}if(view==='bal')renderBal();if(view==='tour')renderTour();drSwitch();if(view==='draft'||view==='suggest')drRender();
   $('mapsbox').hidden=view!=='pred';decorateTiles();
 }
@@ -2929,8 +2929,8 @@ $('tourview').addEventListener('change',e=>{
 });
 function renderDetail(){
   document.querySelectorAll('.tabbtn').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===tab?'true':'false'));
-  $('statsscope').innerHTML=tab==='scout'?'':scopeHTML();tselPaint();
-  const nd=tab!=='drafts'&&tab!=='scout'&&((scope==='one'&&!M.D.off.includes(curOne()))||(scope==='pool'&&poolTeams&&!poolTeams.some(t=>M.D.off.includes(t))));
+  $('statsscope').innerHTML=(tab==='scout'||tab==='match')?'':scopeHTML();$('statsscope').hidden=view!=='stats'||tab==='scout'||tab==='match';tselPaint();
+  const nd=tab!=='drafts'&&tab!=='scout'&&tab!=='match'&&((scope==='one'&&!M.D.off.includes(curOne()))||(scope==='pool'&&poolTeams&&!poolTeams.some(t=>M.D.off.includes(t))));
   $('detail').innerHTML=nd?'<div class="nodata">NO DATA</div>':tab==='stats'?statsTab():tab==='players'?playersTab():tab==='drafts'?draftsTab():tab==='card'?cardTab():tab==='scout'?scoutHTML():datesTab();
   applyView();decorateTiles();tselPaint();
 }
@@ -3272,8 +3272,8 @@ const drNew=()=>({id:'',date:todayISO(),mode:'',map:'',coin:'blue',blue:'',red:'
 DR.cur=drNew();
 const drClone=d=>JSON.parse(JSON.stringify(d));
 // the draft type is kept inside the Notes column as a tag, e.g. [[MQ|2026-02|C]] (MQ = Monthly Qualifier, MF = Monthly Final, C = date confirmed), so the DRAFTS sheet keeps its columns
-const KIND_NAME={mq:'Monthly Qualifier',mf:'Monthly Final'};
-function drTag(o){let n=o.notes||'';const m=/^\[\[(MQ|MF)\|(\d{4}-\d{2})?(\|C)?\]\]\s*/.exec(n);if(m){o.kind=m[1].toLowerCase();o.km=m[2]||'';o.dc=m[3]?'C':'';n=n.slice(m[0].length)}else{o.kind='';o.km='';o.dc=''}
+const KIND_NAME={mq:'Monthly Qualifier',mf:'Monthly Final',tr:'Tournament'};
+function drTag(o){let n=o.notes||'';const m=/^\[\[(MQ|MF|TR)\|(\d{4}-\d{2})?(\|C)?\]\]\s*/.exec(n);if(m){o.kind=m[1].toLowerCase();o.km=m[2]||'';o.dc=m[3]?'C':'';n=n.slice(m[0].length)}else{o.kind='';o.km='';o.dc=''}
   const pk=/^\[\[PK\|([^\]]*)\]\]\s*/.exec(n);o.mp='';if(pk){o.mp=pk[1].trim().toUpperCase()==='-'?'-':pk[1].trim().toUpperCase();n=n.slice(pk[0].length)}o.notes=n;return o}
 const drUnk=d=>d.kind==='mq'; // side (coin) unknown
 const drTagged=d=>{const t=(d.kind?`[[${d.kind.toUpperCase()}|${d.km||''}${d.dc?'|C':''}]]`:'')+(d.mp?`[[PK|${String(d.mp).replace(/[\]|]/g,'')}]]`:'');return t+(t&&d.notes?' ':'')+d.notes}
@@ -3398,10 +3398,10 @@ function drEditorHTML(){
   const isSaved=d.id&&(DR.list.some(x=>x.id===d.id)||DR.local.some(x=>x.id===d.id));
   const below=`<div class="dr-below"><div class="dr-row1"><label class="dr-field"><span class="lbl">Date</span><input type="date" class="dr-input" id="drDate" value="${esc(d.date)}"></label>
     <label class="dr-field notes"><span class="lbl">Notes</span><textarea class="dr-input" id="drNotes" rows="3">${esc(d.notes)}</textarea></label></div>
-    <div class="dr-row1"><label class="dr-field"><span class="lbl">Draft type</span><select class="dr-input" id="drKind"><option value="">Normal</option><option value="mq"${d.kind==='mq'?' selected':''}>Monthly Qualifier</option><option value="mf"${d.kind==='mf'?' selected':''}>Monthly Final</option></select></label>
+    <div class="dr-row1"><label class="dr-field"><span class="lbl">Draft type</span><select class="dr-input" id="drKind"><option value="">Normal</option><option value="mq"${d.kind==='mq'?' selected':''}>Monthly Qualifier</option><option value="mf"${d.kind==='mf'?' selected':''}>Monthly Final</option><option value="tr"${d.kind==='tr'?' selected':''}>Tournament</option></select></label>
       <label class="dr-field"><span class="lbl">Map picked by</span><select class="dr-input" id="drMP"><option value="">Unknown</option>${[...new Set([d.blue,d.red,(d.mp&&d.mp!=='-')?d.mp:''].filter(Boolean))].map(t=>`<option value="${esc(t)}"${d.mp===t?' selected':''}>${esc(t)}</option>`).join('')}<option value="-"${d.mp==='-'?' selected':''}>Decider (nobody picked it)</option></select></label>
       ${d.kind?`<div class="dr-field"><span class="lbl">Date</span><div class="dr-find"><button type="button" class="btn quiet" data-dfind="1">Find the match date</button>${d.dc?'':'<button type="button" class="btn quiet" data-dexact="1">The date is exact</button>'}${d.dc?'<span class="dr-badge ok">date confirmed</span>':'<span class="dr-badge">date not confirmed</span>'}</div></div>`:''}</div>
-    ${d.kind?`<p class="msg" style="margin:0">${d.kind==='mq'?'Monthly qualifier: write the whole draft; the 1st pick side is not recorded, so this draft is left out of the 1st/last pick figures. ':''}“Find the match date” looks for a tournament game with these picks and this map in the month of the date (teams that are not in the Picks sheet are matched by their picks only), and asks you before changing the date.</p>${DR.link?drLinkHTML():''}`:''}
+    ${d.kind?`<p class="msg" style="margin:0">${d.kind==='tr'?'Tournament: the 1st pick side is recorded as usual and the global bans are optional (leave them empty if that tournament has none). ':''}${d.kind==='mq'?'Monthly qualifier: write the whole draft; the 1st pick side is not recorded, so this draft is left out of the 1st/last pick figures. ':''}“Find the match date” looks for a tournament game with these picks and this map in the month of the date (teams that are not in the Picks sheet are matched by their picks only), and asks you before changing the date.</p>${DR.link?drLinkHTML():''}`:''}
     <div class="dr-btns"><button type="button" class="btn" data-dsave="1"${DR.busy?' disabled':''}>${isSaved?'Update draft':'Save draft'}</button><button type="button" class="btn quiet" data-dnext="1">Next map (keep teams and global bans)</button><button type="button" class="btn quiet" data-dclear="1">Clear draft</button></div></div>
     <p class="dr-msg${DR.bad?' bad':''}" role="status" style="margin-top:8px">${esc(DR.msg)}</p>`;
   if(DR.sug)return `<section class="panel">${drSubHTML()}<div class="dr-hd"><h2 class="ttl" style="margin:0">Draft Suggestion</h2><div class="seg2" style="margin-top:0" role="group" aria-label="How to choose brawlers"><button type="button" data-dmode="grid" aria-pressed="${DR.mode==='grid'}">Brawler rows</button><button type="button" data-dmode="list" aria-pressed="${DR.mode==='list'}">Pop-up list</button></div></div>
