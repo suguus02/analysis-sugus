@@ -742,6 +742,8 @@ textarea.dr-input{resize:vertical;font-size:14px}
 .dr-sfil{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin:6px 0 12px}
 .dr-tabs{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-bottom:14px}
 .dr-tabs .tt{font-weight:700;font-size:13px;margin-bottom:2px}.dr-tabs .tablewrap{margin-top:4px;max-height:420px;overflow:auto}
+.sc-fix{border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin:8px 0 12px;background:rgba(255,255,255,.03)}.fxrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.fxchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:2px 4px 2px 6px;background:rgba(255,255,255,.05);font-size:12px}.fxchip small{color:var(--muted)}.fxchip button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:15px;padding:0 4px}
 .dr-sub{font-weight:800;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--line)}
 .dr-tabs .dr-wide2{grid-column:span 2}@media(max-width:900px){.dr-tabs .dr-wide2{grid-column:auto}}
 .dr-tabs .dr-mini{margin-left:10px;vertical-align:middle}.dr-tabs .lsep{border-left:1px solid var(--line)}
@@ -2442,6 +2444,16 @@ function balBanProfile(team,C,flt){flt=flt||{};
   return {rows,tot};
 }
 // 2) and 3) expected bans of `me` (against `vs` when given): its habit + what the rival plays + what is strong in the league, minus what it plays itself
+// bans of ALL saved drafts (every team, both sides of each draft), split by the pick order of the team that made them (drafts with side unknown cannot be split)
+let _ssK='',_ssV=null;
+function banSideStats(){const A=drAll(),k=A.length+'|'+(A[0]&&A[0].id)+'|'+(A[0]&&A[0].saved);if(_ssK===k&&_ssV)return _ssV;
+  const f={},l={},nm={};let nd=0;
+  for(const d of A){if(drUnk(d)||!d.bans)continue;nd++;
+    for(const s of ['b','r']){const full=s==='b'?'blue':'red',first=d.coin===full,o=first?f:l;for(const b of d.bans[s]||[]){if(!b)continue;const q=mkey(b);o[q]=(o[q]||0)+1;nm[q]=b}}}
+  _ssK=k;_ssV={f,l,nm,nd};return _ssV}
+// fixed bans of the current meta, set by hand in Scouting: [{b:'AMBER',s:'first'|'last'|'both'}]
+const FIXB={list:(()=>{try{const v=JSON.parse(store.get('tvt:fixb')||'[]');return Array.isArray(v)?v.filter(x=>x&&x.b):[]}catch(e){return []}})()};
+const fixbSave=()=>store.set('tvt:fixb',JSON.stringify(FIXB.list));
 function balExpect(me,vs,C,flt,side,fbk){flt=flt||{};
   const U=me.toUpperCase(),V=vs?vs.toUpperCase():'',IDX=balIndex(),end=IDX.last||todayISO(),from=balFromDays(balDays(end)-45),to='9999';
   let k=C.cuts.length;while(k>0&&C.L[k].n<120)k--;
@@ -2471,9 +2483,9 @@ function balExpect(me,vs,C,flt,side,fbk){flt=flt||{};
     else L=[...((d.bans&&d.bans.b)||[]),...((d.bans&&d.bans.r)||[]),...((d.gb&&d.gb.b)||[]),...((d.gb&&d.gb.r)||[])];
     o.nd++;for(const b of L){if(!b)continue;const q=mkey(b);o.c[q]=(o.c[q]||0)+1;nm[q]=nm[q]||b}}return o};
   {const sdL=(fbk&&side)?side:'';let o=lbRun(pa,pz,sdL);if(o.nd<10){const o2=lbRun(from,'9999',sdL);if(o2.nd>o.nd){o=o2;fb.lb=1}}
-   if(sdL&&o.nd<10){o=lbRun(pa,pz,'');if(o.nd<10){const o2=lbRun(from,'9999','');if(o2.nd>o.nd)o=o2}fb.lbs=1}
+   if(sdL&&o.nd<10){const o3=lbRun('','9999',sdL);if(o3.nd>o.nd){o=o3;fb.lb=1}}
    LB.c=o.c;LB.nd=o.nd;LB.sd=o.sd}
-  const hasB=LB.nd>=10;
+  const hasB=LB.nd>=(LB.sd?6:10);
   const cand=new Set([...LW.top,...Object.keys(hab),...Object.entries(OR.c).sort((a,b)=>b[1]-a[1]).slice(0,15).map(x=>x[0]),...Object.entries(LW.c).sort((a,b)=>b[1]-a[1]).slice(0,25).map(x=>x[0]),...(hasB?Object.entries(LB.c).sort((a,b)=>b[1]-a[1]).slice(0,12).map(x=>x[0]):[])]);
   // meta strength of a brawler in this patch: mostly how often ALL teams ban it in their saved drafts (65%), plus how often it is picked (35%)
   const lbN=q=>hasB?(LB.c[q]||0)/((LB.sd?1:2)*LB.nd):0,lpN=q=>(LW.c[q]||0)/LN;
@@ -2489,9 +2501,14 @@ function balExpect(me,vs,C,flt,side,fbk){flt=flt||{};
     ST={n:T0.dr,nu,bans:T0.bans,m,t,o,ok:T0.dr>=8&&sum>0,pm:sum?m/sum:1/3,pt:sum?t/sum:1/3,po:sum?o/sum:1/3}}catch(e){ST=null}}
   const fS=p=>.5+1.5*p,sOn=ST&&ST.ok;
   const wh=fbk?(HNw>0?Math.min(.75,W0[0]*1.7*HNw/(HNw+1.5)):0):(HN>=5?W0[0]:0),wr=V&&OR.n>=8?W0[1]*(sOn?fS(ST.pt):1):0,wm=W0[2]*(sOn?fS(ST.pm):1),ws=wh+wr+wm;
+  const SS=side?banSideStats():null,FX=side?FIXB.list.map(x=>({q:mkey(x.b),s:x.s})).filter(x=>x.q):[];
+  for(const x of FX){if(!cand.has(x.q))cand.add(x.q);if(!nm[x.q]){const o=FIXB.list.find(y=>mkey(y.b)===x.q);nm[x.q]=o?o.b:x.q.toUpperCase()}}
   const out=[...cand].map(q=>{const selfF=TR.n>=8?1-.8*(sOn?1-.7*ST.po:1)*Math.min(1,tr(q)/.35)*(1-Math.min(1,1.6*hb(q))):1;
-    const sc=100*((wh*hb(q)/mxH)+(wr*orr(q)/mxO)+(wm*lr(q)/mxL))/ws*selfF;
-    return {q,b:nm[q]||q.toUpperCase(),sc,hab:hab[q]||0,orr:orr(q),lr:lr(q),tr:tr(q),lpR:lpN(q),lbR:lbN(q)}}).sort((a,b)=>b.sc-a.sc).slice(0,8);
+    let sc=100*((wh*hb(q)/mxH)+(wr*orr(q)/mxO)+(wm*lr(q)/mxL))/ws*selfF,sf=null,fx=0;
+    // pick-order habit of the whole league: a brawler that teams ban almost only with one pick order is pushed down for the other one
+    if(SS){const nf=SS.f[q]||0,nl=SS.l[q]||0,T=nf+nl;if(T>=4){const mine=side==='first'?nf:nl,sh0=(mine+.5)/(T+1);sf={n:mine,t:T};sc*=Math.max(.04,Math.min(1.4,sh0/.5))}}
+    const f=FX.find(x=>x.q===q);if(f){if(f.s==='both'||f.s===side){sc=Math.max(sc,96*selfF);fx=1}else sc*=.1}
+    return {q,b:nm[q]||q.toUpperCase(),sc:Math.min(100,sc),sf,fx,hab:hab[q]||0,orr:orr(q),lr:lr(q),tr:tr(q),lpR:lpN(q),lbR:lbN(q)}}).sort((a,b)=>b.sc-a.sc).slice(0,8);
   return {out,ST,HN,NS,NU,NM,hasH:wh>0,hN:HN,hw:HNw,hasR:wr>0,hasB,ndB:LB.nd,trN:TR.n,orN:OR.n,lgSets:Math.round(LN/2),from,end,fb};
 }
 
@@ -2963,6 +2980,8 @@ $('detailpanel').addEventListener('click',e=>{
   const lua=e.target.closest('[data-luall]');if(lua){const k=lua.dataset.fk||'',keys=LUK[k]||[],s=LUS[k];LUS[k]=(!s||keys.every(x=>s.has(x)))?(s?new Set():new Set()):null;if(!s)LUS[k]=new Set();renderDetail();return}
   const lu=e.target.closest('[data-lu]');if(lu){const k=lu.dataset.fk||'',keys=LUK[k]||[],nm=keys[+lu.dataset.lu];let s=LUS[k]?new Set(LUS[k]):new Set(keys);if(s.has(nm))s.delete(nm);else s.add(nm);LUS[k]=keys.every(x=>s.has(x))?null:s;renderDetail();return}
   const cr=e.target.closest('[data-clear]');if(cr&&!cr.disabled){if(cr.dataset.fk)clrFS(cr.dataset.fk);else clrF();renderDetail();return}
+  const fxa=e.target.closest('[data-fxadd]');if(fxa){const nm=($('fxName')||{}).value||'',sd=($('fxSide')||{}).value||'last',q=drNames().find(n=>mkey(n)===mkey(nm.trim()));if(q){FIXB.list=FIXB.list.filter(x=>mkey(x.b)!==mkey(q));FIXB.list.push({b:q.toUpperCase(),s:sd});fixbSave();renderDetail()}return}
+  const fxd=e.target.closest('[data-fxdel]');if(fxd){FIXB.list.splice(+fxd.dataset.fxdel,1);fixbSave();renderDetail();return}
   const dem=e.target.closest('[data-drem]');if(dem){DR.eMode=dem.dataset.drem;renderDetail();return}
   const dbc=e.target.closest('[data-drbc]');if(dbc){DR.bComb=dbc.dataset.drbc;renderDetail();return}
   const dgc=e.target.closest('[data-drgc]');if(dgc){DR.gComb=dgc.dataset.drgc;renderDetail();return}
@@ -3978,7 +3997,7 @@ function scoutHTML(){
   const mxr=(img,nm,a,b2,tt)=>`<div class="sc-mr"${tt?' title="'+esc(tt)+'"':''}><span class="sc-mn">${img||''}<b>${esc(nm)}</b></span><span class="sc-mv">${a}</span><span class="sc-mv">${b2}</span></div>`;
   const ptop=st.picks.filter(x=>x.n>=mn).map(x=>({x,s:(x.n/(st.picks.reduce((a,y)=>a+y.n,0)||1))*sh(x.w,x.n,.5)})).sort((a,b)=>b.s-a.s).slice(0,6).map(o=>o.x);
   const pT=ptop.length?`<div class="sc-mc"><p class="msg" style="margin:0 0 4px"><b>${esc(R)}</b> key picks${useMap?' on this map':''}</p>${ptop.map(x=>mxr(bimg(x.k,'bi'),x.k,x.n+' picks',pcs(x.w/x.n))).join('')}</div>`:'';
-  const exCol=(E,nm,sd)=>{const N=E?E.HN:0;return `<div class="sc-mc"><p class="msg" style="margin:0 0 6px;display:flex;align-items:center;gap:6px;white-space:nowrap;min-height:22px">${cn(sd)}<b>${sd==='first'?'1st pick':'last pick'}</b><span>· ${N} ${N===1?'draft':'drafts'}${E&&E.NU?' ('+E.NS+' + '+E.NU+' side unknown)':''}${E&&E.NM&&useMap?' · '+E.NM+' on this map':''}${E&&E.fb&&E.fb.hab?' · all pick orders':''}${N<3?'*':''}</span></p>${E&&E.out.length?E.out.slice(0,6).map(x=>mxr(bimg(x.b,'bi'),x.b,Math.round(x.sc),lab(x.sc),`${x.b}: own ban rate ${E.hw?Math.round(100*x.hab/E.hw):0}% (${E.hN} drafts) · the rival plays it in ${Math.round(x.orr*100)}% of its sets · league this patch: picked in ${Math.round(x.lpR*100)}% of sets, banned in ${Math.round(x.lbR*100)}% of the ${E.fb&&E.fb.lbs?'':(sd==='first'?'1st-pick ':'last-pick ')}team-drafts (${E.ndB} drafts)${x.tr>=.15?' · '+Math.round(x.tr*100)+'% of its own sets, so it is penalised':''}`)).join(''):'<p class="msg" style="margin:0">No estimate.</p>'}</div>`};
+  const exCol=(E,nm,sd)=>{const N=E?E.HN:0;return `<div class="sc-mc"><p class="msg" style="margin:0 0 6px;display:flex;align-items:center;gap:6px;white-space:nowrap;min-height:22px">${cn(sd)}<b>${sd==='first'?'1st pick':'last pick'}</b><span>· ${N} ${N===1?'draft':'drafts'}${E&&E.NU?' ('+E.NS+' + '+E.NU+' side unknown)':''}${E&&E.NM&&useMap?' · '+E.NM+' on this map':''}${E&&E.fb&&E.fb.hab?' · all pick orders':''}${N<3?'*':''}</span></p>${E&&E.out.length?E.out.slice(0,6).map(x=>mxr(bimg(x.b,'bi'),x.b,Math.round(x.sc),lab(x.sc),`${x.b}: own ban rate ${E.hw?Math.round(100*x.hab/E.hw):0}% (${E.hN} drafts) · the rival plays it in ${Math.round(x.orr*100)}% of its sets · league this patch: picked in ${Math.round(x.lpR*100)}% of sets, banned in ${Math.round(x.lbR*100)}% of the ${E.fb&&E.fb.lbs?'':(sd==='first'?'1st-pick ':'last-pick ')}team-drafts (${E.ndB} drafts)${x.tr>=.15?' · '+Math.round(x.tr*100)+'% of its own sets, so it is penalised':''}${x.fx?' · fixed meta ban (set by hand)':''}${x.sf?` · all teams: ${x.sf.n} of its ${x.sf.t} bans were made with the ${sd==='first'?'1st':'last'} pick`:''}`)).join(''):'<p class="msg" style="margin:0">No estimate.</p>'}</div>`};
   const styleLine=ST=>{if(!ST)return '';const dn=`${ST.n} ${ST.n===1?'draft':'drafts'}${ST.nu?' ('+ST.nu+' side unknown)':''}`;
     if(!ST.ok)return `<div class="sc-sty">Ban style: not enough drafts (${dn}, needs 8). Neutral weights used.</div>`;
     const pc=x=>Math.round(x*100)+'%',lead=[['meta bans',ST.pm],['target bans against the rival',ST.pt],['bans of its own picks',ST.po]].sort((a,b)=>b[1]-a[1])[0];
@@ -3990,7 +4009,15 @@ function scoutHTML(){
     if(f.tr||g.tr)o.push('a team has too few sets on this map, so its own picks use all maps');if(f.or||g.or)o.push('the rival has too few sets on this map, so its picks use all maps');if(f.lg||g.lg)o.push('too few league sets on this map, so the meta uses all maps');
     return `<p class="msg" style="font-size:11.5px;margin:4px 0 0"><span class="flag">${esc(SC.map)}</span> The bans use this map's sets (own picks, the rival's picks, the league meta) and the saved drafts on this map.${o.length?' Fallback: '+o.join('; ')+'.':''}</p>`})();
   const exErrH=balWait?`<p class="msg" style="margin:8px 0">${BALerr?esc(BALerr):'Loading the BALANCE tab to estimate the bans…'}</p>`:EXERR.length?`<p class="sc-warn" style="margin:8px 0">Could not estimate some bans (${esc(EXERR.slice(0,3).join(' | '))}). Please send this message so it can be fixed.</p>`:'';
-  const matchupH=(EXR.first||EXR.last||EXU.first||EXU.last||pT||EXERR.length||balWait)?sec('Matchup'+(useMap?' · '+esc(SC.map):''),`${exErrH}${pT?`<div class="sc-mg" style="grid-template-columns:minmax(0,1fr)">${pT}</div>`:''}<div class="sc-teams" style="margin-top:12px">${exTab(EXR,R)}${hasM?exTab(EXU,U):''}</div>${scDrafts(R)}${hasM?scDrafts(U):''}<p class="msg" style="font-size:11.5px;margin:8px 0 0">Blue coin = the team has the 1st pick, red coin = the last pick. Ban scores are an estimate (0-100) from the team's own ban habit in saved drafts with that pick order, what the rival plays and the current meta; Habit = the team's saved drafts on any map with that pick order, plus the ones with side unknown (they could be either); with a map chosen, the drafts on that map weigh 4 times more. The more drafts, the more the habit weighs (it never fully disappears with a single draft). * = fewer than 3 drafts for that pick order, so all its drafts are used. With the 1st pick the habit and the rival's picks weigh more; with the last pick the strength of the brawler in the meta weighs more. That strength is mostly how often all teams ban it (bans and global bans in the saved drafts of this patch, 65%) plus how often it is picked (35%); it needs 10+ drafts in the patch, otherwise only picks count. Hover a row to see why a brawler is there. The ban style line comes from all the team's drafts (side unknown included) across every patch: a team that mostly bans the meta gets more weight on meta strength, one that makes target bans gets more weight on the rival's picks, and one that bans what it plays itself is penalised less for banning its own brawlers. It needs 8+ drafts. Key picks = most used and winning${useMap?' on this map':''}.</p>${mapFbH}`):'';
+  const fixH=(()=>{const SS=banSideStats(),det=[];
+    for(const q of new Set([...Object.keys(SS.f),...Object.keys(SS.l)])){const nf=SS.f[q]||0,nl=SS.l[q]||0,T=nf+nl;if(T>=6&&Math.max(nf,nl)/T>=.9)det.push({b:SS.nm[q],s:nl>nf?'last':'1st',n:Math.max(nf,nl),T})}
+    det.sort((a,b)=>b.T-a.T);
+    const chips=FIXB.list.map((x,i)=>`<span class="fxchip">${bimg(x.b,'bi')||''}<b>${esc(x.b)}</b><small>${x.s==='both'?'any pick':x.s==='first'?'1st pick':'last pick'}</small><button type="button" data-fxdel="${i}" aria-label="Remove">×</button></span>`).join('');
+    const opts=drNames().map(n=>`<option value="${esc(n)}"></option>`).join('');
+    return `<div class="sc-fix" data-noexport="1"><div class="msg" style="margin:0 0 6px"><b>Fixed meta bans</b> · brawlers that teams always ban in this meta (they go to the top of the expected bans for the pick order you choose; for the other pick order they are pushed down).</div>
+      <div class="fxrow">${chips||'<span class="msg">None yet.</span>'}<input type="text" class="dr-input" id="fxName" list="fxList" placeholder="Brawler name" autocomplete="off" style="max-width:180px"><datalist id="fxList">${opts}</datalist><select class="dr-input" id="fxSide" style="max-width:230px"><option value="last">When having the last pick</option><option value="first">When having the 1st pick</option><option value="both">With any pick</option></select><button type="button" class="btn quiet" data-fxadd="1">Add</button></div>
+      ${det.length?`<div class="msg" style="margin:6px 0 0;font-size:11.5px">Seen in all saved drafts (every team, both sides): ${det.slice(0,6).map(x=>`<b>${esc(x.b)}</b> is banned almost only with the ${x.s} pick (${x.n} of ${x.T} bans)`).join(' · ')}. These already weigh in the prediction automatically.</div>`:''}</div>`})();
+  const matchupH=(EXR.first||EXR.last||EXU.first||EXU.last||pT||EXERR.length||balWait)?sec('Matchup'+(useMap?' · '+esc(SC.map):''),`${exErrH}${fixH}${pT?`<div class="sc-mg" style="grid-template-columns:minmax(0,1fr)">${pT}</div>`:''}<div class="sc-teams" style="margin-top:12px">${exTab(EXR,R)}${hasM?exTab(EXU,U):''}</div>${scDrafts(R)}${hasM?scDrafts(U):''}<p class="msg" style="font-size:11.5px;margin:8px 0 0">Blue coin = the team has the 1st pick, red coin = the last pick. Ban scores are an estimate (0-100) from the team's own ban habit in saved drafts with that pick order, what the rival plays and the current meta; Habit = the team's saved drafts on any map with that pick order, plus the ones with side unknown (they could be either); with a map chosen, the drafts on that map weigh 4 times more. The more drafts, the more the habit weighs (it never fully disappears with a single draft). * = fewer than 3 drafts for that pick order, so all its drafts are used. With the 1st pick the habit and the rival's picks weigh more; with the last pick the strength of the brawler in the meta weighs more. That strength is mostly how often all teams ban it (bans and global bans in the saved drafts of this patch, 65%) plus how often it is picked (35%); it needs 10+ drafts in the patch, otherwise only picks count. Hover a row to see why a brawler is there. The ban style line comes from all the team's drafts (side unknown included) across every patch: a team that mostly bans the meta gets more weight on meta strength, one that makes target bans gets more weight on the rival's picks, and one that bans what it plays itself is penalised less for banning its own brawlers. It needs 8+ drafts. Key picks = most used and winning${useMap?' on this map':''}.</p>${mapFbH}`):'';
   return ctl+`<article class="tcard" id="tc-scout" style="--rc:${tcol(R)}">
     <header class="tc-head"><div class="tc-id">${logo(R,'l44')}<div><h3 style="color:${tcol(R)}">${esc(R)}</h3><small>Scouting report${hasM?' · prepared for '+esc(U):''} · ${esc([reg,tour].filter(Boolean).join(' · '))}${reg||tour?' · ':''}${esc(filterLabel())} · ${esc(periodLabel())}</small></div></div>
       <button type="button" class="btn quiet" data-cardx="scout" data-cardn="scouting-${esc(R)}" data-noexport="1">Download image</button></header>
