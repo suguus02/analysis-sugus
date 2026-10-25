@@ -1014,6 +1014,7 @@ table.rank td.ic,.pgrid .rank td.ic{text-align:left}table.rank th:nth-child(2),.
 .wlb{width:100%;max-width:400px;margin:8px auto 4px;display:grid;gap:2px;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-variant-numeric:tabular-nums}.pdgrid .wlb{margin:0 auto}
 .wlrow{display:flex;gap:14px;align-items:stretch;justify-content:center;flex-wrap:wrap;margin:8px 0 4px}.wlrow .wlb{margin:0;width:auto;max-width:none;flex:0 0 330px}
 .lub{flex:1 1 480px;min-width:300px;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:12px;padding:6px 8px;display:flex;flex-direction:column;min-height:0}
+.wlrow>.lub:only-child{max-width:760px}
 .lub.in{margin-top:8px;flex:none;width:100%}
 .luh{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;text-align:center;padding:1px 0 4px}
 .lul{overflow-y:auto;overflow-x:hidden;max-height:178px;display:flex;flex-direction:column;gap:2px}
@@ -2200,17 +2201,20 @@ function playersTab(){
   const pair=scope==='pair';
   const TS=pair?[[sel.a,'a'],[sel.b,'b']]:[[scope==='one'?curOne():focus==='A'?sel.a:sel.b,scope==='one'||focus==='A'?'a':'b']];
   const TYL=[...TYPE_ORDER,'OTHER'];
-  const colsOf=team=>{const P=Engine.playersFor(ds,team,mapsFilter());
+  const LUH=[];
+  const colsOf=(team,lk)=>{const its=Engine.setList(ds,DB,team,mapsFilter()),LU=luApply(team,its,lk,!!lk),keep=new Set(LU.items.map(x=>x.i));LUH.push(LU.html);
+    const P=Engine.playersFor(Object.assign({},ds,{matches:ds.matches.filter(m=>keep.has(m.i))}),team,mapsFilter());
     return teamPlayers(team,P).map(p0=>{const p=p0.n?p0:null,nm=p0.name;
       const rows=p?p.list.map((x,i)=>{const wr=x.w/x.n;return `<tr><td class="rk">${i+1}</td><td class="ic" title="${esc(x.b)} · ${tLbl(typeOf(x.b))}">${bimg(x.b,'bi card')||esc(x.b)}</td><td class="num">${x.n}</td><td class="num">${x.w}</td><td class="num heat" style="${wrHeat(wr)}">${Math.round(wr*100)}%</td></tr>`}).join(''):'';
       const tc={};if(p)for(const x of p.list){const ty=typeOf(x.b);tc[ty]=(tc[ty]||0)+1}
       const tcn=p?`<div class="tcnt"><small>Brawlers by type</small>${TYL.filter(t=>tc[t]).map(t=>`<span class="tchip" title="${tLbl(t)}"><i style="background:${TYPE_COL[t]||TYPE_COL.OTHER}"></i>${tLbl(t)} <b>${tc[t]}</b></span>`).join('')}</div>`:'';
       return `<div class="pcol"><div class="phead" data-tc="${esc(team)}"><b>${esc(nm)}</b><small>${p?Math.round(100*p.w/p.n)+'% win rate ['+p.n+' sets] · '+plural(p.list.length,'brawler'):'no sets'}</small></div>
         <div class="tablewrap"><table class="rank"><thead><tr><th class="rk"></th><th></th><th class="num">Picks</th><th class="num">Wins</th><th class="num">Win rate</th></tr></thead><tbody>${rows||'<tr><td colspan="5" class="msg">No data</td></tr>'}</tbody></table></div>${tcn}</div>`})};
-  const groups=TS.map(([t])=>({t,cols:colsOf(t)}));
+  const groups=TS.map(([t],i)=>({t,cols:colsOf(t,pair?(i?'B':'A'):'')}));
+  const luBox=`<div class="${pair?'pair2':'wlrow'}" style="margin:10px 0">${LUH.join('')}</div>`;
   const nc=groups.reduce((a,g)=>a+Math.max(1,g.cols.length),0);
-  const body=pair?`<div class="pgrid p6" style="grid-template-columns:repeat(${nc},minmax(0,1fr))">${groups.map(g=>tstrip(g.t,`;grid-column:span ${Math.max(1,g.cols.length)}`)).join('')}${groups.map(g=>g.cols.join('')||'<p class="msg">No player tags for this team in the Picks sheet.</p>').join('')}</div>`
-    :`<div style="margin:12px 0;display:flex;justify-content:center">${tstrip(TS[0][0],';min-width:260px')}</div><div class="pgrid">${groups[0].cols.join('')||'<p class="msg">No player tags for this team in the Picks sheet.</p>'}</div>`;
+  const body=pair?luBox+`<div class="pgrid p6" style="grid-template-columns:repeat(${nc},minmax(0,1fr))">${groups.map(g=>tstrip(g.t,`;grid-column:span ${Math.max(1,g.cols.length)}`)).join('')}${groups.map(g=>g.cols.join('')||'<p class="msg">No player tags for this team in the Picks sheet.</p>').join('')}</div>`
+    :`<div style="margin:12px 0;display:flex;justify-content:center">${tstrip(TS[0][0],';min-width:260px')}</div>${luBox}<div class="pgrid">${groups[0].cols.join('')||'<p class="msg">No player tags for this team in the Picks sheet.</p>'}</div>`;
   return statMapsHTML()+body+`<p class="foot" style="margin-top:10px">Players and their tags come from the Picks sheet (a player with several accounts is counted as one). Under each table: how many different brawlers of each type the player used. Picks and wins count sets (single games and draws excluded) on the selected maps.</p>`;
 }
 function statsTab(){return picksTab()}
