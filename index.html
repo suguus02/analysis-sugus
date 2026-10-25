@@ -4267,7 +4267,7 @@ function drTablesBlock(list,teams,mode){
   for(const d of list){let used=false;
     for(const s of ['b','r']){const full=s==='b'?'blue':'red',team=d[full];if(!teams.includes(team))continue;used=true;
       if(d.winner){if(d.winner===full)w++;else l++}
-      const ts=mode==='enemy'?(s==='b'?'r':'b'):s,tf=ts==='b'?'blue':'red',won=d.winner===tf,known=!drUnk(d),first=known&&d.coin===tf;
+      for(const ts of (mode==='both'?[s,s==='b'?'r':'b']:mode==='enemy'?[s==='b'?'r':'b']:[s])){const tf=ts==='b'?'blue':'red',won=d.winner===tf,known=!drUnk(d),first=known&&d.coin===tf;
       [1,2,3,4,5,6].filter(n=>pickSide(d.coin,n)===tf).forEach(n=>{const b=d.picks[n-1];if(!b)return;
         const e=ent(pk,b,()=>({n:0,w:0,f:{n:0,w:0},z:{n:0,w:0}}));e.n++;if(won)e.w++;
         if(known&&n===1){e.f.n++;if(won)e.f.w++}if(known&&n===6){e.z.n++;if(won)e.z.w++}});
@@ -4277,7 +4277,7 @@ function drTablesBlock(list,teams,mode){
       comb(bs,3,bnT);if(bs.length>=2)for(let i=0;i<bs.length;i++)for(let j=i+1;j<bs.length;j++)comb([bs[i],bs[j]],2,bnD);
       const gs=d.gb[ts].filter(Boolean);
       gs.forEach(b=>{const e=ent(gbS,b,()=>({n:0,maps:{}}));e.n++;if(d.map)e.maps[d.map]=(e.maps[d.map]||0)+1});
-      if(gs.length===2){const k=[...gs].sort().join(' + '),e=ent(gbD,k,()=>({n:0,maps:{}}));e.n++;if(d.map)e.maps[d.map]=(e.maps[d.map]||0)+1}}
+      if(gs.length===2){const k=[...gs].sort().join(' + '),e=ent(gbD,k,()=>({n:0,maps:{}}));e.n++;if(d.map)e.maps[d.map]=(e.maps[d.map]||0)+1}}}
     if(used)nd++}
   const sum=`<div class="dr-sum"><span><b>${nd}</b> ${nd===1?'draft':'drafts'}</span><span>Record <b>${w}–${l}</b></span></div>`;
   const srt=m=>Object.entries(m).sort((a,b)=>b[1].n-a[1].n||(a[0]<b[0]?-1:1));
@@ -4286,7 +4286,7 @@ function drTablesBlock(list,teams,mode){
   const mapsH=m=>Object.entries(m).sort((a,b)=>b[1]-a[1]||(a[0]<b[0]?-1:1)).map(([n,c])=>`<span class="dmc"${mapCol(n)}>${esc(n)}${c>1?' ×'+c:''}</span>`).join('');
   const pkRows=srt(pk).map(([n,e],i)=>`<tr><td class="rk">${i+1}</td><td class="ic">${bI(n)}</td><td class="num">${e.n}</td><td class="num">${e.w}</td>${pc2(e.w,e.n)}<td class="num lsep">${e.f.n||'–'}</td>${pc2(e.f.w,e.f.n)}<td class="num lsep">${e.z.n||'–'}</td>${pc2(e.z.w,e.z.n)}</tr>`).join('');
   const pkH='<tr><th class="rk"></th><th>Brawler</th><th class="num">Picks</th><th class="num">Wins</th><th class="num">WR</th><th class="num lsep" colspan="2" style="text-align:center">As 1st pick (#1)</th><th class="num lsep" colspan="2" style="text-align:center">As last pick (#6)</th></tr>';
-  const bnRows=srt(bn).map(([n,e],i)=>`<tr><td class="rk">${i+1}</td><td class="ic">${bI(n)}</td><td class="num">${e.n}</td><td class="num">${nd?Math.round(e.n/nd*100):0}%</td><td class="num lsep">${e.f||'–'}</td><td class="num lsep">${e.z||'–'}</td></tr>`).join('');
+  const bnRows=srt(bn).map(([n,e],i)=>`<tr><td class="rk">${i+1}</td><td class="ic">${bI(n)}</td><td class="num">${e.n}</td><td class="num">${nd?Math.round(e.n/(nd*(mode==='both'?2:1))*100):0}%</td><td class="num lsep">${e.f||'–'}</td><td class="num lsep">${e.z||'–'}</td></tr>`).join('');
   const bnH='<tr><th class="rk"></th><th>Brawler</th><th class="num">Bans</th><th class="num">% drafts</th><th class="num lsep">With 1st pick</th><th class="num lsep">With last pick</th></tr>';
   const bc=DR.bComb==='duos'?'duos':'trios',bcM=bc==='duos'?bnD:bnT;
   const sw=(attr,cur,a,b)=>`<span class="seg2 dr-mini"><button type="button" ${attr}="${a[0]}" aria-pressed="${cur===a[0]}">${a[1]}</button><button type="button" ${attr}="${b[0]}" aria-pressed="${cur===b[0]}">${b[1]}</button></span>`;
@@ -4296,10 +4296,9 @@ function drTablesBlock(list,teams,mode){
   return {sum,tabs:`<div class="dr-tabs">${wrap('Picks',pkH,pkRows,'dr-wide2')}${wrap('Bans',bnH,bnRows,'dr-wide2')}${wrap('Banned together (one team)','<tr><th class="rk"></th><th>'+(bc==='duos'?'Duo':'Trio')+'</th><th class="num">Times</th></tr>',bcRows,'',sw('data-drbc',bc,['trios','Trios'],['duos','Duos']))}${wrap('Global bans','<tr><th class="rk"></th><th>'+(gc==='duos'?'Duo':'Brawler')+'</th><th class="num">Times</th><th>Maps</th></tr>',gRows,'dr-wide2',sw('data-drgc',gc,['single','Single'],['duos','Duos']))}</div>`}}
 function drTablesFor(list,teams,pickFocus){
   const m=DR.eMode==='enemy'?'enemy':DR.eMode==='both'?'both':'team';
-  const seg=`<span class="seg2" style="margin:0 0 10px"><button type="button" data-drem="team" aria-pressed="${m==='team'}">Selected team</button><button type="button" data-drem="enemy" aria-pressed="${m==='enemy'}">Enemies</button><button type="button" data-drem="both" aria-pressed="${m==='both'}">Both</button></span>`;
-  const A=m!=='enemy'?drTablesBlock(list,teams,'team'):null,B=m!=='team'?drTablesBlock(list,teams,'enemy'):null;
-  const head=(txt)=>`<div class="dr-sub">${txt}</div>`;
-  return (A||B).sum+seg+(A?(m==='both'?head('Selected team'):'')+A.tabs:'')+(B?(m==='both'?head('Enemies (the rivals in these drafts)'):'')+B.tabs:'')}
+  const seg=`<span class="seg2" style="margin:0 0 10px"><button type="button" data-drem="team" aria-pressed="${m==='team'}">Selected team</button><button type="button" data-drem="enemy" aria-pressed="${m==='enemy'}">Enemies</button><button type="button" data-drem="both" aria-pressed="${m==='both'}">Both added together</button></span>`;
+  const B=drTablesBlock(list,teams,m);
+  return B.sum+seg+B.tabs}
 function draftsTab(){
   const T=draftTeams(),all=drAll();
   const base=all.filter(d=>scope==='pair'?(T.length===2&&((d.blue===T[0]&&d.red===T[1])||(d.blue===T[1]&&d.red===T[0]))):T.includes(d.blue)||T.includes(d.red));
