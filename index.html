@@ -3268,15 +3268,15 @@ try{DR.list=JSON.parse(store.get('tvt:drafts')||'[]')}catch(e){}
 try{DR.local=JSON.parse(store.get('tvt:drlocal')||'[]')}catch(e){}
 const pickSide=(coin,n)=>{const o=coin==='blue'?'red':'blue';return (n===1||n===4||n===5)?coin:o};
 const todayISO=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
-const drNew=()=>({id:'',date:todayISO(),mode:'',map:'',coin:'blue',blue:'',red:'',bans:{b:['','',''],r:['','','']},picks:['','','','','',''],gb:{b:['',''],r:['','']},winner:'',notes:'',saved:'',kind:'',km:'',dc:'',mp:''});
+const drNew=()=>({id:'',date:todayISO(),mode:'',map:'',coin:'blue',blue:'',red:'',bans:{b:['','',''],r:['','','']},picks:['','','','','',''],gb:{b:['',''],r:['','']},winner:'',notes:'',saved:'',kind:'',km:'',dc:'',su:'',mp:''});
 DR.cur=drNew();
 const drClone=d=>JSON.parse(JSON.stringify(d));
 // the draft type is kept inside the Notes column as a tag, e.g. [[MQ|2026-02|C]] (MQ = Monthly Qualifier, MF = Monthly Final, C = date confirmed), so the DRAFTS sheet keeps its columns
 const KIND_NAME={mq:'Monthly Qualifier',mf:'Monthly Final',tr:'Tournament'};
-function drTag(o){let n=o.notes||'';const m=/^\[\[(MQ|MF|TR)\|(\d{4}-\d{2})?(\|C)?\]\]\s*/.exec(n);if(m){o.kind=m[1].toLowerCase();o.km=m[2]||'';o.dc=m[3]?'C':'';n=n.slice(m[0].length)}else{o.kind='';o.km='';o.dc=''}
+function drTag(o){let n=o.notes||'';const m=/^\[\[(MQ|MF|TR)\|(\d{4}-\d{2})?(\|C)?(\|U)?\]\]\s*/.exec(n);if(m){o.kind=m[1].toLowerCase();o.km=m[2]||'';o.dc=m[3]?'C':'';o.su=m[4]?'U':'';n=n.slice(m[0].length)}else{o.kind='';o.km='';o.dc='';o.su=''}
   const pk=/^\[\[PK\|([^\]]*)\]\]\s*/.exec(n);o.mp='';if(pk){o.mp=pk[1].trim().toUpperCase()==='-'?'-':pk[1].trim().toUpperCase();n=n.slice(pk[0].length)}o.notes=n;return o}
-const drUnk=d=>d.kind==='mq'; // side (coin) unknown
-const drTagged=d=>{const t=(d.kind?`[[${d.kind.toUpperCase()}|${d.km||''}${d.dc?'|C':''}]]`:'')+(d.mp?`[[PK|${String(d.mp).replace(/[\]|]/g,'')}]]`:'');return t+(t&&d.notes?' ':'')+d.notes}
+const drUnk=d=>d.kind==='mq'||(d.kind==='tr'&&!!d.su); // side (coin) unknown
+const drTagged=d=>{const t=(d.kind?`[[${d.kind.toUpperCase()}|${d.km||''}${d.dc?'|C':''}${d.kind==='tr'&&d.su?'|U':''}]]`:'')+(d.mp?`[[PK|${String(d.mp).replace(/[\]|]/g,'')}]]`:'');return t+(t&&d.notes?' ':'')+d.notes}
 const drKindLbl=d=>d.kind?KIND_NAME[d.kind]+(d.km?' '+MON[+d.km.slice(5,7)-1]+' '+d.km.slice(0,4):''):'';
 function drFindMatch(d){
   const src=(FULL&&FULL.matches)||[];if(!src.length)return {err:'The matches are not loaded yet.'};
@@ -3387,7 +3387,7 @@ const drSubHTML=()=>`<div class="dr-sub"><div class="seg2" role="group" aria-lab
 function drEditorHTML(){
   const d=DR.cur,pos=drPos(d.coin);
   const head=`<div class="dr-head5">${drTeamBtn('blue')}<div class="dr-gbs">${[0,1].map(i=>drGbSlot('b',i)).join('')}</div>
-    <div class="dr-coins" role="group" aria-label="Coin: who picks first">${drUnk(d)?`<span class="dr-unk" title="Monthly qualifier: the 1st pick side is not known">side unknown</span>`:`<button type="button" class="dr-coin" data-coin="blue" aria-pressed="${d.coin==='blue'}" title="Blue coin: blue picks first"><img src="${COIN.blue}" alt="Blue coin"></button><button type="button" class="dr-coin" data-coin="red" aria-pressed="${d.coin==='red'}" title="Red coin: red picks first"><img src="${COIN.red}" alt="Red coin"></button>`}</div>
+    <div class="dr-coins" role="group" aria-label="Coin: who picks first">${drUnk(d)?`<span class="dr-unk" title="The 1st pick side is not known">side unknown</span>`:`<button type="button" class="dr-coin" data-coin="blue" aria-pressed="${d.coin==='blue'}" title="Blue coin: blue picks first"><img src="${COIN.blue}" alt="Blue coin"></button><button type="button" class="dr-coin" data-coin="red" aria-pressed="${d.coin==='red'}" title="Red coin: red picks first"><img src="${COIN.red}" alt="Red coin"></button>`}</div>
     <div class="dr-gbs">${[0,1].map(i=>drGbSlot('r',i)).join('')}</div>${drTeamBtn('red')}</div>`;
   const center=`<div class="dr-center"><button type="button" class="dr-mapbtn" data-mappop="1" aria-label="Change map">${d.map?mimg(d.map,'th')+`<b>${esc(d.map)}</b>${d.mode?`<span class="dr-badge">${esc(d.mode)}</span>`:''}`:'<span class="ph0">Click to choose the map</span>'}</button>
     ${DR.sug?'':`<div class="dr-grp"><div class="lbl" style="text-align:center">Winner</div><div class="seg2" role="group" aria-label="Winner"><button type="button" data-win="blue" aria-pressed="${d.winner==='blue'}">Blue</button><button type="button" data-win="red" aria-pressed="${d.winner==='red'}">Red</button><button type="button" data-win="" aria-pressed="${d.winner===''}">–</button></div></div>`}
@@ -3400,8 +3400,9 @@ function drEditorHTML(){
     <label class="dr-field notes"><span class="lbl">Notes</span><textarea class="dr-input" id="drNotes" rows="3">${esc(d.notes)}</textarea></label></div>
     <div class="dr-row1"><label class="dr-field"><span class="lbl">Draft type</span><select class="dr-input" id="drKind"><option value="">Normal</option><option value="mq"${d.kind==='mq'?' selected':''}>Monthly Qualifier</option><option value="mf"${d.kind==='mf'?' selected':''}>Monthly Final</option><option value="tr"${d.kind==='tr'?' selected':''}>Tournament</option></select></label>
       <label class="dr-field"><span class="lbl">Map picked by</span><select class="dr-input" id="drMP"><option value="">Unknown</option>${[...new Set([d.blue,d.red,(d.mp&&d.mp!=='-')?d.mp:''].filter(Boolean))].map(t=>`<option value="${esc(t)}"${d.mp===t?' selected':''}>${esc(t)}</option>`).join('')}<option value="-"${d.mp==='-'?' selected':''}>Decider (nobody picked it)</option></select></label>
+      ${d.kind==='tr'?`<label class="chk" style="align-self:end;margin-bottom:6px"><input type="checkbox" id="drSU"${d.su?' checked':''}> Side unknown (1st pick not recorded)</label>`:''}
       ${d.kind?`<div class="dr-field"><span class="lbl">Date</span><div class="dr-find"><button type="button" class="btn quiet" data-dfind="1">Find the match date</button>${d.dc?'':'<button type="button" class="btn quiet" data-dexact="1">The date is exact</button>'}${d.dc?'<span class="dr-badge ok">date confirmed</span>':'<span class="dr-badge">date not confirmed</span>'}</div></div>`:''}</div>
-    ${d.kind?`<p class="msg" style="margin:0">${d.kind==='tr'?'Tournament: the 1st pick side is recorded as usual and the global bans are optional (leave them empty if that tournament has none). ':''}${d.kind==='mq'?'Monthly qualifier: write the whole draft; the 1st pick side is not recorded, so this draft is left out of the 1st/last pick figures. ':''}“Find the match date” looks for a tournament game with these picks and this map in the month of the date (teams that are not in the Picks sheet are matched by their picks only), and asks you before changing the date.</p>${DR.link?drLinkHTML():''}`:''}
+    ${d.kind?`<p class="msg" style="margin:0">${d.kind==='tr'?'Tournament: the 1st pick side is recorded as usual and the global bans are optional (leave them empty if that tournament has none), and you can tick “Side unknown” if the 1st pick side is not known (then the draft is left out of the 1st/last pick figures). ':''}${d.kind==='mq'?'Monthly qualifier: write the whole draft; the 1st pick side is not recorded, so this draft is left out of the 1st/last pick figures. ':''}“Find the match date” looks for a tournament game with these picks and this map in the month of the date (teams that are not in the Picks sheet are matched by their picks only), and asks you before changing the date.</p>${DR.link?drLinkHTML():''}`:''}
     <div class="dr-btns"><button type="button" class="btn" data-dsave="1"${DR.busy?' disabled':''}>${isSaved?'Update draft':'Save draft'}</button><button type="button" class="btn quiet" data-dnext="1">Next map (keep teams and global bans)</button><button type="button" class="btn quiet" data-dclear="1">Clear draft</button></div></div>
     <p class="dr-msg${DR.bad?' bad':''}" role="status" style="margin-top:8px">${esc(DR.msg)}</p>`;
   if(DR.sug)return `<section class="panel">${drSubHTML()}<div class="dr-hd"><h2 class="ttl" style="margin:0">Draft Suggestion</h2><div class="seg2" style="margin-top:0" role="group" aria-label="How to choose brawlers"><button type="button" data-dmode="grid" aria-pressed="${DR.mode==='grid'}">Brawler rows</button><button type="button" data-dmode="list" aria-pressed="${DR.mode==='list'}">Pop-up list</button></div></div>
@@ -3524,7 +3525,7 @@ $('draftview').addEventListener('click',e=>{
       const known=new Set((M?allTeams():[]).map(x=>x.toUpperCase()));
       if(!c.blue&&hh.nb){c.blue=hh.nb;got.push('blue team name')}if(!c.red&&hh.nr){c.red=hh.nr;got.push('red team name')}}
     DR.link=null;DR.msg='Date'+(got.length?', '+got.join(', '):'')+' set from the match of '+fmtDate(du.dataset.duse)+'. Press Save draft to keep it.';DR.bad=false;drRender();return}
-  if(t.closest('[data-dnext]')){const o=DR.cur,n=drNew();n.date=o.date;n.blue=o.blue;n.red=o.red;n.coin=o.coin;n.gb=drClone(o.gb);n.kind=o.kind;n.km=o.km;DR.link=null;DR.cur=n;DR.active='';DR.msg='Ready for the next map.';DR.bad=false;drRender();return}
+  if(t.closest('[data-dnext]')){const o=DR.cur,n=drNew();n.date=o.date;n.blue=o.blue;n.red=o.red;n.coin=o.coin;n.gb=drClone(o.gb);n.kind=o.kind;n.km=o.km;n.su=o.su;DR.link=null;DR.cur=n;DR.active='';DR.msg='Ready for the next map.';DR.bad=false;drRender();return}
   if(t.closest('[data-dclear]')){DR.cur=drNew();DR.active='';DR.msg='';DR.bad=false;drRender();return}
   const ed=t.closest('[data-dedit]');if(ed){const d=drAll().find(x=>x.id===ed.dataset.dedit);if(d){DR.cur=drClone(d);delete DR.cur._local;DR.active='';DR.msg='Editing a saved draft. Press Update draft to save the changes.';DR.bad=false;drRender();window.scrollTo({top:0,behavior:'smooth'})}return}
   const dk=t.closest('[data-ddelask]');if(dk){DR.confirm=dk.dataset.ddelask;drRender();return}
@@ -3539,7 +3540,8 @@ $('draftview').addEventListener('input',e=>{const t=e.target;
 $('draftview').addEventListener('change',e=>{const t=e.target;
   if(t.id==='drDate'){DR.cur.date=t.value;DR.cur.dc='';DR.link=null;if(DR.cur.kind)drRender();return}
   if(t.id==='drMP'){DR.cur.mp=t.value;return}
-  if(t.id==='drKind'){DR.cur.kind=t.value;if(!t.value){DR.cur.km='';DR.cur.dc=''}DR.link=null;drRender();return}
+  if(t.id==='drSU'){DR.cur.su=t.checked?'U':'';DR.link=null;drRender();return}
+  if(t.id==='drKind'){DR.cur.kind=t.value;if(t.value!=='tr')DR.cur.su='';if(!t.value){DR.cur.km='';DR.cur.dc=''}DR.link=null;drRender();return}
   if(t.id==='drFTeam'){drSetFTeam(t.value);return}
   if(t.id==='drFMap'){DR.fMap=t.value;drRender()}});
 function drSetFTeam(v){v=String(v||'').trim();DR.fTeamErr='';
