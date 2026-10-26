@@ -979,6 +979,8 @@ textarea.dr-input{resize:vertical;font-size:14px}
 .tsel-in>img,.tsel-in>.ph{margin-top:12px}.tsel-t{display:flex;flex-direction:column;margin-top:12px}.tsel-t b{font-family:var(--display);font-size:18px;text-transform:uppercase}.tsel-t small{color:var(--muted);font-size:12px}
 .tsel-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:12px;flex:1}.tsel-chips small{align-self:center;color:var(--muted)}
 .tp-pop{width:min(1100px,100%)}.tp-body{overflow:auto;padding:12px}.tp-body .reglegend{margin:0 0 8px}.tp-ttl{font-family:var(--display);font-size:16px}
+.stbar{display:flex;gap:16px;text-transform:none;letter-spacing:0;font-weight:600;margin:0 0 4px}.stsw{display:inline-flex;align-items:center;gap:6px;cursor:pointer;color:var(--muted)}.stsw input{accent-color:var(--accent,#7c8cff)}.stsw:hover{color:var(--fg)}
+.chk-chip.ovr{cursor:pointer;border:1px solid var(--line,#3a3f55);background:none;color:inherit;font:inherit}.chk-chip.ovr.on{background:#1c2f55;border-color:#4f8cff}
 .glab-click{cursor:pointer}.glab-click:hover{color:var(--fg)}.glab-click em{font-style:normal;opacity:.7;text-transform:none;letter-spacing:0;font-weight:500}
 .dr-ov .tile[hidden],.dr-ov .glab[hidden]{display:none}
 @media(max-width:860px){.tp-pop .lgrid{grid-template-columns:repeat(4,minmax(0,1fr))}}
@@ -1168,39 +1170,49 @@ function parseDb(rows){
 // prefijo del nombre (p.ej. "ZETA|Batman") repetido en >=2 jugadores del lado
 function sidePrefix(names){const p={};for(const n of names){const i=(n||'').indexOf('|');if(i>0){const pre=n.slice(0,i).trim();if(pre)p[pre]=(p[pre]||0)+1}}
   let best=null,bn=0;for(const k in p)if(p[k]>bn){best=k;bn=p[k]}return bn>=2?best:null}
+// a tag can belong to several teams (a player who is testing in another team): maps hold a team or a list of teams
+const _arr=v=>v==null?[]:Array.isArray(v)?v:[v];
+const _rk=(rk,k)=>rk?(rk[String(k).replace(/^ext:/,'').toUpperCase()]||0):0; // 0 Team, 1 Tryout, 2 Old
+let LAST_AMB=null; // set by sideTeam: teams tied at the top (null when the decision was clear)
+function vote(tags,map,rk){
+  const c={};for(const t of tags)for(const k of _arr(map[t]))c[k]=(c[k]||0)+1;
+  let bn=0;for(const k in c)if(c[k]>bn)bn=c[k];
+  const top=Object.keys(c).filter(k=>c[k]===bn).sort((x,y)=>_rk(rk,x)-_rk(rk,y));
+  return {best:top[0]||null,bn,amb:top.length>1&&bn>=2?top:null}}
+function tagMap(official){const m={};for(const k in official)for(const t of official[k]){const a=m[t]||(m[t]=[]);if(!a.includes(k))a.push(k)}return m}
 // equipo por etiquetas solamente (oficial o de la base), o null
-function tagTeam(tags,tag2team,dbTag2team,official){
-  const c={};for(const t of tags){const k=tag2team[t];if(k)c[k]=(c[k]||0)+1}
-  let best=null,bn=0;for(const k in c)if(c[k]>bn){best=k;bn=c[k]}
-  if(bn>=2)return best;
-  if(dbTag2team){const d={};for(const t of tags){const k=dbTag2team[t];if(k)d[k]=(d[k]||0)+1}
-    best=null;bn=0;for(const k in d)if(d[k]>bn){best=k;bn=d[k]}
-    if(bn>=2&&official&&official[best])return best}
+function tagTeam(tags,tag2team,dbTag2team,official,rk){
+  let v=vote(tags,tag2team,rk);
+  if(v.bn>=2)return v.best;
+  if(dbTag2team){v=vote(tags,dbTag2team,rk);
+    if(v.bn>=2&&official&&official[v.best])return v.best}
   return null}
 // aprende prefijo -> equipo oficial cuando casi siempre que aparece ese prefijo las etiquetas dicen el mismo equipo
-function buildAlias(sides,tag2team,dbTag2team,official){
+function buildAlias(sides,tag2team,dbTag2team,official,rk){
   const tot={},votes={};
   for(const [tags,names] of sides){const p=sidePrefix(names);if(!p)continue;tot[p]=(tot[p]||0)+1;
-    const t=tagTeam(tags,tag2team,dbTag2team,official);if(t){const v=votes[p]||(votes[p]={});v[t]=(v[t]||0)+1}}
+    const t=tagTeam(tags,tag2team,dbTag2team,official,rk);if(t){const v=votes[p]||(votes[p]={});v[t]=(v[t]||0)+1}}
   const alias={};
   for(const p in votes){let bt=null,bv=0;for(const t in votes[p])if(votes[p][t]>bv){bt=t;bv=votes[p][t]}
     if(bv>=5&&bv>=0.75*tot[p])alias[p]=bt}
   return alias}
-function sideTeam(tags,names,tag2team,dbTag2team,official,alias){
-  const c={};for(const t of tags){const k=tag2team[t];if(k)c[k]=(c[k]||0)+1}
-  let best=null,bn=0;for(const k in c)if(c[k]>bn){best=k;bn=c[k]}
-  if(bn>=2)return best;
+function sideTeam(tags,names,tag2team,dbTag2team,official,alias,rk){
+  LAST_AMB=null;
+  let v=vote(tags,tag2team,rk);
+  if(v.bn>=2){LAST_AMB=v.amb;
+    // a team of the official list has 2+ tags, but another team (e.g. a tryout only in the TEAMS table) also has 2+: the set stays with the better ranked one and is flagged
+    if(!LAST_AMB&&dbTag2team){const w=vote(tags,dbTag2team,rk);if(w.bn>=2&&w.best!==v.best)LAST_AMB=[v.best,w.best]}
+    return v.best}
   if(dbTag2team){
-    const d={};for(const t of tags){const k=dbTag2team[t];if(k)d[k]=(d[k]||0)+1}
-    best=null;bn=0;for(const k in d)if(d[k]>bn){best=k;bn=d[k]}
-    if(bn>=2)return (official&&official[best])?best:'ext:'+best;
+    v=vote(tags,dbTag2team,rk);
+    if(v.bn>=2){LAST_AMB=v.amb;return (official&&official[v.best])?v.best:'ext:'+v.best}
   }
   const p={};for(const n of names){const i=(n||'').indexOf('|');if(i>0){const pre=n.slice(0,i).trim();p[pre]=(p[pre]||0)+1}}
-  best=null;bn=0;for(const k in p)if(p[k]>bn){best=k;bn=p[k]}
+  let best=null,bn=0;for(const k in p)if(p[k]>bn){best=k;bn=p[k]}
   if(bn>=2)return (alias&&alias[best])||'ext:'+best;
   return null;
 }
-function dbTagMap(db,known){const m={};if(db&&!known)for(const k in db.teams)for(const t of db.teams[k])m[t]=k;if(known)for(const k in known)for(const t of known[k])m[t]=k;return m}
+function dbTagMap(db,known){const m={};const add=(k,t)=>{const a=m[t]||(m[t]=[]);if(!a.includes(k))a.push(k)};if(db&&!known)for(const k in db.teams)for(const t of db.teams[k])add(k,t);if(known)for(const k in known)for(const t of known[k])add(k,t);return m}
 function knownNames(db,known){const o=new Set();if(db&&!known)for(const k in db.teams)o.add(k);if(known)for(const k in known)o.add(k);return [...o]}
 // rows -> {official, matches:[{d,m,a,b,y,ba,bb,ta,tb,i}], names, raw, dups}
 function processRows(rows,db,opts){
@@ -1211,12 +1223,12 @@ function processRows(rows,db,opts){
     if(r.length>26&&r[23]&&r[23].trim()&&(r[24]||'').trim().startsWith('#'))
       official[r[23].trim()]=[r[24],r[25],r[26]].map(s=>(s||'').trim()).filter(Boolean);
   }
-  const tag2team={};for(const k in official)for(const t of official[k])tag2team[t]=k;
+  const tag2team=tagMap(official),rk=opts.rank||null;
   const dbt=dbTagMap(db,opts.known);
   const groups=new Map(),names={};let raw=0,idx=0,newFmt=false,anyNoTime=false;
   const alias=(()=>{const sd=[];for(const r of rows){if(r.length<22)continue;const q=x=>(x||'').trim();
     sd.push([[q(r[5]),q(r[7]),q(r[9])],[q(r[4]),q(r[6]),q(r[8])]]);sd.push([[q(r[14]),q(r[16]),q(r[18])],[q(r[13]),q(r[15]),q(r[17])]])}
-    return buildAlias(sd,tag2team,dbt,official)})();
+    return buildAlias(sd,tag2team,dbt,official,rk)})();
   const TIME=/^\d{1,2}:\d\d(:\d\d)?$/,DATE2=/^\d{1,2}-\d{1,2}-\d{4}$/;
   const t=s=>(s||'').trim();
   const secs=x=>{const p=x.split(':').map(Number);return p[0]*3600+p[1]*60+(p[2]||0)};
@@ -1236,7 +1248,7 @@ function processRows(rows,db,opts){
     for(const S of [A,B])S.pl.forEach((g,k)=>{if(g&&S.nm[k])names[g]=S.nm[k]});
     const [dd,mm,yy]=ds0.split('-');const d=yy+'-'+mm.padStart(2,'0')+'-'+dd.padStart(2,'0');
     const y=rr==='VICTORY'?1:rr==='DEFEAT'?0:0.5;
-    const m={d,ty:(opts.typeCol!=null?t(r[opts.typeCol]).toLowerCase():''),m:t(r[2]),a:sideTeam(A.pl,A.nm,tag2team,dbt,official,alias),b:sideTeam(B.pl,B.nm,tag2team,dbt,official,alias),y,ba:A.br,bb:B.br,ta:A.pl,tb:B.pl,i:idx,t:tm?secs(tm):idx,ht:tm?1:0};
+    const m={d,ty:(opts.typeCol!=null?t(r[opts.typeCol]).toLowerCase():''),m:t(r[2]),a:sideTeam(A.pl,A.nm,tag2team,dbt,official,alias,rk),xa:LAST_AMB,b:sideTeam(B.pl,B.nm,tag2team,dbt,official,alias,rk),xb:LAST_AMB,y,ba:A.br,bb:B.br,ta:A.pl,tb:B.pl,i:idx,t:tm?secs(tm):idx,ht:tm?1:0};
     const sa=A.pl.join('|')+'#'+A.br.join('|');
     const sb=B.pl.join('|')+'#'+B.br.join('|');
     let key,o;if(sa<=sb){key=d+'~'+m.m+'~'+sa+'~'+sb;o=0}else{key=d+'~'+m.m+'~'+sb+'~'+sa;o=1}
@@ -1260,16 +1272,16 @@ function processRows(rows,db,opts){
   }
   matches.sort((x,y)=>x.d<y.d?-1:x.d>y.d?1:x.t-y.t||x.i-y.i);
   matches.forEach((m,k)=>{m.i=k});
-  return {v:4,ev:2,official,matches,names,raw,dups,rounds,fmt:newFmt?'rounds':'sets',knownTags:opts.known||{},known:knownNames(db,opts.known)};
+  return {v:4,ev:2,official,matches,names,raw,dups,rounds,fmt:newFmt?'rounds':'sets',knownTags:opts.known||{},known:knownNames(db,opts.known),rank:rk};
 }
 // vuelve a etiquetar los equipos de un conjunto ya procesado (por ejemplo al cargar otra tabla de equipos)
 function relabel(ds,db){
-  const tag2team={};for(const k in ds.official)for(const t of ds.official[k])tag2team[t]=k;
+  const tag2team=tagMap(ds.official),rk=ds.rank||null;
   const dbt=dbTagMap(db,ds.knownTags);ds.known=knownNames(db,ds.knownTags);
-  const alias=buildAlias(ds.matches.flatMap(m=>[[m.ta,m.ta.map(g=>ds.names[g]||'')],[m.tb,m.tb.map(g=>ds.names[g]||'')]]),tag2team,dbt,ds.official);
+  const alias=buildAlias(ds.matches.flatMap(m=>[[m.ta,m.ta.map(g=>ds.names[g]||'')],[m.tb,m.tb.map(g=>ds.names[g]||'')]]),tag2team,dbt,ds.official,rk);
   for(const m of ds.matches){
-    m.a=sideTeam(m.ta,m.ta.map(g=>ds.names[g]||''),tag2team,dbt,ds.official,alias);
-    m.b=sideTeam(m.tb,m.tb.map(g=>ds.names[g]||''),tag2team,dbt,ds.official,alias);
+    m.a=sideTeam(m.ta,m.ta.map(g=>ds.names[g]||''),tag2team,dbt,ds.official,alias,rk);m.xa=LAST_AMB;
+    m.b=sideTeam(m.tb,m.tb.map(g=>ds.names[g]||''),tag2team,dbt,ds.official,alias,rk);m.xb=LAST_AMB;
   }
   return ds;
 }
@@ -1655,7 +1667,14 @@ function applyTeamMeta(d){
   let n=0;for(const t in REGION){const r=REGION[t];if(r&&!REGC[r])REGC[r]=EXTRA_COL[n++%EXTRA_COL.length]}
   regCss();setTimeout(chkBadge,300);
 }
+// STATUS column of the Picks sheet: 0 Team, 1 Tryout, 2 Old. Tryouts and Old teams are hidden until their switch is on
+function stOf(t){const r=FULL&&FULL.rank;return r?(r[String(t).toUpperCase()]||0):0}
+let SHOWST=(()=>{try{return JSON.parse(store.get('tvt:showst')||'{}')||{}}catch(e){return {}}})();
+const stShown=t=>{const s=stOf(t);return s===0||!!SHOWST[s]};
+const visTeams=()=>allTeams().filter(stShown);
+let drawTilesFn=null;
 function grpOrder(teams,W){
+  const allT=teams;teams=allT.filter(t=>stOf(t)===0);
   const wr=t=>{const e=W&&W[t];return e&&e.n?e.w/e.n:-1},srt=l=>l.slice().sort((a,b)=>wr(b)-wr(a)||a.localeCompare(b));
   const base=SELECTED||[...LCQ,...WORLDS,...teams];
   const lab=g=>/team/i.test(g)?g:g+' teams';
@@ -1665,9 +1684,14 @@ function grpOrder(teams,W){
   for(const t of base){const r=REGION[t];if(!TOUR[t]&&r&&!regs.includes(r))regs.push(r)}
   regs.forEach(r=>g.push([lab(r),srt(rest.filter(t=>REGION[t]===r))]));
   g.push(['Other teams',srt(rest.filter(t=>!REGION[t]))]);
+  if(SHOWST[1])g.push(['Tryouts',srt(allT.filter(t=>stOf(t)===1))]);
+  if(SHOWST[2])g.push(['Old teams',srt(allT.filter(t=>stOf(t)===2))]);
   return g.filter(x=>x[1].length);
 }
-function grpTiles(teams,W,fn){return grpOrder(teams,W).map(([l,ts],k)=>`<div class="glab">${l}</div>${ts.map(t=>{const h=fn(t),r=REGION[t];return r?h.replace('<button ','<button data-reg="'+r+'" '):h}).join('')}`).join('')}
+function stBar(teams){const a=teams.filter(t=>stOf(t)===1).length,b=teams.filter(t=>stOf(t)===2).length;if(!a&&!b)return '';
+  const sw=(k,n,l)=>n?`<label class="stsw"><input type="checkbox" data-st="${k}"${SHOWST[k]?' checked':''}><span>${l} (${n})</span></label>`:'';
+  return `<div class="glab stbar">${sw(1,a,'Show tryouts')}${sw(2,b,'Show old teams')}</div>`}
+function grpTiles(teams,W,fn){return stBar(teams)+grpOrder(teams,W).map(([l,ts],k)=>`<div class="glab">${l}</div>${ts.map(t=>{const h=fn(t),r=REGION[t];return r?h.replace('<button ','<button data-reg="'+r+'" '):h}).join('')}`).join('')}
 function decorateTiles(){
   const q=document.querySelectorAll('#tilesA .tile,#tilesB .tile');
   q.forEach(b=>{const o=b.querySelector('.twr');if(o)o.remove()});
@@ -1713,7 +1737,7 @@ function onlyMap18(d){if(!d||!d.matches||d._m18)return d;const ex={};
   const ms=d.matches.filter(m=>{if(!m.m||MAP18.has(mkey(m.m)))return true;ex[m.m]=(ex[m.m]||0)+1;return false});
   return Object.assign({},d,{matches:ms,excluded:ex,_m18:1})}
 function build(newDs,isCustom){
-  newDs=onlyMap18(newDs);
+  newDs=onlyMap18(applyOvr(newDs));
   busy=true;setStatus('Calculating the model…');const my=++gen;setBg('');
   setTimeout(()=>{
     try{
@@ -1737,13 +1761,14 @@ function setup(){
   let b=saved.b!=null&&D.off.includes(saved.b)?idx(saved.b):(idx('NAVI')>=0?idx('NAVI'):Math.min(1,D.off.length-1));
   if(a===b)b=(a+1)%D.off.length;
   $('selA').value=a;$('selB').value=b;
-  ['A','B'].forEach(s=>{
+  const drawTiles=()=>{['A','B'].forEach(s=>{
     $('tiles'+s).innerHTML=grpTiles(D.off,wrAll(),t=>{const i=D.off.indexOf(t);return `<button type="button" class="tile" role="radio" aria-checked="false" data-i="${i}" title="${esc(t)} · ${num(DESC.tot[t].n)} sets">${logo(t,'l40')}<span>${esc(t)}</span></button>`});
     $('tiles'+s).onclick=e=>{const btn=e.target.closest('.tile');if(!btn)return;
       const me=$('sel'+s),ot=$('sel'+(s==='A'?'B':'A')),v=btn.dataset.i;
       if(ot.value===v)ot.value=me.value;
       me.value=v;render()};
-  });
+  });};
+  drawTilesFn=drawTiles;drawTiles();
   const mc={};for(const m of ds.matches)if(!m.s)mc[m.m]=(mc[m.m]||0)+1;
   PICKMAPS=D.maps.filter(m=>hasImg(m)&&MAP18.has(mkey(m)));
   const byFreq=[...PICKMAPS].sort((x,y)=>(mc[y]||0)-(mc[x]||0));
@@ -2009,7 +2034,7 @@ function luApply(team,items,key,stack){
 function ddBuild(team,cls,key,pool){
   const F=FK(key),flt=F.flt,tfs=F.tfs;
   let items;
-  if(pool){const pt=(poolTeams||(poolTeams=allTeams())).filter(x=>M.D.off.includes(x));items=[];for(const t of pt)for(const x of Engine.setList(ds,DB,t,mapsFilter()))items.push(Object.assign({team:t},x))}else items=Engine.setList(ds,DB,team,mapsFilter());
+  if(pool){const pt=(poolTeams||(poolTeams=visTeams())).filter(x=>M.D.off.includes(x));items=[];for(const t of pt)for(const x of Engine.setList(ds,DB,t,mapsFilter()))items.push(Object.assign({team:t},x))}else items=Engine.setList(ds,DB,team,mapsFilter());
   let LU=null;if(!pool){LU=luApply(team,items,key,!!key);items=LU.items}
   TLIST=[...new Set([...TYPE_ORDER,...Object.values(BTYPE),'OTHER'])];
   const items0=items,base=Engine.applyFilter(items0.filter(x=>!x.s),flt.own,flt.enemy);
@@ -2065,7 +2090,7 @@ function poolTableHTML(pt){
   return `<div class="pooltbl"><div style="display:flex;justify-content:center;margin:12px 0 6px"><div class="ttl" style="margin:0">Win rate by team · ${statMaps.length?plural(statMaps.length,'map')+' selected':'all maps'}</div></div><div class="tablewrap" style="max-height:480px;overflow:auto"><table class="rank fit" style="min-width:420px;margin:0 auto"><thead><tr><th class="rk"></th><th style="text-align:left">Team</th><th class="num">Sets</th><th class="num">Won</th><th class="num">Lost</th><th class="num">Win rate</th></tr></thead><tbody>${body}</tbody><tfoot><tr><td></td><td style="text-align:left"><b>All together</b></td><td class="num">${tot[0]}</td><td class="num">${tot[1]}</td><td class="num">${tot[0]-tot[1]}</td><td class="num">${tot[0]?Math.round(tot[1]/tot[0]*100)+'%':'–'}</td></tr></tfoot></table></div></div>`}
 function deepDive(){
   if(scope==='pair')return pairDeep();
-  const pool=scope==='pool',one=scope==='one',pt=pool?(poolTeams||(poolTeams=allTeams())).filter(x=>M.D.off.includes(x)):[];
+  const pool=scope==='pool',one=scope==='one',pt=pool?(poolTeams||(poolTeams=visTeams())).filter(x=>M.D.off.includes(x)):[];
   const team=pool?(pt.length===M.D.off.length?'All teams':plural(pt.length,'team')):one?curOne():focus==='A'?sel.a:sel.b,cls=pool||one||focus==='A'?'a':'b';
   const D=ddBuild(team,cls,'',pool),{CS,combos,active,log,nSingles}=D;
   const teamSeg=['A','B'].map(s=>`<button type="button" class="seg${s===focus?' on '+s:''}" data-focus="${s}" aria-pressed="${s===focus}">${logo(teamOf(s),'l20')}${esc(teamOf(s))}</button>`).join('');
@@ -2145,7 +2170,7 @@ function scopeHTML(){
   const one1=t=>t?`${tdot(t)}${logo(t,'l40')}<span class="tsel-t"><b>${esc(t)}</b><small>${wt(t)}</small></span>`:`<span class="tsel-t"><b>Select team</b></span>`;
   let body='';
   if(scope==='one'){body=`<div class="tselrow">${box('one','Team',one1(curOne()),'',[curOne()])}</div><p class="msg" style="margin:8px 0 0">Pick one team. Every number on the page is that team's own record, and the box takes the colour of its logo.</p>`}
-  else if(scope==='pool'){const pt=(poolTeams||(poolTeams=allTeams())).filter(x=>off.includes(x));
+  else if(scope==='pool'){const pt=(poolTeams||(poolTeams=visTeams())).filter(x=>off.includes(x));
     body=`<div class="tselrow">${box('pool','Teams',`<span class="tsel-chips">${pt.map(x=>logo(x,'l28')).join('')}</span><span class="tsel-t tsel-r"><b>${pt.length?plural(pt.length,'team')+' selected':'Select teams'}</b><small>click to change</small></span>`,'wide',pt)}</div><p class="msg" style="margin:8px 0 0">Tick the teams (or a whole group) to merge them into one pool; the box blends their logo colours. Every set is counted from the side of each selected team, so a set between two selected teams appears once for each of them.</p>`}
   else body=`<div class="tselrow pair">${box('pairA','Team A',one1(sel.a),'A',[sel.a])}<button type="button" class="swap" data-tpswap="1" aria-label="Swap teams">⇄</button>${box('pairB','Team B',one1(sel.b),'B',[sel.b])}</div><p class="msg" style="margin:8px 0 0">Pick Team A and Team B (⇄ swaps them). Each box takes its team's logo colour; the page shows the team in focus and compares both head to head.</p>`;
   return `<div class="shd"><div class="lbl">What do you want to look at?</div>${scope==='pair'?'':leg}</div>${seg}${body}`;
@@ -2973,7 +2998,7 @@ $('statsscope').addEventListener('click',e=>{
   const sc=e.target.closest('[data-scope]');if(sc){scope=sc.dataset.scope;rs();return}
   const on=e.target.closest('[data-one]');if(on){oneTeam=on.dataset.one;rs();return}
   const ptb=e.target.closest('[data-pt]');if(ptb){const x=ptb.dataset.pt,i=poolTeams.indexOf(x);if(i>=0)poolTeams.splice(i,1);else poolTeams.push(x);rs();return}
-  if(e.target.closest('[data-pall]')){poolTeams=allTeams();rs();return}
+  if(e.target.closest('[data-pall]')){poolTeams=visTeams();rs();return}
   if(e.target.closest('[data-pnone]')){poolTeams=[];rs()}
 });
 document.addEventListener('click',e=>{if(calOpen&&e.target.isConnected&&!e.target.closest('.dbox')&&!e.target.closest('[data-calopen]')){calOpen=false;renderDetail();return}
@@ -3176,10 +3201,10 @@ async function readSheet(mcp,prog,from){
   return rows;
 }
 const SIG=o=>JSON.stringify(Object.keys(o).map(k=>[k,o[k]]));
-const PSIG=pk=>pk?JSON.stringify([SIG(pk.off),pk.selected,pk.meta,Object.keys(pk.known).sort().map(k=>[k,pk.known[k]])]):'';
+const PSIG=pk=>pk?JSON.stringify([SIG(pk.off),pk.selected,pk.meta,Object.keys(pk.known).sort().map(k=>[k,pk.known[k]]),pk.rank||{}]):'';
 async function readPicks(mcp){ // Picks sheet: B = selected teams (+ tournament and region to their right); TEAMS column = every known team, then name/tag cells, then TOURNAMENT and REGION; BRAWLERS column = brawler, next = type
   try{
-    const r=await mcp.callTool(SHEET.server,'get_values',{spreadsheetId:SHEET.id,range:`'${SHEET.picks}'!B2:Z400`},{cache:false});
+    const r=await mcp.callTool(SHEET.server,'get_values',{spreadsheetId:SHEET.id,range:`'${SHEET.picks}'!B2:AD400`},{cache:false});
     const v=(r&&r.payload&&r.payload.values)||[],S=x=>String(x==null?'':x).trim();
     const hd=(v[0]||[]).map(x=>S(x).toUpperCase());
     let cT=hd.indexOf('TEAMS'),cB=hd.indexOf('BRAWLERS'),rows=v;
@@ -3188,7 +3213,8 @@ async function readPicks(mcp){ // Picks sheet: B = selected teams (+ tournament 
     const find=(from,to,f)=>{for(let c=from;c<to;c++)if(hd[c]&&f(hd[c]))return c;return -1};
     const sT=find(1,cT,isT),sR=find(1,cT,isR),tT=find(cT+1,cB,isT),tR=find(cT+1,cB,isR);
     const cEnd=Math.min(cB,...[tT,tR].filter(x=>x>0));
-    const cand={},plr={},selT=[],types=[],tbl={},sel={};
+    const cand={},plr={},selT=[],types=[],tbl={},sel={},rank={};
+    const cS=find(cT+1,hd.length,h=>h==='STATUS'); // Team / Tryout / Old (column STATUS, right of REGION)
     // two known teams with the same name are told apart by region: EA = APAC, EU = EMEA, SA = South America, NA = North America
     const RC={'APAC':'EA','EMEA':'EU','SOUTH AMERICA':'SA','NORTH AMERICA':'NA','CHINA':'CN'},dupN={};
     for(const row of rows){const h=S(row[cT]).toUpperCase();if(h)dupN[h]=(dupN[h]||0)+1}
@@ -3211,7 +3237,8 @@ async function readPicks(mcp){ // Picks sheet: B = selected teams (+ tournament 
           gap=false}
         const P=pl.filter(p=>p.tags.length);
         cand[h.toUpperCase()]=[...new Set(P.flatMap(p=>p.tags))];plr[h.toUpperCase()]=P;
-        tbl[h.toUpperCase()]={tour:tT>0?S(row[tT]):'',region:tR>0?S(row[tR]):''}}
+        tbl[h.toUpperCase()]={tour:tT>0?S(row[tT]):'',region:tR>0?S(row[tR]):''};
+        if(cS>0){const z=S(row[cS]).toUpperCase();if(/^TRY/.test(z))rank[h.toUpperCase()]=1;else if(/^OLD/.test(z))rank[h.toUpperCase()]=2}}
       const b=S(row[cB]),ty=S(row[cB+1]);if(b&&ty)types.push([b,ty]);
     }
     const off={},missing=[],meta={},known={};
@@ -3224,7 +3251,7 @@ async function readPicks(mcp){ // Picks sheet: B = selected teams (+ tournament 
     }
     for(const k in cand)if(cand[k].length>=2&&!off[k]&&!selT.some(x=>x.toUpperCase()===k))known[k]=cand[k];
     const tags={};for(const n of selT)tags[n]=(cand[n.toUpperCase()]||[]);
-    return Object.keys(off).length>=2?{off,missing,types,tags,players:plr,selected:selT,meta,known}:null;
+    return Object.keys(off).length>=2?{off,missing,types,tags,players:plr,selected:selT,meta,known,rank}:null;
   }catch(e){return null}
 }
 function convRow(r){const o=new Array(26).fill('');o[0]=r[23]||'';o[1]=r[0]||'';o[2]=r[2]||'';o[3]=r[3]||'';for(let i=4;i<=21;i++)o[i]=r[i]||'';o[22]=r[22]||'';return o}
@@ -3256,7 +3283,7 @@ async function syncSheet(full){
     setStatus('Reading teams and players…',false,72);
     const pk=await readPicks(mcp),official=pk?pk.off:DEFAULT.official;
     setStatus('Processing '+num(raw.length)+' rows…',false,78);await new Promise(r=>setTimeout(r,20));
-    const nds=Engine.processRows(raw.map(convRow),DB,{official,typeCol:22,known:pk?pk.known:undefined});
+    const nds=Engine.processRows(raw.map(convRow),DB,{official,typeCol:22,known:pk?pk.known:undefined,rank:pk?pk.rank:undefined});
     nds.missing=pk?pk.missing:[];nds.picksSig=pk?PSIG(pk):SIG(official);if(pk){nds.pickTags=pk.tags;nds.pickPlayers=pk.players;nds.selected=pk.selected;nds.teamMeta=pk.meta}
     if(pk&&pk.types.length>20){nds.btypes=pk.types;BTYPE=setTypes(pk.types)}
     if(nds.matches.length<50)throw new Error('only '+nds.matches.length+' valid sets found in the sheet');
@@ -3282,7 +3309,7 @@ async function sheetCheck(){
     if(pk&&pk.types.length>20&&JSON.stringify(pk.types)!==JSON.stringify(FULL.btypes||[])){FULL.btypes=pk.types;BTYPE=setTypes(pk.types);idbSet('sheet',{ds:FULL});if(M&&!busy)renderDetail()}
     if(pk&&(JSON.stringify(pk.tags)!==JSON.stringify(FULL.pickTags||null)||JSON.stringify(pk.players)!==JSON.stringify(FULL.pickPlayers||null))){FULL.pickTags=pk.tags;FULL.pickPlayers=pk.players;idbSet('sheet',{ds:FULL});if(M&&!busy&&tab==='players')renderDetail()}
     if(pk&&PSIG(pk)!==FULL.picksSig&&!busy){ // the team list changed in the Picks sheet: relabel, no need to read all the rows again
-      FULL.official=pk.off;FULL.missing=pk.missing;FULL.picksSig=PSIG(pk);FULL.selected=pk.selected;FULL.teamMeta=pk.meta;FULL.knownTags=pk.known;
+      FULL.official=pk.off;FULL.missing=pk.missing;FULL.picksSig=PSIG(pk);FULL.selected=pk.selected;FULL.teamMeta=pk.meta;FULL.knownTags=pk.known;FULL.rank=pk.rank;
       Engine.relabel(FULL,DB);await idbSet('sheet',{ds:FULL});build(FULL,true);
     }else updateSheetInfo();
   }catch(e){}
@@ -3293,7 +3320,7 @@ function playedToday(){const t=todayISO(),k=t+'|'+(FULL?FULL.matches.length:0);i
 const tdot=t=>{const n=playedToday()[t];return n?`<i class="tdot" title="Played scrims today · ${plural(n,'game')}"></i>`:''};
 function updateSheetInfo(){
   const el=$('sheetInfo');if(!el)return;
-  el.textContent=FULL&&FULL.source==='Google Sheets'?`Updated ${hhmm(FULL.syncedAt||Date.now())} · checked ${hhmm(lastCheck||FULL.syncedAt||Date.now())} · checks every 10 min`+(FULL.missing&&FULL.missing.length?` · no players linked yet for: ${FULL.missing.join(', ')} (write their 3 tags next to the team in the Picks sheet, columns J to L)`:'')+(FULL.syncNote?` · last refresh: ${FULL.syncNote}`:''):'';
+  el.textContent=FULL&&FULL.source==='Google Sheets'?`Updated ${hhmm(FULL.syncedAt||Date.now())} · checked ${hhmm(lastCheck||FULL.syncedAt||Date.now())} · checks every 10 min`+(FULL.missing&&FULL.missing.length?` · no players linked yet for: ${FULL.missing.join(', ')} (write their 3 tags next to the team in the Picks sheet, columns J to U)`:'')+(FULL.syncNote?` · last refresh: ${FULL.syncNote}`:''):'';
 }
 // ===== Drafts =====
 const DR_HEAD=['Id','Date','Mode','Map','Coin','Blue','Red','BlueBan1','BlueBan2','BlueBan3','RedBan1','RedBan2','RedBan3','Pick1','Pick2','Pick3','Pick4','Pick5','Pick6','BlueGlobal1','BlueGlobal2','RedGlobal1','RedGlobal2','Winner','Notes','Saved'];
@@ -4115,13 +4142,28 @@ function scoutHTML(){
 }
 document.addEventListener('change',e=>{const s=e.target.closest&&e.target.closest('[data-scsel]');if(!s)return;SC[s.dataset.scsel]=s.value;renderDetail()});
 
+document.addEventListener('change',e=>{const c=e.target.closest&&e.target.closest('[data-st]');if(!c)return;
+  SHOWST[c.dataset.st]=c.checked;store.set('tvt:showst',JSON.stringify(SHOWST));
+  if(poolTeams)poolTeams=poolTeams.filter(stShown);
+  if(M&&drawTilesFn){drawTilesFn();render()}});
+// sets where two teams have 2+ of the 3 tags (a player written in two rows): the better ranked team (Team before Tryout before Old) is used unless the Data check says otherwise
+const OVRK='tvt:ovr';
+function ovrLoad(){try{return JSON.parse(store.get(OVRK)||'{}')||{}}catch(e){return {}}}
+const ovrKey=(m,sd)=>m.d+'|'+m.m+'|'+(sd==='a'?m.ta:m.tb).slice().sort().join(',');
+const ovrVal=(F,c)=>(F.official&&F.official[c])?c:'ext:'+c;
+function applyOvr(F){if(!F||!F.matches)return F;const O=ovrLoad();
+  for(const m of F.matches)for(const sd of ['a','b']){const x=m['x'+sd];if(!x||!x.length)continue;const c=O[ovrKey(m,sd)];m[sd]=ovrVal(F,c&&x.includes(c)?c:x[0])}
+  return F}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-ovr]');if(!b||!FULL||busy)return;
+  const O=ovrLoad(),k=b.dataset.ovr,t=b.dataset.team;if(O[k]===t)delete O[k];else O[k]=t;
+  store.set(OVRK,JSON.stringify(O));applyOvr(FULL);CHK={key:null,res:null};build(FULL,true)});
 // ---- Data check (health of the sheet data)
 let CHK={key:null,res:null};
 const DAYMS=864e5;
 function chkRun(){
   const F=FULL;if(!F||!F.matches)return null;
   const last=F.matches[F.matches.length-1]||{};
-  const key=F.matches.length+'|'+(F.picksSig||'')+'|'+last.i+'|'+(F.syncedAt||'');
+  const key=F.matches.length+'|'+(F.picksSig||'')+'|'+last.i+'|'+(F.syncedAt||'')+'|'+(store.get(OVRK)||'');
   if(CHK.key===key&&CHK.res)return CHK.res;
   const R={bad:[],warn:[],rows:[],unk:[],maps:[],brs:[],conf:[],noTimeDates:[]};
   const ms=F.matches,sets=ms.filter(m=>!m.s),singles=ms.length-sets.length;
@@ -4168,14 +4210,20 @@ function chkRun(){
     for(const b of [...(m.ba||[]),...(m.bb||[])]){if(b&&!BTYPE[mkey(b)])ub[b]=(ub[b]||0)+1}}
   R.maps=Object.entries(um).sort((a,b)=>b[1]-a[1]);R.brs=Object.entries(ub).sort((a,b)=>b[1]-a[1]);
   if(R.maps.length)R.warn.push(`Sets on maps outside the 18 of the rotation are left out of the whole page: ${R.maps.slice(0,5).map(x=>x[0]+' ('+x[1]+')').join(', ')}${R.maps.length>5?' …':''}. If one of them is a new map of the rotation, it needs to be added to the page.`);
-  if(R.brs.length)R.warn.push(`Brawlers without a type in the BRAWLERS table (columns S to U): ${R.brs.slice(0,6).map(x=>x[0]).join(', ')}.`);
+  if(R.brs.length)R.warn.push(`Brawlers without a type in the BRAWLERS table (columns Y to AA): ${R.brs.slice(0,6).map(x=>x[0]).join(', ')}.`);
   // tags that appear in more than one team
   const seen={};
   const add=(team,tags)=>(tags||[]).forEach(g=>{(seen[g]||(seen[g]=new Set())).add(team)});
   for(const t of sel)add(t,(F.pickTags&&F.pickTags[t])||[]);
   for(const t in (F.knownTags||{}))add(t,F.knownTags[t]);
   R.conf=Object.entries(seen).filter(([g,s])=>s.size>1).map(([g,s])=>[g,[...s]]);
-  if(R.conf.length)R.warn.push(`${plural(R.conf.length,'tag')} written for more than one team: ${R.conf.slice(0,3).map(c=>c[0]+' ('+c[1].join(' / ')+')').join(', ')}.`);
+  // lineups that fit two teams (2+ tags each): listed so the right one can be picked
+  const O=ovrLoad(),amb={};
+  for(const m of sets)for(const sd of ['a','b']){const x=m['x'+sd];if(!x||x.length<2)continue;const k=ovrKey(m,sd);
+    const e=amb[k]||(amb[k]={k,n:0,d:m.d,map:m.m,c:x,tags:(sd==='a'?m.ta:m.tb),cur:m[sd]});e.n++;if(m.d>e.d)e.d=m.d}
+  R.amb=Object.values(amb).sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:0);
+  const unres=R.amb.filter(e=>!O[e.k]);
+  if(unres.length)R.warn.push(`${plural(unres.length,'lineup')} (${plural(unres.reduce((a,e)=>a+e.n,0),'set')}) fit two teams, each with 2 of the 3 tags. They are counted for the first team until you pick one in "Ambiguous lineups" below.`);
   R.n=R.bad.length+R.warn.length;
   CHK={key,res:R};return R;
 }
@@ -4203,6 +4251,7 @@ function checkHTML(){
     <h3 class="sec-h">Rivals missing from the known teams table</h3>${unk}
     <h3 class="sec-h">Unknown maps (last 45 days)</h3>${list(R.maps,'No unknown maps.')}
     <h3 class="sec-h">Brawlers without a type</h3>${list(R.brs,'Every brawler has a type.')}
+    <h3 class="sec-h">Ambiguous lineups</h3>${ambHTML(R)}
     <h3 class="sec-h">Tags in more than one team</h3>${R.conf.length?`<div class="chk-chips">${R.conf.map(([g,t])=>`<span class="chk-chip">${esc(g)} <small>${esc(t.join(' / '))}</small></span>`).join('')}</div>`:'<p class="msg">No repeated tags.</p>'}
   </section>`;
 }
@@ -4210,6 +4259,10 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-chkcopy]')
   const t=b.dataset.chkcopy,ok=()=>{const o=b.textContent;b.textContent='Copied';setTimeout(()=>b.textContent=o,1500)};
   if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(ok,()=>{});
   else{const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');ok()}catch(er){}ta.remove()}});
+function ambHTML(R){const F=FULL,O=ovrLoad();if(!R.amb||!R.amb.length)return '<p class="msg">No lineup fits two teams.</p>';
+  const nm=g=>esc((F.names&&F.names[g])||g);
+  return `<div class="tablewrap"><table class="rank tiny"><thead><tr><th>Players</th><th>Last played</th><th class="num">Sets</th><th>Counted for (click to change)</th></tr></thead><tbody>${R.amb.slice(0,40).map(e=>{const cur=O[e.k]&&e.c.includes(O[e.k])?O[e.k]:e.c[0];
+    return `<tr><td>${e.tags.filter(Boolean).map(nm).join(' · ')}</td><td>${fmtDate(e.d)}</td><td class="num">${e.n}</td><td><div class="chk-chips">${e.c.map(t=>`<button type="button" class="chk-chip ovr${t===cur?' on':''}" data-ovr="${esc(e.k)}" data-team="${esc(t)}">${esc(t)}${stOf(t)===1?' <small>tryout</small>':stOf(t)===2?' <small>old</small>':''}</button>`).join('')}</div></td></tr>`}).join('')}</tbody></table></div>`}
 function renderCheck(){const el=$('checkview');if(el)el.innerHTML=checkHTML()}
 
 // ---- Brawler comparison (stats come from the "Brawlers" tab; a built-in copy is used until it loads)
@@ -4341,13 +4394,13 @@ document.addEventListener('click',e=>{
     if(TP.mode==='balopp'){if(t!==balTeam){balOpp=t;store.set('tvt:balO',t)}tpClose();renderBal();return}
     if(TP.mode==='bal'){balTeam=t;store.set('tvt:balT',t);tpClose();renderBal();return}
     if(TP.mode==='one'){oneTeam=t;tpClose();rs();return}
-    if(TP.mode==='pool'){const pt=poolTeams||(poolTeams=allTeams()),i=pt.indexOf(t);if(i>=0)pt.splice(i,1);else pt.push(t);tpMark();rs();return}
+    if(TP.mode==='pool'){const pt=poolTeams||(poolTeams=visTeams()),i=pt.indexOf(t);if(i>=0)pt.splice(i,1);else pt.push(t);tpMark();rs();return}
     // compare 2 teams: A then B (or only B when opened from the B box)
     if(TP.slot){tpSetPair(TP.slot,t);tpClose();return}
     if(TP.got===0){tpSetPair('A',t);TP.got=1;tpMark();return}
     if(t===sel.a)return;tpSetPair('B',t);tpClose();return}
   const g=e.target.closest('[data-tpgrp]');
-  if(g&&TP.mode==='pool'){const ts=g.dataset.tpgrp.split('|'),pt=poolTeams||(poolTeams=allTeams()),all=ts.every(x=>pt.includes(x));
+  if(g&&TP.mode==='pool'){const ts=g.dataset.tpgrp.split('|'),pt=poolTeams||(poolTeams=visTeams()),all=ts.every(x=>pt.includes(x));
     if(all)poolTeams=pt.filter(x=>!ts.includes(x));else ts.forEach(x=>{if(!pt.includes(x))pt.push(x)});tpMark();rs();return}
   if(e.target.closest('[data-tpall]')){poolTeams=tpTeams().slice();tpMark();rs();return}
   if(e.target.closest('[data-tpnone]')){poolTeams=[];tpMark();rs()}
