@@ -979,6 +979,7 @@ textarea.dr-input{resize:vertical;font-size:14px}
 .tsel-in>img,.tsel-in>.ph{margin-top:12px}.tsel-t{display:flex;flex-direction:column;margin-top:12px}.tsel-t b{font-family:var(--display);font-size:18px;text-transform:uppercase}.tsel-t small{color:var(--muted);font-size:12px}
 .tsel-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:12px;flex:1}.tsel-chips small{align-self:center;color:var(--muted)}
 .tp-pop{width:min(1100px,100%)}.tp-body{overflow:auto;padding:12px}.tp-body .reglegend{margin:0 0 8px}.tp-ttl{font-family:var(--display);font-size:16px}
+.tile .tsm{align-self:center;text-align:center;width:100%;font-size:8.5px;opacity:.65;text-transform:uppercase;letter-spacing:.04em;line-height:1.1}.tn3{display:flex;flex-direction:column;align-items:center;gap:0;font-style:normal}.tselN{align-items:flex-start;margin-top:2px}.tselN i{font-size:11.5px;font-weight:500;opacity:.9}.tn3 i{font-style:normal;font-size:10.5px;line-height:1.25;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tnw{display:flex;flex-direction:column;align-items:center;gap:1px}.tnw .tn3 i{font-size:11px;font-weight:500;opacity:.9}
 .stbar{display:flex;gap:16px;text-transform:none;letter-spacing:0;font-weight:600;margin:0 0 4px}.stsw{display:inline-flex;align-items:center;gap:6px;cursor:pointer;color:var(--muted)}.stsw input{accent-color:var(--accent,#7c8cff)}.stsw:hover{color:var(--fg)}
 .chk-chip.ovr{cursor:pointer;border:1px solid var(--line,#3a3f55);background:none;color:inherit;font:inherit}.chk-chip.ovr.on{background:#1c2f55;border-color:#4f8cff}
 .glab-click{cursor:pointer}.glab-click:hover{color:var(--fg)}.glab-click em{font-style:normal;opacity:.7;text-transform:none;letter-spacing:0;font-weight:500}
@@ -1672,6 +1673,11 @@ function stOf(t){const r=FULL&&FULL.rank;return r?(r[String(t).toUpperCase()]||0
 let SHOWST=(()=>{try{return JSON.parse(store.get('tvt:showst')||'{}')||{}}catch(e){return {}}})();
 const stShown=t=>{const s=stOf(t);return s===0||!!SHOWST[s]};
 const visTeams=()=>allTeams().filter(stShown);
+// a tryout team shows its 3 players (one under the other) next to a small team name
+function tryNames(t){if(stOf(t)!==1)return [];const PL=(FULL&&FULL.pickPlayers&&FULL.pickPlayers[String(t).toUpperCase()])||[];
+  return PL.slice(0,3).map(p=>String(p.name||p.tags[0]||'').replace(/^[^|]{1,14}\|\s*/,'').trim()).filter(Boolean)}
+const tselN=t=>{const n=tryNames(t);return n.length?`<em class="tn3 tselN">${n.map(x=>`<i>${esc(x)}</i>`).join('')}</em>`:''};
+const tnTile=t=>{const n=tryNames(t);return n.length?`<span class="tsm">${esc(t)}</span><em class="tn3">${n.map(x=>`<i>${esc(x)}</i>`).join('')}</em>`:`<span>${esc(t)}</span>`};
 let drawTilesFn=null;
 function grpOrder(teams,W){
   const allT=teams;teams=allT.filter(t=>stOf(t)===0);
@@ -1762,7 +1768,7 @@ function setup(){
   if(a===b)b=(a+1)%D.off.length;
   $('selA').value=a;$('selB').value=b;
   const drawTiles=()=>{['A','B'].forEach(s=>{
-    $('tiles'+s).innerHTML=grpTiles(D.off,wrAll(),t=>{const i=D.off.indexOf(t);return `<button type="button" class="tile" role="radio" aria-checked="false" data-i="${i}" title="${esc(t)} · ${num(DESC.tot[t].n)} sets">${logo(t,'l40')}<span>${esc(t)}</span></button>`});
+    $('tiles'+s).innerHTML=grpTiles(D.off,wrAll(),t=>{const i=D.off.indexOf(t);return `<button type="button" class="tile" role="radio" aria-checked="false" data-i="${i}" title="${esc(t)} · ${num(DESC.tot[t].n)} sets">${logo(t,'l40')}${tnTile(t)}</button>`});
     $('tiles'+s).onclick=e=>{const btn=e.target.closest('.tile');if(!btn)return;
       const me=$('sel'+s),ot=$('sel'+(s==='A'?'B':'A')),v=btn.dataset.i;
       if(ot.value===v)ot.value=me.value;
@@ -2005,7 +2011,7 @@ function recentHTML(team,mf){
 const FSA={flt:{own:['','',''],enemy:['','','']},tfs:{own:{n:1,k:''},enemy:{n:1,k:''}}},FSB={flt:{own:['','',''],enemy:['','','']},tfs:{own:{n:1,k:''},enemy:{n:1,k:''}}};
 const clrFS=k=>{for(const [n,F] of [['A',FSA],['B',FSB]])if(!k||k===n){LUS[n]=null;F.flt={own:['','',''],enemy:['','','']};F.tfs={own:{n:1,k:''},enemy:{n:1,k:''}}}};
 const FK=k=>k==='A'?FSA:k==='B'?FSB:{get flt(){return flt},get tfs(){return tfs}};
-const tstrip=(t,extra)=>`<div class="tstrip" data-tc="${esc(t)}" style="--tc:${tcol(t)}${extra||''}">${logo(t,'l40')}<b>${esc(t)}</b></div>`;
+const tstrip=(t,extra)=>`<div class="tstrip" data-tc="${esc(t)}" style="--tc:${tcol(t)}${extra||''}">${logo(t,'l40')}${tryNames(t).length?`<div class="tnw"><b>${esc(t)}</b><em class="tn3 h">${tryNames(t).map(x=>`<i>${esc(x)}</i>`).join('')}</em></div>`:`<b>${esc(t)}</b>`}</div>`;
 // everything one team shows in the deep dive; key = 'A'/'B' (compare 2 teams, own filters) or '' (1 team / pool)
 const LUS={'':null,A:null,B:null},LUK={'':[],A:[],B:[]};
 const wrC=(w,l)=>!(w+l)?'':w>l?'pw':w<l?'pl':'';
@@ -2162,12 +2168,12 @@ function tselPaint(){
   });
 }
 function scopeHTML(){
-  const off=allTeams(),WR=wrAll(),wt=t=>WR[t]&&WR[t].n?wrTxt(WR[t]):(M.D.off.includes(t)?'–':'NO DATA'),tile=(t,on,attr)=>`<button type="button" class="tile${on?' selA':''}" ${attr}="${esc(t)}" aria-pressed="${on}" title="${esc(t)} · win rate ${wt(t)} sets">${logo(t,'l40')}<span>${esc(t)}</span><small class="twr">${wt(t)}</small></button>`;
+  const off=allTeams(),WR=wrAll(),wt=t=>WR[t]&&WR[t].n?wrTxt(WR[t]):(M.D.off.includes(t)?'–':'NO DATA'),tile=(t,on,attr)=>`<button type="button" class="tile${on?' selA':''}" ${attr}="${esc(t)}" aria-pressed="${on}" title="${esc(t)} · win rate ${wt(t)} sets">${logo(t,'l40')}${tnTile(t)}<small class="twr">${wt(t)}</small></button>`;
   const seg=`<div class="seg2" style="margin-top:0" role="group" aria-label="Team scope"><button type="button" data-scope="one" aria-pressed="${scope==='one'}">1 team</button><button type="button" data-scope="pair" aria-pressed="${scope==='pair'}">Compare 2 teams</button><button type="button" data-scope="pool" aria-pressed="${scope==='pool'}">Several teams together</button></div>`;
   const regs=[...new Set(off.map(t=>REGION[t]).filter(Boolean))];
   const leg=`<div class="reglegend">${regs.map(r=>`<span><i style="background:${REGC[r]}"></i>${r}</span>`).join('')}</div>`;
   const box=(open,label,inner,cls,tc)=>`<button type="button" class="tsel${cls?' '+cls:''}" data-tpopen="${open}" data-tc="${esc((tc||[]).join('¦'))}"><span class="tsel-sh"></span><span class="tsel-in"><span class="tsel-l">${label}</span>${inner}</span></button>`;
-  const one1=t=>t?`${tdot(t)}${logo(t,'l40')}<span class="tsel-t"><b>${esc(t)}</b><small>${wt(t)}</small></span>`:`<span class="tsel-t"><b>Select team</b></span>`;
+  const one1=t=>t?`${tdot(t)}${logo(t,'l40')}<span class="tsel-t"><b>${esc(t)}</b><small>${wt(t)}</small>${tselN(t)}</span>`:`<span class="tsel-t"><b>Select team</b></span>`;
   let body='';
   if(scope==='one'){body=`<div class="tselrow">${box('one','Team',one1(curOne()),'',[curOne()])}</div><p class="msg" style="margin:8px 0 0">Pick one team. Every number on the page is that team's own record, and the box takes the colour of its logo.</p>`}
   else if(scope==='pool'){const pt=(poolTeams||(poolTeams=visTeams())).filter(x=>off.includes(x));
@@ -4145,7 +4151,7 @@ document.addEventListener('change',e=>{const s=e.target.closest&&e.target.closes
 document.addEventListener('change',e=>{const c=e.target.closest&&e.target.closest('[data-st]');if(!c)return;
   SHOWST[c.dataset.st]=c.checked;store.set('tvt:showst',JSON.stringify(SHOWST));
   if(poolTeams)poolTeams=poolTeams.filter(stShown);
-  if(M&&drawTilesFn){drawTilesFn();render()}});
+  if(M&&drawTilesFn){drawTilesFn();render()}if(TP)tpRender()});
 // sets where two teams have 2+ of the 3 tags (a player written in two rows): the better ranked team (Team before Tryout before Old) is used unless the Data check says otherwise
 const OVRK='tvt:ovr';
 function ovrLoad(){try{return JSON.parse(store.get(OVRK)||'{}')||{}}catch(e){return {}}}
@@ -4349,7 +4355,7 @@ const TPCB={};
 function tpBox(key,label,cur,fn,o){o=o||{};TPCB[key]={fn,cur,none:o.none||'',excl:o.excl||[]};
   const WR=wrAll(),wt=t=>WR[t]&&WR[t].n?wrTxt(WR[t]):(M.D.off.includes(t)?'–':'NO DATA');
   if(o.small)return `<button type="button" class="tpsm" data-tpopen="cb:${esc(key)}" title="Change team">${cur?`<b>${esc(cur)}</b>`:`<b>${esc(o.none||'Select team')}</b>`}<span>▾</span></button>`;
-  const inner=cur?`${tdot(cur)}${logo(cur,'l40')}<span class="tsel-t"><b>${esc(cur)}</b><small>${wt(cur)}</small></span>`:`<span class="tsel-t"><b>${esc(o.none||'Select team')}</b></span>`;
+  const inner=cur?`${tdot(cur)}${logo(cur,'l40')}<span class="tsel-t"><b>${esc(cur)}</b><small>${wt(cur)}</small>${tselN(cur)}</span>`:`<span class="tsel-t"><b>${esc(o.none||'Select team')}</b></span>`;
   return `<button type="button" class="tsel${o.cls?' '+o.cls:''}" data-tpopen="cb:${esc(key)}" data-tc="${esc(cur||'')}"><span class="tsel-sh"></span><span class="tsel-in"><span class="tsel-l">${label}</span>${inner}</span></button>`}
 function tpTeams(){const off=allTeams();if(TP&&TP.mode==='cb'){const c=TPCB[TP.key]||{excl:[]};return off.filter(t=>!c.excl.includes(t))}return TP&&TP.mode==='pair'?off.filter(t=>M.D.off.includes(t)):off}
 function tpSetPair(s,team){const i=M.D.off.indexOf(team);if(i<0)return;const me=$('sel'+s),ot=$('sel'+(s==='A'?'B':'A'));if(+ot.value===i)ot.value=me.value;me.value=i;render()}
@@ -4372,7 +4378,7 @@ function tpRender(){
   let o=$('teamov');if(o)o.remove();if(!TP||!M)return;
   const W=wrAll(),teams=tpTeams(),wt=t=>W[t]&&W[t].n?wrTxt(W[t]):(M.D.off.includes(t)?'–':'NO DATA');
   const pool=TP.mode==='pool';
-  const body=grpOrder(teams,W).map(([l,ts])=>`<div class="glab${pool?' glab-click':''}"${pool?` data-tpgrp="${esc(ts.join('|'))}" title="Click to add or remove the whole group"`:''}>${l}${pool?' <em>· select all</em>':''}</div>${ts.map(t=>{const r=REGION[t],s=tpState(t);return `<button type="button" class="tile${s?' '+s:''}"${r?` data-reg="${esc(r)}"`:''} data-mt="${esc(t)}" aria-pressed="${!!s}" title="${esc(t)} · win rate ${wt(t)} sets">${tdot(t)}${logo(t,'l40')}<span>${esc(t)}</span><small class="twr">${wt(t)}</small></button>`}).join('')}`).join('');
+  const body=stBar(teams)+grpOrder(teams,W).map(([l,ts])=>`<div class="glab${pool?' glab-click':''}"${pool?` data-tpgrp="${esc(ts.join('|'))}" title="Click to add or remove the whole group"`:''}>${l}${pool?' <em>· select all</em>':''}</div>${ts.map(t=>{const r=REGION[t],s=tpState(t);return `<button type="button" class="tile${s?' '+s:''}"${r?` data-reg="${esc(r)}"`:''} data-mt="${esc(t)}" aria-pressed="${!!s}" title="${esc(t)} · win rate ${wt(t)} sets">${tdot(t)}${logo(t,'l40')}${tnTile(t)}<small class="twr">${wt(t)}</small></button>`}).join('')}`).join('');
   const regs=[...new Set(teams.map(t=>REGION[t]).filter(Boolean))];
   const leg=`<div class="reglegend">${regs.map(r=>`<span><i style="background:${REGC[r]}"></i>${r}</span>`).join('')}</div>`;
   const el=document.createElement('div');el.id='teamov';el.className='dr-ov';
