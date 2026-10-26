@@ -1677,7 +1677,7 @@ const visTeams=()=>allTeams().filter(stShown);
 function tryNames(t){if(stOf(t)!==1)return [];const PL=(FULL&&FULL.pickPlayers&&FULL.pickPlayers[String(t).toUpperCase()])||[];
   return PL.slice(0,3).map(p=>String(p.name||p.tags[0]||'').replace(/^[^|]{1,14}\|\s*/,'').trim()).filter(Boolean)}
 const tselN=t=>{const n=tryNames(t);return n.length?`<em class="tn3 tselN">${n.map(x=>`<i>${esc(x)}</i>`).join('')}</em>`:''};
-const tnTile=t=>{const n=tryNames(t);return n.length?`<span class="tsm">${esc(t)}</span><em class="tn3">${n.map(x=>`<i>${esc(x)}</i>`).join('')}</em>`:`<span>${esc(t)}</span>`};
+const tnTile=t=>{const n=tryNames(t);return n.length?`<em class="tn3 only" title="${esc(t)}">${n.map(x=>`<i>${esc(x)}</i>`).join('')}</em>`:`<span>${esc(t)}</span>`};
 let drawTilesFn=null;
 function grpOrder(teams,W){
   const allT=teams;teams=allT.filter(t=>stOf(t)===0);
@@ -2035,7 +2035,7 @@ function luApply(team,items,key,stack){
   const tg=list.reduce((a,e)=>[a[0]+e.g,a[1]+e.s,a[2]+e.w,a[3]+e.l],[0,0,0,0]);
   const html=list.length?`<div class="lub${stack?' in':''}"><div class="luh">Lineups · players who played together</div><div class="lul"><button type="button" class="lur all${all?' on':''}"${fk} data-luall="1"><span class="cbx">${all?'✓':''}</span><span class="ln">ALL</span><span class="lg">${tg[0]} games · ${tg[1]} sets</span><span class="lw ${wrC(tg[2],tg[3])}">${tg[2]+tg[3]?Math.round(100*tg[2]/(tg[2]+tg[3]))+'%':'–'}</span></button>${rows}</div><div class="lus">${nsel} of ${list.length} lineups selected</div></div>`:'';
   const out=sel?items.filter(x=>{const k=keyOf(x);return !k||sel.has(k)}):items;
-  return {items:out,html};
+  return {items:out,html,act:!all};
 }
 function ddBuild(team,cls,key,pool){
   const F=FK(key),flt=F.flt,tfs=F.tfs;
@@ -2081,7 +2081,7 @@ function ddBuild(team,cls,key,pool){
   const wrl=`of ${esc(team)}`;
   const logAll=sub.slice().sort((x,y)=>y.d<x.d?-1:y.d>x.d?1:y.i-x.i);
   const nSingles=logAll.filter(x=>x.s).length,log=logAll.filter(x=>(showSingles||!x.s)&&(comboRes==='all'||(comboRes==='win'?x.win===1:x.win===0)));
-  return {team,cls,key,pool,wlHTML,lu:LU?LU.html:'',CS,combos,active,items0,sub,what,what2,wrl,log,nSingles,mapCols,
+  return {team,cls,key,pool,wlHTML,lu:LU?LU.html:'',luAct:!!(LU&&LU.act),CS,combos,active,items0,sub,what,what2,wrl,log,nSingles,mapCols,
     selects:(l1,l2)=>selects('own',l1)+selects('enemy',l2),tsel:(l1,l2)=>tsel('own',l1)+tsel('enemy',l2),
     summary:`<div class="toolrow"><button type="button" class="btn quiet"${fk} data-clear="1"${active?'':' disabled'}>Clear filters</button><span class="sumline"><b>${CS.games}</b> counted sets${active?' match the filters':''} on ${esc(filterLabel())}${CS.games<15?'<span class="flag">low data</span>':''}</span></div>`,
     logTitle:`Set log · ${log.filter(x=>!x.s).length} sets${active?' matching the filters':''}${log.some(x=>x.s)?` · ${log.filter(x=>x.s).length} single game${log.filter(x=>x.s).length===1?'':'s'} (not counted)`:''}`,
@@ -2113,7 +2113,7 @@ function deepDive(){
     <div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0" title="${D.what2}">${own?'Combos':'Combos used against'} · ${combos.length} ${comboKind==='duos'?'duos':'full'}</div>
       <div class="seg2" role="group" aria-label="Combo size"><button type="button" data-ck="duos" aria-pressed="${comboKind==='duos'}">Duos</button><button type="button" data-ck="trios" aria-pressed="${comboKind==='trios'}">Full Combo</button></div>
       <label class="chk" title="Only combos used more than once"><input type="checkbox" data-rep="1"${onlyRepeat?' checked':''}> Only repeated</label></div>
-      <div class="scroll pds">${rankTable(combos,cls,comboKind==='duos'?'Duo':'Full Combo',[],D.wrl)}</div></div>${pool?'':rivCol(team,cls)}</div>${D.np}
+      <div class="scroll pds">${rankTable(combos,cls,comboKind==='duos'?'Duo':'Full Combo',[],D.wrl)}</div></div>${pool?'':rivCol(team,cls,D)}</div>${D.np}
     <div class="fwrap" style="margin-top:18px">
     <div class="fbar">${D.selects('Filter: '+(pool?'selected teams':esc(team))+' brawlers','Filter: enemy brawlers')}</div>
     <div class="fbar" style="margin-top:0">${D.tsel('Filter: '+(pool?'selected teams':esc(team))+' types','Filter: enemy types')}</div>
@@ -2242,7 +2242,17 @@ function teamPlayers(team,P){ // one entry per real player (all his accounts mer
   return base.map(p=>{let n=0,w=0;const L={};
     for(const tg of p.tags){const x=P[tg];if(!x)continue;n+=x.n;w+=x.w;for(const e of x.list){const q=L[e.b]||(L[e.b]={b:e.b,n:0,w:0});q.n+=e.n;q.w+=e.w}}
     return {name:p.name||p.tags[0],tags:p.tags,n,w,list:Object.values(L).sort((a,c)=>c.n-a.n||c.w-a.w)}})}
+// with a lineup filter on: the 3 players who played most sets inside the chosen lineups (all their accounts merged), instead of the Picks roster
+function topPlayers(team,P){
+  const PL=(FULL&&FULL.pickPlayers&&FULL.pickPlayers[team.toUpperCase()])||[],tg2i={};PL.forEach((p,i)=>(p.tags||[]).forEach(g=>{tg2i[g]=i}));
+  const G={};
+  for(const tg in P){const x=P[tg],i=tg2i[tg],k=i!=null?'r'+i:'o'+(PLAYER_NAMES[tg]||x.name||tg);
+    const e=G[k]||(G[k]={name:i!=null?(PL[i].name||PLAYER_NAMES[tg]||x.name||tg):(PLAYER_NAMES[tg]||x.name||tg),tags:[],n:0,w:0,L:{}});
+    e.tags.push(tg);e.n+=x.n;e.w+=x.w;for(const b of x.list){const q=e.L[b.b]||(e.L[b.b]={b:b.b,n:0,w:0});q.n+=b.n;q.w+=b.w}}
+  return Object.values(G).sort((a,b)=>b.n-a.n||b.w-a.w).slice(0,3).map(e=>({name:e.name,tags:e.tags,n:e.n,w:e.w,list:Object.values(e.L).sort((a,c)=>c.n-a.n||c.w-a.w)}))}
+let PL_ACT=false;
 function playersTab(){
+  PL_ACT=false;
   if(scope==='pool')return statMapsHTML()+'<p class="msg" style="margin-top:12px">Player stats work with one team or with the two teams of a comparison. Choose "1 team" or "Compare 2 teams" above.</p>';
   const pair=scope==='pair';
   const TS=pair?[[sel.a,'a'],[sel.b,'b']]:[[scope==='one'?curOne():focus==='A'?sel.a:sel.b,scope==='one'||focus==='A'?'a':'b']];
@@ -2250,25 +2260,28 @@ function playersTab(){
   const LUH=[];
   const colsOf=(team,lk)=>{const its=Engine.setList(ds,DB,team,mapsFilter()),LU=luApply(team,its,lk,!!lk),keep=new Set(LU.items.map(x=>x.i));LUH.push(LU.html);
     const P=Engine.playersFor(Object.assign({},ds,{matches:ds.matches.filter(m=>keep.has(m.i))}),team,mapsFilter());
-    return teamPlayers(team,P).map(p0=>{const p=p0.n?p0:null,nm=p0.name;
+    if(LU.act)PL_ACT=true;
+    return (LU.act?topPlayers(team,P):teamPlayers(team,P)).map(p0=>{const p=p0.n?p0:null,nm=p0.name;
       const rows=p?p.list.map((x,i)=>{const wr=x.w/x.n;return `<tr><td class="rk">${i+1}</td><td class="ic" title="${esc(x.b)} · ${tLbl(typeOf(x.b))}">${bimg(x.b,'bi card')||esc(x.b)}</td><td class="num">${x.n}</td><td class="num">${x.w}</td><td class="num heat" style="${wrHeat(wr)}">${Math.round(wr*100)}%</td></tr>`}).join(''):'';
       const tc={};if(p)for(const x of p.list){const ty=typeOf(x.b);tc[ty]=(tc[ty]||0)+1}
       const tcn=p?`<div class="tcnt"><small>Brawlers by type</small>${TYL.filter(t=>tc[t]).map(t=>`<span class="tchip" title="${tLbl(t)}"><i style="background:${TYPE_COL[t]||TYPE_COL.OTHER}"></i>${tLbl(t)} <b>${tc[t]}</b></span>`).join('')}</div>`:'';
       return `<div class="pcol"><div class="phead" data-tc="${esc(team)}"><b>${esc(nm)}</b><small>${p?Math.round(100*p.w/p.n)+'% win rate ['+p.n+' sets] · '+plural(p.list.length,'brawler'):'no sets'}</small></div>
         <div class="tablewrap"><table class="rank"><thead><tr><th class="rk"></th><th></th><th class="num">Picks</th><th class="num">Wins</th><th class="num">Win rate</th></tr></thead><tbody>${rows||'<tr><td colspan="5" class="msg">No data</td></tr>'}</tbody></table></div>${tcn}</div>`})};
   const groups=TS.map(([t],i)=>({t,cols:colsOf(t,pair?(i?'B':'A'):'')}));
-  const luBox=`<div class="${pair?'pair2':'wlrow'}" style="margin:10px 0">${LUH.join('')}</div>`;
+  const luBox=`<div class="${pair?'pair2':'wlrow'}" style="margin:10px 0">${LUH.join('')}</div>`+(PL_ACT?'<p class="msg" style="margin:0 0 8px">Lineup filter on: showing the 3 players who played the most sets in the selected lineups.</p>':'');
   const nc=groups.reduce((a,g)=>a+Math.max(1,g.cols.length),0);
   const body=pair?luBox+`<div class="pgrid p6" style="grid-template-columns:repeat(${nc},minmax(0,1fr))">${groups.map(g=>tstrip(g.t,`;grid-column:span ${Math.max(1,g.cols.length)}`)).join('')}${groups.map(g=>g.cols.join('')||'<p class="msg">No player tags for this team in the Picks sheet.</p>').join('')}</div>`
     :`<div style="margin:12px 0;display:flex;justify-content:center">${tstrip(TS[0][0],';min-width:260px')}</div>${luBox}<div class="pgrid">${groups[0].cols.join('')||'<p class="msg">No player tags for this team in the Picks sheet.</p>'}</div>`;
   return statMapsHTML()+body+`<p class="foot" style="margin-top:10px">Players and their tags come from the Picks sheet (a player with several accounts is counted as one). Under each table: how many different brawlers of each type the player used. Picks and wins count sets (single games and draws excluded) on the selected maps.</p>`;
 }
 function statsTab(){return picksTab()}
-function rivCol(team,cls){
-  const L=Engine.rivalsFor(ds,DB,team,10,mapsFilter());
+function rivCol(team,cls,D){
+  // with a lineup filter on, only the sets of the chosen lineups count
+  let dsr=ds;if(D&&D.luAct&&D.items0){const keep=new Set(D.items0.map(x=>x.i));dsr=Object.assign({},ds,{matches:ds.matches.filter(m=>keep.has(m.i))})}
+  const L=Engine.rivalsFor(dsr,DB,team,10,mapsFilter());
   const items=L.map((r,i)=>{const wr=(r.w+r.l)?r.w/(r.w+r.l):0;
     return `<li class="rival"><span class="rk">${i+1}</span><div>${teamLabel(r,cls)}</div><div class="rstat"><b>${plural(r.n,'set')}</b><span class="msg">${r.w}W · ${r.l}L${r.d?` · ${r.d}D`:''} <span class="${wr>=.55?'pc-g':wr>=.45?'pc-o':'pc-r'}">${Math.round(wr*100)}%</span></span></div></li>`}).join('');
-  return `<div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0">Most played opponents · top 10</div></div><div class="scroll pds"><ol class="rivals">${items||'<li class="msg">No data</li>'}</ol></div></div>`;
+  return `<div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0">Most played opponents · top 10${D&&D.luAct?' (lineup filter)':''}</div></div><div class="scroll pds"><ol class="rivals">${items||'<li class="msg">No data</li>'}</ol></div></div>`;
 }
 function rivalsTab(){
   const col=(team,cls)=>{
