@@ -3114,7 +3114,7 @@ async function syncUrl(auto){
   }
 }
 // ---------- Google Sheets (live) + period filter ----------
-const SHEET={server:'Google Sheets',id:'1trtTeyJQwcqbPzjXQAHt5F3PRx69uQ1953LUAKAsYTA',tab:'CALCULOS TOTAL PICKS',picks:'Picks',chunk:4000,poll:10*60*1000};
+const SHEET={server:'Google Sheets',id:'1trtTeyJQwcqbPzjXQAHt5F3PRx69uQ1953LUAKAsYTA',tab:'CALCULOS TOTAL PICKS',picks:'Picks',chunk:4000,poll:150*1000};
 let FULL=null,sheetBusy=false,lastCheck=0;
 let flt2={from:store.get('tvt:from')||null,to:store.get('tvt:to')||null,type:store.get('tvt:type')||'all'};
 const addDays=(iso,n)=>{const d=new Date(iso+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)};
@@ -3198,9 +3198,28 @@ const GV={
     const rows=await gviz('sheet='+encodeURIComponent(SHEET.tab)+'&headers=1&tq='+q);return +(rows[1]&&rows[1][0])||0},
   // CONFIG tab: a row with 'PERMANENT ROWS' in column A and the number of the last permanent sheet row in column B
   async config(){const rows=await gviz('sheet=CONFIG&range=A1:B20&headers=0');for(const r of rows){if(/perm/i.test(r[0]||'')){const n=parseInt(String(r[1]||'').replace(/[^\d]/g,''));if(n>1)return n}}return 0},
-  async picks(){let rows=await gviz('sheet='+encodeURIComponent(SHEET.picks)+'&range=B2:Z400&headers=0');
+  async picks(){let rows=await gviz('sheet='+encodeURIComponent(SHEET.picks)+'&range=B2:AD400&headers=0');
     while(rows.length&&(rows[0].every(x=>x==='')||(rows[0][0]==='B'&&rows[0][1]==='C')))rows.shift();return rows}
 };
+// Automatic copy of the sheet (made every 30 minutes by GitHub Actions, see the repository): a browser with nothing saved starts from it
+const SNAP_URL='https://raw.githubusercontent.com/suguus02/analysis-sugus/data/snapshot.json.gz';
+async function snapStart(){
+  try{
+    if(!window.DecompressionStream)return null;
+    const r=await fetch(SNAP_URL,{cache:'no-store'});if(!r.ok)return null;
+    const sn=JSON.parse(await new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).text());
+    if(!sn||!Array.isArray(sn.rows)||sn.rows.length<1000||!Array.isArray(sn.picks))return null;
+    const pk=await readPicks({callTool:async()=>({payload:{values:sn.picks}})}),official=pk?pk.off:DEFAULT.official;
+    const nds=Engine.processRows(sn.rows.map(convRow),DB,{official,typeCol:22,known:pk?pk.known:undefined,rank:pk?pk.rank:undefined});
+    if(nds.matches.length<50)return null;
+    nds.missing=pk?pk.missing:[];nds.picksSig=pk?PSIG(pk):SIG(official);if(pk){nds.pickTags=pk.tags;nds.pickPlayers=pk.players;nds.selected=pk.selected;nds.teamMeta=pk.meta;if(pk.types.length>20)nds.btypes=pk.types}
+    nds.source='Google Sheets';nds.snap=true;nds.perm=sn.perm||PERM_ROWS;nds.tailSig=rowsSig(sn.rows.slice(volStart(sn.rows.length,nds.perm)));nds.syncedAt=Date.now();nds.sheetRows=sn.rows.length;nds.syncNote='started from the automatic copy of the sheet';
+    // the permanent rows go to the local cache, so the next read only asks Google for what is after them
+    const perm=sn.perm||PERM_ROWS;await idbSet('raw',{rows:sn.rows.slice(0,Math.min(perm-1,sn.rows.length))});
+    await idbSet('sheet',{ds:nds});
+    return nds;
+  }catch(e){return null}
+}
 async function getMcp(){
   return {callTool:async(server,tool,a)=>{
     const rg=a.range;
@@ -3282,13 +3301,14 @@ async function syncSheet(full){
   try{
     const mcp=await getMcp();
     setStatus('Connecting to Google Sheets…',false,3);
+    let PM=0;try{PM=await GV.config()}catch(e){}if(!PM)PM=PERM_ROWS;
     const cr=await mcp.callTool(SHEET.server,'get_values',{spreadsheetId:SHEET.id,range:`'${SHEET.tab}'!A2:A`},{cache:false});
     const cnt=((cr&&cr.payload&&cr.payload.values)||[]).length||1;
     // automatic refreshes keep the rows already downloaded and only read what is new (everything after the permanent row given in the CONFIG tab is read again); Refresh Whole Document reads everything
     let base=[],from=2;const cache=full?null:await idbGet('raw');
     let note='whole document (no saved copy in this browser yet, so the next refreshes will be quicker)';if(full)note='whole document';
     if(cache&&Array.isArray(cache.rows)&&cache.rows.length>100){
-      let perm=0;try{perm=await GV.config()}catch(e){}if(!perm)perm=PERM_ROWS;
+      const perm=PM;
       const keep=Math.min(perm-1,cache.rows.length);
       // the last permanent row of the sheet must still be the one stored: if it is not, rows were added or deleted in the permanent part
       if(keep===perm-1){const fp=r=>(r||[]).slice(0,8).join('|');let cur=null;try{cur=(await GV.tabRows(perm-2,1))[0]}catch(e){}
@@ -3306,6 +3326,7 @@ async function syncSheet(full){
     nds.missing=pk?pk.missing:[];nds.picksSig=pk?PSIG(pk):SIG(official);if(pk){nds.pickTags=pk.tags;nds.pickPlayers=pk.players;nds.selected=pk.selected;nds.teamMeta=pk.meta}
     if(pk&&pk.types.length>20){nds.btypes=pk.types;BTYPE=setTypes(pk.types)}
     if(nds.matches.length<50)throw new Error('only '+nds.matches.length+' valid sets found in the sheet');
+    nds.perm=PM;nds.tailSig=rowsSig(raw.slice(volStart(raw.length,PM)));
     nds.source='Google Sheets';nds.syncedAt=Date.now();nds.sheetRows=raw.length;nds.syncNote=note+' · '+num(rd.length)+' rows read';
     await idbSet('sheet',{ds:nds});
     store.set('tvt:src','sheet');store.del('tvt:ds');
@@ -3317,13 +3338,31 @@ async function syncSheet(full){
   }catch(e){setStatus(sheetMsg(e),true)}
   sheetBusy=false;sheetBtns(false);
 }
+// edits to old rows do not change the row count: the rows after the permanent ones are read on every check and compared with the ones of the last full read
+// the zone that is read again on every refresh = every row after the permanent ones of the CONFIG tab
+const volStart=(n,perm)=>Math.max(perm-1,0);
+const rowsSig=rows=>{let h=2166136261,L=0;for(const r of rows){const t=(r||[]).join('\u0001')+'\n';L+=t.length;for(let i=0;i<t.length;i++){h^=t.charCodeAt(i);h=Math.imul(h,16777619)}}return (h>>>0).toString(36)+'.'+L};
+// a reload of the data (new rows or edits) never starts while the user is working with the page: it waits until nothing was touched for 15 s
+let lastAct=Date.now(),autoWait=false;
+['pointerdown','keydown','wheel','touchstart'].forEach(ev=>addEventListener(ev,()=>{lastAct=Date.now()},{passive:true,capture:true}));
+function autoSync(){
+  if(autoWait)return;
+  const go=async()=>{if(sheetBusy||busy||(Date.now()-lastAct<15000&&!document.hidden)){setTimeout(go,8000);return}autoWait=false;await syncSheet()};
+  autoWait=true;go()}
 async function sheetCheck(){
   if(sheetBusy||busy||!FULL||FULL.source!=='Google Sheets')return;
   try{
     const mcp=await getMcp();
     const r=await mcp.callTool(SHEET.server,'get_values',{spreadsheetId:SHEET.id,range:`'${SHEET.tab}'!A2:A`},{cache:false});
     const n=((r&&r.payload&&r.payload.values)||[]).length;lastCheck=Date.now();
-    if(n!==FULL.sheetRows){await syncSheet();return}
+    if(n!==FULL.sheetRows){autoSync();return}
+    if(n>1){ // same number of rows: was something edited after the permanent rows?
+      let pm=0;try{pm=await GV.config()}catch(e){}if(!pm)pm=PERM_ROWS;
+      if(FULL.perm&&pm!==FULL.perm){autoSync();return} // the CONFIG row number was changed
+      const a=volStart(n,pm)+2,vr=await readSheet(mcp,()=>{},a); // same read as "Refresh games"
+      const sg=rowsSig(vr);
+      if(!FULL.tailSig||!FULL.perm){FULL.perm=pm;FULL.tailSig=sg} // data saved by an older version of the page: this is the starting point
+      else if(sg!==FULL.tailSig){autoSync();return}}
     const pk=await readPicks(mcp);
     if(pk&&pk.types.length>20&&JSON.stringify(pk.types)!==JSON.stringify(FULL.btypes||[])){FULL.btypes=pk.types;BTYPE=setTypes(pk.types);idbSet('sheet',{ds:FULL});if(M&&!busy)renderDetail()}
     if(pk&&(JSON.stringify(pk.tags)!==JSON.stringify(FULL.pickTags||null)||JSON.stringify(pk.players)!==JSON.stringify(FULL.pickPlayers||null))){FULL.pickTags=pk.tags;FULL.pickPlayers=pk.players;idbSet('sheet',{ds:FULL});if(M&&!busy&&tab==='players')renderDetail()}
@@ -3339,7 +3378,7 @@ function playedToday(){const t=todayISO(),k=t+'|'+(FULL?FULL.matches.length:0);i
 const tdot=t=>{const n=playedToday()[t];return n?`<i class="tdot" title="Played scrims today · ${plural(n,'game')}"></i>`:''};
 function updateSheetInfo(){
   const el=$('sheetInfo');if(!el)return;
-  el.textContent=FULL&&FULL.source==='Google Sheets'?`Updated ${hhmm(FULL.syncedAt||Date.now())} · checked ${hhmm(lastCheck||FULL.syncedAt||Date.now())} · checks every 10 min`+(FULL.missing&&FULL.missing.length?` · no players linked yet for: ${FULL.missing.join(', ')} (write their 3 tags next to the team in the Picks sheet, columns J to U)`:'')+(FULL.syncNote?` · last refresh: ${FULL.syncNote}`:''):'';
+  el.textContent=FULL&&FULL.source==='Google Sheets'?`Updated ${hhmm(FULL.syncedAt||Date.now())} · checked ${hhmm(lastCheck||FULL.syncedAt||Date.now())} · checks every ${SHEET.poll/60000} min`+(FULL.missing&&FULL.missing.length?` · no players linked yet for: ${FULL.missing.join(', ')} (write their 3 tags next to the team in the Picks sheet, columns J to U)`:'')+(FULL.syncNote?` · last refresh: ${FULL.syncNote}`:''):'';
 }
 // ===== Drafts =====
 const DR_HEAD=['Id','Date','Mode','Map','Coin','Blue','Red','BlueBan1','BlueBan2','BlueBan3','RedBan1','RedBan2','RedBan3','Pick1','Pick2','Pick3','Pick4','Pick5','Pick6','BlueGlobal1','BlueGlobal2','RedGlobal1','RedGlobal2','Winner','Notes','Saved'];
@@ -4503,11 +4542,12 @@ DB=loadDb();
   const src=store.get('tvt:src');let st=null;
   if(src==='csv')st=loadStored();
   else{const c=await idbGet('sheet');if(c&&c.ds&&c.ds.v===4&&c.ds.ev===2&&Array.isArray(c.ds.matches))st=c.ds}
+  if(!st&&src!=='csv'){setStatus('Loading the automatic copy of the sheet…',false,10);st=await snapStart();setStatus('')}
   if(st&&Array.isArray(st.btypes)&&st.btypes.length>20)BTYPE=setTypes(st.btypes);
   build(st||JSON.parse(JSON.stringify(DEFAULT)),!!st);
   applyView();drLoad();
   if(src!=='csv'){
-    const wait=()=>busy?setTimeout(wait,200):(st&&st.source==='Google Sheets'?sheetCheck():syncSheet());
+    const wait=()=>busy?setTimeout(wait,200):(st&&st.source==='Google Sheets'&&!st.snap?sheetCheck():syncSheet());
     setTimeout(wait,500);
   }
 })();
