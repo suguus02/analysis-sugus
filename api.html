@@ -1268,19 +1268,27 @@ function processRows(rows,db,opts){
     const A={pl:[t(r[5]),t(r[7]),t(r[9])],nm:[t(r[4]),t(r[6]),t(r[8])],br:[t(r[10]),t(r[11]),t(r[12])]};
     const B={pl:[t(r[14]),t(r[16]),t(r[18])],nm:[t(r[13]),t(r[15]),t(r[17])],br:[t(r[19]),t(r[20]),t(r[21])]};
     for(const S of [A,B])S.pl.forEach((g,k)=>{if(g&&S.nm[k])names[g]=S.nm[k]});
+    // one fixed order for every copy of a round: players by tag, then the side with the lower tags first
+    const cz=S=>{const o=[0,1,2].sort((i,j)=>S.pl[i]<S.pl[j]?-1:S.pl[i]>S.pl[j]?1:i-j);for(const f of ['pl','nm','br'])S[f]=o.map(i=>S[f][i])};cz(A);cz(B);
+    let fl=0;if(B.pl.join('|')<A.pl.join('|')){fl=1;for(const f of ['pl','nm','br']){const x=A[f];A[f]=B[f];B[f]=x}}
     const [dd,mm,yy]=ds0.split('-');const d=yy+'-'+mm.padStart(2,'0')+'-'+dd.padStart(2,'0');
-    const y=rr==='VICTORY'?1:rr==='DEFEAT'?0:0.5;
+    let y=rr==='VICTORY'?1:rr==='DEFEAT'?0:0.5;if(fl&&y!==0.5)y=1-y;
     const m={d,ty:(opts.typeCol!=null?t(r[opts.typeCol]).toLowerCase():''),m:t(r[2]),a:sideTeam(A.pl,A.nm,tag2team,dbt,official,alias,rk),xa:LAST_AMB,b:sideTeam(B.pl,B.nm,tag2team,dbt,official,alias,rk),xb:LAST_AMB,y,ba:A.br,bb:B.br,ta:A.pl,tb:B.pl,i:idx,t:tm?((s=>s<18000?s+86400:s)(secs(tm))):idx,ht:tm?1:0};
-    const sa=A.pl.join('|')+'#'+A.br.join('|');
-    const sb=B.pl.join('|')+'#'+B.br.join('|');
-    let key,o;if(sa<=sb){key=d+'~'+m.m+'~'+sa+'~'+sb;o=0}else{key=d+'~'+m.m+'~'+sb+'~'+sa;o=1}
+    const key=d+'~'+m.m+'~'+A.pl.join('|')+'#'+A.br.join('|')+'~'+B.pl.join('|')+'#'+B.br.join('|'),o=fl;
     let g=groups.get(key);if(!g){g=[[],[]];groups.set(key,g)}g[o].push(m);
   }
   // filas repetidas = rondas del mismo set; cada partida registrada desde los dos lados cuenta una vez
   const matches=[];let dups=0,rounds=0;
   for(const g of groups.values()){
-    const n=Math.max(g[0].length,g[1].length);dups+=g[0].length+g[1].length-n;
-    const base=(g[0].length>=g[1].length?g[0]:g[1]).slice().sort((x,y)=>x.t-y.t||x.i-y.i);
+    // rounds with a time: the same round saved twice (other team's view, imported history) has the same time,
+    // or the same minutes and seconds when a copy was saved with another clock; rounds without a time: the larger view
+    const kept=[];
+    for(const m of g[0].concat(g[1]).filter(m=>m.ht).sort((x,y)=>x.t-y.t||x.i-y.i)){
+      const same=kept.some(q=>{const dt=Math.abs(q.t-m.t),r=dt%3600;return q.y===m.y&&dt<=46802&&Math.min(r,3600-r)<=2});
+      if(!same)kept.push(m)}
+    const u0=g[0].filter(m=>!m.ht),u1=g[1].filter(m=>!m.ht);
+    const base=kept.concat(u0.length>=u1.length?u0:u1).sort((x,y)=>x.t-y.t||x.i-y.i);
+    dups+=g[0].length+g[1].length-base.length;
     rounds+=base.length;
     let cur=null;
     for(const m of base){
