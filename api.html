@@ -1763,15 +1763,37 @@ function saveSel(){store.set('tvt:sel',JSON.stringify({a:sel.a,b:sel.b,maps:sel.
 function onlyMap18(d){if(!d||!d.matches||d._m18)return d;const ex={};
   const ms=d.matches.filter(m=>{if(!m.m||MAP18.has(mkey(m.m)))return true;ex[m.m]=(ex[m.m]||0)+1;return false});
   return Object.assign({},d,{matches:ms,excluded:ex,_m18:1})}
+
+// ===== ficha de jugador (equipo de Picks con un solo jugador) =====
+const SH_MARK='⁠'; // invisible: el rival de una copia no se confunde con el equipo real
+function noSh(d){return d&&d.matches&&d.matches.some(m=>m.sh)?Object.assign({},d,{matches:d.matches.filter(m=>!m.sh)}):d}
+function addShadows(d){
+  if(!d||!Array.isArray(d.matches))return d;
+  const base=d.matches.filter(m=>!m.sh),pp=d.pickPlayers||{},solo=[];
+  for(const t of Object.keys(d.official||{})){const P=pp[String(t).toUpperCase()];if(P&&P.length===1&&P[0].tags&&P[0].tags.length)solo.push([t,new Set(P[0].tags.map(x=>String(x).toUpperCase()))])}
+  if(!solo.length)return base.length===d.matches.length?d:Object.assign({},d,{matches:base});
+  const lab=x=>x?String(x)+SH_MARK:x,out=[];let k=0;
+  for(const m of base)for(const [t,tags] of solo)for(const side of ['a','b']){
+    const tg=(side==='a'?m.ta:m.tb)||[];if(!tg.some(x=>tags.has(String(x).toUpperCase())))continue;
+    if((side==='a'?m.a:m.b)===t)continue; // ya es suyo
+    const c=Object.assign({},m,{sh:1,i:10000000+(k++)});
+    if(side==='a'){c.a=t;c.xa=null;c.b=lab(m.b)}
+    else{c.a=t;c.xa=null;c.b=lab(m.a);c.xb=m.xa;c.ba=m.bb;c.bb=m.ba;c.ta=m.tb;c.tb=m.ta;
+      if(m.y!=null)c.y=m.y===0.5?0.5:1-m.y;if(m.w!=null){c.w=m.l;c.l=m.w}
+      if(m.sc){const p=String(m.sc).split('-');if(p.length===2)c.sc=p[1]+'-'+p[0]}}
+    out.push(c)}
+  const all=base.concat(out).sort((x,y)=>x.d<y.d?-1:x.d>y.d?1:(x.t-y.t)||(x.i-y.i));
+  return Object.assign({},d,{matches:all});
+}
 function build(newDs,isCustom){
-  newDs=onlyMap18(applyOvr(newDs));
+  newDs=addShadows(onlyMap18(applyOvr(newDs)));
   busy=true;setStatus('Calculating the model…');const my=++gen;setBg('');
   setTimeout(()=>{
     try{
       const f=filterDs(newDs);if(f.matches.length<1)throw new Error('only '+f.matches.length+' sets in this period, widen the dates');
       FULL=newDs;ds=f;custom=isCustom;applyTeamMeta(FULL);
-      M=Engine.buildModel(ds,{lamT:LAM_T,lamTM:LAM_TM,boots:0});M.pending=true;VAL=null;
-      DESC=Engine.describe(ds,M);
+      M=Engine.buildModel(noSh(ds),{lamT:LAM_T,lamTM:LAM_TM,boots:0});M.pending=true;VAL=null;
+      DESC=Engine.describe(noSh(ds),M);
       setup();syncFilterUI();updateSheetInfo();setStatus('');render();deferModel(my);
     }catch(err){setStatus('The model could not be calculated: '+err.message,true)}
     busy=false;
@@ -3304,7 +3326,7 @@ async function readPicks(mcp){ // Picks sheet: B = selected teams (+ tournament 
     for(const n of selT){
       const seen=new Set(),tg=[];
       for(const x of [...(cand[n.toUpperCase()]||[]),...(DEFAULT.official[n]||[]),...((DB&&DB.teams&&DB.teams[n])||[])])if(x&&!seen.has(x)){seen.add(x);tg.push(x)}
-      if(tg.length>=2)off[n]=tg;else missing.push(n);
+      if(tg.length>=2||(tg.length&&(plr[n.toUpperCase()]||[]).length===1))off[n]=tg;else missing.push(n);
       const a=sel[n.toUpperCase()]||{},b=tbl[n.toUpperCase()]||{};
       const m={tour:a.tour||'',region:a.region||b.region||''};if(m.tour||m.region)meta[n]=m;
     }
