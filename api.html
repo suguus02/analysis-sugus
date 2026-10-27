@@ -1665,7 +1665,7 @@ const tIdx=x=>{const i=TYPE_ORDER.indexOf(x);return i<0?99:i};
 const tSort=(a,b)=>tIdx(a)-tIdx(b)||(a<b?-1:1);
 const tLbl=x=>x.charAt(0)+x.slice(1).toLowerCase();
 const tChip=x=>`<span class="tchip"><i style="background:${TYPE_COL[x]||TYPE_COL.OTHER}"></i>${tLbl(x)}</span>`;
-function wrAll(){const set=statMaps.length?new Set(statMaps):null,r={};for(const m of ds.matches){if(m.s||m.y===0.5||m.sh)continue;if(set&&!set.has(m.m))continue;if(m.a){const e=r[m.a]||(r[m.a]={n:0,w:0});e.n++;e.w+=m.y}if(m.b){const e=r[m.b]||(r[m.b]={n:0,w:0});e.n++;e.w+=1-m.y}}return r}
+function wrAll(){const set=statMaps.length?new Set(statMaps):null,r={};for(const m of ds.matches){if(m.s||m.y===0.5)continue;if(set&&!set.has(m.m))continue;if(m.a){const e=r[m.a]||(r[m.a]={n:0,w:0});e.n++;e.w+=m.y}if(m.b&&!m.sh){const e=r[m.b]||(r[m.b]={n:0,w:0});e.n++;e.w+=1-m.y}}return r}
 const wrTxt=e=>e&&e.n?Math.round(e.w/e.n*100)+'% ['+e.n+']':'–';
 const REGION={'ACE XERO':'China','TOC':'China','FUT ESPORTS':'EMEA','FUT FREEZONE':'EMEA','HMBLE':'EMEA','NAVI':'EMEA','NOVO ESPORTS':'EMEA','REPLY TOTEM':'EMEA','TEAM HERETICS':'EMEA','ZETA DIVISION':'APAC','CRAZY RACCOON':'APAC','SKCALALAS EA':'APAC','LOUD':'South America','BOUNTY HUNTERS ALLU':'South America','RED CANIDS':'South America','TRIBE GAMING':'North America','TEAM ELEKTROS':'North America','KDS':'North America'};
 const tcol=t=>REGC[REGION[t]]||'inherit';
