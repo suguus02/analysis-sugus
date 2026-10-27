@@ -1664,7 +1664,7 @@ const tIdx=x=>{const i=TYPE_ORDER.indexOf(x);return i<0?99:i};
 const tSort=(a,b)=>tIdx(a)-tIdx(b)||(a<b?-1:1);
 const tLbl=x=>x.charAt(0)+x.slice(1).toLowerCase();
 const tChip=x=>`<span class="tchip"><i style="background:${TYPE_COL[x]||TYPE_COL.OTHER}"></i>${tLbl(x)}</span>`;
-function wrAll(){const set=statMaps.length?new Set(statMaps):null,r={};for(const m of ds.matches){if(m.s||m.y===0.5)continue;if(set&&!set.has(m.m))continue;if(m.a){const e=r[m.a]||(r[m.a]={n:0,w:0});e.n++;e.w+=m.y}if(m.b){const e=r[m.b]||(r[m.b]={n:0,w:0});e.n++;e.w+=1-m.y}}return r}
+function wrAll(){const set=statMaps.length?new Set(statMaps):null,r={};for(const m of ds.matches){if(m.s||m.y===0.5||m.sh)continue;if(set&&!set.has(m.m))continue;if(m.a){const e=r[m.a]||(r[m.a]={n:0,w:0});e.n++;e.w+=m.y}if(m.b){const e=r[m.b]||(r[m.b]={n:0,w:0});e.n++;e.w+=1-m.y}}return r}
 const wrTxt=e=>e&&e.n?Math.round(e.w/e.n*100)+'% ['+e.n+']':'–';
 const REGION={'ACE XERO':'China','TOC':'China','FUT ESPORTS':'EMEA','FUT FREEZONE':'EMEA','HMBLE':'EMEA','NAVI':'EMEA','NOVO ESPORTS':'EMEA','REPLY TOTEM':'EMEA','TEAM HERETICS':'EMEA','ZETA DIVISION':'APAC','CRAZY RACCOON':'APAC','SKCALALAS EA':'APAC','LOUD':'South America','BOUNTY HUNTERS ALLU':'South America','RED CANIDS':'South America','TRIBE GAMING':'North America','TEAM ELEKTROS':'North America','KDS':'North America'};
 const tcol=t=>REGC[REGION[t]]||'inherit';
@@ -1818,7 +1818,7 @@ function setup(){
       me.value=v;render()};
   });};
   drawTilesFn=drawTiles;drawTiles();
-  const mc={};for(const m of ds.matches)if(!m.s)mc[m.m]=(mc[m.m]||0)+1;
+  const mc={};for(const m of ds.matches)if(!m.s&&!m.sh)mc[m.m]=(mc[m.m]||0)+1;
   PICKMAPS=D.maps.filter(m=>hasImg(m)&&MAP18.has(mkey(m)));
   const byFreq=[...PICKMAPS].sort((x,y)=>(mc[y]||0)-(mc[x]||0));
   let maps=(saved.maps||[]).filter(m=>PICKMAPS.includes(m));
@@ -2466,10 +2466,10 @@ async function balLoad(){
 // the data every Balance section reads: all sets, or only the sets on the chosen map / mode
 let balSrcC=null;
 const balSrc=()=>{const F=FULL||ds,k=(balFMap||'')+'|'+(balFMode||'')+'|'+F.matches.length;if(balSrcC&&balSrcC.k===k&&balSrcC.F===F)return balSrcC.o;
-  const f={map:balFMap,mode:balFMode},ms=(balFMap||balFMode)?F.matches.filter(m=>balMapOK(m.m,f)):F.matches;
+  const f={map:balFMap,mode:balFMode},ms=F.matches.filter(m=>!m.sh&&(!(balFMap||balFMode)||balMapOK(m.m,f)));
   const o={matches:ms,key:k};balSrcC={k,F,o};return o};
 let balAllC=null;
-const balAllCnt=()=>{const F=FULL||ds;if(balAllC&&balAllC.F===F&&balAllC.n===F.matches.length)return balAllC;const cnt={},maps=new Set(),mcnt={};for(const m of F.matches){if(m.m){maps.add(m.m);if(!m.s)mcnt[m.m]=(mcnt[m.m]||0)+1}if(!m.s&&m.y!==0.5){cnt[m.a]=(cnt[m.a]||0)+1;cnt[m.b]=(cnt[m.b]||0)+1}}return balAllC={F,n:F.matches.length,cnt,maps,mcnt}};
+const balAllCnt=()=>{const F=FULL||ds;if(balAllC&&balAllC.F===F&&balAllC.n===F.matches.length)return balAllC;const cnt={},maps=new Set(),mcnt={};for(const m of F.matches){if(m.sh)continue;if(m.m){maps.add(m.m);if(!m.s)mcnt[m.m]=(mcnt[m.m]||0)+1}if(!m.s&&m.y!==0.5){cnt[m.a]=(cnt[m.a]||0)+1;cnt[m.b]=(cnt[m.b]||0)+1}}return balAllC={F,n:F.matches.length,cnt,maps,mcnt}};
 function balLeague(){
   const SRC=balSrc();if(balLG&&balLG.n===SRC.key)return balLG;
   const dd={},cnt={};
@@ -3570,9 +3570,9 @@ function drEditorHTML(){
     <div class="dr-btns"><button type="button" class="btn" data-dsave="1"${DR.busy?' disabled':''}>${isSaved?'Update draft':'Save draft'}</button><button type="button" class="btn quiet" data-dnext="1">Next map (keep teams and global bans)</button><button type="button" class="btn quiet" data-dclear="1">Clear draft</button></div></div>
     <p class="dr-msg${DR.bad?' bad':''}" role="status" style="margin-top:8px">${esc(DR.msg)}</p>`;
   if(DR.sug)return `<section class="panel">${drSubHTML()}<div class="dr-hd"><h2 class="ttl" style="margin:0">Draft Suggestion</h2><div class="seg2" style="margin-top:0" role="group" aria-label="How to choose brawlers"><button type="button" data-dmode="grid" aria-pressed="${DR.mode==='grid'}">Brawler rows</button><button type="button" data-dmode="list" aria-pressed="${DR.mode==='list'}">Pop-up list</button></div></div>
-    ${DR.mode==='grid'?drPoolHTML():''}${head}${stage}<div class="dr-btns" style="margin-top:10px"><button type="button" class="btn quiet" data-dclear="1">Clear draft</button></div></section>`;
+    ${DR.mode==='grid'?drPoolHTML():''}${head}${stage}${drWPHTML()}<div class="dr-btns" style="margin-top:10px"><button type="button" class="btn quiet" data-dclear="1">Clear draft</button></div></section>`;
   return `<section class="panel">${drSubHTML()}<div class="dr-hd"><h2 class="ttl" style="margin:0">Save Draft</h2><div class="seg2" style="margin-top:0" role="group" aria-label="How to choose brawlers"><button type="button" data-dmode="grid" aria-pressed="${DR.mode==='grid'}">Brawler rows</button><button type="button" data-dmode="list" aria-pressed="${DR.mode==='list'}">Pop-up list</button></div></div>
-    ${DR.mode==='grid'?drPoolHTML():''}${head}${stage}${below}</section>`}
+    ${DR.mode==='grid'?drPoolHTML():''}${head}${stage}${drWPHTML()}${below}</section>`}
 function drTI(n,kind,badge){
   if(!n)return `<div class="dr-ti${kind==='gb'?' gbi':''}"><span class="dr-t2"><span class="dr-tx">${badge||'–'}</span></span><small>&nbsp;</small></div>`;
   return `<div class="dr-ti${kind==='gb'?' gbi':''}"><span class="dr-t2 ${kind||''}">${drImg(n,'bi')}${kind==='ban'||kind==='gb'?'<u class="dr-no"></u>':''}${badge?`<i>${badge}</i>`:''}</span><small>${esc(n)}</small></div>`}
@@ -3734,11 +3734,11 @@ function drSwitch(){
 }
 const SGC={ds:null,src:{p:{own:{},meta:{}},a:{own:{},meta:{}}}};
 function sgSrc(w){ // w: 'p' = selected period, 'a' = all data (same game type)
-  if(SGC.ds!==ds||SGC.full!==FULL){SGC.ds=ds;SGC.full=FULL;SGC.src={p:{own:{},meta:{}},a:{own:{},meta:{}}}}
-  if(w==='p')return {ds,c:SGC.src.p};
+  if(SGC.ds!==ds||SGC.full!==FULL){SGC.ds=ds;SGC.full=FULL;SGC.nosh=null;SGC.src={p:{own:{},meta:{}},a:{own:{},meta:{}}}}
+  if(w==='p')return {ds:SGC.nosh||(SGC.nosh=noSh(ds)),c:SGC.src.p};
   const ty=hasTypes(FULL)&&flt2.type!=='all'?flt2.type:null;
   if(!SGC.dsa)SGC.dsa={};const key=ty||'all';
-  if(!SGC.dsa[key]||SGC.dsa.full!==FULL){SGC.dsa={full:FULL};SGC.dsa[key]=Object.assign({},FULL,{matches:FULL.matches.filter(m=>!ty||m.ty===ty)})}
+  if(!SGC.dsa[key]||SGC.dsa.full!==FULL){SGC.dsa={full:FULL};SGC.dsa[key]=Object.assign({},FULL,{matches:FULL.matches.filter(m=>!m.sh&&(!ty||m.ty===ty))})}
   return {ds:SGC.dsa[key],c:SGC.src.a};
 }
 function sgTeam(team,w){
@@ -3808,6 +3808,89 @@ function sgHTML(){
    <div class="sg-list">${list.map((x,i)=>`<button type="button" class="sg-b" data-gb="${esc(x.name)}" data-rar="${rarOf(x.name)}"><span class="sg-r">${i+1}</span>${bimg(x.name,'bi lg')}<b>${esc(x.name)}</b><em title="Score: ${kind==='pick'?'estimated win chance of this pick, as a %':'ban priority index (not a %)'}">${Math.round(x.score*100)}${kind==='pick'?'%':''}</em>${x.info.map(([l,v])=>`<small>${l}: ${v}</small>`).join('')}</button>`).join('')}</div>
    <p class="foot" style="margin-top:8px">Each line shows win rate [sets in the selected period / sets in all dates]. The period leads; when it has few sets, older data fills in. ${kind==='pick'?'The % is the estimated win chance of the pick: a weighted average of the signals available (team 30, meta 15, rival weakness 20, synergy with your picks 20, results against their picks 15; missing ones are dropped and the rest rescaled), not a calibrated probability.':'The number is a ban priority index (rival strength + usage + meta), not a %.'} Brawlers already picked or banned are left out.</p>`);
 }
+
+
+// ---- Draft: live win probability of each side
+const WP={open:false};
+const wpLg=p=>{p=Math.min(.95,Math.max(.05,p));return Math.log(p/(1-p))};
+const wpSg=z=>1/(1+Math.exp(-z));
+const wpMean=a=>a.length?a.reduce((s,x)=>s+x,0)/a.length:0;
+const wpPts=z=>Math.round((wpSg(z)-.5)*100); // what a term alone moves, in points for blue
+// period sets count fully, older sets of the same game type count half; then pulled towards the prior with k sets
+const wpEst=(P,A,prior,k)=>{const w=P.w+.5*Math.max(0,A.w-P.w),n=P.n+.5*Math.max(0,A.n-P.n);return (w+k*prior)/(n+k)};
+function wpTeamProb(blue,red,map){
+  try{if(!M||!M.D||!M.x||!blue||!red)return null;const a=M.D.off.indexOf(blue),b=M.D.off.indexOf(red);if(a<0||b<0)return null;
+    const mi=map?M.D.maps.indexOf(map):-1;
+    const p=mi>=0?Engine.predict(M,a+1,b+1,[mi]).perMap[0]:wpSg(M.x[a+1]-M.x[b+1]);
+    return isFinite(p)?p:null}catch(e){return null}}
+function wpCalc(d){
+  if(!M||!M.D)return null;
+  const pos=drPos(d.coin),side=s=>pos[s].map(n=>d.picks[n-1]).filter(Boolean);
+  const B=side(0),R=side(1),map=d.map||'',Z=SGZ;
+  const MP=sgMeta(map,'p'),MA=sgMeta(map,'a');
+  const AP=sgMeta('','p'),AA=sgMeta('','a');
+  const meta=b=>{const k=mkey(b),p=MP[k]||Z,a=MA[k]||Z,gp=AP[k]||Z,ga=AA[k]||Z;return {b,p:wpEst(p,a,wpEst(gp,ga,.5,30),20),n:p.n,na:a.n,wr:p.n?p.w/p.n:null}};
+  const okT=t=>!!t&&M.D.off.includes(t)&&!(FULL&&FULL.pickPlayers&&(FULL.pickPlayers[String(t).toUpperCase()]||[]).length===1);
+  const comfort=(team,b)=>{if(!okT(team))return null;const TA=sgTeam(team,'a'),TP=sgTeam(team,'p'),k=mkey(b);
+    let tw=0,tn=0;for(const x of TA.items){tw+=x.win;tn++}const avg=shr(tw,tn,.5,10);
+    const tp=TP.own[k]||Z,ta=TA.own[k]||Z,tpm=map?(tp.m[map]||Z):tp,tam=map?(ta.m[map]||Z):ta;
+    const p=wpEst(tpm,tam,wpEst(tp,ta,avg,12),10);
+    return {b,d:wpLg(p)-wpLg(avg),n:tpm.n,na:tam.n,wr:tpm.n?tpm.w/tpm.n:null}};
+  const two=B.length+R.length>1,PP=two?sgPairs('p'):null,PA=two?sgPairs('a'):null;
+  const pq=e=>e?(map?(e.m[map]||Z):e):Z;
+  const pair=(idx,k,prior)=>{const a=pq(PP[idx][k]),b=pq(PA[idx][k]);return {p:wpEst(a,b,prior,15),n:a.n,na:b.n,wr:a.n?a.w/a.n:null}};
+  const syn=list=>{const o=[];for(let i=0;i<list.length;i++)for(let j=i+1;j<list.length;j++){const x=list[i],y=list[j],base=wpSg((wpLg(meta(x).p)+wpLg(meta(y).p))/2),r=pair('duo',mkey(x)+'|'+mkey(y),base);o.push(Object.assign({a:x,b:y,d:wpLg(r.p)-wpLg(base)},r))}return o};
+  const mB=B.map(meta),mR=R.map(meta),cB=B.map(b=>comfort(d.blue,b)).filter(Boolean),cR=R.map(b=>comfort(d.red,b)).filter(Boolean);
+  const sB=syn(B),sR=syn(R),vs=[];
+  for(const x of B)for(const y of R){const prior=wpSg(wpLg(meta(x).p)-wpLg(meta(y).p)),r=pair('vs',mkey(x)+'|'+mkey(y),prior);vs.push(Object.assign({a:x,b:y,d:wpLg(r.p)-wpLg(prior)},r))}
+  const tp=wpTeamProb(okT(d.blue)?d.blue:'',okT(d.red)?d.red:'',map);
+  const t={team:tp==null?0:wpLg(tp),
+    brawl:.6*(wpMean(mB.map(x=>wpLg(x.p)))-wpMean(mR.map(x=>wpLg(x.p)))),
+    comfort:.35*(wpMean(cB.map(x=>x.d))-wpMean(cR.map(x=>x.d))),
+    syn:.3*(wpMean(sB.map(x=>x.d))-wpMean(sR.map(x=>x.d))),
+    ctr:.6*wpMean(vs.map(x=>x.d))};
+  // the same sets feed several signals: weights above already discount that overlap
+  const z=t.team+t.brawl+t.comfort+t.syn+t.ctr;
+  return {p:Math.min(.95,Math.max(.05,wpSg(z))),B,R,map,tp,t,mB,mR,cB,cR,sB,sR,vs};
+}
+function drWPHTML(){
+  const d=DR.cur;let w=null;try{w=wpCalc(d)}catch(e){w=null}
+  if(!w)return '';
+  const bl=d.blue||'Blue',rd=d.red||'Red',cb='#3b82f6',cr='#e5484d'; // same sides as the board: blue left, red right
+  const pb=Math.round(w.p*100),pr=100-pb;
+  const pc=(x,n)=>x==null?'–':Math.round(x*100)+'%';
+  const sgn=v=>(v>0?'+':v<0?'−':'±')+Math.abs(v);
+  const ptsLine=(lab,z,why)=>`<li><b>${lab}</b>: ${sgn(wpPts(z))} pts for ${esc(bl)}${why?` <span class="wp-s">${why}</span>`:''}</li>`;
+  const brl=(arr)=>arr.length?arr.map(x=>`${esc(x.b)} ${pc(x.wr)} <span class="wp-s">[${x.n}/${x.na}]</span>`).join(' · '):'<span class="wp-s">no picks yet</span>';
+  const cml=(arr)=>arr.length?arr.map(x=>`${esc(x.b)} ${pc(x.wr)} <span class="wp-s">[${x.n}/${x.na}]</span>`).join(' · '):'<span class="wp-s">–</span>';
+  const prl=(arr)=>arr.length?arr.map(x=>`${esc(x.a)} + ${esc(x.b)} ${pc(x.wr)} <span class="wp-s">[${x.n}/${x.na}]</span>`).join(' · '):'<span class="wp-s">needs 2 picks</span>';
+  const top=w.vs.slice().sort((a,b)=>Math.abs(b.d)-Math.abs(a.d)).slice(0,4);
+  const info=WP.open?`<div class="bal-info wp-info">
+    <p><b>What this is.</b> An estimate of who wins this set with the draft as it stands now. It updates with every pick and uses the map you chose (or all maps if there is none). It mixes five signals, each pulled towards 50% when there are few sets behind it, so a lucky 3–0 does not swing it.</p>
+    <ul class="wp-ul">
+      ${ptsLine('Teams',w.t.team,w.tp==null?'(both teams must be chosen and be teams of the Picks sheet)':`(team model: ${esc(bl)} ${Math.round(w.tp*100)}%${w.map?' on '+esc(w.map):''})`)}
+      ${ptsLine('Brawlers on this map',w.t.brawl,'(how each pick does on this map across all teams)')}
+      ${ptsLine('Team comfort',w.t.comfort,'(how each team does with its own picks, compared with its usual level)')}
+      ${ptsLine('Synergy',w.t.syn,'(how the picks of each side do together)')}
+      ${ptsLine('Matchups',w.t.ctr,'(how the blue picks do against the red picks)')}
+    </ul>
+    <p><b>Brawlers on ${w.map?esc(w.map):'all maps'}</b> (win rate [sets in the period / all dates])<br>${esc(bl)}: ${brl(w.mB)}<br>${esc(rd)}: ${brl(w.mR)}</p>
+    <p><b>Team comfort</b><br>${esc(bl)}: ${cml(w.cB)}<br>${esc(rd)}: ${cml(w.cR)}</p>
+    <p><b>Synergy</b><br>${esc(bl)}: ${prl(w.sB)}<br>${esc(rd)}: ${prl(w.sR)}</p>
+    <p><b>Biggest matchups</b> (blue pick against red pick)<br>${top.length?top.map(x=>`${esc(x.a)} vs ${esc(x.b)} ${pc(x.wr)} <span class="wp-s">[${x.n}/${x.na}]</span>`).join(' · '):'<span class="wp-s">needs a pick on each side</span>'}</p>
+    <p class="wp-s">The selected period leads; when it has few sets, older data of the same game type fills in. Bans do not change the number by themselves (they only remove options). It is an estimate to guide the draft, not a calibrated probability: treat differences of a few points as a tie.</p>
+  </div>`:'';
+  return `<div class="dr-wp bal-sech"><div class="wp-h"><b>Win probability</b><span class="wp-s">${w.B.length+w.R.length} of 6 picks${w.map?' · '+esc(w.map):' · no map chosen'}</span></div>
+    <button type="button" class="bal-i wp-i" data-wpi="1" aria-expanded="${WP.open}" aria-label="How this is calculated" title="How this is calculated">i</button>
+    <div class="wp-bar"><div style="width:${pb}%;background:${cb}"><span>${esc(bl)} ${pb}%</span></div><div style="width:${pr}%;background:${cr}"><span>${pr}% ${esc(rd)}</span></div></div>
+    ${info}</div>`;
+}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-wpi]');if(!b)return;WP.open=!WP.open;drRender()});
+(function(){const st=document.createElement('style');st.textContent='.dr-wp{margin:12px 0 4px;padding:12px 44px 12px 14px;border:1px solid #4a4256;border-radius:10px;background:rgba(255,255,255,.03)}'+
+ '.dr-wp .wp-i{top:10px;right:10px}.wp-h{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin-bottom:8px}.wp-s{opacity:.7;font-size:12px}'+
+ '.wp-bar{display:flex;height:30px;border-radius:7px;overflow:hidden;font-weight:700;font-size:13px;color:#fff}.wp-bar>div{display:flex;align-items:center;min-width:0;transition:width .35s}'+
+ '.wp-bar>div:first-child{justify-content:flex-start;padding-left:10px}.wp-bar>div:last-child{justify-content:flex-end;padding-right:10px}.wp-bar span{white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.5)}'+
+ '.wp-info{margin:12px 0 0}.wp-ul{margin:4px 0 10px;padding-left:18px}.wp-ul li{margin:2px 0}';document.head.appendChild(st)})();
 
 // ---- Team card (summary + PNG export)
 const CARD_RED='#e63950';
@@ -3993,7 +4076,7 @@ function gbRates(team,ms){const c={};let n=0;for(const m of ds.matches){if(m.s||
 function gbPredict(team,opp,maps){
   const fb={};let ms=maps&&maps.length?new Set(maps):null;
   const nm={},LP={};let ns=0;const perMap={};
-  const scan=set=>{const lp={},pm={};let n=0;for(const m of ds.matches){if(m.s||m.y===0.5)continue;if(set&&!set.has(m.m))continue;n++;
+  const scan=set=>{const lp={},pm={};let n=0;for(const m of ds.matches){if(m.s||m.y===0.5||m.sh)continue;if(set&&!set.has(m.m))continue;n++;
     for(const br of [m.ba,m.bb])for(const b of new Set((br||[]).filter(Boolean))){const q=mkey(b);nm[q]=nm[q]||b;lp[q]=(lp[q]||0)+1;const o=pm[m.m]||(pm[m.m]={});o[q]=(o[q]||0)+1}}return {lp,pm,n}};
   let L=scan(ms);if(ms&&L.n<30){L=scan(null);fb.lg=1;ms=null}
   const LPn=q=>L.n?(L.lp[q]||0)/(2*L.n):0;
