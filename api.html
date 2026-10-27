@@ -1487,7 +1487,8 @@ function teamStats(ds,team,maps,limit){
   return {games,picks:top(pk,lim),duos:top(duo,lim),allDuos:top(duo,1e9),allTrios:top(trio,1e9)};
 }
 const _resolvers=new WeakMap();
-function resolver(ds,db){
+function resolver(ds,db){const f0=resolver0(ds,db);return function(l,...x){return f0(typeof l==='string'?l.replace(/\u2060/g,''):l,...x)}} // a single-player team's copies mark the rival label with an invisible character: resolve it as the real team
+function resolver0(ds,db){
   let r=_resolvers.get(ds);if(r&&r.db===db&&r.k===ds.known)return r.fn;
   const ks=new Set(ds.known||(db&&db.teams?Object.keys(db.teams):[]));
   const clusters=[];
@@ -1905,7 +1906,7 @@ function predBrAll(team,opp){ // per map: the 3 brawlers this team is most likel
   return map=>{const K=6,Nm=nm[map]||0,mm=mp[map]||{};
     return Object.keys(tot).filter(b=>!ban.has(mkey(b))).map(b=>[b,((mm[b]||0)+K*tot[b]/Math.max(1e-9,N))/(Nm+K)]).sort((x,y)=>y[1]-x[1]||(x[0]<y[0]?-1:1)).slice(0,3).map(([b,r])=>({b,r,n:Nm}))}}
 function h2hHTML(A,B){
-  const idx=new Set();for(const m of ds.matches)if((m.a===A&&m.b===B)||(m.a===B&&m.b===A))idx.add(m.i);
+  const idx=new Set();for(const m of ds.matches){const mb=(x=>typeof x==='string'?x.replace(/\u2060/g,''):x)(m.b);if((m.a===A&&mb===B)||(m.a===B&&mb===A))idx.add(m.i)};
   if(!idx.size)return '';
   const items=Engine.setList(ds,DB,A,null).filter(x=>idx.has(x.i)).sort((x,y)=>y.d<x.d?-1:y.d>x.d?1:y.i-x.i);
   const sets=items.filter(x=>!x.s),w=sets.filter(x=>x.win===1).length,l=sets.filter(x=>x.win===0).length;
@@ -1935,7 +1936,7 @@ function render(){
   const nmin=Math.min(DESC.tot[A].n,DESC.tot[B].n),width=r.serA[1]-r.serA[0];
   const lvl=(nmin<60||width>.25)?'baja':(nmin>=250&&width<.15)?'alta':'media';
   const lvlTxt={alta:'High',media:'Medium',baja:'Low'}[lvl];
-  const h=ds.matches.filter(m=>!m.s&&((m.a===A&&m.b===B)||(m.a===B&&m.b===A)));
+  const h=ds.matches.filter(m=>{const mb=(x=>typeof x==='string'?x.replace(/\u2060/g,''):x)(m.b);return !m.s&&((m.a===A&&mb===B)||(m.a===B&&mb===A))});
   const hw=h.filter(m=>(m.a===A)===(m.y===1)).length;
   const h2h=h.length?`${esc(A)} ${hw}–${h.length-hw} ${esc(B)} in ${plural(h.length,'set')}`:'no games between them in the data';
   R.innerHTML=`<div class="ttl" style="margin-top:0">Probability of winning the ${plural(n,'map')} series${even?' (most maps won)':''}</div>
@@ -4269,7 +4270,7 @@ function scoutHTML(){
   // head to head + common opponents
   let h2h='',common='';
   if(hasM){
-    const hs=ds.matches.filter(m=>!m.s&&m.y!==0.5&&((m.a===R&&m.b===U)||(m.a===U&&m.b===R)));
+    const hs=ds.matches.filter(m=>{const mb=(x=>typeof x==='string'?x.replace(/\u2060/g,''):x)(m.b);return !m.s&&m.y!==0.5&&((m.a===R&&mb===U)||(m.a===U&&mb===R))});
     const uw=hs.filter(m=>(m.a===U)===(m.y===1)).length;
     h2h=hs.length?`<p class="sc-h2">${esc(U)} <b>${uw}–${hs.length-uw}</b> ${esc(R)} in ${plural(hs.length,'set')}</p>`+`<div class="tc-rvs" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">${hs.slice(-6).reverse().map(m=>{const uwin=(m.a===U)===(m.y===1);return `<div class="tc-rv"><div><b>${fmtDate(m.d)}</b><small> · ${esc(m.m)}</small></div><span class="heat" style="${bd(uwin?1:0)}">${uwin?'We won':'We lost'}</span></div>`}).join('')}</div>`:`<p class="msg">No sets between ${esc(U)} and ${esc(R)} in this period.</p>`;
     const rr=Engine.rivalsFor(ds,DB,R,400,null).filter(r=>r.named),ru=Engine.rivalsFor(ds,DB,U,400,null).filter(r=>r.named),mu={};ru.forEach(r=>mu[r.name]=r);
@@ -4335,18 +4336,23 @@ document.addEventListener('change',e=>{const c=e.target.closest&&e.target.closes
 const OVRK='tvt:ovr';
 function ovrLoad(){try{return JSON.parse(store.get(OVRK)||'{}')||{}}catch(e){return {}}}
 const ovrKey=(m,sd)=>m.d+'|'+m.m+'|'+(sd==='a'?m.ta:m.tb).slice().sort().join(',');
+const ovrRule=x=>'rule|'+x.slice().sort().join('/');
+const ovrGet=(O,k,x)=>O[k]||O[ovrRule(x)];
 const ovrVal=(F,c)=>(F.official&&F.official[c])?c:'ext:'+c;
 function applyOvr(F){if(!F||!F.matches)return F;const O=ovrLoad();
-  for(const m of F.matches)for(const sd of ['a','b']){const x=m['x'+sd];if(!x||!x.length)continue;const c=O[ovrKey(m,sd)];m[sd]=ovrVal(F,c&&x.includes(c)?c:x[0])}
+  for(const m of F.matches)for(const sd of ['a','b']){const x=m['x'+sd];if(!x||!x.length)continue;const c=ovrGet(O,ovrKey(m,sd),x);m[sd]=ovrVal(F,c&&x.includes(c)?c:x[0])}
   return F}
+document.addEventListener('click',e=>{const a=e.target.closest('[data-ovrall]');if(!a||!FULL||busy||!CHK.res||!CHK.res.amb)return;
+  const O=ovrLoad(),t=a.dataset.ovrall;for(const x of CHK.res.amb)if(x.c.includes(t)){O[x.k]=t;O[ovrRule(x.c)]=t}
+  store.set(OVRK,JSON.stringify(O));applyOvr(FULL);CHK={key:null,res:null};build(FULL,true)});
 document.addEventListener('click',e=>{const b=e.target.closest('[data-ovr]');if(!b||!FULL||busy)return;
-  const O=ovrLoad(),k=b.dataset.ovr,t=b.dataset.team;if(O[k]===t)delete O[k];else O[k]=t;
+  const O=ovrLoad(),k=b.dataset.ovr,t=b.dataset.team;if(!k)return;if(O[k]===t)delete O[k];else O[k]=t;
   store.set(OVRK,JSON.stringify(O));applyOvr(FULL);CHK={key:null,res:null};build(FULL,true)});
 // ---- Data check (health of the sheet data)
 let CHK={key:null,res:null};
 const DAYMS=864e5;
 function chkRun(){
-  const F=FULL;if(!F||!F.matches)return null;
+  const FX=FULL;if(!FX||!FX.matches)return null;const F=noSh(FX);
   const last=F.matches[F.matches.length-1]||{};
   const key=F.matches.length+'|'+(F.picksSig||'')+'|'+last.i+'|'+(F.syncedAt||'')+'|'+(store.get(OVRK)||'');
   if(CHK.key===key&&CHK.res)return CHK.res;
@@ -4364,11 +4370,13 @@ function chkRun(){
   const sel=F.selected||[];
   if(!sel.length)R.warn.push('The Picks sheet was not read, so the built-in team lists are being used.');
   const per={};sel.forEach(t=>per[t]={n:0,last:''});
-  for(const m of sets){for(const t of [m.a,m.b])if(t&&per[t]){per[t].n++;if(m.d>per[t].last)per[t].last=m.d}}
+  for(const m of FX.matches){if(m.s)continue;for(const t of (m.sh?[m.a]:[m.a,m.b]))if(t&&per[t]){per[t].n++;if(m.d>per[t].last)per[t].last=m.d}}
   for(const t of sel){
     const tg=(F.pickTags&&F.pickTags[t])||[],p=per[t],reg=REGION[t]||'',tour=TOUR[t]||'';
     let st='ok',msg='OK';
-    if(tg.length<2){st='bad';msg='Needs at least 2 player tags in the TEAMS table (column I onwards)'}
+    const solo=((F.pickPlayers&&F.pickPlayers[String(t).toUpperCase()])||[]).length===1;
+    if(tg.length<2&&!solo){st='bad';msg='Needs at least 2 player tags in the TEAMS table (column I onwards)'}
+    else if(solo&&!p.n){st='warn';msg='Player card: no sets with this player in the data'}
     else if(!p.n){st='warn';msg='No sets with this team in the data'}
     else if(Date.now()-Date.parse(p.last+'T12:00:00')>21*DAYMS){st='warn';msg='No sets since '+fmtDate(p.last)}
     else if(!reg){st='warn';msg='No region'}
@@ -4407,7 +4415,7 @@ function chkRun(){
   for(const m of sets)for(const sd of ['a','b']){const x=m['x'+sd];if(!x||x.length<2)continue;const k=ovrKey(m,sd);
     const e=amb[k]||(amb[k]={k,n:0,d:m.d,map:m.m,c:x,tags:(sd==='a'?m.ta:m.tb),cur:m[sd]});e.n++;if(m.d>e.d)e.d=m.d}
   R.amb=Object.values(amb).sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:0);
-  const unres=R.amb.filter(e=>!O[e.k]);
+  const unres=R.amb.filter(e=>!ovrGet(O,e.k,e.c));
   if(unres.length)R.warn.push(`${plural(unres.length,'lineup')} (${plural(unres.reduce((a,e)=>a+e.n,0),'set')}) fit two teams, each with 2 of the 3 tags. They are counted for the first team until you pick one in "Ambiguous lineups" below.`);
   R.n=R.bad.length+R.warn.length;
   CHK={key,res:R};return R;
@@ -4445,9 +4453,12 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-chkcopy]')
   if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(ok,()=>{});
   else{const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');ok()}catch(er){}ta.remove()}});
 function ambHTML(R){const F=FULL,O=ovrLoad();if(!R.amb||!R.amb.length)return '<p class="msg">No lineup fits two teams.</p>';
+  const pend=R.amb.filter(e=>!ovrGet(O,e.k,e.c)),tms=[...new Set(R.amb.flatMap(e=>e.c))];
+  const bulk=`<div class="chk-chips" style="margin:0 0 8px;align-items:center"><span class="msg" style="margin-right:6px">${pend.length?`<b>${pend.length}</b> still to choose (listed first, marked <i>to choose</i>).`:'All chosen.'} Count every lineup, also new ones, for:</span>${tms.map(t=>`<button type="button" class="chk-chip ovr" data-ovrall="${esc(t)}"${Object.keys(O).some(k=>k.startsWith('rule|')&&O[k]===t)?' style="outline:2px solid var(--accent,#3b82f6)"':''}>${esc(t)}${stOf(t)===1?' <small>tryout</small>':stOf(t)===2?' <small>old</small>':''}</button>`).join('')}</div><p class="msg" style="font-size:12px;margin:0 0 8px">Your choices are saved in this browser.</p>`;
+  const pendTag=e=>ovrGet(O,e.k,e.c)?'':' <small class="msg"><i>to choose</i></small>';
   const nm=g=>esc((F.names&&F.names[g])||g);
-  return `<div class="tablewrap"><table class="rank tiny"><thead><tr><th>Players</th><th>Last played</th><th class="num">Sets</th><th>Counted for (click to change)</th></tr></thead><tbody>${R.amb.slice(0,40).map(e=>{const cur=O[e.k]&&e.c.includes(O[e.k])?O[e.k]:e.c[0];
-    return `<tr><td>${e.tags.filter(Boolean).map(nm).join(' · ')}</td><td>${fmtDate(e.d)}</td><td class="num">${e.n}</td><td><div class="chk-chips">${e.c.map(t=>`<button type="button" class="chk-chip ovr${t===cur?' on':''}" data-ovr="${esc(e.k)}" data-team="${esc(t)}">${esc(t)}${stOf(t)===1?' <small>tryout</small>':stOf(t)===2?' <small>old</small>':''}</button>`).join('')}</div></td></tr>`}).join('')}</tbody></table></div>`}
+  return bulk+`<div class="tablewrap"><table class="rank tiny"><thead><tr><th>Players</th><th>Last played</th><th class="num">Sets</th><th>Counted for (click to change)</th></tr></thead><tbody>${R.amb.slice().sort((x,y)=>(ovrGet(O,x.k,x.c)?1:0)-(ovrGet(O,y.k,y.c)?1:0)).slice(0,400).map(e=>{const g0=ovrGet(O,e.k,e.c),cur=g0&&e.c.includes(g0)?g0:e.c[0];
+    return `<tr><td>${e.tags.filter(Boolean).map(nm).join(' · ')}${pendTag(e)}</td><td>${fmtDate(e.d)}</td><td class="num">${e.n}</td><td><div class="chk-chips">${e.c.map(t=>`<button type="button" class="chk-chip ovr${t===cur?' on':''}" data-ovr="${esc(e.k)}" data-team="${esc(t)}">${esc(t)}${stOf(t)===1?' <small>tryout</small>':stOf(t)===2?' <small>old</small>':''}</button>`).join('')}</div></td></tr>`}).join('')}</tbody></table></div>`}
 function renderCheck(){const el=$('checkview');if(el)el.innerHTML=checkHTML()}
 
 // ---- Brawler comparison (stats come from the "Brawlers" tab; a built-in copy is used until it loads)
