@@ -2576,15 +2576,15 @@ function balExpect(me,vs,C,flt,side,fbk){flt=flt||{};
   if(filt&&V&&OR.n<8){OR=balRatesT(V,from,to);fb.or=1}
   // ban habit: with a pick order the drafts of that order PLUS the ones with unknown side (they may be either) when fbk is set
   // drafts of the team (any map). With a map chosen (Scouting) the drafts on that map weigh 4 times more; in Balance only the drafts on the map count
-  let hab={},HN=0,NS=0,NU=0,NM=0,HNw=0;
-  const gh=sd=>{const h={};let ns=0,nu=0,nw=0,nmp=0;for(const d of drAll()){if(d.blue!==U&&d.red!==U)continue;
+  let hab={},habS={},HN=0,NS=0,NU=0,NM=0,HNw=0;
+  const gh=sd=>{const h={},hs={};let ns=0,nu=0,nw=0,nmp=0;for(const d of drAll()){if(d.blue!==U&&d.red!==U)continue;
     const same=!!flt.map&&balMapOK(d.map,{map:flt.map});if(!fbk&&!balMapOK(d.map,{map:flt.map,mode:flt.mode}))continue;
     const w=fbk&&flt.map?(same?4:1):1;
     const unk=drUnk(d);let ok;if(!sd)ok=true;else if(unk)ok=!!fbk;else{const first=d.coin===(d.blue===U?'blue':'red');ok=sd==='first'?first:!first}
     if(!ok)continue;if(unk)nu++;else ns++;nw+=w;if(same)nmp++;
-    for(const b of ((d.bans&&(d.blue===U?d.bans.b:d.bans.r))||[]).filter(Boolean)){const q=mkey(b);h[q]=(h[q]||0)+w;nm[q]=nm[q]||b}}return {h,n:ns+nu,ns,nu,nw,nmp}};
-  {const g=gh(side);hab=g.h;HN=g.n;NS=g.ns;NU=g.nu;NM=g.nmp;HNw=g.nw;
-    if(fbk&&side&&HN<3){const g2=gh('');if(g2.n>HN){hab=g2.h;HN=g2.n;NS=g2.ns;NU=g2.nu;NM=g2.nmp;HNw=g2.nw;fb.hab=g2.n}}}
+    for(const b of ((d.bans&&(d.blue===U?d.bans.b:d.bans.r))||[]).filter(Boolean)){const q=mkey(b);h[q]=(h[q]||0)+w;if(same)hs[q]=(hs[q]||0)+w;nm[q]=nm[q]||b}}return {h,hs,n:ns+nu,ns,nu,nw,nmp}};
+  {const g=gh(side);hab=g.h;habS=g.hs;HN=g.n;NS=g.ns;NU=g.nu;NM=g.nmp;HNw=g.nw;
+    if(fbk&&side&&HN<3){const g2=gh('');if(g2.n>HN){hab=g2.h;habS=g2.hs;HN=g2.n;NS=g2.ns;NU=g2.nu;NM=g2.nmp;HNw=g2.nw;fb.hab=g2.n}}}
   // league bans (normal and global) in this patch, on every map: a brawler that is banned a lot but not played is usually very strong
   const pa=k>0?C.cuts[k-1]:'',pz=k<C.cuts.length?C.cuts[k]:'9999',LB={c:{},nd:0};
   // with a pick order only the bans made by teams with THAT pick order count (a brawler banned only by last-pick teams must not rise for a 1st pick); side-unknown drafts are left out then
@@ -2596,11 +2596,32 @@ function balExpect(me,vs,C,flt,side,fbk){flt=flt||{};
    if(sdL&&o.nd<10){const o3=lbRun('','9999',sdL);if(o3.nd>o.nd){o=o3;fb.lb=1}}
    LB.c=o.c;LB.nd=o.nd;LB.sd=o.sd}
   const hasB=LB.nd>=(LB.sd?6:10);
-  const cand=new Set([...LW.top,...Object.keys(hab),...Object.entries(OR.c).sort((a,b)=>b[1]-a[1]).slice(0,15).map(x=>x[0]),...Object.entries(LW.c).sort((a,b)=>b[1]-a[1]).slice(0,25).map(x=>x[0]),...(hasB?Object.entries(LB.c).sort((a,b)=>b[1]-a[1]).slice(0,12).map(x=>x[0]):[])]);
+  // ---- with a map: (a) what every team bans on THIS map in the saved drafts (mostly top teams), with this pick order;
+  // (b) brawlers that are played a lot on this map but almost never appear in this team's sets there (either side): usually banned
+  let MB=null,AB=null;
+  if(flt.map){const mf={map:flt.map},c={};let n=0,nd=0;
+    for(const d of drAll()){if(!balMapOK(d.map,mf)||!d.bans)continue;const dt=balND(d.date),w=dt&&dt>=pa&&dt<pz?1:.5;nd++;
+      const S_=[];if(side){if(drUnk(d))S_.push(['b',.5*w],['r',.5*w]);else{const k_=side==='first'?d.coin:(d.coin==='blue'?'red':'blue');S_.push([k_==='blue'?'b':'r',w])}}else S_.push(['b',w],['r',w]);
+      for(const [s_,ww] of S_){n+=ww;for(const b of d.bans[s_]||[]){if(!b)continue;const q=mkey(b);c[q]=(c[q]||0)+ww;nm[q]=nm[q]||b}}}
+    MB={c,n,nd};
+    const SRC=balSrc(),a90=balFromDays(balDays(end)-90),mp={},ob={};let ns=0,nt=0;
+    for(const m of SRC.matches){if(m.s||m.y===0.5||!m.d||m.d<a90||!balMapOK(m.m,mf))continue;const A=String(m.a||'').toUpperCase(),B=String(m.b||'').toUpperCase();
+      const sa=new Set((m.ba||[]).filter(Boolean).map(mkey)),sb=new Set((m.bb||[]).filter(Boolean).map(mkey));ns+=2;for(const q of sa)mp[q]=(mp[q]||0)+1;for(const q of sb)mp[q]=(mp[q]||0)+1;
+      if(A===U||B===U){nt++;for(const q of new Set([...sa,...sb]))ob[q]=(ob[q]||0)+1}}
+    const ab={},ex={};if(ns>=40&&nt>=3)for(const q in mp){const pq=mp[q]/ns;if(pq<.08)continue;const E=nt*(1-(1-pq)*(1-pq)),O=ob[q]||0;ex[q]=E;if(E<1.5||O>=E)continue;
+      ab[q]=pq*((E-O)/E)*(E/(E+2))}
+    AB={c:ab,ex,ob,nt,ns,mp}}
+  const cand=new Set([...LW.top,...Object.keys(hab),...Object.entries(OR.c).sort((a,b)=>b[1]-a[1]).slice(0,15).map(x=>x[0]),...Object.entries(LW.c).sort((a,b)=>b[1]-a[1]).slice(0,25).map(x=>x[0]),...(hasB?Object.entries(LB.c).sort((a,b)=>b[1]-a[1]).slice(0,12).map(x=>x[0]):[]),...(MB?Object.entries(MB.c).sort((a,b)=>b[1]-a[1]).slice(0,12).map(x=>x[0]):[]),...(AB?Object.entries(AB.c).sort((a,b)=>b[1]-a[1]).slice(0,8).map(x=>x[0]):[])]);
   // meta strength of a brawler in this patch: mostly how often ALL teams ban it in their saved drafts (65%), plus how often it is picked (35%)
   const lbN=q=>hasB?(LB.c[q]||0)/((LB.sd?1:2)*LB.nd):0,lpN=q=>(LW.c[q]||0)/LN;
   const lbMax=Math.max(...[...cand].map(lbN),.0001),lpMax=Math.max(...[...cand].map(lpN),.0001);
-  const lr=q=>hasB?.35*lpN(q)/lpMax+.65*lbN(q)/lbMax:lpN(q)/lpMax,orr=q=>OR.n?(OR.c[q]||0)/OR.n:0,tr=q=>TR.n?(TR.c[q]||0)/TR.n:0,hb=q=>HNw?(hab[q]||0)/HNw:0;
+  // ban rate on this map, pulled towards the all-maps ban rate when the map has few drafts (6 team-drafts of weight):
+  // with many drafts on the map, a brawler nobody bans there stays low even if it is banned a lot on other maps
+  const mbN=q=>MB?((MB.c[q]||0)+6*lbN(q))/(MB.n+6):0,abN=q=>AB?(AB.c[q]||0):0;
+  const mbMax=Math.max(...[...cand].map(mbN),.0001),abMax=Math.max(...[...cand].map(abN),.0001);
+  const lr0=q=>hasB?.35*lpN(q)/lpMax+.65*lbN(q)/lbMax:lpN(q)/lpMax;
+  const lr=q=>!MB?lr0(q):(MB.n>=1||hasB?.5*mbN(q)/mbMax:0)+(AB&&AB.nt>=3?.25*abN(q)/abMax:0)+(MB.n>=1||hasB?(AB&&AB.nt>=3?.25:.5):(AB&&AB.nt>=3?.75:1))*lpN(q)/lpMax,orr=q=>OR.n?(OR.c[q]||0)/OR.n:0,tr=q=>TR.n?(TR.c[q]||0)/TR.n:0,relM=q=>{if(!MB||(MB.n<4&&(!AB||AB.ns<40)))return 1;const b=MB.n?(MB.c[q]||0)/MB.n:0,pk=AB&&AB.ns?(AB.mp[q]||0)/AB.ns:0;return Math.max(.05,Math.min(1,(1.5*b+pk)/.12))},
+    hb=q=>HNw?((habS[q]||0)+((hab[q]||0)-(habS[q]||0))*relM(q))/HNw:0;
   const mxL=Math.max(...[...cand].map(lr),.0001),mxO=Math.max(...[...cand].map(orr),.0001),mxH=Math.max(...[...cand].map(hb),.0001);
   // weights [habit, rival's picks, meta strength]: with the last pick the meta (picks + bans) weighs more, with the 1st pick the habit and the rival's picks
   const W0=side==='last'?[.3,.25,.45]:side==='first'?[.45,.3,.25]:[.4,.3,.3];
@@ -2618,8 +2639,8 @@ function balExpect(me,vs,C,flt,side,fbk){flt=flt||{};
     // pick-order habit of the whole league: a brawler that teams ban almost only with one pick order is pushed down for the other one
     if(SS){const nf=SS.f[q]||0,nl=SS.l[q]||0,T=nf+nl;if(T>=4){const mine=side==='first'?nf:nl,sh0=(mine+.5)/(T+1);sf={n:mine,t:T};sc*=Math.max(.04,Math.min(1.4,sh0/.5))}}
     const f=FX.find(x=>x.q===q);if(f){if(f.s==='both'||f.s===side){sc=Math.max(sc,96);fx=1}else sc*=.1}
-    return {q,b:nm[q]||q.toUpperCase(),sc:Math.min(100,sc),sf,fx,hab:hab[q]||0,orr:orr(q),lr:lr(q),tr:tr(q),lpR:lpN(q),lbR:lbN(q)}}).sort((a,b)=>b.sc-a.sc).slice(0,8);
-  return {out,ST,HN,NS,NU,NM,hasH:wh>0,hN:HN,hw:HNw,hasR:wr>0,hasB,ndB:LB.nd,trN:TR.n,orN:OR.n,lgSets:Math.round(LN/2),from,end,fb};
+    return {q,b:nm[q]||q.toUpperCase(),sc:Math.min(100,sc),sf,fx,hab:hab[q]||0,orr:orr(q),lr:lr(q),tr:tr(q),lpR:lpN(q),lbR:lbN(q),rel:relM(q),mbC:MB?Math.round(10*(MB.c[q]||0))/10:null,abE:AB&&AB.ex[q]!=null?Math.round(AB.ex[q]*10)/10:null,abO:AB?(AB.ob[q]||0):null}}).sort((a,b)=>b.sc-a.sc).slice(0,8);
+  return {out,ST,HN,NS,NU,NM,hasH:wh>0,hN:HN,hw:HNw,hasR:wr>0,hasB,ndB:LB.nd,mb:MB?{n:Math.round(MB.n*10)/10,nd:MB.nd,map:flt.map}:null,ab:AB?{nt:AB.nt}:null,trN:TR.n,orN:OR.n,lgSets:Math.round(LN/2),from,end,fb};
 }
 
 const balInfoOpen=new Set();
@@ -2658,7 +2679,7 @@ bans:(L,T)=>`<p><b>What it shows.</b> What kind of bans ${T} makes, from its sav
 <p><b>By patch.</b> One row per balance date, to see whether the bans change after each patch.</p>
 <p><b>Filters.</b> The map selector at the top of the tab applies to the whole tab, including the saved drafts used here (only drafts on that map count). The pick order selector (does the team have the 1st or the last pick) is only here: it keeps the drafts where the team had that pick order, and the second table (the rival) uses the opposite one. Monthly qualifiers (pick order unknown) are left out when you filter by pick order. With few sets or drafts, results show "low data".</p>`,
 expbans:(L,T)=>`<p><b>What it shows.</b> An <i>estimate</i> of which brawlers each team will ban in a match between the two (the rival is optional).</p>
-<p><b>Score 0-100.</b> A mix of: its own ban habit (40%, only with 5+ saved drafts), what the rival plays in the last 45 days (30%, only with a rival with 8+ sets) and how strong the brawler is in the meta now, mostly from the bans and global bans of all teams' saved drafts in this patch (65%) and from picks (35%) (30%; 45% with the last pick in the Scouting tab). Weights are reshuffled when some data is missing. The score goes down when the team itself plays that brawler (it does not ban what it uses).</p>
+<p><b>Score 0-100.</b> A mix of: its own ban habit (40%, only with 5+ saved drafts), what the rival plays in the last 45 days (30%, only with a rival with 8+ sets) and how strong the brawler is in the meta now, mostly from the bans and global bans of all teams' saved drafts in this patch (65%) and from picks (35%) (30%; 45% with the last pick in the Scouting tab). With a map chosen, that meta part looks at the map: half is how often every team bans it on that map in the saved drafts (with that pick order; with few drafts there it leans on the all-maps bans), a quarter is whether it is played a lot on that map but never appears in this team's sets there (a sign that it gets banned), and a quarter is how much it is picked on that map. Weights are reshuffled when some data is missing. The score goes down when the team itself plays that brawler (it does not ban what it uses).</p>
 <p><b>Pick order.</b> When you choose "has the 1st pick", the first table uses that team's drafts with the 1st pick and the second table (the rival) uses the drafts of the rival with the last pick, and the other way around.</p>
 <p><b>Labels.</b> 65+ Very likely, 40+ Likely, below that Possible. Nothing here is a fact: it is a ranking of candidates.</p>`
 };
@@ -3483,7 +3504,9 @@ const canonTeam=v=>{v=String(v||'').trim();const u=v.toUpperCase();const m=(M?al
 function drRefreshViews(){if(view==='bal'&&BAL)renderBal();if(view==='draft'||view==='suggest')drRender();else if(view==='stats'&&tab==='drafts'&&M)renderDetail()}
 async function drLoad(){
   try{const rows=await gviz('sheet=DRAFTS&headers=1&tq='+encodeURIComponent('select *'));
-    if(rows.length&&rows[0][0]==='Id'){DR.list=rows.slice(1).filter(r=>r[0]).map(drFromRow);store.set('tvt:drafts',JSON.stringify(DR.list))}
+    if(rows.length&&rows[0][0]==='Id'){const body=rows.slice(1).filter(r=>r[0]);
+      DR.list=body.filter(r=>!String(r[0]).startsWith(OVR_ID)).map(drFromRow);store.set('tvt:drafts',JSON.stringify(DR.list));
+      ovrFromRows(body.filter(r=>String(r[0]).startsWith(OVR_ID)))}
     else DR.list=[];
     DR.err=''}
   catch(e){DR.err=e.code==='gviz_private'?'The DRAFTS tab could not be read (it may not exist yet, or the sheet is not shared as Anyone with the link).':'Could not reach Google Sheets to load drafts.'}
@@ -3625,21 +3648,35 @@ function drOrderTable(team,list){
   for(const d of known)for(const side of ['blue','red']){if(team&&d[side]!==team)continue;groups[d.coin===side?'first':'last'].push({d,side})}
   const who=team?esc(team):'All teams';
   if(!groups.first.length&&!groups.last.length)return `<div class="tc-sec" style="margin-top:14px"><div class="lbl" style="text-align:center">${who} by pick order</div><p class="msg">No drafts with a known pick order for this selection${unk?' ('+unk+' with side unknown)':''}.</p></div>`;
-  const col=o=>{const E=groups[o],N=E.length,bn={},gb={},pk={},slot={};
+  const col=o=>{const E=groups[o],N=E.length,bn={},pk={},slot={};
     for(const {d,side} of E){const s_=side==='blue'?'b':'r';
       for(const b of d.bans[s_])if(b)bn[b]=(bn[b]||0)+1;
-      for(const b of (d.gb&&d.gb[s_])||[])if(b)gb[b]=(gb[b]||0)+1;
       for(let i=1;i<=6;i++){if(pickSide(d.coin,i)!==side)continue;const b=d.picks[i-1];if(!b)continue;pk[b]=(pk[b]||0)+1;if(i===(o==='first'?1:6))slot[b]=(slot[b]||0)+1}}
-    const names=[...new Set([...Object.keys(bn),...Object.keys(gb),...Object.keys(pk)])];
-    const rows=names.map(b=>({b,bn:bn[b]||0,gb:gb[b]||0,pk:pk[b]||0,sl:slot[b]||0})).sort((x,y)=>(y.bn+y.gb)-(x.bn+x.gb)||y.pk-x.pk||x.b.localeCompare(y.b)).slice(0,15);
+    const names=[...new Set([...Object.keys(bn),...Object.keys(pk)])];
+    const rows=names.map(b=>({b,bn:bn[b]||0,pk:pk[b]||0,sl:slot[b]||0})).sort((x,y)=>y.bn-x.bn||y.pk-x.pk||x.b.localeCompare(y.b)).slice(0,15);
     const pc=v=>N?Math.round(100*v/N)+'%':'–',c=v=>v?v:'<span class="msg">–</span>';
     const coin=`<img class="coinm" style="width:18px;height:18px;vertical-align:middle" src="${o==='first'?COIN.blue:COIN.red}" alt="">`;
-    const body=rows.map(r=>`<tr><td class="ic">${bimg(r.b,'bi')||''}<span class="nmx">${esc(r.b)}</span></td><td class="num">${c(r.bn)}</td><td class="num">${r.bn?pc(r.bn):''}</td><td class="num">${c(r.gb)}</td><td class="num">${c(r.pk)}</td><td class="num">${r.pk?pc(r.pk):''}</td><td class="num">${c(r.sl)}</td></tr>`).join('');
+    const body=rows.map(r=>`<tr><td class="ic">${bimg(r.b,'bi')||''}<span class="nmx">${esc(r.b)}</span></td><td class="num">${c(r.bn)}</td><td class="num">${r.bn?pc(r.bn):''}</td><td class="num">${c(r.pk)}</td><td class="num">${r.pk?pc(r.pk):''}</td><td class="num">${c(r.sl)}</td></tr>`).join('');
     return `<div class="sc-mc" style="min-width:0"><p class="msg" style="margin:0 0 6px;display:flex;align-items:center;gap:6px">${coin}<b>${o==='first'?'1st pick':'last pick'}</b><span>· ${plural(N,'draft')}${team?'':' (teams counted separately)'}</span></p>
-      <div class="tablewrap"><table class="rank tiny"><thead><tr><th>Brawler</th><th class="num">Banned</th><th class="num">%</th><th class="num">Global</th><th class="num">Picked</th><th class="num">%</th><th class="num" title="${o==='first'?'Picked as the opening pick (pick 1)':'Picked as the closing pick (pick 6)'}">${o==='first'?'Pick 1':'Pick 6'}</th></tr></thead><tbody>${body||'<tr><td colspan="7" class="msg">No data.</td></tr>'}</tbody></table></div></div>`};
+      <div class="tablewrap"><table class="rank tiny"><thead><tr><th>Brawler</th><th class="num">Banned</th><th class="num">%</th><th class="num">Picked</th><th class="num">%</th><th class="num" title="${o==='first'?'Picked as the opening pick (pick 1)':'Picked as the closing pick (pick 6)'}">${o==='first'?'Pick 1':'Pick 6'}</th></tr></thead><tbody>${body||'<tr><td colspan="6" class="msg">No data.</td></tr>'}</tbody></table></div></div>`};
+  // global bans: made before the series, so pick order does not apply; counted once per series (same day, same two teams)
+  const gbH=(()=>{const ser={};
+    for(const d of list)for(const side of ['blue','red']){if(team&&d[side]!==team)continue;const g=((d.gb&&d.gb[side==='blue'?'b':'r'])||[]).filter(Boolean);if(!g.length)continue;
+      const k=[balND(d.date)||d.date,[d.blue,d.red].sort().join('/'),d[side],[...g].sort().join('+')].join('|'),e=ser[k]||(ser[k]={g,maps:new Set()});if(d.map)e.maps.add(d.map)}
+    const S={},D={},add=(o,k,e)=>{const x=o[k]||(o[k]={n:0,maps:{}});x.n++;for(const m of e.maps)x.maps[m]=(x.maps[m]||0)+1};
+    const SE=Object.values(ser);
+    for(const e of SE){e.g.forEach(b=>add(S,b,e));for(let i=0;i<e.g.length;i++)for(let j=i+1;j<e.g.length;j++)add(D,[e.g[i],e.g[j]].sort().join(' + '),e)}
+    const srt=m=>Object.entries(m).sort((a,b)=>b[1].n-a[1].n||(a[0]<b[0]?-1:1)).slice(0,15);
+    const ics=k=>k.split(' + ').map(b=>`${bimg(b,'bi')||''}<span class="nmx">${esc(b)}</span>`).join('<span class="pl"> + </span>');
+    const mps=m=>Object.entries(m).sort((a,b)=>b[1]-a[1]||(a[0]<b[0]?-1:1)).map(([n,c])=>`<span class="dmc"${mapCol(n)}>${esc(n)}${c>1?' ×'+c:''}</span>`).join('');
+    const tb=(t,m,h1)=>`<div class="sc-mc" style="min-width:0"><p class="msg" style="margin:0 0 6px"><b>${t}</b></p><div class="tablewrap"><table class="rank tiny"><thead><tr><th>${h1}</th><th class="num">Series</th><th class="num">%</th><th>Maps played</th></tr></thead><tbody>${srt(m).map(([k,e])=>`<tr><td class="ic">${ics(k)}</td><td class="num">${e.n}</td><td class="num">${Math.round(100*e.n/SE.length)}%</td><td class="dmaps">${mps(e.maps)}</td></tr>`).join('')||'<tr><td colspan="4" class="msg">No data.</td></tr>'}</tbody></table></div></div>`;
+    if(!SE.length)return `<div class="lbl" style="align-self:stretch;display:block;text-align:center;margin-top:14px">${who} · global bans</div><p class="msg">No global bans saved for this selection.</p>`;
+    return `<div class="lbl" style="align-self:stretch;display:block;text-align:center;margin-top:14px">${who} · global bans${DR.fMap?' · '+esc(DR.fMap):''}</div>
+      <div class="sc-mg" style="grid-template-columns:repeat(auto-fit,minmax(380px,1fr))">${tb('One by one',S,'Brawler')}${tb('Pairs (banned together)',D,'Duo')}</div>
+      <p class="msg" style="font-size:11.5px;margin:6px 0 0">Global bans are made before the series, so the pick order does not apply. Each series counts once (same day and same two teams${team?'':', each team on its own'}): ${SE.length} series. Maps played = the maps of the saved drafts of those series.</p>`})();
   return `<div class="tc-sec" style="margin-top:14px"><div class="lbl" style="align-self:stretch;display:block;text-align:center">${who} by pick order${DR.fMap?' · '+esc(DR.fMap):''}</div>
     <div class="sc-mg" style="grid-template-columns:repeat(auto-fit,minmax(380px,1fr))">${col('first')}${col('last')}</div>
-    <p class="msg" style="font-size:11.5px;margin:6px 0 0">Banned / Picked = number of drafts and % of the drafts of that pick order (${team?esc(team)+' only':'both teams of every draft, each counted on its own pick order'}). Global = global bans. Pick 1 = opening pick (1st pick); Pick 6 = closing pick (last pick)${unk?`. ${plural(unk,'draft')} with side unknown ${unk===1?'is':'are'} left out`:''}. Top 15.</p></div>`}
+    <p class="msg" style="font-size:11.5px;margin:6px 0 0">Banned / Picked = number of drafts and % of the drafts of that pick order (${team?esc(team)+' only':'both teams of every draft, each counted on its own pick order'}). Pick 1 = opening pick (1st pick); Pick 6 = closing pick (last pick)${unk?`. ${plural(unk,'draft')} with side unknown ${unk===1?'is':'are'} left out`:''}. Top 15.</p>${gbH}</div>`}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-drord]');if(b){DR.fOrder=b.dataset.drord;drRender()}});
 function drSettingsHTML(){const c=drCfg();
   return `<section class="panel"><details><summary>Where drafts are saved</summary><div class="how"><p>${c.url?'Drafts are saved to the DRAFTS tab of the Google Sheet, so everybody with this page sees them.':'No sheet connected yet: drafts are kept only in this browser.'}</p>
@@ -4219,7 +4256,7 @@ function scoutHTML(){
   let EXR={},EXU={};const EXERR=[];
   const balWait=!BAL;if(balWait&&BALst===0&&!BALerr)balLoad();
   const svF=balFMap;
-  if(!balWait)try{balFMap='';const C0=balCalc(R),fl=useMap?{map:SC.map}:{};
+  if(!balWait)try{balFMap='';const C0=balCalc(R),fl=(useMap||mapOn)?{map:SC.map}:{};
     for(const sd of ['first','last']){
       try{EXR[sd]=balExpect(R,hasM?U:'',C0,fl,sd,1)}catch(e){EXERR.push(R+' · '+sd+': '+e.message)}
       if(hasM){try{EXU[sd]=balExpect(U,R,C0,fl,sd,1)}catch(e){EXERR.push(U+' · '+sd+': '+e.message)}}}
@@ -4293,7 +4330,7 @@ function scoutHTML(){
   const mxr=(img,nm,a,b2,tt)=>`<div class="sc-mr"${tt?' title="'+esc(tt)+'"':''}><span class="sc-mn">${img||''}<b>${esc(nm)}</b></span><span class="sc-mv">${a}</span><span class="sc-mv">${b2}</span></div>`;
   const ptop=st.picks.filter(x=>x.n>=mn).map(x=>({x,s:(x.n/(st.picks.reduce((a,y)=>a+y.n,0)||1))*sh(x.w,x.n,.5)})).sort((a,b)=>b.s-a.s).slice(0,6).map(o=>o.x);
   const pT=ptop.length?`<div class="sc-mc"><p class="msg" style="margin:0 0 4px"><b>${esc(R)}</b> key picks${useMap?' on this map':''}</p>${ptop.map(x=>mxr(bimg(x.k,'bi'),x.k,x.n+' picks',pcs(x.w/x.n))).join('')}</div>`:'';
-  const exCol=(E,nm,sd)=>{const N=E?E.HN:0;return `<div class="sc-mc"><p class="msg" style="margin:0 0 6px;display:flex;align-items:center;gap:6px;white-space:nowrap;min-height:22px">${cn(sd)}<b>${sd==='first'?'1st pick':'last pick'}</b><span>· ${N} ${N===1?'draft':'drafts'}${E&&E.NU?' ('+E.NS+' + '+E.NU+' side unknown)':''}${E&&E.NM&&useMap?' · '+E.NM+' on this map':''}${E&&E.fb&&E.fb.hab?' · all pick orders':''}${N<3?'*':''}</span></p>${E&&E.out.length?E.out.slice(0,6).map(x=>mxr(bimg(x.b,'bi'),x.b,Math.round(x.sc),lab(x.sc),`${x.b}: own ban rate ${E.hw?Math.round(100*x.hab/E.hw):0}% (${E.hN} drafts) · the rival plays it in ${Math.round(x.orr*100)}% of its sets · league this patch: picked in ${Math.round(x.lpR*100)}% of sets, banned in ${Math.round(x.lbR*100)}% of the ${E.fb&&E.fb.lbs?'':(sd==='first'?'1st-pick ':'last-pick ')}team-drafts (${E.ndB} drafts)${x.tr>=.15?' · '+Math.round(x.tr*100)+'% of its own sets, so it is penalised':''}${x.fx?' · fixed meta ban (set by hand)':''}${x.sf?` · all teams: ${x.sf.n} of its ${x.sf.t} bans were made with the ${sd==='first'?'1st':'last'} pick`:''}`)).join(''):'<p class="msg" style="margin:0">No estimate.</p>'}</div>`};
+  const exCol=(E,nm,sd)=>{const N=E?E.HN:0;return `<div class="sc-mc"><p class="msg" style="margin:0 0 6px;display:flex;align-items:center;gap:6px;white-space:nowrap;min-height:22px">${cn(sd)}<b>${sd==='first'?'1st pick':'last pick'}</b><span>· ${N} ${N===1?'draft':'drafts'}${E&&E.NU?' ('+E.NS+' + '+E.NU+' side unknown)':''}${E&&E.NM&&useMap?' · '+E.NM+' on this map':''}${E&&E.fb&&E.fb.hab?' · all pick orders':''}${N<3?'*':''}</span></p>${E&&E.out.length?E.out.slice(0,6).map(x=>mxr(bimg(x.b,'bi'),x.b,Math.round(x.sc),lab(x.sc),`${x.b}: own ban rate ${E.hw?Math.round(100*x.hab/E.hw):0}% (${E.hN} drafts)${x.rel!=null&&x.rel<.5&&x.hab?' (bans on other maps barely count here: it is hardly picked or banned on this map)':''} · the rival plays it in ${Math.round(x.orr*100)}% of its sets · league this patch: picked in ${Math.round(x.lpR*100)}% of sets, banned in ${Math.round(x.lbR*100)}% of the ${E.fb&&E.fb.lbs?'':(sd==='first'?'1st-pick ':'last-pick ')}team-drafts (${E.ndB} drafts)${E.mb&&E.mb.nd?` · on ${E.mb.map}: every team bans it in ${E.mb.n?Math.round(100*x.mbC/E.mb.n):0}% of the drafts where it has the ${sd==='first'?'1st':'last'} pick (${E.mb.nd} drafts saved on this map)`:''}${E.ab&&x.abE!=null&&x.abE>=1.5?` · played a lot on this map: expected in ~${x.abE} of the ${E.ab.nt} sets of this team there, seen in ${x.abO}${x.abO<x.abE*.5?' (probably banned)':''}`:''}${x.tr>=.15?' · '+Math.round(x.tr*100)+'% of its own sets, so it is penalised':''}${x.fx?' · fixed meta ban (set by hand)':''}${x.sf?` · all teams: ${x.sf.n} of its ${x.sf.t} bans were made with the ${sd==='first'?'1st':'last'} pick`:''}`)).join(''):'<p class="msg" style="margin:0">No estimate.</p>'}</div>`};
   const styleLine=ST=>{if(!ST)return '';const dn=`${ST.n} ${ST.n===1?'draft':'drafts'}${ST.nu?' ('+ST.nu+' side unknown)':''}`;
     if(!ST.ok)return `<div class="sc-sty">Ban style: not enough drafts (${dn}, needs 8). Neutral weights used.</div>`;
     const pc=x=>Math.round(x*100)+'%',lead=[['meta bans',ST.pm],['target bans against the rival',ST.pt],['bans of its own picks',ST.po]].sort((a,b)=>b[1]-a[1])[0];
@@ -4303,7 +4340,7 @@ function scoutHTML(){
   const exTab=(E,nm)=>E&&(E.first||E.last)?`<div class="sc-tm" style="--tc:${tcol(nm)}"><div class="sc-th" data-tc="${esc(nm)}">${logo(nm,'l40')}<b>${esc(nm)}</b></div>${styleLine((E.first||E.last||{}).ST)}<div class="sc-tc">${exCol(E.first,nm,'first')}${exCol(E.last,nm,'last')}</div></div>`:'';
   const mapFbH=(()=>{if(!useMap&&!mapOn)return '';const f=(EXR.first&&EXR.first.fb)||{},g=(EXU.first&&EXU.first.fb)||{},o=[];
     if(f.tr||g.tr)o.push('a team has too few sets on this map, so its own picks use all maps');if(f.or||g.or)o.push('the rival has too few sets on this map, so its picks use all maps');if(f.lg||g.lg)o.push('too few league sets on this map, so the meta uses all maps');
-    return `<p class="msg" style="font-size:11.5px;margin:4px 0 0"><span class="flag">${esc(SC.map)}</span> The bans use this map's sets (own picks, the rival's picks, the league meta) and the saved drafts on this map.${o.length?' Fallback: '+o.join('; ')+'.':''}</p>`})();
+    return `<p class="msg" style="font-size:11.5px;margin:4px 0 0"><span class="flag">${esc(SC.map)}</span> The bans use this map: what every team bans here in the saved drafts (with that pick order), the brawlers played a lot here that never show up in this team's sets (likely banned), and this map's picks. A brawler nobody bans on this map stays low even if it is banned on other maps.${o.length?' Fallback: '+o.join('; ')+'.':''}</p>`})();
   const exErrH=balWait?`<p class="msg" style="margin:8px 0">${BALerr?esc(BALerr):'Loading the BALANCE tab to estimate the bans…'}</p>`:EXERR.length?`<p class="sc-warn" style="margin:8px 0">Could not estimate some bans (${esc(EXERR.slice(0,3).join(' | '))}). Please send this message so it can be fixed.</p>`:'';
   const fixH=(()=>{const SS=banSideStats(),det=[];
     for(const q of new Set([...Object.keys(SS.f),...Object.keys(SS.l)])){const nf=SS.f[q]||0,nl=SS.l[q]||0,T=nf+nl;if(T>=6&&Math.max(nf,nl)/T>=.9)det.push({b:SS.nm[q],s:nl>nf?'last':'1st',n:Math.max(nf,nl),T})}
@@ -4341,8 +4378,35 @@ document.addEventListener('change',e=>{const c=e.target.closest&&e.target.closes
   if(poolTeams)poolTeams=poolTeams.filter(stShown);
   if(M&&drawTilesFn){drawTilesFn();render()}if(TP)tpRender()});
 // sets where two teams have 2+ of the 3 tags (a player written in two rows): the better ranked team (Team before Tryout before Old) is used unless the Data check says otherwise
-const OVRK='tvt:ovr';
-function ovrLoad(){try{return JSON.parse(store.get(OVRK)||'{}')||{}}catch(e){return {}}}
+const OVRK='tvt:ovr',OVR_ID='ELECCION|';
+// shared choices (from the sheet) + the ones of this browser that are not uploaded yet
+const SOVR={map:(()=>{try{return JSON.parse(store.get('tvt:sovr')||'{}')||{}}catch(e){return {}}})(),seen:false,q:[],busy:false,msg:'',recent:{}};
+function ovrLocal(){try{return JSON.parse(store.get(OVRK)||'{}')||{}}catch(e){return {}}}
+function ovrLoad(){return Object.assign({},SOVR.map,ovrLocal())}
+function ovrFromRows(rs){const o={};for(const r of rs){const k=String(r[0]).slice(OVR_ID.length),t=String(r[5]==null?'':r[5]).trim();if(k&&t)o[k]=t}
+  // changes still being sent, or sent in the last minutes (Google may still serve the old copy of the sheet)
+  const now=Date.now();for(const k in SOVR.recent){const x=SOVR.recent[k];if(now-x.at>6e5){delete SOVR.recent[k];continue}if(x.t)o[k]=x.t;else delete o[k]}
+  for(const y of SOVR.q){if(y.t)o[y.k]=y.t;else delete o[y.k]}
+  const before=JSON.stringify(SOVR.map);SOVR.map=o;SOVR.seen=true;store.set('tvt:sovr',JSON.stringify(o));
+  // choices made before in this browser go to the sheet once
+  const L=ovrLocal();for(const k in L){if(o[k]!==L[k])ovrQueue(k,L[k],true)}
+  if(before!==JSON.stringify(o)&&FULL&&!busy){applyOvr(FULL);CHK={key:null,res:null};build(FULL,true)}}
+function ovrSet(k,t){if(t)SOVR.map[k]=t;else delete SOVR.map[k];store.set('tvt:sovr',JSON.stringify(SOVR.map));
+  const L=ovrLocal();delete L[k];store.set(OVRK,JSON.stringify(L));ovrQueue(k,t)}
+function ovrQueue(k,t,fromLocal){const cfg=drCfg();
+  if(!cfg.url){const L=ovrLocal();if(t)L[k]=t;else delete L[k];store.set(OVRK,JSON.stringify(L));SOVR.msg='Not connected to the sheet: saved in this browser only.';return}
+  SOVR.q=SOVR.q.filter(x=>x.k!==k);SOVR.q.push({k,t,fromLocal});ovrPump()}
+async function ovrPump(){if(SOVR.busy)return;SOVR.busy=true;const cfg=drCfg();
+  while(SOVR.q.length){const x=SOVR.q[0];
+    try{const body=x.t?{token:cfg.token,action:'save',row:[OVR_ID+x.k,todayISO(),'(team choice)','','',x.t,'','','','','','','','','','','','','','','','','','','No borrar: equipo elegido en Data check > Ambiguous lineups',new Date().toISOString()]}
+        :{token:cfg.token,action:'delete',id:OVR_ID+x.k};
+      const res=await fetch(cfg.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});
+      const j=await res.json();if(!j.ok)throw new Error(j.error||'rejected');
+      SOVR.q.shift();SOVR.recent[x.k]={t:x.t,at:Date.now()};if(x.fromLocal){const L=ovrLocal();delete L[x.k];store.set(OVRK,JSON.stringify(L));if(x.t){SOVR.map[x.k]=x.t;store.set('tvt:sovr',JSON.stringify(SOVR.map))}}
+      SOVR.msg=''}
+    catch(e){const L=ovrLocal();for(const y of SOVR.q){if(y.t)L[y.k]=y.t}store.set(OVRK,JSON.stringify(L));SOVR.q=[];
+      SOVR.msg='Could not save the choice in the sheet ('+(e&&e.message||e)+'). It is kept in this browser and will be sent again next time.';break}}
+  SOVR.busy=false;if(view==='check')try{renderCheck()}catch(e){}}
 const ovrKey=(m,sd)=>m.d+'|'+m.m+'|'+(sd==='a'?m.ta:m.tb).slice().sort().join(',');
 const ovrRule=x=>'rule|'+x.slice().sort().join('/');
 const ovrGet=(O,k,x)=>O[k]||O[ovrRule(x)];
@@ -4351,11 +4415,10 @@ function applyOvr(F){if(!F||!F.matches)return F;const O=ovrLoad();
   for(const m of F.matches)for(const sd of ['a','b']){const x=m['x'+sd];if(!x||!x.length)continue;const c=ovrGet(O,ovrKey(m,sd),x);m[sd]=ovrVal(F,c&&x.includes(c)?c:x[0])}
   return F}
 document.addEventListener('click',e=>{const a=e.target.closest('[data-ovrall]');if(!a||!FULL||busy||!CHK.res||!CHK.res.amb)return;
-  const O=ovrLoad(),t=a.dataset.ovrall;for(const x of CHK.res.amb)if(x.c.includes(t)){O[x.k]=t;O[ovrRule(x.c)]=t}
-  store.set(OVRK,JSON.stringify(O));applyOvr(FULL);CHK={key:null,res:null};build(FULL,true)});
+  const O=ovrLoad(),t=a.dataset.ovrall,rules=new Set();for(const x of CHK.res.amb)if(x.c.includes(t)){if(O[x.k]&&O[x.k]!==t)ovrSet(x.k,'');rules.add(ovrRule(x.c))}
+  for(const r of rules)ovrSet(r,t);applyOvr(FULL);CHK={key:null,res:null};build(FULL,true)});
 document.addEventListener('click',e=>{const b=e.target.closest('[data-ovr]');if(!b||!FULL||busy)return;
-  const O=ovrLoad(),k=b.dataset.ovr,t=b.dataset.team;if(!k)return;if(O[k]===t)delete O[k];else O[k]=t;
-  store.set(OVRK,JSON.stringify(O));applyOvr(FULL);CHK={key:null,res:null};build(FULL,true)});
+  const O=ovrLoad(),k=b.dataset.ovr,t=b.dataset.team;if(!k)return;ovrSet(k,O[k]===t?'':t);applyOvr(FULL);CHK={key:null,res:null};build(FULL,true)});
 // ---- Data check (health of the sheet data)
 let CHK={key:null,res:null};
 const DAYMS=864e5;
@@ -4462,7 +4525,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-chkcopy]')
   else{const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');ok()}catch(er){}ta.remove()}});
 function ambHTML(R){const F=FULL,O=ovrLoad();if(!R.amb||!R.amb.length)return '<p class="msg">No lineup fits two teams.</p>';
   const pend=R.amb.filter(e=>!ovrGet(O,e.k,e.c)),tms=[...new Set(R.amb.flatMap(e=>e.c))];
-  const bulk=`<div class="chk-chips" style="margin:0 0 8px;align-items:center"><span class="msg" style="margin-right:6px">${pend.length?`<b>${pend.length}</b> still to choose (listed first, marked <i>to choose</i>).`:'All chosen.'} Count every lineup, also new ones, for:</span>${tms.map(t=>`<button type="button" class="chk-chip ovr" data-ovrall="${esc(t)}"${Object.keys(O).some(k=>k.startsWith('rule|')&&O[k]===t)?' style="outline:2px solid var(--accent,#3b82f6)"':''}>${esc(t)}${stOf(t)===1?' <small>tryout</small>':stOf(t)===2?' <small>old</small>':''}</button>`).join('')}</div><p class="msg" style="font-size:12px;margin:0 0 8px">Your choices are saved in this browser.</p>`;
+  const bulk=`<div class="chk-chips" style="margin:0 0 8px;align-items:center"><span class="msg" style="margin-right:6px">${pend.length?`<b>${pend.length}</b> still to choose (listed first, marked <i>to choose</i>).`:'All chosen.'} Count every lineup, also new ones, for:</span>${tms.map(t=>`<button type="button" class="chk-chip ovr" data-ovrall="${esc(t)}"${Object.keys(O).some(k=>k.startsWith('rule|')&&O[k]===t)?' style="outline:2px solid var(--accent,#3b82f6)"':''}>${esc(t)}${stOf(t)===1?' <small>tryout</small>':stOf(t)===2?' <small>old</small>':''}</button>`).join('')}</div><p class="msg" style="font-size:12px;margin:0 0 8px">${SOVR.msg?`<b style="color:#ff8a80">${esc(SOVR.msg)}</b>`:`Your choices are saved in the sheet (DRAFTS tab, rows ELECCION|…), so everyone who opens the page sees them${SOVR.busy||SOVR.q.length?' · saving…':''}.`}</p>`;
   const pendTag=e=>ovrGet(O,e.k,e.c)?'':' <small class="msg"><i>to choose</i></small>';
   const nm=g=>esc((F.names&&F.names[g])||g);
   return bulk+`<div class="tablewrap"><table class="rank tiny"><thead><tr><th>Players</th><th>Last played</th><th class="num">Sets</th><th>Counted for (click to change)</th></tr></thead><tbody>${R.amb.slice().sort((x,y)=>(ovrGet(O,x.k,x.c)?1:0)-(ovrGet(O,y.k,y.c)?1:0)).slice(0,400).map(e=>{const g0=ovrGet(O,e.k,e.c),cur=g0&&e.c.includes(g0)?g0:e.c[0];
