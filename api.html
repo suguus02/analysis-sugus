@@ -2069,6 +2069,20 @@ const tstrip=(t,extra)=>`<div class="tstrip" data-tc="${esc(t)}" style="--tc:${t
 // everything one team shows in the deep dive; key = 'A'/'B' (compare 2 teams, own filters) or '' (1 team / pool)
 const LUS={'':null,A:null,B:null},LUK={'':[],A:[],B:[]};
 const wrC=(w,l)=>!(w+l)?'':w>l?'pw':w<l?'pl':'';
+// ---- lineup cards (option D): shared by 1 team, compare 2 and several teams
+const LUREG2={};
+function luChip(e,team,fk,idx,on){const R=new Set(((FULL&&FULL.pickPlayers&&FULL.pickPlayers[String(team).toUpperCase()])||[]).map(p=>String(p.name||'').trim().toUpperCase()).filter(Boolean));
+  const names=String(e.nm||e.k).split(' · '),n=e.w+e.l,wr=n?e.w/n:null;
+  return `<button type="button" class="luc${on?' on':''}" data-fk="${fk}" data-lu="${idx}" title="${esc(names.join(' · '))} · ${e.g} games · last played ${esc(fmtDate(e.d))}${e.reg?'':' · with pick-ups'}"><span class="lucn">${names.map(x=>`<span class="${R.size&&!R.has(x.trim().toUpperCase())?'lpk':''}">${esc(x)}</span>`).join('')}</span>${e.reg?'<em class="luoff">OFFICIAL</em>':''}<span class="lucf"><b>${e.s} ${e.s===1?'set':'sets'}</b><i style="${wr==null?'':gtHeat(wr,n)}">${wr==null?'–':Math.round(100*wr)+'%'}</i></span></button>`}
+function luCardsHTML(fk,groups,sel,all,nsel,total,teamClick){
+  const on=e=>!sel||sel.has(e.k),reg=LUREG2[fk]||new Set(),regOn=!!sel&&reg.size>0&&groups.every(g=>g.es.every(e=>reg.has(e.k)===sel.has(e.k)));
+  const cards=groups.map(g=>{const s=g.es.filter(on).reduce((a,e)=>a+e.s,0),ts=g.es.reduce((a,e)=>a+e.s,0);
+    return `<div class="lutc" style="--c:${tcol(g.team)==='inherit'?'#6d6a85':tcol(g.team)}"><${teamClick?`button type="button" data-lut="${esc(g.team)}" title="Tick / untick all the trios of ${esc(g.team)}"`:'div'} class="luth">${logo(g.team,'l20')}<b>${esc(g.team)}</b><span>${s===ts?ts+' sets':s+' of '+ts+' sets'}</span></${teamClick?'button':'div'}>
+      <div class="luchips">${g.es.map(e=>luChip(e,g.team,fk,g.idx(e),on(e))).join('')}</div></div>`}).join('');
+  return `<div class="lub2${groups.length>1?' many':''}"><div class="lutop"><span class="luttl">Lineups · players who played together</span><span class="lubs"><button type="button" data-fk="${fk}" data-luset="all" aria-pressed="${all}">Everything</button><button type="button" data-fk="${fk}" data-luset="reg" aria-pressed="${regOn}"${reg.size?'':' disabled'}>Only official trios</button></span></div>
+    <div class="lucards">${cards}</div><div class="lus">${nsel} of ${total} lineups selected · pick-ups in <span class="lpk">yellow</span> · click a trio to tick / untick it</div></div>`}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-luset]');if(!b||b.disabled)return;const k=b.dataset.fk||'',keys=LUK[k]||[],reg=LUREG2[k]||new Set();
+  if(b.dataset.luset==='all')LUS[k]=null;else{const cur=LUS[k],same=cur&&keys.every(x=>reg.has(x)===cur.has(x));LUS[k]=same||!reg.size?null:new Set(reg)}renderDetail()});
 const LUREG={};
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-lureg1]');if(!b)return;const k=b.dataset.lureg1,keys=LUK[k]||[],reg=LUREG[k]||new Set(),cur=LUS[k];
   const same=cur&&keys.every(x=>reg.has(x)===cur.has(x));LUS[k]=same||!reg.size?null:new Set(reg);renderDetail()});
@@ -2089,9 +2103,8 @@ function luApply(team,items,key,stack){
   const all=!sel||list.every(e=>sel.has(e.k)),nsel=sel?list.filter(e=>sel.has(e.k)).length:list.length;
   const fk=key?` data-fk="${key}"`:'';
   const on=e=>!sel||sel.has(e.k);
-  const rows=list.map((e,i)=>`<button type="button" class="lur${on(e)?' on':''}"${fk} data-lu="${i}" title="${esc(e.k)} · last played ${esc(fmtDate(e.d))}"><span class="cbx">${on(e)?'✓':''}</span><span class="ln${e.reg?'':' lupk'}">${esc(e.k)}</span><span class="lg">${e.g} games · ${e.s} sets</span><span class="lw ${wrC(e.w,e.l)}">${e.w+e.l?Math.round(100*e.w/(e.w+e.l))+'%':'–'}</span></button>`).join('');
-  const tg=list.reduce((a,e)=>[a[0]+e.g,a[1]+e.s,a[2]+e.w,a[3]+e.l],[0,0,0,0]);
-  const html=list.length?`<div class="lub${stack?' in':''}"><div class="luh lubh">Lineups · players who played together${list.some(e=>!e.reg)&&LUREG[key].size?`<button type="button" class="btn quiet" data-lureg1="${key}"${sel&&list.every(e=>e.reg===sel.has(e.k))?' aria-pressed="true"':''}>Only the registered trio</button>`:''}</div><div class="lul"><button type="button" class="lur all${all?' on':''}"${fk} data-luall="1"><span class="cbx">${all?'✓':''}</span><span class="ln">ALL</span><span class="lg">${tg[0]} games · ${tg[1]} sets</span><span class="lw ${wrC(tg[2],tg[3])}">${tg[2]+tg[3]?Math.round(100*tg[2]/(tg[2]+tg[3]))+'%':'–'}</span></button>${rows}</div><div class="lus">${nsel} of ${list.length} lineups selected${list.some(e=>!e.reg)?' · lineups in <span class="lupk">italics</span> include pick-ups':''}</div></div>`:'';
+  LUREG2[key]=new Set(list.filter(e=>e.reg).map(e=>e.k));
+  const html=list.length?luCardsHTML(key,[{team,es:list,idx:e=>list.indexOf(e)}],sel,all,nsel,list.length,false):'';
   const out=sel?items.filter(x=>{const k=keyOf(x);return !k||sel.has(k)}):items;
   return {items:out,html,act:!all};
 }
@@ -2118,13 +2131,8 @@ function luApplyPool(items){
   const on=e=>!sel||sel.has(e.k),pc=(w,l)=>w+l?Math.round(100*w/(w+l))+'%':'–';
   const sum=arr=>arr.reduce((a,e)=>[a[0]+e.g,a[1]+e.s,a[2]+e.w,a[3]+e.l],[0,0,0,0]);
   const all=!sel||list.every(on),nsel=list.filter(on).length,tg=sum(list);
-  const regKeys=list.filter(e=>e.reg).map(e=>e.k),regOn=sel&&regKeys.length&&list.every(e=>e.reg===sel.has(e.k));
-  const grp=order.map(t=>{const es=byT[t],ta=es.every(on),tn=es.some(on),s=sum(es.filter(on));
-    return `<div class="lupg"><button type="button" class="lur lut${ta?' on':tn?' part':''}" data-lut="${esc(t)}"><span class="cbx">${ta?'✓':tn?'–':''}</span><span class="ln">${logo(t,'l20')} ${esc(t)}</span><span class="lg">${s[1]} sets</span><span class="lw ${wrC(s[2],s[3])}">${pc(s[2],s[3])}</span></button>
-      ${es.map(e=>`<button type="button" class="lur lui${on(e)?' on':''}" data-fk="P" data-lu="${LUK.P.indexOf(e.k)}" title="${esc(e.nm)} · last played ${esc(fmtDate(e.d))}${e.reg?'':' · with pick-ups'}"><span class="cbx">${on(e)?'✓':''}</span><span class="ln${e.reg?'':' lupk'}">${esc(e.nm)}</span><span class="lg">${e.g} games · ${e.s} sets</span><span class="lw ${wrC(e.w,e.l)}">${pc(e.w,e.l)}</span></button>`).join('')}</div>`}).join('');
-  const html=list.length?`<div class="lub in lubp"><div class="luh">Lineups · players who played together <span class="lubtn"><button type="button" class="btn quiet" data-lureg="1"${regOn?' aria-pressed="true"':''}>Only registered trios (no pick-ups)</button></span></div>
-    <div class="lul"><button type="button" class="lur all${all?' on':''}" data-fk="P" data-luall="1"><span class="cbx">${all?'✓':''}</span><span class="ln">ALL</span><span class="lg">${tg[0]} games · ${tg[1]} sets</span><span class="lw ${wrC(tg[2],tg[3])}">${pc(tg[2],tg[3])}</span></button>${grp}</div>
-    <div class="lus">${nsel} of ${list.length} lineups selected · lineups in <span class="lupk">italics</span> include pick-ups</div></div>`:'';
+  LUREG2.P=new Set(list.filter(e=>e.reg).map(e=>e.k));
+  const html=list.length?luCardsHTML('P',order.map(t=>({team:t,es:byT[t],idx:e=>LUK.P.indexOf(e.k)})),sel,all,nsel,list.length,true):'';
   const out=sel?items.filter(x=>{const k=keyOf(x);return !k||sel.has(k)}):items;
   return {items:out,html,act:!all};
 }
@@ -5045,3 +5053,25 @@ body{padding-bottom:50px}
 .lupk{font-style:italic;opacity:.75}
 </style>
 <style>.lubh{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}.lubh .btn{font-size:11px;padding:3px 9px}.lubh .btn[aria-pressed="true"]{background:var(--accent,#e5484d);color:#fff;border-color:var(--accent,#e5484d)}</style>
+
+<style>
+.lub2{width:100%;margin:8px 0 4px}
+.lutop{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.luttl{font-size:11px;letter-spacing:.07em;text-transform:uppercase;font-weight:700;color:var(--muted,#a9a6bd)}
+.lubs{display:flex;gap:8px}.lubs button{font:inherit;font-size:12.5px;color:var(--fg,#ecebf5);background:transparent;border:1px solid #3a3850;border-radius:20px;padding:5px 12px;cursor:pointer}
+.lubs button[aria-pressed="true"]{background:var(--accent,#c0283f);border-color:var(--accent,#c0283f);color:#fff}.lubs button:disabled{opacity:.4;cursor:default}
+.lucards{display:grid;grid-template-columns:1fr;gap:12px}
+.lub2.many .lucards{grid-template-columns:repeat(auto-fit,minmax(420px,1fr))}
+.lutc{border:1px solid #2c2a3a;border-radius:12px;overflow:hidden;background:var(--bg,#16151f)}
+.luth{display:flex;align-items:center;gap:8px;width:100%;padding:8px 12px;border:0;font:inherit;color:var(--fg,#ecebf5);text-align:left;background:linear-gradient(90deg,color-mix(in srgb,var(--c) 34%,#1b1a26),#1b1a26)}
+button.luth{cursor:pointer}button.luth:hover{filter:brightness(1.15)}
+.luth b{font-size:13px;letter-spacing:.02em}.luth span{margin-left:auto;font-size:11.5px;color:var(--muted,#a9a6bd);font-weight:600}
+.luchips{display:flex;flex-wrap:wrap;gap:8px;padding:10px}
+.luc{font:inherit;color:var(--fg,#ecebf5);text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:2px;min-width:168px;flex:0 1 190px;border:1px solid #3a3850;border-radius:10px;padding:7px 9px;background:#1c1b28;opacity:.45;transition:opacity .12s}
+.luc:hover{opacity:.8}.luc.on{opacity:1;border-color:#e5484d;box-shadow:inset 0 0 0 1px #e5484d}
+.lucn{display:flex;flex-direction:column;font-size:11.5px;line-height:1.35}.lucn span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lpk{color:#ffcf6a}
+.luoff{align-self:flex-start;font-style:normal;font-size:9.5px;font-weight:800;letter-spacing:.04em;background:#2f6f45;color:#d9ffe4;border-radius:4px;padding:1px 5px;margin-top:2px}
+.lucf{display:flex;justify-content:space-between;align-items:center;margin-top:4px;font-size:11.5px}.lucf i{font-style:normal;font-weight:800;padding:1px 7px;border-radius:5px}
+.lub2 .lus{margin-top:8px;font-size:11.5px;text-align:center;color:var(--muted,#a9a6bd)}
+</style>
