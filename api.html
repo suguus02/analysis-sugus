@@ -2095,13 +2095,16 @@ function luApply(team,items,key,stack){
 function luReg(team,tags){const P=(FULL&&FULL.pickPlayers&&FULL.pickPlayers[String(team).toUpperCase()])||[];if(!P.length)return false;
   const s=new Set((tags||[]).filter(Boolean).map(x=>String(x).toUpperCase())),need=Math.min(3,P.length);let c=0;
   for(const p of P)if((p.tags||[]).some(g=>s.has(String(g).toUpperCase())))c++;return c>=need}
+function luRegN(team,nm){const P=(FULL&&FULL.pickPlayers&&FULL.pickPlayers[String(team).toUpperCase()])||[];if(!P.length)return false;
+  const s=new Set(String(nm||'').split(' · ').map(x=>x.trim().toUpperCase())),need=Math.min(3,P.length);let c=0;
+  for(const p of P)if(p.name&&s.has(String(p.name).trim().toUpperCase()))c++;return c>=need}
 function luApplyPool(items){
   const n2={},keyOf=x=>{const t=x.team;if(!n2[t]){n2[t]={};for(const p of ((FULL&&FULL.pickPlayers&&FULL.pickPlayers[String(t).toUpperCase()])||[]))for(const g of p.tags||[])n2[t][g]=p.name}
     const k=[...new Set((x.myTags||[]).map((g,i)=>g==null?null:(n2[t][g]||(x.myNames||[])[i]||PLAYER_NAMES[g]||g)).filter(Boolean))].sort((a,b)=>a<b?-1:1).join(' · ');return k?t+'::'+k:''};
   const L={};
   for(const x of items){const k=keyOf(x);if(!k)continue;const e=L[k]||(L[k]={k,team:x.team,nm:k.split('::')[1],g:0,s:0,w:0,l:0,d:'',reg:true});
     if(x.s)continue;const m=String(x.sc||'').match(/(\d+)\D+(\d+)/);if(m)e.g+=(+m[1])+(+m[2]);
-    e.s++;if(x.win===1)e.w++;else if(x.win===0)e.l++;if(x.d>e.d)e.d=x.d;if(!luReg(x.team,x.myTags))e.reg=false}
+    e.s++;if(x.win===1)e.w++;else if(x.win===0)e.l++;if(x.d>e.d)e.d=x.d;if(!luReg(x.team,x.myTags)&&!luRegN(x.team,e.nm))e.reg=false}
   const list=Object.values(L).filter(e=>e.s);
   const teams=[...new Set(items.map(x=>x.team))];
   const byT={};for(const e of list)(byT[e.team]||(byT[e.team]=[])).push(e);
@@ -2179,12 +2182,12 @@ function ddBuild(team,cls,key,pool){
     logHTML:logTable(log.slice(0,300),{tall:true,team:pool,noTag:true})+(log.length>300?'<p class="msg" style="margin:6px 0 0">Showing the 300 most recent sets.</p>':''),
     types:typesHTML(sub,subject,team,cls,wrl,mapCols,active),np:npHTML(items0,subject)};
 }
-function poolTableHTML(pt){
+function poolTableHTML(pt,its){
   if(!pt||!pt.length)return '';
-  const rows=pt.map(t=>{let n=0,w=0;for(const x of Engine.setList(ds,DB,t,mapsFilter())){if(x.s||x.win===0.5)continue;n++;if(x.win===1)w++}return {t,n,w,l:n-w,wr:n?w/n:0}}).sort((a,b)=>b.wr-a.wr||b.n-a.n);
+  const rows=pt.map(t=>{let n=0,w=0;for(const x of (its?its.filter(y=>y.team===t):Engine.setList(ds,DB,t,mapsFilter()))){if(x.s||x.win===0.5)continue;n++;if(x.win===1)w++}return {t,n,w,l:n-w,wr:n?w/n:0}}).sort((a,b)=>b.wr-a.wr||b.n-a.n);
   const tot=rows.reduce((a,r)=>[a[0]+r.n,a[1]+r.w],[0,0]);
   const body=rows.map((r,i)=>`<tr><td class="rk">${i+1}</td><td class="tm" style="text-align:left;white-space:nowrap"><span style="display:inline-flex;align-items:center;gap:8px">${logo(r.t,'l28')}<b style="color:${tcol(r.t)}">${esc(r.t)}</b></span></td><td class="num">${r.n}</td><td class="num" style="color:#3fbf72">${r.w}</td><td class="num" style="color:#e8575f">${r.l}</td>${r.n?`<td class="num heat" style="${wrHeat(r.wr)}">${Math.round(r.wr*100)}%</td>`:'<td class="num msg">–</td>'}</tr>`).join('');
-  return `<div class="pooltbl"><div style="display:flex;justify-content:center;margin:12px 0 6px"><div class="ttl" style="margin:0">Win rate by team · ${statMaps.length?plural(statMaps.length,'map')+' selected':'all maps'}</div></div><div class="tablewrap" style="max-height:480px;overflow:auto"><table class="rank fit" style="min-width:420px;margin:0 auto"><thead><tr><th class="rk"></th><th style="text-align:left">Team</th><th class="num">Sets</th><th class="num">Won</th><th class="num">Lost</th><th class="num">Win rate</th></tr></thead><tbody>${body}</tbody><tfoot><tr><td></td><td style="text-align:left"><b>All together</b></td><td class="num">${tot[0]}</td><td class="num">${tot[1]}</td><td class="num">${tot[0]-tot[1]}</td><td class="num">${tot[0]?Math.round(tot[1]/tot[0]*100)+'%':'–'}</td></tr></tfoot></table></div></div>`}
+  return `<div class="pooltbl"><div style="display:flex;justify-content:center;margin:12px 0 6px"><div class="ttl" style="margin:0">Win rate by team · ${statMaps.length?plural(statMaps.length,'map')+' selected':'all maps'}${LUS.P?' · ticked lineups only':''}</div></div><div class="tablewrap" style="max-height:480px;overflow:auto"><table class="rank fit" style="min-width:420px;margin:0 auto"><thead><tr><th class="rk"></th><th style="text-align:left">Team</th><th class="num">Sets</th><th class="num">Won</th><th class="num">Lost</th><th class="num">Win rate</th></tr></thead><tbody>${body}</tbody><tfoot><tr><td></td><td style="text-align:left"><b>All together</b></td><td class="num">${tot[0]}</td><td class="num">${tot[1]}</td><td class="num">${tot[0]-tot[1]}</td><td class="num">${tot[0]?Math.round(tot[1]/tot[0]*100)+'%':'–'}</td></tr></tfoot></table></div></div>`}
 function deepDive(){
   if(scope==='pair')return pairDeep();
   const pool=scope==='pool',one=scope==='one',pt=pool?(poolTeams||(poolTeams=visTeams())).filter(x=>M.D.off.includes(x)):[];
@@ -2196,7 +2199,7 @@ function deepDive(){
   const subjSeg=`<div class="seg2" role="group" aria-label="Which side"><button type="button" data-subj="own" aria-pressed="${subject==='own'}">${pool?'Brawlers of '+esc(team):esc(team)+'\'s brawlers'}</button><button type="button" data-subj="enemy" aria-pressed="${subject==='enemy'}">Brawlers used against ${esc(team)}</button></div>`;
   return `<h3 class="sec-h">${pool?'Pooled team stats':'Team deep dive'}</h3>
     ${pool?'':one?'<div style="margin:2px 0 12px;display:flex;justify-content:center">'+tstrip(team,';min-width:260px')+'</div>':'<div class="segs" style="justify-content:center">'+teamSeg+'</div>'}
-    ${pool?D.wlHTML+poolTableHTML(pt)+D.lu:`<div class="wlrow">${D.wlHTML}${D.lu}</div>`}
+    ${pool?D.wlHTML+D.lu+poolTableHTML(pt,D.items0):`<div class="wlrow">${D.wlHTML}${D.lu}</div>`}
     <div class="toolrow">${subjSeg}</div>
     <p class="msg" style="margin:0 0 10px">${desc}</p>
     <div class="pdgrid${pool?'':' p3'}"><div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0" title="${D.what}">${own?'Brawlers':'Brawlers used against'}${active?' (filtered)':''} · ${CS.picks.length}</div></div>
