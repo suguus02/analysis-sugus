@@ -2091,11 +2091,48 @@ function luApply(team,items,key,stack){
   const out=sel?items.filter(x=>{const k=keyOf(x);return !k||sel.has(k)}):items;
   return {items:out,html,act:!all};
 }
+// lineups of several teams at once (key 'P'): grouped by team
+function luReg(team,tags){const P=(FULL&&FULL.pickPlayers&&FULL.pickPlayers[String(team).toUpperCase()])||[];if(!P.length)return false;
+  const s=new Set((tags||[]).filter(Boolean).map(x=>String(x).toUpperCase())),need=Math.min(3,P.length);let c=0;
+  for(const p of P)if((p.tags||[]).some(g=>s.has(String(g).toUpperCase())))c++;return c>=need}
+function luApplyPool(items){
+  const n2={},keyOf=x=>{const t=x.team;if(!n2[t]){n2[t]={};for(const p of ((FULL&&FULL.pickPlayers&&FULL.pickPlayers[String(t).toUpperCase()])||[]))for(const g of p.tags||[])n2[t][g]=p.name}
+    const k=[...new Set((x.myTags||[]).map((g,i)=>g==null?null:(n2[t][g]||(x.myNames||[])[i]||PLAYER_NAMES[g]||g)).filter(Boolean))].sort((a,b)=>a<b?-1:1).join(' · ');return k?t+'::'+k:''};
+  const L={};
+  for(const x of items){const k=keyOf(x);if(!k)continue;const e=L[k]||(L[k]={k,team:x.team,nm:k.split('::')[1],g:0,s:0,w:0,l:0,d:'',reg:true});
+    if(x.s)continue;const m=String(x.sc||'').match(/(\d+)\D+(\d+)/);if(m)e.g+=(+m[1])+(+m[2]);
+    e.s++;if(x.win===1)e.w++;else if(x.win===0)e.l++;if(x.d>e.d)e.d=x.d;if(!luReg(x.team,x.myTags))e.reg=false}
+  const list=Object.values(L).filter(e=>e.s);
+  const teams=[...new Set(items.map(x=>x.team))];
+  const byT={};for(const e of list)(byT[e.team]||(byT[e.team]=[])).push(e);
+  for(const t in byT)byT[t].sort((a,b)=>b.s-a.s||(a.k<b.k?-1:1));
+  const order=teams.filter(t=>byT[t]);LUK.P=order.flatMap(t=>byT[t].map(e=>e.k));
+  let sel=LUS.P;if(sel){sel=new Set([...sel].filter(k=>L[k]));if(!LUK.P.some(k=>sel.has(k)))sel=null;LUS.P=sel}
+  const on=e=>!sel||sel.has(e.k),pc=(w,l)=>w+l?Math.round(100*w/(w+l))+'%':'–';
+  const sum=arr=>arr.reduce((a,e)=>[a[0]+e.g,a[1]+e.s,a[2]+e.w,a[3]+e.l],[0,0,0,0]);
+  const all=!sel||list.every(on),nsel=list.filter(on).length,tg=sum(list);
+  const regKeys=list.filter(e=>e.reg).map(e=>e.k),regOn=sel&&regKeys.length&&list.every(e=>e.reg===sel.has(e.k));
+  const grp=order.map(t=>{const es=byT[t],ta=es.every(on),tn=es.some(on),s=sum(es.filter(on));
+    return `<div class="lupg"><button type="button" class="lur lut${ta?' on':tn?' part':''}" data-lut="${esc(t)}"><span class="cbx">${ta?'✓':tn?'–':''}</span><span class="ln">${logo(t,'l20')} ${esc(t)}</span><span class="lg">${s[1]} sets</span><span class="lw ${wrC(s[2],s[3])}">${pc(s[2],s[3])}</span></button>
+      ${es.map(e=>`<button type="button" class="lur lui${on(e)?' on':''}" data-fk="P" data-lu="${LUK.P.indexOf(e.k)}" title="${esc(e.nm)} · last played ${esc(fmtDate(e.d))}${e.reg?'':' · with pick-ups'}"><span class="cbx">${on(e)?'✓':''}</span><span class="ln${e.reg?'':' lupk'}">${esc(e.nm)}</span><span class="lg">${e.g} games · ${e.s} sets</span><span class="lw ${wrC(e.w,e.l)}">${pc(e.w,e.l)}</span></button>`).join('')}</div>`}).join('');
+  const html=list.length?`<div class="lub in lubp"><div class="luh">Lineups · players who played together <span class="lubtn"><button type="button" class="btn quiet" data-lureg="1"${regOn?' aria-pressed="true"':''}>Only registered trios (no pick-ups)</button></span></div>
+    <div class="lul"><button type="button" class="lur all${all?' on':''}" data-fk="P" data-luall="1"><span class="cbx">${all?'✓':''}</span><span class="ln">ALL</span><span class="lg">${tg[0]} games · ${tg[1]} sets</span><span class="lw ${wrC(tg[2],tg[3])}">${pc(tg[2],tg[3])}</span></button>${grp}</div>
+    <div class="lus">${nsel} of ${list.length} lineups selected · lineups in <span class="lupk">italics</span> include pick-ups</div></div>`:'';
+  const out=sel?items.filter(x=>{const k=keyOf(x);return !k||sel.has(k)}):items;
+  return {items:out,html,act:!all};
+}
+document.addEventListener('click',e=>{
+  const t=e.target.closest&&e.target.closest('[data-lut]');
+  if(t){const tm=t.dataset.lut,keys=LUK.P||[],mine=keys.filter(k=>k.startsWith(tm+'::'));let s=LUS.P?new Set(LUS.P):new Set(keys);
+    if(mine.every(k=>s.has(k)))mine.forEach(k=>s.delete(k));else mine.forEach(k=>s.add(k));LUS.P=keys.every(k=>s.has(k))?null:s;renderDetail();return}
+  const r=e.target.closest&&e.target.closest('[data-lureg]');
+  if(r){const keys=LUK.P||[],b=document.querySelectorAll('.lubp .lui');const reg=new Set();b.forEach(x=>{if(!x.querySelector('.lupk'))reg.add(keys[+x.dataset.lu])});
+    const cur=LUS.P;const same=cur&&keys.every(k=>reg.has(k)===cur.has(k));LUS.P=same?null:(reg.size?reg:null);renderDetail()}});
 function ddBuild(team,cls,key,pool){
   const F=FK(key),flt=F.flt,tfs=F.tfs;
   let items;
   if(pool){const pt=(poolTeams||(poolTeams=visTeams())).filter(x=>M.D.off.includes(x));items=[];for(const t of pt)for(const x of Engine.setList(ds,DB,t,mapsFilter()))items.push(Object.assign({team:t},x))}else items=Engine.setList(ds,DB,team,mapsFilter());
-  let LU=null;if(!pool){LU=luApply(team,items,key,!!key);items=LU.items}
+  let LU=null;if(!pool){LU=luApply(team,items,key,!!key);items=LU.items}else{LU=luApplyPool(items);items=LU.items}
   TLIST=[...new Set([...TYPE_ORDER,...Object.values(BTYPE),'OTHER'])];
   const items0=items,base=Engine.applyFilter(items0.filter(x=>!x.s),flt.own,flt.enemy);
   const tOpts={};
@@ -2159,7 +2196,7 @@ function deepDive(){
   const subjSeg=`<div class="seg2" role="group" aria-label="Which side"><button type="button" data-subj="own" aria-pressed="${subject==='own'}">${pool?'Brawlers of '+esc(team):esc(team)+'\'s brawlers'}</button><button type="button" data-subj="enemy" aria-pressed="${subject==='enemy'}">Brawlers used against ${esc(team)}</button></div>`;
   return `<h3 class="sec-h">${pool?'Pooled team stats':'Team deep dive'}</h3>
     ${pool?'':one?'<div style="margin:2px 0 12px;display:flex;justify-content:center">'+tstrip(team,';min-width:260px')+'</div>':'<div class="segs" style="justify-content:center">'+teamSeg+'</div>'}
-    ${pool?D.wlHTML+poolTableHTML(pt):`<div class="wlrow">${D.wlHTML}${D.lu}</div>`}
+    ${pool?D.wlHTML+poolTableHTML(pt)+D.lu:`<div class="wlrow">${D.wlHTML}${D.lu}</div>`}
     <div class="toolrow">${subjSeg}</div>
     <p class="msg" style="margin:0 0 10px">${desc}</p>
     <div class="pdgrid${pool?'':' p3'}"><div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0" title="${D.what}">${own?'Brawlers':'Brawlers used against'}${active?' (filtered)':''} · ${CS.picks.length}</div></div>
@@ -3115,12 +3152,13 @@ function groupTab(){
     for(const r of inB){TT[r].n++;TT[r].w+=1-m.y;for(const c of inA)if(c!==r){HH[r][c].n++;HH[r][c].w+=1-m.y}}}
   let h2h='';
   if(T.length>=2){
-    const rows=T.slice().sort((a,b)=>TT[b].n-TT[a].n).map(r=>{const tt=TT[r];
-      return `<tr><td class="gt-c gt-big" style="${gtHeat(tt.n?tt.w/tt.n:.5)}">${pc(tt.w,tt.n)}</td><td class="gt-c gt-big">${tt.n}</td><td class="gt-c gt-who"><span>${gtRoster(r).map(esc).join('<br>')||esc(r)}</span>${logo(r,'l40')}</td>${T.map(c=>{
+    const TO=T.slice().sort((a,b)=>TT[b].n-TT[a].n);
+    const rows=TO.map(r=>{const tt=TT[r];
+      return `<tr><td class="gt-c gt-big" style="${gtHeat(tt.n?tt.w/tt.n:.5)}">${pc(tt.w,tt.n)}</td><td class="gt-c gt-big">${tt.n}</td><td class="gt-c gt-who"><span>${gtRoster(r).map(esc).join('<br>')||esc(r)}</span>${logo(r,'l40')}</td>${TO.map(c=>{
         if(r===c)return '<td class="gt-c gt-x">–</td>';const w=HH[r][c].w,n=HH[r][c].n;
         return n?`<td class="gt-c" style="${gtHeat(w/n,n)}"><b>${pc(w,n)}</b><small>${w}W-${n-w}L</small></td>`:'<td class="gt-c gt-0"><small>0W-0L</small></td>'}).join('')}</tr>`}).join('');
     const regSw=`<div class="gt-sw"><span class="seg2"><button type="button" data-gtreg="1" aria-pressed="${gtReg}">Only the registered players</button><button type="button" data-gtreg="0" aria-pressed="${!gtReg}">Full team (with pick-ups)</button></span></div>`;
-    h2h=sec('Head to head',regSw+`<div class="gt-scroll gt-h2h"><table class="gt-t"><thead><tr><th class="gt-c">Total win rate</th><th class="gt-c">Total sets played</th><th class="gt-c">Team</th>${T.map(c=>`<th class="gt-c gt-ch"><span>${gtRoster(c).map(esc).join('<br>')||esc(c)}</span>${logo(c,'l28')}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`,
+    h2h=sec('Head to head',regSw+`<div class="gt-scroll gt-h2h"><table class="gt-t"><thead><tr><th class="gt-c">Total win rate</th><th class="gt-c">Total sets played</th><th class="gt-c">Team</th>${TO.map(c=>`<th class="gt-c gt-ch"><span>${gtRoster(c).map(esc).join('<br>')||esc(c)}</span>${logo(c,'l28')}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`,
       'Each square: win rate of the team in the row against the team in the column, and its sets won-lost. '+(gtReg?'Only the registered players: a set counts only when both teams play with their own players of the Picks sheet (all 3, or the 2 / 1 listed there); sets with pick-ups are left out. Total = all the sets of the team with its own players in the period (against everybody).':'Full team: every set of the team counts, pick-ups included. Total = all the sets of the team in the period (against everybody).'))}
   // 2) every scrim / match of each team, one column per team
   const pl=(tags,team)=>tags.filter(Boolean).map(g=>{const sub=team&&isSub(team,g);return `<span class="gt-p${sub?' sub':''}"${sub?` title="${SUBT}"`:''}>${esc(nmOf(g))}</span>`}).join('');
@@ -4986,3 +5024,16 @@ body{padding-bottom:50px}
 .gt-mi{width:24px;height:24px;object-fit:cover;border-radius:4px}
 </style>
 <style>.gt-sw{display:flex;justify-content:center;margin:0 0 10px}</style>
+
+<style>
+.lubp .lul{max-height:440px;overflow:auto}
+.lubp .luh{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.lubp .lubtn .btn{font-size:11.5px;padding:4px 10px}
+.lubp .lubtn .btn[aria-pressed="true"]{background:var(--accent,#e5484d);color:#fff;border-color:var(--accent,#e5484d)}
+.lupg{margin-top:6px;border-top:1px solid rgba(255,255,255,.08);padding-top:4px}
+.lur.lut{font-weight:800}
+.lur.lut .ln{display:inline-flex;align-items:center;gap:6px}
+.lur.lut.part .cbx{opacity:.8}
+.lur.lui{padding-left:26px}
+.lupk{font-style:italic;opacity:.75}
+</style>
