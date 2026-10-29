@@ -1141,6 +1141,7 @@ table.rank td.ic,.pgrid .rank td.ic{text-align:left}table.rank th:nth-child(2),.
       <button type="button" class="tabbtn" role="tab" data-tab="drafts" aria-selected="false">Drafts</button>
       <button type="button" class="tabbtn" role="tab" data-tab="card" aria-selected="false">Card</button>
       <button type="button" class="tabbtn" role="tab" data-tab="scout" aria-selected="false">Scouting</button>
+      <button type="button" class="tabbtn" role="tab" data-tab="group" aria-selected="false">Teams together</button>
     </div>
     <div id="detail"></div>
   </section>
@@ -3086,11 +3087,84 @@ $('statsscope').addEventListener('click',e=>{
   const smo=e.target.closest('[data-smode]');if(smo){const ms=smo.dataset.smode.split('|');if(ms.every(m=>statMaps.includes(m)))statMaps=statMaps.filter(m=>!ms.includes(m));else ms.forEach(m=>{if(!statMaps.includes(m))statMaps.push(m)});renderDetail();return}});
 function scopeWithMaps(){const s=scopeHTML();if(!['stats','players','card'].includes(tab))return s;let mh='';try{mh=statMapsHTML()}catch(e){mh=''}
   return mh?`<div class="scmaps"><div class="scm-l">${s}</div><div class="scm-r">${mh}</div></div>`:s}
+// ===== Team Stats > Teams together =====
+function groupTeams(){const off=M.D.off;return (scope==='pool'?(poolTeams||[]):scope==='pair'?[sel.a,sel.b]:[curOne()]).filter((x,i,a)=>x&&off.includes(x)&&a.indexOf(x)===i)}
+function grpSide(m,t){if(m.a===t)return 'a';if(m.b===t&&!m.sh)return 'b';return ''} // the copies of a player card count only for the card itself
+const grpClean=v=>String(v||'').replace(/⁠/g,'').replace(/^ext:/,'');
+// soft colour for a win rate (red -> amber -> green), readable on the dark page
+const gtHeat=(p,n)=>{p=Math.max(0,Math.min(1,p));const hh=Math.round(Math.max(0,Math.min(1,(p-.3)/.4))*120),a=n==null?.38:Math.min(.38,.14+n/40);return `background:hsla(${hh},60%,45%,${a.toFixed(2)})`};
+const gtRoster=t=>((FULL&&FULL.pickPlayers&&FULL.pickPlayers[String(t).toUpperCase()])||[]).slice(0,3).map(p=>p.name||p.tags[0]||'');
+function groupTab(){
+  const T=groupTeams();
+  if(!T.length)return '<p class="msg" style="margin:14px 0">Choose teams above ("Several teams together" lets you pick as many as you want).</p>';
+  const S=ds.matches.filter(m=>!m.s&&m.y!==0.5),rg=rangeOf(FULL),pc=(w,n)=>n?(100*w/n).toFixed(1).replace(/\.0$/,'')+'%':'–';
+  const sec=(t,body,note)=>`<div class="tc-sec gt-sec"><div class="lbl" style="align-self:stretch;display:block;text-align:center">${t}</div>${body}${note?`<p class="msg" style="font-size:11.5px;margin:6px 0 0;text-align:center">${note}</p>`:''}</div>`;
+  const nmOf=g=>sheetName(g,(ds.names||{})[g])||g;
+  const per={};for(const t of T)per[t]=[];
+  for(const m of S)for(const t of T){const sd=grpSide(m,t);if(sd)per[t].push({m,sd,win:sd==='a'?m.y:1-m.y,op:grpClean(sd==='a'?m.b:m.a)})}
+  const tot=t=>{let w=0;for(const x of per[t])w+=x.win;return {w,n:per[t].length}};
+  // 1) head to head (rows and columns = the selected teams)
+  let h2h='';
+  if(T.length>=2){
+    const rows=T.slice().sort((a,b)=>tot(b).n-tot(a).n).map(r=>{const tt=tot(r);
+      return `<tr><td class="gt-c gt-big" style="${gtHeat(tt.n?tt.w/tt.n:.5)}">${pc(tt.w,tt.n)}</td><td class="gt-c gt-big">${tt.n}</td><td class="gt-c gt-who"><span>${gtRoster(r).map(esc).join('<br>')||esc(r)}</span>${logo(r,'l40')}</td>${T.map(c=>{
+        if(r===c)return '<td class="gt-c gt-x">–</td>';let w=0,n=0;for(const x of per[r])if(!x.m.sh&&x.op===c){n++;w+=x.win}
+        return n?`<td class="gt-c" style="${gtHeat(w/n,n)}"><b>${pc(w,n)}</b><small>${w}W-${n-w}L</small></td>`:'<td class="gt-c gt-0"><small>0W-0L</small></td>'}).join('')}</tr>`}).join('');
+    h2h=sec('Head to head',`<div class="gt-scroll gt-h2h"><table class="gt-t"><thead><tr><th class="gt-c">Total win rate</th><th class="gt-c">Total sets played</th><th class="gt-c">Team</th>${T.map(c=>`<th class="gt-c gt-ch"><span>${gtRoster(c).map(esc).join('<br>')||esc(c)}</span>${logo(c,'l28')}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`,
+      'Each square: win rate of the team in the row against the team in the column, and its sets won-lost. Total = all the sets of the team in the period (against everybody).')}
+  // 2) every scrim / match of each team, one column per team
+  const pl=(tags,team)=>tags.filter(Boolean).map(g=>{const sub=team&&isSub(team,g);return `<span class="gt-p${sub?' sub':''}"${sub?` title="${SUBT}"`:''}>${esc(nmOf(g))}</span>`}).join('');
+  const cols=T.map(t=>{const g={};
+    for(const x of per[t]){const rtags=(x.sd==='a'?x.m.tb:x.m.ta)||[],k=x.m.d+'|'+(x.op||rtags.slice().sort().join(',')),e=g[k]||(g[k]={d:x.m.d,t:x.m.t,op:x.op,w:0,l:0,my:new Map(),rv:new Map()});
+      if(x.win===1)e.w++;else e.l++;if(x.m.t<e.t)e.t=x.m.t;
+      for(const tg of (x.sd==='a'?x.m.ta:x.m.tb)||[])if(tg)e.my.set(tg,(e.my.get(tg)||0)+1);for(const tg of rtags)if(tg)e.rv.set(tg,(e.rv.get(tg)||0)+1)}
+    const L=Object.values(g).sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:b.t-a.t),top3=mp=>[...mp.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>x[0]);
+    const tw=L.reduce((a,e)=>a+e.w,0),tl=L.reduce((a,e)=>a+e.l,0),opT=e=>e.op&&(M.D.off.includes(e.op)||REGION[e.op])?e.op:'';
+    const rowsH=L.map(e=>{const res=e.w>e.l?'w':e.w<e.l?'l':'d',o=opT(e);
+      return `<tr><td class="gt-c gt-d">${fmtDate(e.d).replace(/ \d{4}$/,'')}</td><td class="gt-c gt-pl">${pl(top3(e.my),t)}</td><td class="gt-c gt-pl">${pl(top3(e.rv),o)}</td><td class="gt-c gt-res ${res}">${e.w}-${e.l}</td></tr>`}).join('');
+    return `<div class="gt-col"><div class="gt-hd" style="--tc:${tcol(t)}">${logo(t,'l28')}<b>${esc(t)}</b><small>${L.length} ${L.length===1?'match':'matches'} · ${tw}-${tl} · ${pc(tw,tw+tl)}</small></div>
+      <table class="gt-tb"><colgroup><col style="width:58px"><col style="width:120px"><col><col style="width:58px"></colgroup><thead><tr><th class="gt-c">Date</th><th class="gt-c" colspan="2">VS</th><th class="gt-c">Result</th></tr></thead><tbody>${rowsH||'<tr><td colspan="4" class="msg gt-c">No sets in this period.</td></tr>'}</tbody></table></div>`}).join('');
+  const matches=sec('Matches by team',`<div class="gt-scroll gt-mt"><div class="gt-cols">${cols}</div></div>`,'One column per team, newest first. A match = every set against the same rival on the same day; Result = sets won - sets lost. Players in <i style="opacity:.65;text-decoration:underline dotted">dotted italics</i> are pick-ups (not on that team\'s roster). Scroll sideways and down inside the box.');
+  // 3) regions
+  const RG=t=>REGION[t]||'',regs=[...new Set(T.map(RG).filter(Boolean))],allR=['North America','South America','EMEA','APAC','China'].filter(r=>Object.values(REGION).includes(r));
+  let regH='';
+  if(regs.length){
+    const mx=regs.map(r=>`<tr><td class="gt-c gt-who"><span class="gt-tn"><i class="gt-rd" style="background:${REGC[r]}"></i><b>${esc(r)}</b></span></td>${allR.map(c=>{let w=0,n=0;for(const t of T){if(RG(t)!==r)continue;for(const x of per[t]){if(x.m.sh)continue;if(x.op&&x.op!==t&&RG(x.op)===c){n++;w+=x.win}}}
+      return n?`<td class="gt-c" style="${gtHeat(w/n,n)}"><b>${pc(w,n)}</b><small>${w}W-${n-w}L</small></td>`:'<td class="gt-c gt-0"><small>0W-0L</small></td>'}).join('')}</tr>`).join('');
+    const tb=regs.map(r=>{const ts=T.filter(t=>RG(t)===r);let w=0,n=0;for(const t of ts)for(const x of per[t]){n++;w+=x.win}return {r,ts,w,n}}).sort((a,b)=>(b.n?b.w/b.n:0)-(a.n?a.w/a.n:0));
+    regH=sec('Region head to head',`<div class="gt-scroll"><table class="gt-t"><thead><tr><th class="gt-c">Region</th>${allR.map(c=>`<th class="gt-c"><span class="gt-tn"><i class="gt-rd" style="background:${REGC[c]}"></i>vs ${esc(c)}</span></th>`).join('')}</tr></thead><tbody>${mx}</tbody></table></div>
+      <div class="gt-scroll" style="margin-top:12px"><table class="gt-t"><thead><tr><th class="gt-c">Region</th><th class="gt-c">Win rate</th><th class="gt-c">Average sets played</th><th class="gt-c">Sets played</th><th class="gt-c">Sets won</th><th class="gt-c">Teams</th></tr></thead><tbody>${tb.map(x=>`<tr><td class="gt-c"><span class="gt-tn"><i class="gt-rd" style="background:${REGC[x.r]}"></i><b>${esc(x.r)}</b></span></td><td class="gt-c gt-big" style="${gtHeat(x.n?x.w/x.n:.5)}">${pc(x.w,x.n)}</td><td class="gt-c">${x.ts.length?Math.round(x.n/x.ts.length):0}</td><td class="gt-c">${x.n}</td><td class="gt-c">${x.w}</td><td class="gt-c gt-tl">${x.ts.map(t=>logo(t,'l20')).join('')}</td></tr>`).join('')}</tbody></table></div>`,
+      'Top: win rate of the selected teams of each region against teams of each region (rivals in the Picks sheet with a region). Bottom: all the sets of the selected teams of that region; Average sets played = sets per team.')}
+  // 4) win rate per week: one block per week from the start date to the end date, each sorted by win rate
+  const WC=['#17a1e9','#8cc152','#e040b8','#f0663e','#d9304f','#8f6cf0','#1fb5a3'];
+  const wk=[];for(let a=rg.from;a<=rg.to;a=addDays(a,7))wk.push([a,addDays(a,6)<rg.to?addDays(a,6):rg.to]);
+  const dd=d=>{const p=d.split('-');return +p[2]+'/'+(+p[1])+'/'+p[0]};
+  const blocks=wk.map(([a,z],i)=>{const c=WC[i%WC.length];
+    const rs=T.map(t=>{let w=0,n=0;for(const x of per[t])if(x.m.d>=a&&x.m.d<=z){n++;w+=x.win}return {t,w,n}}).filter(r=>r.n).sort((x,y)=>y.w/y.n-x.w/x.n||y.n-x.n);
+    const mxw=Math.max(...rs.map(r=>r.w/r.n),.01),mnw=Math.min(...rs.map(r=>r.w/r.n),.99);
+    return `<div class="gt-wb" style="--wc:${c}"><div class="gt-wh">Week ${i+1}</div><div class="gt-wd"><span>From</span><b>${dd(a)}</b><span>To</span><b>${dd(z)}</b></div>
+      <table class="gt-t gt-wt"><thead><tr><th class="gt-c">Team</th><th class="gt-c">Sets played</th><th class="gt-c">Wins</th><th class="gt-c">Win rate</th></tr></thead><tbody>${rs.map(r=>{const f=mxw>mnw?(r.w/r.n-mnw)/(mxw-mnw):.5;
+        return `<tr><td class="gt-c" title="${esc(r.t)}">${logo(r.t,'l28')}</td><td class="gt-c">${r.n}</td><td class="gt-c">${r.w}</td><td class="gt-c gt-big" style="background:color-mix(in srgb,var(--wc) ${Math.round(12+38*f)}%,transparent)">${pc(r.w,r.n)}</td></tr>`}).join('')||'<tr><td colspan="4" class="gt-c msg">No sets</td></tr>'}</tbody></table></div>`}).join('');
+  const weekH=sec('Win rate per week',`<div class="gt-scroll gt-wk"><div class="gt-wbs">${blocks}</div></div>`,
+    `Weeks of 7 days counted from the start date (${fmtDate(rg.from)}) to the end date (${fmtDate(rg.to)}). In each week the teams are sorted by win rate; the stronger the colour, the higher the win rate within that week.`);
+  // 5) top 20 picks and duos of the teams together + the 18 maps by sets played
+  const pk={},du={},mp={};let NS=0;
+  for(const t of T)for(const x of per[t]){NS++;const br=[...new Set(((x.sd==='a'?x.m.ba:x.m.bb)||[]).filter(Boolean))];
+    for(const b of br){const e=pk[b]||(pk[b]={n:0,w:0});e.n++;e.w+=x.win}
+    for(let i=0;i<br.length;i++)for(let j=i+1;j<br.length;j++){const k=[br[i],br[j]].sort().join(' + '),e=du[k]||(du[k]={n:0,w:0});e.n++;e.w+=x.win}
+    mp[x.m.m]=(mp[x.m.m]||0)+1}
+  const ptab=(obj,lab)=>{const top=Object.entries(obj).sort((a,b)=>b[1].n-a[1].n||b[1].w-a[1].w).slice(0,20);
+    return `<table class="gt-t"><thead><tr><th class="gt-c">#</th><th class="gt-c">${lab}</th><th class="gt-c">Picks</th><th class="gt-c">Pick rate</th><th class="gt-c">Wins</th><th class="gt-c">Win rate</th></tr></thead><tbody>${top.map(([k,e],i)=>`<tr><td class="gt-c">${i+1}</td><td class="gt-c"><span class="gt-br">${k.split(' + ').map(b=>`${bimg(b,'bi')}<span>${esc(b)}</span>`).join('<i>+</i>')}</span></td><td class="gt-c">${e.n}</td><td class="gt-c">${pc(e.n,NS)}</td><td class="gt-c">${e.w}</td><td class="gt-c gt-big" style="${gtHeat(e.w/e.n,e.n)}">${pc(e.w,e.n)}</td></tr>`).join('')}</tbody></table>`};
+  const maps=[...MAP18].map(k=>{const nm=Object.keys(mp).find(m=>mkey(m)===k)||[...PICKMAPS].find(m=>mkey(m)===k)||k;return [nm,mp[nm]||0]}).sort((a,b)=>b[1]-a[1]);
+  const mapsH=`<table class="gt-t gt-maps"><thead><tr><th class="gt-c">#</th><th class="gt-c">Map</th><th class="gt-c">Sets</th></tr></thead><tbody>${maps.map(([m,n],i)=>{const c=MODE_COL[mkey(modeOfMap(m))]||'#6d6a85';return `<tr style="--mc:${c}"><td class="gt-c">${i+1}</td><td class="gt-c"><span class="gt-tn">${mimg(m,'gt-mi')}<b>${esc(m)}</b></span></td><td class="gt-c gt-big">${n}</td></tr>`}).join('')}</tbody></table>`;
+  const pmH=sec('Picks and maps of the selected teams together',`<div class="gt-pm"><div><p class="msg gt-st">Top 20 picks · ${NS} team-sets</p><div class="gt-scroll">${ptab(pk,'Brawler')}</div></div><div><p class="msg gt-st">Top 20 duos (same team)</p><div class="gt-scroll">${ptab(du,'Duo')}</div></div><div><p class="msg gt-st">Maps · most played first</p><div class="gt-scroll">${mapsH}</div></div></div>`,
+    'Picks: sets of the selected teams where the brawler (or the duo) was used, each team counted on its own. Pick rate = % of those sets. Maps: sets played on each of the 18 rotation maps, coloured by mode.');
+  return `<div class="gt">${h2h}${matches}${regH}${weekH}${pmH}</div>`}
 function renderDetail(){
   document.querySelectorAll('.tabbtn').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===tab?'true':'false'));
   $('statsscope').innerHTML=(tab==='scout'||tab==='match')?'':scopeWithMaps();$('statsscope').hidden=view!=='stats'||tab==='scout'||tab==='match';tselPaint();
   const nd=tab!=='drafts'&&tab!=='scout'&&tab!=='match'&&((scope==='one'&&!M.D.off.includes(curOne()))||(scope==='pool'&&poolTeams&&!poolTeams.some(t=>M.D.off.includes(t))));
-  $('detail').innerHTML=nd?'<div class="nodata">NO DATA</div>':tab==='stats'?statsTab():tab==='players'?playersTab():tab==='drafts'?draftsTab():tab==='card'?cardTab():tab==='scout'?scoutHTML():datesTab();
+  $('detail').innerHTML=nd?'<div class="nodata">NO DATA</div>':tab==='stats'?statsTab():tab==='players'?playersTab():tab==='drafts'?draftsTab():tab==='card'?cardTab():tab==='scout'?scoutHTML():tab==='group'?groupTab():datesTab();
   applyView();decorateTiles();tselPaint();
 }
 $('statsscope').addEventListener('click',e=>{
@@ -4794,7 +4868,7 @@ body{padding-bottom:50px}
 <script>
 (function(){
   // [label, main section, Team Stats tab]
-  const T=[['Team Stats','stats','stats'],['Match Selector','stats','match'],['Player stats','stats','players'],['Drafts','stats','drafts'],['Card','stats','card'],['Scouting','stats','scout'],null,
+  const T=[['Team Stats','stats','stats'],['Match Selector','stats','match'],['Player stats','stats','players'],['Drafts','stats','drafts'],['Card','stats','card'],['Scouting','stats','scout'],['Teams together','stats','group'],null,
            ['Draft','draft'],['Team Predictor','pred'],['Balance','bal'],['Data check','check']];
   const bar=document.getElementById('sheetbar');if(!bar)return;
   bar.innerHTML=T.map((t,i)=>t?`<button type="button" class="sb-t${t[2]&&t[2]!=='stats'?' sb-sub':''}" data-sb="${i}">${t[0]}</button>`:'<span class="sb-sep"></span>').join('');
@@ -4843,4 +4917,61 @@ body{padding-bottom:50px}
 .mspop{background:var(--bg,#16151f);border:1px solid #4a4256;padding:12px;width:max-content;max-width:min(980px,92vw)}
 .mspop .lbl{margin-bottom:8px}
 .msteam .mspop{border-color:#3b82f6}.msriv .mspop{border-color:#e5484d}
+</style>
+
+<style>
+.gt .gt-sec{margin-top:14px}
+.gt-scroll{overflow:auto;border:1px solid var(--line,#3a3850);border-radius:10px}
+.gt-t{border-collapse:collapse;width:max-content;min-width:100%;font-size:12.5px}
+.gt-t th{background:#22212f;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;padding:7px 8px;position:sticky;top:0;z-index:1}
+.gt-t td{padding:6px 8px;border-top:1px solid rgba(255,255,255,.06);border-left:1px solid rgba(255,255,255,.04)}
+.gt-c{text-align:center;vertical-align:middle}
+.gt-c b{display:block;font-size:13px}
+.gt-c small{display:block;font-size:10.5px;opacity:.75;margin-top:2px}
+.gt-big{font-weight:800;font-size:13px}
+.gt-x{color:var(--muted);background:repeating-linear-gradient(45deg,rgba(255,255,255,.035) 0 6px,transparent 6px 12px)}
+.gt-0 small{opacity:.35}
+.gt-who{white-space:nowrap}
+.gt-who span{display:inline-block;vertical-align:middle;font-size:11px;line-height:1.3;text-align:center;margin-right:8px}
+.gt-who img{vertical-align:middle}
+.gt-ch{min-width:104px}
+.gt-ch span{display:block;font-size:9.5px;line-height:1.3;text-transform:none;letter-spacing:0;font-weight:600;margin-bottom:4px}
+.gt-h2h{max-height:640px}
+.gt-h2h .gt-t td{min-width:96px;height:58px}
+.gt-tn{display:inline-flex;align-items:center;gap:6px;justify-content:center}.gt-tn b{display:inline}
+.gt-rd{display:inline-block;width:10px;height:10px;border-radius:3px}
+.gt-tl img{margin:0 2px;vertical-align:middle}
+.gt-mt{max-height:640px}
+.gt-cols{display:flex;width:max-content}
+.gt-col{width:420px;flex:0 0 420px;border-right:1px solid var(--line,#3a3850);overflow:hidden}
+.gt-hd{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;padding:8px 10px;background:linear-gradient(90deg,color-mix(in srgb,var(--tc) 35%,#1b1a26),#1b1a26);border-bottom:2px solid var(--tc);text-align:center}
+.gt-hd small{width:100%;font-size:11.5px;opacity:.85}
+.gt-tb{width:100%!important;min-width:0!important;border-collapse:collapse;font-size:12px;table-layout:fixed}
+.gt-tb th{position:sticky;top:58px;z-index:1;background:#22212f;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;padding:5px 6px}
+.gt-tb td{padding:5px 6px;border-top:1px solid rgba(255,255,255,.06);overflow:hidden}
+.gt-tb .gt-d{white-space:nowrap;font-size:11.5px;opacity:.85}
+.gt-pl{font-size:11.5px;line-height:1.35}
+.gt-p{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gt-p.sub{font-style:italic;opacity:.6;text-decoration:underline dotted rgba(255,255,255,.45)}
+.gt-on{display:flex;align-items:center;justify-content:center;gap:5px;margin-bottom:2px}
+.gt-on b{display:inline;font-size:11.5px}
+.gt-res{font-weight:800;white-space:nowrap}
+.gt-res.w{background:hsla(120,55%,45%,.32)}.gt-res.l{background:hsla(0,65%,50%,.32)}.gt-res.d{background:hsla(40,80%,50%,.3)}
+.gt-wk{border:0}
+.gt-wbs{display:flex;gap:14px;width:max-content;padding-bottom:4px}
+.gt-wb{width:330px;flex:0 0 330px;border:1px solid color-mix(in srgb,var(--wc) 60%,transparent);border-radius:10px;overflow:hidden;background:var(--bg,#16151f)}
+.gt-wh{background:color-mix(in srgb,var(--wc) 55%,#1b1a26);text-align:center;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:6px;font-size:12px}
+.gt-wd{display:grid;grid-template-columns:1fr 1.3fr 1fr 1.3fr;text-align:center;font-size:11.5px;background:color-mix(in srgb,var(--wc) 25%,#1b1a26)}
+.gt-wd>*{padding:5px 2px;border-left:1px solid rgba(255,255,255,.08)}.gt-wd span{text-transform:uppercase;font-weight:700;font-size:10.5px;opacity:.85}
+.gt-wt{width:100%;min-width:0}
+.gt-wt img{vertical-align:middle}
+.gt-pm{display:flex;flex-wrap:wrap;gap:14px}.gt-pm>div{min-width:0}.gt-pm>div:nth-child(1){flex:1 1 360px}.gt-pm>div:nth-child(2){flex:1.25 1 470px}.gt-pm>div:nth-child(3){flex:.8 1 280px}
+.gt-pm .gt-t td,.gt-pm .gt-t th{padding:6px 6px}
+.gt-pm .gt-scroll{max-height:760px}
+.gt-st{margin:0 0 6px;text-align:center}
+.gt-br{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}.gt-br i{opacity:.6;font-style:normal}
+.gt-maps tbody tr{background:color-mix(in srgb,var(--mc) 22%,transparent)}
+.gt-maps tbody td{border-top:2px solid var(--bg,#16151f)}
+.gt-maps .gt-tn b{display:inline;font-size:12.5px}
+.gt-mi{width:24px;height:24px;object-fit:cover;border-radius:4px}
 </style>
