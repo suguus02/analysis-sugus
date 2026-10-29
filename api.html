@@ -1141,7 +1141,7 @@ table.rank td.ic,.pgrid .rank td.ic{text-align:left}table.rank th:nth-child(2),.
       <button type="button" class="tabbtn" role="tab" data-tab="drafts" aria-selected="false">Drafts</button>
       <button type="button" class="tabbtn" role="tab" data-tab="card" aria-selected="false">Card</button>
       <button type="button" class="tabbtn" role="tab" data-tab="scout" aria-selected="false">Scouting</button>
-      <button type="button" class="tabbtn" role="tab" data-tab="group" aria-selected="false">Teams together</button>
+      <button type="button" class="tabbtn" role="tab" data-tab="group" aria-selected="false">Results</button>
     </div>
     <div id="detail"></div>
   </section>
@@ -2069,6 +2069,9 @@ const tstrip=(t,extra)=>`<div class="tstrip" data-tc="${esc(t)}" style="--tc:${t
 // everything one team shows in the deep dive; key = 'A'/'B' (compare 2 teams, own filters) or '' (1 team / pool)
 const LUS={'':null,A:null,B:null},LUK={'':[],A:[],B:[]};
 const wrC=(w,l)=>!(w+l)?'':w>l?'pw':w<l?'pl':'';
+const LUREG={};
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-lureg1]');if(!b)return;const k=b.dataset.lureg1,keys=LUK[k]||[],reg=LUREG[k]||new Set(),cur=LUS[k];
+  const same=cur&&keys.every(x=>reg.has(x)===cur.has(x));LUS[k]=same||!reg.size?null:new Set(reg);renderDetail()});
 function luApply(team,items,key,stack){
   const PL=(FULL&&FULL.pickPlayers&&FULL.pickPlayers[team.toUpperCase()])||[],tg2n={};
   for(const p of PL)for(const g of p.tags||[])tg2n[g]=p.name;
@@ -2076,18 +2079,19 @@ function luApply(team,items,key,stack){
   const L={};
   for(const x of items){const k=keyOf(x);if(!k)continue;const e=L[k]||(L[k]={k,g:0,s:0,w:0,l:0,d:''});
     if(x.s)continue;const m=String(x.sc||'').match(/(\d+)\D+(\d+)/);if(m){e.g+=(+m[1])+(+m[2])}
-    if(x.win===1){e.s++;e.w++}else if(x.win===0){e.s++;e.l++}else e.s++;if(x.d>e.d)e.d=x.d}
+    if(x.win===1){e.s++;e.w++}else if(x.win===0){e.s++;e.l++}else e.s++;if(x.d>e.d)e.d=x.d;
+    if(e.reg===undefined)e.reg=true;if(!luReg(team,x.myTags)&&!luRegN(team,k))e.reg=false}
   const list=Object.values(L).filter(e=>e.s).sort((a,b)=>b.g-a.g||b.s-a.s||(a.k<b.k?-1:1));
-  LUK[key]=list.map(e=>e.k);
+  LUK[key]=list.map(e=>e.k);LUREG[key]=new Set(list.filter(e=>e.reg).map(e=>e.k));
   let sel=LUS[key];
   if(sel){sel=new Set([...sel].filter(k=>L[k]));if(!sel.size&&LUS[key]&&LUS[key].size&&false)sel=null}
   if(sel&&!list.some(e=>sel.has(e.k)))sel=LUS[key]=null;
   const all=!sel||list.every(e=>sel.has(e.k)),nsel=sel?list.filter(e=>sel.has(e.k)).length:list.length;
   const fk=key?` data-fk="${key}"`:'';
   const on=e=>!sel||sel.has(e.k);
-  const rows=list.map((e,i)=>`<button type="button" class="lur${on(e)?' on':''}"${fk} data-lu="${i}" title="${esc(e.k)} · last played ${esc(fmtDate(e.d))}"><span class="cbx">${on(e)?'✓':''}</span><span class="ln">${esc(e.k)}</span><span class="lg">${e.g} games · ${e.s} sets</span><span class="lw ${wrC(e.w,e.l)}">${e.w+e.l?Math.round(100*e.w/(e.w+e.l))+'%':'–'}</span></button>`).join('');
+  const rows=list.map((e,i)=>`<button type="button" class="lur${on(e)?' on':''}"${fk} data-lu="${i}" title="${esc(e.k)} · last played ${esc(fmtDate(e.d))}"><span class="cbx">${on(e)?'✓':''}</span><span class="ln${e.reg?'':' lupk'}">${esc(e.k)}</span><span class="lg">${e.g} games · ${e.s} sets</span><span class="lw ${wrC(e.w,e.l)}">${e.w+e.l?Math.round(100*e.w/(e.w+e.l))+'%':'–'}</span></button>`).join('');
   const tg=list.reduce((a,e)=>[a[0]+e.g,a[1]+e.s,a[2]+e.w,a[3]+e.l],[0,0,0,0]);
-  const html=list.length?`<div class="lub${stack?' in':''}"><div class="luh">Lineups · players who played together</div><div class="lul"><button type="button" class="lur all${all?' on':''}"${fk} data-luall="1"><span class="cbx">${all?'✓':''}</span><span class="ln">ALL</span><span class="lg">${tg[0]} games · ${tg[1]} sets</span><span class="lw ${wrC(tg[2],tg[3])}">${tg[2]+tg[3]?Math.round(100*tg[2]/(tg[2]+tg[3]))+'%':'–'}</span></button>${rows}</div><div class="lus">${nsel} of ${list.length} lineups selected</div></div>`:'';
+  const html=list.length?`<div class="lub${stack?' in':''}"><div class="luh lubh">Lineups · players who played together${list.some(e=>!e.reg)&&LUREG[key].size?`<button type="button" class="btn quiet" data-lureg1="${key}"${sel&&list.every(e=>e.reg===sel.has(e.k))?' aria-pressed="true"':''}>Only the registered trio</button>`:''}</div><div class="lul"><button type="button" class="lur all${all?' on':''}"${fk} data-luall="1"><span class="cbx">${all?'✓':''}</span><span class="ln">ALL</span><span class="lg">${tg[0]} games · ${tg[1]} sets</span><span class="lw ${wrC(tg[2],tg[3])}">${tg[2]+tg[3]?Math.round(100*tg[2]/(tg[2]+tg[3]))+'%':'–'}</span></button>${rows}</div><div class="lus">${nsel} of ${list.length} lineups selected${list.some(e=>!e.reg)?' · lineups in <span class="lupk">italics</span> include pick-ups':''}</div></div>`:'';
   const out=sel?items.filter(x=>{const k=keyOf(x);return !k||sel.has(k)}):items;
   return {items:out,html,act:!all};
 }
@@ -3127,7 +3131,7 @@ $('statsscope').addEventListener('click',e=>{
   const smo=e.target.closest('[data-smode]');if(smo){const ms=smo.dataset.smode.split('|');if(ms.every(m=>statMaps.includes(m)))statMaps=statMaps.filter(m=>!ms.includes(m));else ms.forEach(m=>{if(!statMaps.includes(m))statMaps.push(m)});renderDetail();return}});
 function scopeWithMaps(){const s=scopeHTML();if(!['stats','players','card'].includes(tab))return s;let mh='';try{mh=statMapsHTML()}catch(e){mh=''}
   return mh?`<div class="scmaps"><div class="scm-l">${s}</div><div class="scm-r">${mh}</div></div>`:s}
-// ===== Team Stats > Teams together =====
+// ===== Team Stats > Results (several teams) =====
 function groupTeams(){const off=M.D.off;return (scope==='pool'?(poolTeams||[]):scope==='pair'?[sel.a,sel.b]:[curOne()]).filter((x,i,a)=>x&&off.includes(x)&&a.indexOf(x)===i)}
 function grpSide(m,t){if(m.a===t)return 'a';if(m.b===t&&!m.sh)return 'b';return ''} // the copies of a player card count only for the card itself
 const grpClean=v=>String(v||'').replace(/⁠/g,'').replace(/^ext:/,'');
@@ -4919,7 +4923,7 @@ body{padding-bottom:50px}
 <script>
 (function(){
   // [label, main section, Team Stats tab]
-  const T=[['Team Stats','stats','stats'],['Match Selector','stats','match'],['Player stats','stats','players'],['Drafts','stats','drafts'],['Card','stats','card'],['Scouting','stats','scout'],['Teams together','stats','group'],null,
+  const T=[['Team Stats','stats','stats'],['Match Selector','stats','match'],['Player stats','stats','players'],['Drafts','stats','drafts'],['Card','stats','card'],['Scouting','stats','scout'],['Results','stats','group'],null,
            ['Draft','draft'],['Team Predictor','pred'],['Balance','bal'],['Data check','check']];
   const bar=document.getElementById('sheetbar');if(!bar)return;
   bar.innerHTML=T.map((t,i)=>t?`<button type="button" class="sb-t${t[2]&&t[2]!=='stats'?' sb-sub':''}" data-sb="${i}">${t[0]}</button>`:'<span class="sb-sep"></span>').join('');
@@ -5040,3 +5044,4 @@ body{padding-bottom:50px}
 .lur.lui{padding-left:26px}
 .lupk{font-style:italic;opacity:.75}
 </style>
+<style>.lubh{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}.lubh .btn{font-size:11px;padding:3px 9px}.lubh .btn[aria-pressed="true"]{background:var(--accent,#e5484d);color:#fff;border-color:var(--accent,#e5484d)}</style>
