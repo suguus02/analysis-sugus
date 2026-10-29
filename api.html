@@ -3093,6 +3093,8 @@ function grpSide(m,t){if(m.a===t)return 'a';if(m.b===t&&!m.sh)return 'b';return 
 const grpClean=v=>String(v||'').replace(/⁠/g,'').replace(/^ext:/,'');
 // soft colour for a win rate (red -> amber -> green), readable on the dark page
 const gtHeat=(p,n)=>{p=Math.max(0,Math.min(1,p));const hh=Math.round(Math.max(0,Math.min(1,(p-.3)/.4))*120),a=n==null?.38:Math.min(.38,.14+n/40);return `background:hsla(${hh},60%,45%,${a.toFixed(2)})`};
+let gtReg=(()=>{try{return localStorage.getItem('tvt:gtreg')!=='0'}catch(e){return true}})();
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-gtreg]');if(!b)return;gtReg=b.dataset.gtreg==='1';try{localStorage.setItem('tvt:gtreg',gtReg?'1':'0')}catch(x){}renderDetail()});
 const gtRoster=t=>((FULL&&FULL.pickPlayers&&FULL.pickPlayers[String(t).toUpperCase()])||[]).slice(0,3).map(p=>p.name||p.tags[0]||'');
 function groupTab(){
   const T=groupTeams();
@@ -3103,15 +3105,23 @@ function groupTab(){
   const per={};for(const t of T)per[t]=[];
   for(const m of S)for(const t of T){const sd=grpSide(m,t);if(sd)per[t].push({m,sd,win:sd==='a'?m.y:1-m.y,op:grpClean(sd==='a'?m.b:m.a)})}
   const tot=t=>{let w=0;for(const x of per[t])w+=x.win;return {w,n:per[t].length}};
-  // 1) head to head (rows and columns = the selected teams)
+  // 1) head to head (rows and columns = the selected teams): only sets where each team plays with its own players of the
+  // Picks sheet (all of them: 3, or 2 / 1 when the sheet lists only 2 / 1), so sets with pick-ups are not counted
+  const RO={};for(const t of T)RO[t]=((FULL&&FULL.pickPlayers&&FULL.pickPlayers[String(t).toUpperCase()])||[]).slice(0,3).map(p_=>new Set((p_.tags||[]).map(g=>String(g).toUpperCase()))).filter(s_=>s_.size);
+  const full=(tags,t)=>RO[t].length>0&&RO[t].every(s_=>(tags||[]).some(g=>s_.has(String(g).toUpperCase())));
+  const HH={},TT={};for(const t of T){TT[t]={w:0,n:0};HH[t]={};for(const c of T)HH[t][c]={w:0,n:0}}
+  for(const m of S){if(m.sh)continue;const inA=T.filter(t=>gtReg?full(m.ta,t):m.a===t),inB=T.filter(t=>gtReg?full(m.tb,t):m.b===t);
+    for(const r of inA){TT[r].n++;TT[r].w+=m.y;for(const c of inB)if(c!==r){HH[r][c].n++;HH[r][c].w+=m.y}}
+    for(const r of inB){TT[r].n++;TT[r].w+=1-m.y;for(const c of inA)if(c!==r){HH[r][c].n++;HH[r][c].w+=1-m.y}}}
   let h2h='';
   if(T.length>=2){
-    const rows=T.slice().sort((a,b)=>tot(b).n-tot(a).n).map(r=>{const tt=tot(r);
+    const rows=T.slice().sort((a,b)=>TT[b].n-TT[a].n).map(r=>{const tt=TT[r];
       return `<tr><td class="gt-c gt-big" style="${gtHeat(tt.n?tt.w/tt.n:.5)}">${pc(tt.w,tt.n)}</td><td class="gt-c gt-big">${tt.n}</td><td class="gt-c gt-who"><span>${gtRoster(r).map(esc).join('<br>')||esc(r)}</span>${logo(r,'l40')}</td>${T.map(c=>{
-        if(r===c)return '<td class="gt-c gt-x">–</td>';let w=0,n=0;for(const x of per[r])if(!x.m.sh&&x.op===c){n++;w+=x.win}
+        if(r===c)return '<td class="gt-c gt-x">–</td>';const w=HH[r][c].w,n=HH[r][c].n;
         return n?`<td class="gt-c" style="${gtHeat(w/n,n)}"><b>${pc(w,n)}</b><small>${w}W-${n-w}L</small></td>`:'<td class="gt-c gt-0"><small>0W-0L</small></td>'}).join('')}</tr>`}).join('');
-    h2h=sec('Head to head',`<div class="gt-scroll gt-h2h"><table class="gt-t"><thead><tr><th class="gt-c">Total win rate</th><th class="gt-c">Total sets played</th><th class="gt-c">Team</th>${T.map(c=>`<th class="gt-c gt-ch"><span>${gtRoster(c).map(esc).join('<br>')||esc(c)}</span>${logo(c,'l28')}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`,
-      'Each square: win rate of the team in the row against the team in the column, and its sets won-lost. Total = all the sets of the team in the period (against everybody).')}
+    const regSw=`<div class="gt-sw"><span class="seg2"><button type="button" data-gtreg="1" aria-pressed="${gtReg}">Only the registered players</button><button type="button" data-gtreg="0" aria-pressed="${!gtReg}">Full team (with pick-ups)</button></span></div>`;
+    h2h=sec('Head to head',regSw+`<div class="gt-scroll gt-h2h"><table class="gt-t"><thead><tr><th class="gt-c">Total win rate</th><th class="gt-c">Total sets played</th><th class="gt-c">Team</th>${T.map(c=>`<th class="gt-c gt-ch"><span>${gtRoster(c).map(esc).join('<br>')||esc(c)}</span>${logo(c,'l28')}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`,
+      'Each square: win rate of the team in the row against the team in the column, and its sets won-lost. '+(gtReg?'Only the registered players: a set counts only when both teams play with their own players of the Picks sheet (all 3, or the 2 / 1 listed there); sets with pick-ups are left out. Total = all the sets of the team with its own players in the period (against everybody).':'Full team: every set of the team counts, pick-ups included. Total = all the sets of the team in the period (against everybody).'))}
   // 2) every scrim / match of each team, one column per team
   const pl=(tags,team)=>tags.filter(Boolean).map(g=>{const sub=team&&isSub(team,g);return `<span class="gt-p${sub?' sub':''}"${sub?` title="${SUBT}"`:''}>${esc(nmOf(g))}</span>`}).join('');
   const cols=T.map(t=>{const g={};
@@ -4975,3 +4985,4 @@ body{padding-bottom:50px}
 .gt-maps .gt-tn b{display:inline;font-size:12.5px}
 .gt-mi{width:24px;height:24px;object-fit:cover;border-radius:4px}
 </style>
+<style>.gt-sw{display:flex;justify-content:center;margin:0 0 10px}</style>
