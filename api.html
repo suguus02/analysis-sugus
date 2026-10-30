@@ -1070,7 +1070,7 @@ table.rank td.ic,.pgrid .rank td.ic{text-align:left}table.rank th:nth-child(2),.
 <div class="wrap">
   <header class="hero">
     <div class="herotext">
-      <h1>ANALYSIS SUGUS</h1>
+      <h1>ANALYSIS SUGUS</h1><span class="msg heroinfo" id="sheetInfo"></span>
     </div>
   </header>
 
@@ -1080,7 +1080,7 @@ table.rank td.ic,.pgrid .rank td.ic{text-align:left}table.rank th:nth-child(2),.
     <div class="hdrgrid">
       <div class="pgrp ctr"><span class="lbl ttl">Period</span><div id="rcal"></div></div>
       <div class="hdrleft">
-    <div class="sheetrow" style="margin-top:0;justify-content:center"><button class="btn sheetmain" id="sheetGo" type="button" title="Reads again only the rows after the permanent ones (fast)"><svg class="ricon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>Refresh games</button><button class="btn quiet sheetall" id="sheetAll" type="button" title="Reads every row of the sheet again (slow). Use it after changing the permanent rows.">Refresh Whole Document</button><span class="msg" id="sheetInfo"></span></div>
+    <div class="sheetrow" style="margin-top:0;justify-content:center"><button class="btn sheetmain" id="sheetGo" type="button" title="Reads again only the rows after the permanent ones (fast)"><svg class="ricon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>Refresh games</button><button class="btn quiet sheetall" id="sheetAll" type="button" title="Reads every row of the sheet again (slow). Use it after changing the permanent rows.">Refresh Whole Document</button></div>
         <div class="pgrp ctr"><span class="lbl ttl">Games</span><div class="prow"><div class="seg2" id="fType" role="group" aria-label="Game type"><button type="button" data-ty="all" aria-pressed="true">All</button><button type="button" data-ty="tournament" aria-pressed="false">Tournament</button><button type="button" data-ty="friendly" aria-pressed="false">Friendly</button></div></div></div>
       </div>
     </div>
@@ -1137,7 +1137,7 @@ table.rank td.ic,.pgrid .rank td.ic{text-align:left}table.rank th:nth-child(2),.
     <div class="tabs" role="tablist" aria-label="Team Stats">
       <button type="button" class="tabbtn" role="tab" data-tab="stats" aria-selected="true">Team stats</button>
       <button type="button" class="tabbtn" role="tab" data-tab="match" aria-selected="false">Match Selector</button>
-      <button type="button" class="tabbtn" role="tab" data-tab="players" aria-selected="false">Player stats</button>
+      
       <button type="button" class="tabbtn" role="tab" data-tab="drafts" aria-selected="false">Drafts</button>
       <button type="button" class="tabbtn" role="tab" data-tab="card" aria-selected="false">Card</button>
       <button type="button" class="tabbtn" role="tab" data-tab="scout" aria-selected="false">Scouting</button>
@@ -2227,6 +2227,7 @@ function deepDive(){
     </div>
     <div class="toolrow" style="justify-content:center"><div class="ttl" style="margin:0">${D.logTitle}</div>${resSeg()}${nSingles||!showSingles?`<label class="chk"><input type="checkbox" data-sgl="1"${showSingles?' checked':''}> Show single games (${nSingles})</label>`:''}</div>
     ${D.logHTML}
+    ${playersTab(true)}
     ${D.types}
     <p class="foot" style="margin-top:10px">Picks and wins count sets (single games and draws excluded). Win rate = wins / picks. Each filter box only offers options that still appear in the sets matching the other boxes. With few sets the percentages swing a lot.</p>`;
 }
@@ -2248,7 +2249,7 @@ function pairDeep(){
     <div class="pair2 fwrap" style="margin-top:18px">${[A,B].map(D=>`<div class="pfilt">${tstrip(D.team)}<div class="fbar">${D.selects('Filter: '+esc(D.team)+' brawlers','Filter: enemy brawlers')}</div><div class="fbar" style="margin-top:0">${D.tsel('Filter: '+esc(D.team)+' types','Filter: enemy types')}</div>${D.summary}</div>`).join('')}</div>
     <div class="toolrow" style="justify-content:center;margin-top:14px"><div class="ttl" style="margin:0">Set log</div>${resSeg()}${nSingles||!showSingles?`<label class="chk"><input type="checkbox" data-sgl="1"${showSingles?' checked':''}> Show single games (${nSingles})</label>`:''}</div>
     ${[A,B].map(D=>`<div class="plog">${tstrip(D.team)}<p class="msg" style="margin:6px 0 0;text-align:center">${D.logTitle}</p>${D.logHTML}</div>`).join('')}
-    <div class="pair2" style="margin-top:6px">${[A,B].map(D=>`<div>${tstrip(D.team)}${D.types}</div>`).join('')}</div>
+    ${playersTab(true)}<div class="pair2" style="margin-top:6px">${[A,B].map(D=>`<div>${tstrip(D.team)}${D.types}</div>`).join('')}</div>
     <p class="foot" style="margin-top:10px">Picks and wins count sets (single games and draws excluded). Win rate = wins / picks. Each filter box only offers options that still appear in the sets matching the other boxes. With few sets the percentages swing a lot.</p>`;
 }
 const LHUE={};
@@ -2357,9 +2358,9 @@ function topPlayers(team,P){
     e.tags.push(tg);e.n+=x.n;e.w+=x.w;for(const b of x.list){const q=e.L[b.b]||(e.L[b.b]={b:b.b,n:0,w:0});q.n+=b.n;q.w+=b.w}}
   return Object.values(G).sort((a,b)=>b.n-a.n||b.w-a.w).slice(0,3).map(e=>({name:e.name,tags:e.tags,n:e.n,w:e.w,list:Object.values(e.L).sort((a,c)=>c.n-a.n||c.w-a.w)}))}
 let PL_ACT=false;
-function playersTab(){
+function playersTab(embed){
   PL_ACT=false;
-  if(scope==='pool')return '<p class="msg" style="margin-top:12px">Player stats work with one team or with the two teams of a comparison. Choose "1 team" or "Compare 2 teams" above.</p>';
+  if(scope==='pool')return embed?'':'<p class="msg" style="margin-top:12px">Player stats work with one team or with the two teams of a comparison. Choose "1 team" or "Compare 2 teams" above.</p>';
   const pair=scope==='pair';
   const TS=pair?[[sel.a,'a'],[sel.b,'b']]:[[scope==='one'?curOne():focus==='A'?sel.a:sel.b,scope==='one'||focus==='A'?'a':'b']];
   const TYL=[...TYPE_ORDER,'OTHER'];
@@ -2372,12 +2373,13 @@ function playersTab(){
       const tc={};if(p)for(const x of p.list){const ty=typeOf(x.b);tc[ty]=(tc[ty]||0)+1}
       const tcn=p?`<div class="tcnt"><small>Brawlers by type</small>${TYL.filter(t=>tc[t]).map(t=>`<span class="tchip" title="${tLbl(t)}"><i style="background:${TYPE_COL[t]||TYPE_COL.OTHER}"></i>${tLbl(t)} <b>${tc[t]}</b></span>`).join('')}</div>`:'';
       return `<div class="pcol"><div class="phead" data-tc="${esc(team)}"><b>${esc(nm)}</b><small>${p?Math.round(100*p.w/p.n)+'% win rate ['+p.n+' sets] · '+plural(p.list.length,'brawler'):'no sets'}</small></div>
-        <div class="tablewrap"><table class="rank"><thead><tr><th class="rk"></th><th></th><th class="num">Picks</th><th class="num">Wins</th><th class="num">Win rate</th></tr></thead><tbody>${rows||'<tr><td colspan="5" class="msg">No data</td></tr>'}</tbody></table></div>${tcn}</div>`})};
+        <div class="tablewrap pscroll"><table class="rank"><thead><tr><th class="rk"></th><th></th><th class="num">Picks</th><th class="num">Wins</th><th class="num">Win rate</th></tr></thead><tbody>${rows||'<tr><td colspan="5" class="msg">No data</td></tr>'}</tbody></table></div>${tcn}</div>`})};
   const groups=TS.map(([t],i)=>({t,cols:colsOf(t,pair?(i?'B':'A'):'')}));
-  const luBox=`<div class="${pair?'pair2':'wlrow'}" style="margin:10px 0">${LUH.join('')}</div>`+(PL_ACT?'<p class="msg" style="margin:0 0 8px">Lineup filter on: showing the 3 players who played the most sets in the selected lineups.</p>':'');
+  const luBox=embed?(PL_ACT?'<p class="msg" style="margin:0 0 8px;text-align:center">Lineup filter on: showing the 3 players who played the most sets in the selected lineups.</p>':''):`<div class="${pair?'pair2':'wlrow'}" style="margin:10px 0">${LUH.join('')}</div>`+(PL_ACT?'<p class="msg" style="margin:0 0 8px">Lineup filter on: showing the 3 players who played the most sets in the selected lineups.</p>':'');
   const nc=groups.reduce((a,g)=>a+Math.max(1,g.cols.length),0);
   const body=pair?luBox+`<div class="pgrid p6" style="grid-template-columns:repeat(${nc},minmax(0,1fr))">${groups.map(g=>tstrip(g.t,`;grid-column:span ${Math.max(1,g.cols.length)}`)).join('')}${groups.map(g=>g.cols.join('')||'<p class="msg">No player tags for this team in the Picks sheet.</p>').join('')}</div>`
-    :`<div style="margin:12px 0;display:flex;justify-content:center">${tstrip(TS[0][0],';min-width:260px')}</div>${luBox}<div class="pgrid">${groups[0].cols.join('')||'<p class="msg">No player tags for this team in the Picks sheet.</p>'}</div>`;
+    :`${embed?'':`<div style="margin:12px 0;display:flex;justify-content:center">${tstrip(TS[0][0],';min-width:260px')}</div>`}${luBox}<div class="pgrid">${groups[0].cols.join('')||'<p class="msg">No player tags for this team in the Picks sheet.</p>'}</div>`;
+  if(embed)return `<h3 class="sec-h" style="margin-top:22px">Player stats</h3>`+body+`<p class="foot" style="margin-top:8px">Players and their tags come from the Picks sheet (a player with several accounts is counted as one). Top 20 brawlers of each player, scroll for the rest. Picks and wins count sets (single games and draws excluded) on the selected maps and lineups.</p>`;
   return body+`<p class="foot" style="margin-top:10px">Players and their tags come from the Picks sheet (a player with several accounts is counted as one). Under each table: how many different brawlers of each type the player used. Picks and wins count sets (single games and draws excluded) on the selected maps.</p>`;
 }
 function statsTab(){return picksTab()}
@@ -4931,7 +4933,7 @@ body{padding-bottom:50px}
 <script>
 (function(){
   // [label, main section, Team Stats tab]
-  const T=[['Team Stats','stats','stats'],['Match Selector','stats','match'],['Player stats','stats','players'],['Drafts','stats','drafts'],['Card','stats','card'],['Scouting','stats','scout'],['Results','stats','group'],null,
+  const T=[['Team Stats','stats','stats'],['Match Selector','stats','match'],['Drafts','stats','drafts'],['Card','stats','card'],['Scouting','stats','scout'],['Results','stats','group'],null,
            ['Draft','draft'],['Team Predictor','pred'],['Balance','bal'],['Data check','check']];
   const bar=document.getElementById('sheetbar');if(!bar)return;
   bar.innerHTML=T.map((t,i)=>t?`<button type="button" class="sb-t${t[2]&&t[2]!=='stats'?' sb-sub':''}" data-sb="${i}">${t[0]}</button>`:'<span class="sb-sep"></span>').join('');
@@ -5074,4 +5076,27 @@ button.luth{cursor:pointer}button.luth:hover{filter:brightness(1.15)}
 .luoff{align-self:flex-start;font-style:normal;font-size:9.5px;font-weight:800;letter-spacing:.04em;background:#2f6f45;color:#d9ffe4;border-radius:4px;padding:1px 5px;margin-top:2px}
 .lucf{display:flex;justify-content:space-between;align-items:center;margin-top:4px;font-size:11.5px}.lucf i{font-style:normal;font-weight:800;padding:1px 7px;border-radius:5px}
 .lub2 .lus{margin-top:8px;font-size:11.5px;text-align:center;color:var(--muted,#a9a6bd)}
+</style>
+
+<style>
+/* player stats inside Team stats: 20 brawlers visible, scroll for the rest */
+.pscroll{max-height:var(--ps-h,732px);overflow:auto}
+.pscroll thead th{position:sticky;top:0;z-index:1;background:var(--surface,#1d1c29)}
+/* update text next to the title */
+.hero{position:relative}
+.herotext{position:relative}
+.heroinfo{position:absolute;right:20px;top:50%;transform:translateY(-50%);max-width:min(360px,32%);font-size:11.5px;line-height:1.35;text-align:right;opacity:.75;margin:0}
+@media (max-width:900px){.heroinfo{position:static;transform:none;display:block;max-width:none;text-align:center;margin-top:8px}}
+/* game type buttons like Refresh games */
+#fType{gap:6px}
+#fType button{border-radius:8px;padding:7px 16px;font-weight:600;font-size:13.5px}
+</style>
+
+<style>
+@media (min-width:700px){
+.hdrgrid{align-items:stretch}
+.hdrleft{justify-content:space-between;padding:0}
+.hdrleft>.sheetrow{flex:1;justify-content:center}
+.hdrleft>.pgrp{flex:1;justify-content:flex-end;padding-bottom:2px}
+}
 </style>
