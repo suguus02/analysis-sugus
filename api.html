@@ -12,10 +12,14 @@ window.API_SHEET_ID="1GCtGBZN25X8Smw7nftKooS-uM-afwLIA3P6OPB9YNnk";
     fetch('https://docs.google.com/spreadsheets/d/'+window.API_SHEET_ID+'/gviz/tq?tqx=out:csv&sheet=CONFIG&range=A1:B6&headers=0',{cache:'no-store'})
     .then(function(r){return r.text()}).then(function(t){
       var v={};csv(t).forEach(function(r){v[(r[0]||'').toUpperCase()]=r[1]||''});
-      var b=document.getElementById('apiBadge');
-      if(!b){b=document.createElement('div');b.id='apiBadge';b.title='Clic para ocultar';b.style.cssText='position:fixed;left:12px;bottom:12px;z-index:99999;background:#111;color:#fff;font:600 12px/1.35 system-ui,sans-serif;padding:7px 11px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.35);max-width:460px;border-left:4px solid #f5b400;cursor:pointer';b.onclick=function(){b.style.display='none'};document.body.appendChild(b)}
-      var e=v['PROBLEMA']||'',esc=function(x){return String(x).replace(/</g,'&lt;')};
-      b.innerHTML='PARTIDAS DE LA API &middot; '+esc(v['PARTIDAS EN TOTAL']||'0')+' partidas<br><span style="font-weight:400;opacity:.8">'+(v['ÚLTIMA ACTUALIZACIÓN']?'Hoja actualizada '+esc(v['ÚLTIMA ACTUALIZACIÓN'])+' (hora de España)':'La hoja aún no se ha actualizado')+(e?' &middot; <b style="color:#ff8a80">'+esc(e)+'</b>':'')+'</span>';
+      var host=document.querySelector('header.hero .herotext')||document.body,b=document.getElementById('apiBadge');
+      if(!b){b=document.createElement('div');b.id='apiBadge';host.appendChild(b)}
+      var e=v['PROBLEMA']||'',esc=function(x){return String(x).replace(/</g,'&lt;')},tot=v['PARTIDAS EN TOTAL']||'0',up=v['ÚLTIMA ACTUALIZACIÓN']||'';
+      var age=(function(){var m=/^(\d+)\/(\d+)\/(\d+) (\d+):(\d+)/.exec(up);if(!m)return 1e9;var d=new Date(+m[3],+m[2]-1,+m[1],+m[4],+m[5]);return (Date.now()-d.getTime())/6e4})();
+      var st=e?'bad':(age>40?'warn':'ok');b.className='api-st '+st;
+      b.title=(e?'Problem: '+e+'\n':'')+(up?'Sheet updated '+up+' (Spain time)':'The sheet has not been updated yet')+'\n'+tot+' games from the API';
+      b.innerHTML='<i></i><span>API · '+esc(Number(tot).toLocaleString('es-ES'))+' games'+(e?'<b> · problem</b>':age>40&&up?'<b> · not updated since '+esc(up.slice(-5))+'</b>':'')+'</span>';
+      if(false)b.innerHTML='PARTIDAS DE LA API &middot; '+esc(v['PARTIDAS EN TOTAL']||'0')+' partidas<br><span style="font-weight:400;opacity:.8">'+(v['ÚLTIMA ACTUALIZACIÓN']?'Hoja actualizada '+esc(v['ÚLTIMA ACTUALIZACIÓN'])+' (hora de España)':'La hoja aún no se ha actualizado')+(e?' &middot; <b style="color:#ff8a80">'+esc(e)+'</b>':'')+'</span>';
     }).catch(function(){})}
   document.addEventListener('DOMContentLoaded',function(){pinta();setInterval(pinta,120000)});
 })();
@@ -1644,7 +1648,7 @@ if(typeof module!=='undefined'&&module.exports)module.exports=API;else root.Engi
 <script>
 (function(){
 const $=id=>document.getElementById(id);
-const wrHeat=p=>{p=Math.max(0,Math.min(1,p));const L=[236,128,96],M=[250,214,110],H=[112,192,128];const mix=(a,b,t)=>a.map((v,i)=>Math.round(v+(b[i]-v)*t));const c=p<.5?mix(L,M,p/.5):mix(M,H,(p-.5)/.5);return `background:rgba(${c},.5);color:var(--fg);font-weight:700`};
+const wrHeat=p=>wrSoft(p);
 const heatC=p=>{p=Math.max(0,Math.min(1,p));const L=[232,121,95],M=[251,213,103],H=[109,191,123];const mix=(a,b,t)=>a.map((v,i)=>Math.round(v+(b[i]-v)*t));const c=p<.5?mix(L,M,p/.5):mix(M,H,(p-.5)/.5);return ''};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v);return true}catch(e){return false}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
@@ -2077,7 +2081,7 @@ function luChip(e,team,fk,idx,on){const R=new Set(((FULL&&FULL.pickPlayers&&FULL
 function luCardsHTML(fk,groups,sel,all,nsel,total,teamClick){
   const on=e=>!sel||sel.has(e.k),reg=LUREG2[fk]||new Set(),regOn=!!sel&&reg.size>0&&groups.every(g=>g.es.every(e=>reg.has(e.k)===sel.has(e.k)));
   const cards=groups.map(g=>{const s=g.es.filter(on).reduce((a,e)=>a+e.s,0),ts=g.es.reduce((a,e)=>a+e.s,0);
-    return `<div class="lutc" style="--c:${tcol(g.team)==='inherit'?'#6d6a85':tcol(g.team)}"><${teamClick?`button type="button" data-lut="${esc(g.team)}" title="Tick / untick all the trios of ${esc(g.team)}"`:'div'} class="luth">${logo(g.team,'l20')}<b>${esc(g.team)}</b><span>${s===ts?ts+' sets':s+' of '+ts+' sets'}</span></${teamClick?'button':'div'}>
+    return `<div class="lutc" style="--c:${tcolL(g.team)}"><${teamClick?`button type="button" data-lut="${esc(g.team)}" title="Tick / untick all the trios of ${esc(g.team)}"`:'div'} class="luth">${logo(g.team,'l20')}<b>${esc(g.team)}</b><span>${s===ts?ts+' sets':s+' of '+ts+' sets'}</span></${teamClick?'button':'div'}>
       <div class="luchips">${g.es.map(e=>luChip(e,g.team,fk,g.idx(e),on(e))).join('')}</div></div>`}).join('');
   return `<div class="lub2${groups.length>1?' many':''}"><div class="lutop"><span class="luttl">Lineups · players who played together</span><span class="lubs"><button type="button" data-fk="${fk}" data-luset="all" aria-pressed="${all}">Everything</button><button type="button" data-fk="${fk}" data-luset="reg" aria-pressed="${regOn}"${reg.size?'':' disabled'}>Only official trios</button></span></div>
     <div class="lucards">${cards}</div><div class="lus">${nsel} of ${total} lineups selected · pick-ups in <span class="lpk">yellow</span> · click a trio to tick / untick it</div></div>`}
@@ -2254,6 +2258,13 @@ function pairDeep(){
 }
 const LHUE={};
 function hexHue(h){const r=parseInt(h.slice(1,3),16)/255,g=parseInt(h.slice(3,5),16)/255,b=parseInt(h.slice(5,7),16)/255,mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn;if(!d)return 230;let H=mx===r?((g-b)/d)%6:mx===g?(b-r)/d+2:(r-g)/d+4;return Math.round((H*60+360)%360)}
+// one colour scale for every win rate: red below ~45%, neutral grey around 50%, green above ~55%; few sets = paler
+function wrSoft(p,n){p=Math.max(0,Math.min(1,+p||0));const d=p-.5,c=n==null?1:Math.min(1,.4+n/15);
+  if(Math.abs(d)<.05)return 'background:rgba(255,255,255,.07);color:var(--fg);font-weight:700';
+  if(d<0){const a=(Math.min(.5,.14+Math.abs(d)*1.15)*c).toFixed(2);return `background:hsla(2,62%,46%,${a});color:var(--fg);font-weight:700`}
+  const a=(Math.min(.5,.2+d*1.2)*c).toFixed(2);return `background:hsla(145,58%,58%,${a});color:#fff;font-weight:700`}
+// colour of a team from its logo (falls back to its region colour while the logo is read)
+function tcolL(t){const hh=logoHue(t);return hh==null?(tcol(t)==='inherit'?'#6d6a85':tcol(t)):`hsl(${hh},58%,46%)`}
 function logoHue(t){
   if(t in LHUE)return LHUE[t];
   const src=IMGS[mkey(t)]||IMGS.predeterminedlogo,fb=REGC[REGION[t]]?hexHue(REGC[REGION[t]]):230;
@@ -2587,7 +2598,7 @@ function balIndex(){
   return balIdx={n:SRC.key,by,last};
 }
 // pick rates of one team in the sets played in [from,to)
-function balRatesT(u,from,to,pred){const r=balIndex().by[u]||[];let n=0;const c={};for(const x of r){if(x.d<from||x.d>=to)continue;if(pred&&!pred(x))continue;n++;for(const b of x.b)c[b]=(c[b]||0)+1}return {n,c}}
+function balRatesT(u,from,to,pred){const BI=balIndex(),r=BI.by[u]||BI.by['EXT:'+u]||[];let n=0;const c={};for(const x of r){if(x.d<from||x.d>=to)continue;if(pred&&!pred(x))continue;n++;for(const b of x.b)c[b]=(c[b]||0)+1}return {n,c}}
 function balLgW(C,k){const W=C.L[k],c={};for(const b in W.p){const q=mkey(b);c[q]=(c[q]||0)+W.p[b]}return {n:W.n,c,top:Object.entries(c).sort((a,b)=>b[1]-a[1]).slice(0,12).map(x=>x[0])}}
 // pick rates of all teams in balance window k restricted by map / mode
 function balLgF(C,k,f){const SRC=balSrc(),a=k>0?C.cuts[k-1]:'',z=k<C.cuts.length?C.cuts[k]:'9999',c={};let n=0;
@@ -2599,16 +2610,52 @@ function balBanProfile(team,C,flt){flt=flt||{};
   const lg=k=>lgc[k]||(lgc[k]=balLgW(C,k));
   const metaFor=k=>{for(let o=0;o<=cuts.length;o++)for(const kk of [k-o,k+o]){if(kk>=0&&kk<=cuts.length&&C.L[kk].n>=120)return lg(kk)}return null};
   const mk=()=>({dr:0,bans:0,meta:0,metaN:0,riv:0,rivN:0,own:0,ownN:0,oth:0,b:{}}),rows={},tot=mk();
+  const L={n:0,real:0,plc:0,cat:{meta:0,both:0,rival:0,other:0},ex:[],gn:0,greal:0,gplc:0},gSeen=new Set(),PLT=blPlacebo();
   for(const d of drAll()){const dt=balND(d.date);if(!dt||(d.blue!==U&&d.red!==U)||!balDraftOK(d,U,flt))continue;
     const mine=(d.blue===U?d.bans.b:d.bans.r).filter(Boolean),opp=d.blue===U?d.red:d.blue,k=wi(dt),from=balFromDays(balDays(dt)-45);
     const MT=metaFor(k),OW=opp?balRatesT(String(opp).toUpperCase(),from,dt):{n:0,c:{}},TW=balRatesT(U,from,dt);
     const R=rows[k]||(rows[k]=mk());R.dr++;tot.dr++;
+    // meta or the rival? (lift against the brawlers of the other teams)
+    {const md=modeOfMap(d.map)||d.mode||'',OC=opp?blRiv(String(opp).toUpperCase(),dt,md):null;
+      if(OC){const MS=new Set([...(MT?MT.top:[]),...blMapTop(d,U,dt)]),PS=PLT.filter(t=>t!==U&&t!==String(opp).toUpperCase()).map(t=>blRiv(t,dt,md)).filter(Boolean);
+        if(PS.length>=3){for(const b of mine){const q=mkey(b),r=OC.s.has(q),m=MS.has(q);L.n++;if(r)L.real++;L.plc+=PS.filter(x=>x.s.has(q)).length/PS.length;
+          L.cat[r&&m?'both':m?'meta':r?'rival':'other']++;if(r)L.ex.push({d:dt,map:d.map,vs:opp,b,sh:OC.s.get(q),k:m?'both':'rival'})}
+          const gb=((d.blue===U?d.gb&&d.gb.b:d.gb&&d.gb.r)||[]).filter(Boolean),gk=dt+'|'+opp+'|'+gb.join(',');
+          if(gb.length&&!gSeen.has(gk)){gSeen.add(gk);for(const b of gb){const q=mkey(b);L.gn++;if(OC.s.has(q)){L.greal++;L.ex.push({d:dt,map:'',vs:opp,b,sh:OC.s.get(q),k:'global'})}L.gplc+=PS.filter(x=>x.s.has(q)).length/PS.length}}}}}
     for(const b of mine){const q=mkey(b),isM=MT?MT.top.includes(q):null,isR=OW.n>=8?(OW.c[q]||0)/OW.n>=.2:null,isO=TW.n>=8?(TW.c[q]||0)/TW.n>=.15:null;
       for(const X of [R,tot]){X.bans++;X.b[b]=(X.b[b]||0)+1;
         if(isM!=null){X.metaN++;if(isM)X.meta++}if(isR!=null){X.rivN++;if(isR)X.riv++}if(isO!=null){X.ownN++;if(isO)X.own++}
         if(!isM&&!isR&&!isO)X.oth++}}}
+  L.lift=L.plc>0?L.real/L.plc:1;L.liftS=1+(L.lift-1)*L.n/(L.n+20);tot.L=L;
   return {rows,tot};
 }
+// what a team played the most in the 60 days before a date (same mode when it has 8+ sets there): brawlers in 15%+ of its sets (3+ sets), top 6
+const _blR={};let _blRK='';
+// a team can be stored as NAME or as EXT:NAME (teams that are not in the built-in list)
+const blRows=(IDX,T)=>IDX.by[T]||IDX.by['EXT:'+T]||[];
+function blRiv(T,dt,md){const IDX=balIndex();if(_blRK!==IDX.n){_blRK=IDX.n;for(const k in _blR)delete _blR[k]}const key=T+'|'+dt+'|'+md;if(key in _blR)return _blR[key];
+  const lo=balFromDays(balDays(dt)-60),rs=(blRows(IDX,T).length?blRows(IDX,T):blAdhoc(T)).filter(x=>x.d>=lo&&x.d<dt),rm=md?rs.filter(x=>modeOfMap(x.mp)===md):[],use=rm.length>=8?rm:rs;
+  if(use.length<8)return _blR[key]=null;const c={};for(const x of use)for(const q of x.b)c[q]=(c[q]||0)+1;
+  const s=new Map(Object.entries(c).filter(([q,n])=>n>=3&&n/use.length>=.15).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([q,n])=>[q,n/use.length]));
+  return _blR[key]={s,n:use.length}}
+// rivals written as players ('A / B / C' or 'A - B - C'): their sets are found by the tags of those names (2 of them on the same side)
+let _blA={},_blAK='',_blTF=null;
+const blNN=x=>String(x||'').normalize('NFKD').toUpperCase().replace(/[^0-9A-Z|]/g,'');
+function blAdhoc(T){const SRC=balSrc(),key=SRC.key;if(_blAK!==key){_blAK=key;_blA={};_blTF=null}if(_blA[T])return _blA[T];
+  const N=(FULL&&FULL.names)||{};if(!_blTF){_blTF={};for(const m of SRC.matches)for(const g of [...(m.ta||[]),...(m.tb||[])])_blTF[g]=(_blTF[g]||0)+1}
+  const byN={};for(const g in N){const k=blNN(N[g]);if(k.length>=3)(byN[k]||(byN[k]=[])).push(g)}
+  const tags=new Set();for(const part of String(T).split(/\s+\/\s+|\s+-\s+/)){const k=blNN(part);if(k.length<3)continue;
+    let c=byN[k]||[];if(!c.length)for(const x in byN)if(x.length>=4&&k.length>=4&&(x.includes(k)||k.includes(x)))c=c.concat(byN[x]);
+    const best=c.sort((a,b)=>(_blTF[b]||0)-(_blTF[a]||0))[0];if(best)tags.add(best)}
+  const out=[];if(tags.size>=2)for(const m of SRC.matches){if(m.s||m.y===0.5||!m.d)continue;
+    for(const [tg,br] of [[m.ta,m.ba],[m.tb,m.bb]])if((tg||[]).filter(g=>tags.has(g)).length>=2)out.push({d:m.d,mp:m.m,b:[...new Set((br||[]).filter(Boolean).map(mkey))]})}
+  return _blA[T]=out}
+// teams used as 'chance': every named team with 30+ sets in the data (the same team stored twice is counted once)
+function blPlacebo(){const IDX=balIndex(),o=new Set();for(const k in IDX.by){if((IDX.by[k]||[]).length<30)continue;o.add(k.replace(/^EXT:/,''))}return [...o]}
+// strong on that map at that time: the brawlers that the OTHER teams banned the most on the same map (drafts within 75 days)
+function blMapTop(d,U,dt){const c={},dd=balDays(dt);let n=0;for(const x of drAll()){if(x===d||mkey(x.map)!==mkey(d.map))continue;const xd=balND(x.date);if(!xd||Math.abs(balDays(xd)-dd)>75)continue;
+  for(const [t,L] of [[x.blue,x.bans&&x.bans.b],[x.red,x.bans&&x.bans.r]]){if(String(t).toUpperCase()===U)continue;n++;for(const b of (L||[]).filter(Boolean)){const q=mkey(b);c[q]=(c[q]||0)+1}}}
+  return Object.entries(c).filter(([q,k])=>k>=2).sort((a,b)=>b[1]-a[1]).slice(0,5).map(x=>x[0])}
 // 2) and 3) expected bans of `me` (against `vs` when given): its habit + what the rival plays + what is strong in the league, minus what it plays itself
 // bans of ALL saved drafts (every team, both sides of each draft), split by the pick order of the team that made them (drafts with side unknown cannot be split)
 let _ssK='',_ssV=null;
@@ -2685,9 +2732,11 @@ function balExpect(me,vs,C,flt,side,fbk){flt=flt||{};
   let ST=null;
   if(fbk){try{const T0=balBanProfile(me,C,{}).tot;let nu=0;for(const d of drAll())if((d.blue===U||d.red===U)&&drUnk(d))nu++;
     const m=T0.metaN?T0.meta/T0.metaN:0,t=T0.rivN?T0.riv/T0.rivN:0,o=T0.ownN?T0.own/T0.ownN:0,sum=m+t+o;
-    ST={n:T0.dr,nu,bans:T0.bans,m,t,o,ok:T0.dr>=8&&sum>0,pm:sum?m/sum:1/3,pt:sum?t/sum:1/3,po:sum?o/sum:1/3}}catch(e){ST=null}}
-  const fS=p=>.5+1.5*p,sOn=ST&&ST.ok;
-  const wh=fbk?(HNw>0?Math.min(.75,W0[0]*1.7*HNw/(HNw+1.5)):0):(HN>=5?W0[0]:0),wr=V&&OR.n>=8?W0[1]*(sOn?fS(ST.pt):1):0,wm=W0[2]*(sOn?fS(ST.pm):1),ws=wh+wr+wm;
+    ST={n:T0.dr,nu,bans:T0.bans,m,t,o,ok:T0.dr>=8&&sum>0,pm:sum?m/sum:1/3,pt:sum?t/sum:1/3,po:sum?o/sum:1/3,L:T0.L}}catch(e){ST=null}}
+  const fS=p=>.5+1.5*p,sOn=ST&&ST.ok,lOn=!!(ST&&ST.L&&ST.L.n>=15),cl=(x,a,b)=>Math.max(a,Math.min(b,x));
+  // a team that bans what the rival plays (x above 1) -> the rival's picks weigh more; a team that bans the meta (x 1 or less) -> the meta weighs more
+  const fR=lOn?cl(.5+.5*ST.L.liftS,.7,1.6):(sOn?fS(ST.pt):1),fM=lOn?cl(1.5-.5*ST.L.liftS,.75,1.25):(sOn?fS(ST.pm):1);
+  const wh=fbk?(HNw>0?Math.min(.75,W0[0]*1.7*HNw/(HNw+1.5)):0):(HN>=5?W0[0]:0),wr=V&&OR.n>=8?W0[1]*fR:0,wm=W0[2]*fM,ws=wh+wr+wm;
   const SS=side?banSideStats():null,FX=side?FIXB.list.map(x=>({q:mkey(x.b),s:x.s})).filter(x=>x.q):[];
   for(const x of FX){if(!cand.has(x.q))cand.add(x.q);if(!nm[x.q]){const o=FIXB.list.find(y=>mkey(y.b)===x.q);nm[x.q]=o?o.b:x.q.toUpperCase()}}
   const out=[...cand].map(q=>{const selfF=TR.n>=8?1-.8*(sOn?1-.7*ST.po:1)*Math.min(1,tr(q)/.35)*(1-Math.min(1,1.6*hb(q))):1;
@@ -2831,7 +2880,7 @@ function balStrategy(team,days,verdictMeta){
   const ck={};let cn=0;for(const m of base){const b=(mineOf(m)||[]).filter(Boolean);if(b.length<3)continue;const key=b.map(typeOf).sort().join(' + ');const e=ck[key]||(ck[key]={n:0,w:0});e.n++;e.w+=(m.a===team?m.y:1-m.y);cn++}
   const comps=Object.entries(ck).sort((a,b)=>b[1].n-a[1].n).slice(0,4);
   const tcol=t=>TYPE_COL[t]||'#9a99ad';
-  const chip=t=>`<span class="tchip" style="--tc:${tcol(t)}"><i style="background:${tcol(t)}"></i>${esc(t.charAt(0)+t.slice(1).toLowerCase())}</span>`;
+  const chip=t=>`<span class="tchip" style="--tc:${tcolL(t)}"><i style="background:${tcol(t)}"></i>${esc(t.charAt(0)+t.slice(1).toLowerCase())}</span>`;
   const bars=TO.map(t=>{const x=TT.o[t],y=lg[t],d=x-y;return `<tr><td>${chip(t)}</td><td class="num">${Math.round(x*100)}%</td><td class="num">${Math.round(y*100)}%</td><td class="num">${balPP(d)}</td><td><div class="bal-bar"><i style="width:${Math.round(x*100*2.2)}px;background:${tcol(t)}"></i></div></td></tr>`}).join('');
   const compH=comps.map(([k,e])=>`<div class="bal-comp"><span>${k.split(' + ').map(chip).join('<span class="pl">+</span>')}</span><b>${Math.round(e.n/cn*100)}%</b><small>${e.n} sets · ${Math.round(e.w/e.n*100)}% win</small></div>`).join('');
   const tourAg=okT&&okF?grp(tshare(tour,mineOf).o,['ASSASSIN','TANK'])-grp(tshare(fri,mineOf).o,['ASSASSIN','TANK']):null;
@@ -3146,7 +3195,7 @@ function groupTeams(){const off=M.D.off;return (scope==='pool'?(poolTeams||[]):s
 function grpSide(m,t){if(m.a===t)return 'a';if(m.b===t&&!m.sh)return 'b';return ''} // the copies of a player card count only for the card itself
 const grpClean=v=>String(v||'').replace(/⁠/g,'').replace(/^ext:/,'');
 // soft colour for a win rate (red -> amber -> green), readable on the dark page
-const gtHeat=(p,n)=>{p=Math.max(0,Math.min(1,p));const hh=Math.round(Math.max(0,Math.min(1,(p-.3)/.4))*120),a=n==null?.38:Math.min(.38,.14+n/40);return `background:hsla(${hh},60%,45%,${a.toFixed(2)})`};
+const gtHeat=(p,n)=>wrSoft(p,n);
 let gtReg=(()=>{try{return localStorage.getItem('tvt:gtreg')!=='0'}catch(e){return true}})();
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-gtreg]');if(!b)return;gtReg=b.dataset.gtreg==='1';try{localStorage.setItem('tvt:gtreg',gtReg?'1':'0')}catch(x){}renderDetail()});
 const gtRoster=t=>((FULL&&FULL.pickPlayers&&FULL.pickPlayers[String(t).toUpperCase()])||[]).slice(0,3).map(p=>p.name||p.tags[0]||'');
@@ -3187,7 +3236,7 @@ function groupTab(){
     const tw=L.reduce((a,e)=>a+e.w,0),tl=L.reduce((a,e)=>a+e.l,0),opT=e=>e.op&&(M.D.off.includes(e.op)||REGION[e.op])?e.op:'';
     const rowsH=L.map(e=>{const res=e.w>e.l?'w':e.w<e.l?'l':'d',o=opT(e);
       return `<tr><td class="gt-c gt-d">${fmtDate(e.d).replace(/ \d{4}$/,'')}</td><td class="gt-c gt-pl">${pl(top3(e.my),t)}</td><td class="gt-c gt-pl">${pl(top3(e.rv),o)}</td><td class="gt-c gt-res ${res}">${e.w}-${e.l}</td></tr>`}).join('');
-    return `<div class="gt-col"><div class="gt-hd" style="--tc:${tcol(t)}">${logo(t,'l28')}<b>${esc(t)}</b><small>${L.length} ${L.length===1?'match':'matches'} · ${tw}-${tl} · ${pc(tw,tw+tl)}</small></div>
+    return `<div class="gt-col"><div class="gt-hd" style="--tc:${tcolL(t)}">${logo(t,'l28')}<b>${esc(t)}</b><small>${L.length} ${L.length===1?'match':'matches'} · ${tw}-${tl} · ${pc(tw,tw+tl)}</small></div>
       <table class="gt-tb"><colgroup><col style="width:58px"><col style="width:120px"><col><col style="width:58px"></colgroup><thead><tr><th class="gt-c">Date</th><th class="gt-c" colspan="2">VS</th><th class="gt-c">Result</th></tr></thead><tbody>${rowsH||'<tr><td colspan="4" class="msg gt-c">No sets in this period.</td></tr>'}</tbody></table></div>`}).join('');
   const matches=sec('Matches by team',`<div class="gt-scroll gt-mt"><div class="gt-cols">${cols}</div></div>`,'One column per team, newest first. A match = every set against the same rival on the same day; Result = sets won - sets lost. Players in <i style="opacity:.65;text-decoration:underline dotted">dotted italics</i> are pick-ups (not on that team\'s roster). Scroll sideways and down inside the box.');
   // 3) regions
@@ -4117,7 +4166,7 @@ function cardTbl(head,rows,empty,w){ // compact table in the style of the rest o
   return `<div class="tablewrap" style="margin-top:2px"><table class="rank tiny">${w?`<colgroup><col style="width:26px">${w.map(x=>`<col style="width:${x}">`).join('')}</colgroup>`:''}<thead><tr><th class="rk"></th>${head.map(([h,num])=>`<th${num?' class="num"':''}>${h}</th>`).join('')}</tr></thead><tbody>${rows.length?rows.join(''):`<tr><td colspan="${head.length+1}" class="msg">${empty||'No data'}</td></tr>`}</tbody></table></div>`}
 const bd=(p)=>`background:transparent;border:2px solid ${p>.5?'#3fbf72':p<.5?'#ef5a70':'#f0a53a'};color:#fff`;
 const wlc=(w,l)=>w>l?'win':w<l?'lose':'draw';
-const hx=(p,n)=>{p=Math.max(0,Math.min(1,p));const h=Math.round(Math.max(0,Math.min(1,(p-.30)/.40))*125),conf=n==null?1:Math.min(1,.35+n/12);return `background:hsl(${h} ${Math.round(75*conf)}% 33%);color:#fff;font-weight:700;text-shadow:0 1px 1px rgba(0,0,0,.4)`};
+const hx=(p,n)=>wrSoft(p,n);
 
 const CARDRV={};
 function mapStatsOf(t){const o={};let n=0,w=0;for(const m of ds.matches){if(m.s||m.y===0.5)continue;let y=null;if(m.a===t)y=m.y;else if(m.b===t)y=1-m.y;if(y==null)continue;const e=o[m.m]||(o[m.m]={n:0,w:0});e.n++;e.w+=y;n++;w+=y}return {o,n,w}}
@@ -4489,7 +4538,16 @@ function scoutHTML(){
     return `<div class="sc-sty">Ban style · <b>mostly ${lead[0]}</b> · meta ${pc(ST.pm)} · target ${pc(ST.pt)} · own picks ${pc(ST.po)} <span>(from ${dn} over all patches)</span></div>`};
   const scDrafts=t=>{const L=drAll().filter(d=>(d.blue===t||d.red===t)&&(!mapOn||balMapOK(d.map,{map:SC.map})));
     return L.length?`<div class="tc-sec" style="margin-top:14px"><div class="lbl" style="align-self:stretch;display:block;text-align:center;color:${tcol(t)}">Saved drafts · ${esc(t)} · ${plural(L.length,'draft')}${mapOn?' on '+esc(SC.map):''}</div><div style="overflow-x:auto"><div class="dr-list" style="margin-top:0">${L.slice(0,10).map(d=>drCard(d,t,false)).join('')}</div></div>${L.length>10?`<p class="msg" style="margin:4px 0 0">Showing the latest 10 of ${L.length}. All of them are in the Drafts tab.</p>`:''}</div>`:''};
-  const exTab=(E,nm)=>E&&(E.first||E.last)?`<div class="sc-tm" style="--tc:${tcol(nm)}"><div class="sc-th" data-tc="${esc(nm)}">${logo(nm,'l40')}<b>${esc(nm)}</b></div>${styleLine((E.first||E.last||{}).ST)}<div class="sc-tc">${exCol(E.first,nm,'first')}${exCol(E.last,nm,'last')}</div></div>`:'';
+  const liftBox=ST=>{const L=ST&&ST.L;if(!L||!L.n)return `<div class="sc-bs"><p class="sc-sty" style="padding:0">Meta or the rival? Not enough drafts against rivals with games in the data yet.</p></div>`;
+    const x=L.lift,few=L.n<15,v=few?'Few drafts yet':x>=1.6?'Targets the rival':x>=1.25?'Sometimes targets the rival':'Bans meta / map, not the rival',vc=few?'var(--muted)':x>=1.6?'#57d98a':x>=1.25?'#e8c15a':'#9aa3c7';
+    const seg=[['meta','#6b6fd6','meta / strong on the map'],['both','#b07ad6','meta and the rival plays it'],['rival','#3fbf72','only the rival plays it'],['other','#4a4760','other']].filter(s=>L.cat[s[0]]);
+    const bar=seg.map(s=>{const p=L.cat[s[0]]/L.n;return `<i style="flex:${L.cat[s[0]]};background:${s[1]}" title="${s[2]}: ${L.cat[s[0]]} of ${L.n} bans">${p>=.1?Math.round(100*p)+'%':''}</i>`}).join('');
+    const seen=new Set(),ex=L.ex.slice().sort((a,b)=>(a.k==='rival'?0:1)-(b.k==='rival'?0:1)||b.sh-a.sh).filter(e=>{const k=e.vs+'|'+e.b;if(seen.has(k))return false;seen.add(k);return true}).slice(0,2);
+    return `<div class="sc-bs" title="Each ban of the saved drafts is compared with the meta of its patch (and what the other teams banned on that map) and with what the rival played the most in the 60 days before. x = how many times more it bans the rival's brawlers than it would by chance (checked against the brawlers of the other teams). ${few?'Used for the prediction from 15 bans.':'Used for the expected bans below.'}">`+
+      `<div class="bsh"><span class="bsx" style="color:${vc}">×${x.toFixed(1)}</span><div><b style="color:${vc}">Meta or the rival? · ${v}</b><small>${Math.round(100*L.real/L.n)}% of its bans were what the rival plays a lot · by chance ${Math.round(100*L.plc/L.n)}% · ${L.n} bans checked</small></div></div>`+
+      `<div class="bsb">${bar}</div>${L.gn?`<small class="bsg">Global bans: ${L.greal} of ${L.gn} were brawlers the rival played a lot</small>`:''}`+
+      (ex.length?`<ul>${ex.map(e=>`<li>${e.k==='global'?'Global ban':esc(e.map)} vs <b>${esc(e.vs)}</b> (${fmtDate(e.d)}): banned <b>${esc(e.b)}</b>, the rival played it in ${Math.round(100*e.sh)}% of its sets</li>`).join('')}</ul>`:'')+`</div>`};
+  const exTab=(E,nm)=>E&&(E.first||E.last)?`<div class="sc-tm" style="--tc:${tcol(nm)}"><div class="sc-th" data-tc="${esc(nm)}">${logo(nm,'l40')}<b>${esc(nm)}</b></div>${liftBox((E.first||E.last||{}).ST)}<div class="sc-tc">${exCol(E.first,nm,'first')}${exCol(E.last,nm,'last')}</div></div>`:'';
   const mapFbH=(()=>{if(!useMap&&!mapOn)return '';const f=(EXR.first&&EXR.first.fb)||{},g=(EXU.first&&EXU.first.fb)||{},o=[];
     if(f.tr||g.tr)o.push('a team has too few sets on this map, so its own picks use all maps');if(f.or||g.or)o.push('the rival has too few sets on this map, so its picks use all maps');if(f.lg||g.lg)o.push('too few league sets on this map, so the meta uses all maps');
     return `<p class="msg" style="font-size:11.5px;margin:4px 0 0"><span class="flag">${esc(SC.map)}</span> The bans use this map: what every team bans here in the saved drafts (with that pick order), the brawlers played a lot here that never show up in this team's sets (likely banned), and this map's picks. A brawler nobody bans on this map stays low even if it is banned on other maps.${o.length?' Fallback: '+o.join('; ')+'.':''}</p>`})();
@@ -5099,4 +5157,35 @@ button.luth{cursor:pointer}button.luth:hover{filter:brightness(1.15)}
 .hdrleft>.sheetrow{flex:1;justify-content:center}
 .hdrleft>.pgrp{flex:1;justify-content:flex-end;padding-bottom:2px}
 }
+</style>
+
+<style>
+/* 1) dark page */
+:root,:root[data-theme="light"]{--page:#0e0d16!important}
+html,body{background:#0e0d16!important}
+/* 6) brighter red */
+:root{--accent:#d63a50!important}
+.wrap{--accent:#d63a50}
+/* 3) API status dot on the left of the title */
+#apiBadge.api-st{position:absolute;left:20px;top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:8px;font:600 12px/1.3 var(--body,system-ui),sans-serif;color:#cfcde0;cursor:default;max-width:30%;text-align:left}
+#apiBadge.api-st i{width:10px;height:10px;border-radius:50%;flex:0 0 10px;background:#3fbf72;box-shadow:0 0 0 3px rgba(63,191,114,.2)}
+#apiBadge.api-st.warn i{background:#e8b44a;box-shadow:0 0 0 3px rgba(232,180,74,.2)}
+#apiBadge.api-st.bad i{background:#ff5d5d;box-shadow:0 0 0 3px rgba(255,93,93,.25)}
+#apiBadge.api-st b{color:#ff8a80;font-weight:700}
+@media (max-width:900px){#apiBadge.api-st{position:static;transform:none;justify-content:center;max-width:none;margin-top:6px}}
+/* 4) section titles: capitals with a thin line on each side */
+h3.sec-h,.gt-sec>.lbl,.tc-sec.sc-block>.lbl,.tc-sec.gt-sec>.lbl{display:flex!important;align-items:center;gap:14px;width:100%!important;max-width:100%;border:0!important;background:none!important;border-radius:0;padding:0!important;margin:26px 0 12px!important;
+  font-family:var(--display);font-size:13.5px!important;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--fg)!important;text-align:center}
+h3.sec-h:before,h3.sec-h:after,.gt-sec>.lbl:before,.gt-sec>.lbl:after,.tc-sec.sc-block>.lbl:before,.tc-sec.sc-block>.lbl:after{content:'';flex:1;height:1px;background:linear-gradient(90deg,transparent,#4a4760 30%,#4a4760 70%,transparent)}
+</style>
+
+<style>
+/* ban style: meta or the rival? */
+.sc-bs{margin:8px 10px 0;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.035);font-size:12px}
+.sc-bs .bsh{display:flex;align-items:center;gap:10px}.sc-bs .bsx{font-size:26px;font-weight:800;line-height:1}
+.sc-bs .bsh b{display:block;font-size:13px}.sc-bs .bsh small{color:var(--muted);font-size:11.5px}
+.sc-bs .bsb{display:flex;height:18px;margin:7px 0 4px;border-radius:6px;overflow:hidden;gap:2px}
+.sc-bs .bsb i{font-style:normal;font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center;color:#fff;min-width:4px}
+.sc-bs .bsg{display:block;color:#cfcde0;font-size:11.5px}
+.sc-bs ul{margin:4px 0 0;padding-left:18px;color:#cfcde0;font-size:11.5px}.sc-bs li{margin:1px 0}
 </style>
