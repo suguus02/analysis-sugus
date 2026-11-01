@@ -1236,7 +1236,7 @@ function sideTeam(tags,names,tag2team,dbTag2team,official,alias,rk){
   }
   const p={};for(const n of names){const i=(n||'').indexOf('|');if(i>0){const pre=n.slice(0,i).trim();p[pre]=(p[pre]||0)+1}}
   let best=null,bn=0;for(const k in p)if(p[k]>bn){best=k;bn=p[k]}
-  if(bn>=2)return (alias&&alias[best])||'ext:'+best;
+  // the prefix of the names (FUT|, TH|…) never decides the team: only the tags do
   return null;
 }
 function dbTagMap(db,known){const m={};const add=(k,t)=>{const a=m[t]||(m[t]=[]);if(!a.includes(k))a.push(k)};if(db&&!known)for(const k in db.teams)for(const t of db.teams[k])add(k,t);if(known)for(const k in known)for(const t of known[k])add(k,t);return m}
