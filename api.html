@@ -2335,10 +2335,11 @@ function scopeHTML(){
   const box=(open,label,inner,cls,tc)=>`<button type="button" class="tsel${cls?' '+cls:''}" data-tpopen="${open}" data-tc="${esc((tc||[]).join('¦'))}"><span class="tsel-sh"></span><span class="tsel-in"><span class="tsel-l">${label}</span>${inner}</span></button>`;
   const one1=t=>t?`${tdot(t)}${logo(t,'l40')}<span class="tsel-t"><b>${esc(t)}</b><small>${wt(t)}</small>${tselN(t)}</span>`:`<span class="tsel-t"><b>Select team</b></span>`;
   let body='';
-  if(scope==='one'){body=`<div class="tselrow">${box('one','Team',one1(curOne()),'',[curOne()])}</div><p class="msg" style="margin:8px 0 0">Pick one team. Every number on the page is that team's own record, and the box takes the colour of its logo.</p>`}
+  const rs_=()=>{clrF();renderDetail()};
+  if(scope==='one'){body=`<div class="tselrow">${box('one','Team',one1(curOne()),'',[curOne()])}</div>${grpBarHTML()}${grpChips('st1','Team',[curOne()],'#3d6ff0',t=>{oneTeam=t;rs_()})}`}
   else if(scope==='pool'){const pt=(poolTeams||(poolTeams=visTeams())).filter(x=>off.includes(x));
-    body=`<div class="tselrow">${box('pool','Teams',`<span class="tsel-chips">${pt.map(x=>logo(x,'l28')).join('')}</span><span class="tsel-t tsel-r"><b>${pt.length?plural(pt.length,'team')+' selected':'Select teams'}</b><small>click to change</small></span>`,'wide',pt)}</div><p class="msg" style="margin:8px 0 0">Tick the teams (or a whole group) to merge them into one pool; the box blends their logo colours. Every set is counted from the side of each selected team, so a set between two selected teams appears once for each of them.</p>`}
-  else body=`<div class="tselrow pair">${box('pairA','Team A',one1(sel.a),'A',[sel.a])}<button type="button" class="swap" data-tpswap="1" aria-label="Swap teams">⇄</button>${box('pairB','Team B',one1(sel.b),'B',[sel.b])}</div><p class="msg" style="margin:8px 0 0">Pick Team A and Team B (⇄ swaps them). Each box takes its team's logo colour; the page shows the team in focus and compares both head to head.</p>`;
+    body=`<div class="tselrow">${box('pool','Teams',`<span class="tsel-chips">${pt.map(x=>logo(x,'l28')).join('')}</span><span class="tsel-t tsel-r"><b>${pt.length?plural(pt.length,'team')+' selected':'Select teams'}</b><small>click to change</small></span>`,'wide',pt)}</div>${grpBarHTML()}${grpChips('stp','Teams (click to add or remove)',pt,'#3d6ff0',t=>{const p_=poolTeams||(poolTeams=visTeams()),i=p_.indexOf(t);if(i>=0)p_.splice(i,1);else p_.push(t);rs_()},{tail:`<span class="grp-act"><button type="button" class="btn quiet" data-grpall="1">Add all of ${GRP.v==='*'?'them':esc(GRP.v)}</button><button type="button" class="btn quiet" data-grpnone="1">Clear</button></span>`})}<p class="msg" style="margin:8px 0 0">Every set is counted from the side of each selected team, so a set between two selected teams appears once for each of them.</p>`}
+  else body=`<div class="tselrow pair">${box('pairA','Team A',one1(sel.a),'A',[sel.a])}<button type="button" class="swap" data-tpswap="1" aria-label="Swap teams">⇄</button>${box('pairB','Team B',one1(sel.b),'B',[sel.b])}</div>${grpBarHTML()}<div class="uxpicks">${grpChips('stA','Team A',[sel.a],'#3d6ff0',t=>tpSetPair('A',t),{only:M.D.off,excl:[sel.b]})}${grpChips('stB','Team B',[sel.b],'#e5484d',t=>tpSetPair('B',t),{only:M.D.off,excl:[sel.a]})}</div>`;
   return `<div class="shd"><div class="lbl">What do you want to look at?</div>${scope==='pair'?'':leg}</div>${seg}${body}`;
 }
 function statMapsHTML(){
@@ -3392,11 +3393,24 @@ function uxShare(){const q=new URLSearchParams();q.set('v',view);if(view==='stat
 let uxHashDone=false;
 function uxApplyHash(){if(uxHashDone||!window.__UXH||!M)return;uxHashDone=true;const H=window.__UXH;
   if(H.t)tab=H.t;if(H.one&&allTeams().includes(H.one)){oneTeam=H.one;scope='one'}if(H.r)SC.rival=H.r;if(H.u)SC.us=H.u;if(H.m!=null)SC.map=H.m;SC._one=curOne()}
+// teams by tournament / region (like the caster page)
+const GRP=(()=>{const d={by:'tour',v:''};try{return Object.assign(d,JSON.parse(store.get('tvt:grp')||'{}'))}catch(e){return d}})();
+function grpVals(){const T=allTeams(),f=GRP.by==='reg'?(t=>REGION[t]||''):(t=>TOUR[t]||'');let vs=[...new Set(T.map(f).filter(Boolean))];if(GRP.by==='reg')vs.sort();return {T,f,vs}}
+function grpTeams(){const {T,f,vs}=grpVals();if(GRP.v!=='*'&&!vs.includes(GRP.v))GRP.v=vs[0]||'*';return GRP.v==='*'?T:T.filter(t=>f(t)===GRP.v)}
+function grpBarHTML(){const {vs}=grpVals(),n=grpTeams().length;
+  return `<div class="grpbar" data-noexport="1"><label>Teams by</label><span class="cas-seg">${[['tour','Tournament'],['reg','Region']].map(([v,l])=>`<button type="button" data-grpby="${v}" aria-pressed="${GRP.by===v}">${l}</button>`).join('')}</span><span class="cas-opt">${[...vs,'*'].map(v=>`<button type="button" data-grpv="${esc(v)}" aria-pressed="${v===GRP.v}">${GRP.by==='reg'&&REGC[v]?`<i class="grp-rd" style="background:${REGC[v]}"></i>`:''}${v==='*'?'All':esc(v)}</button>`).join('')}</span><small>${n} teams</small></div>`}
+function grpChips(key,label,cur,col,fn,o){o=o||{};cur=(cur||[]).filter(Boolean);TPCB[key]={fn,cur:cur[0]||'',none:'',excl:o.excl||[]};
+  const ok=t=>!(o.excl||[]).includes(t)&&(!o.only||o.only.includes(t)),T=grpTeams().filter(ok),extra=cur.filter(t=>!T.includes(t)&&ok(t));
+  return `<div class="uxpick grpk"><label>${label}</label><div class="uxchips">${[...T,...extra].map(t=>`<button type="button" class="uxchip${cur.includes(t)?' on':''}${extra.includes(t)?' out':''}" style="--c:${col}" data-uxchip="${esc(key)}" data-t="${esc(t)}" title="${esc(t)}${extra.includes(t)?' · not in this group':''}">${logo(t,'l26')}</button>`).join('')}${o.tail||''}</div></div>`}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-grpby],[data-grpv],[data-grpall],[data-grpnone]');if(!b)return;
+  if(b.dataset.grpby){if(GRP.by===b.dataset.grpby)return;GRP.by=b.dataset.grpby;GRP.v=''}
+  else if(b.dataset.grpv!=null)GRP.v=b.dataset.grpv;
+  else if(b.dataset.grpall!=null){const pt=poolTeams||(poolTeams=visTeams());grpTeams().forEach(t=>{if(!pt.includes(t))pt.push(t)});clrF()}
+  else{poolTeams=[];clrF()}
+  store.set('tvt:grp',JSON.stringify(GRP));renderDetail()});
 // 3) the team of Team stats and the rival of Scouting follow each other
 function uxSyncScout(){try{const o=curOne();if(SC._one!==o){SC._one=o;if(o!==SC.us)SC.rival=o}}catch(e){}}
-function tpChips(key,label,cur,fn,o){o=o||{};TPCB[key]={fn,cur,none:'',excl:o.excl||[]};
-  const T=allTeams().filter(t=>!(o.excl||[]).includes(t)),col=o.cls==='B'?'#e5484d':'#3d6ff0';
-  return `<div class="uxpick"><label>${label}</label><div class="uxchips">${T.map(t=>`<button type="button" class="uxchip${t===cur?' on':''}" style="--c:${col}" data-uxchip="${esc(key)}" data-t="${esc(t)}" title="${esc(t)}">${logo(t,'l26')}</button>`).join('')}</div></div>`}
+function tpChips(key,label,cur,fn,o){o=o||{};return grpChips(key,label,[cur],o.cls==='B'?'#e5484d':'#3d6ff0',fn,{excl:o.excl})}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-uxchip]');if(!b)return;const c=TPCB[b.dataset.uxchip];if(c&&c.fn)c.fn(b.dataset.t)});
 function uxMapList(cur){return `<div class="uxmaps" data-noexport="1"><button type="button" class="uxmp${cur?'':' on'}" style="--m:#8e8ab0" data-scmappick="">All maps</button>${MODELIST.map(([mode,ms])=>{const c=MODE_COL[mkey(mode)]||'#8e8ab0',ic=IMGS['mode'+mkey(mode)]?`<img class="uxmi" src="${IMGS['mode'+mkey(mode)]}" alt="" title="${esc(mode)}">`:'';
   return `<span class="uxmg" style="--m:${c}">${ic}${ms.map(m=>`<button type="button" class="uxmp${m===cur?' on':''}" data-scmappick="${esc(m)}">${esc(m)}</button>`).join('')}</span>`}).join('')}</div>`}
@@ -4641,7 +4655,7 @@ document.addEventListener('click',e=>{const t=e.target;if(!t.closest)return;
 function scoutHTML(){
   scInit();
   const D=M.D,R=SC.rival,U=SC.us,T=allTeams();
-  const ctl=`<div class="sc-ctl" data-noexport="1"><div class="uxpicks">${tpChips('scus','Our team',U,t=>{SC.us=t;renderDetail()},{excl:[R],cls:'A'})}${tpChips('scrival','Rival to scout',R,t=>{SC.rival=t;if(allTeams().includes(t)){oneTeam=t;SC._one=t}renderDetail()},{excl:[U],cls:'B'})}</div></div>`+uxMapList(SC.map);
+  const ctl=`<div class="sc-ctl" data-noexport="1">${grpBarHTML()}<div class="uxpicks">${tpChips('scus','Our team',U,t=>{SC.us=t;renderDetail()},{excl:[R],cls:'A'})}${tpChips('scrival','Rival to scout',R,t=>{SC.rival=t;if(allTeams().includes(t)){oneTeam=t;SC._one=t}renderDetail()},{excl:[U],cls:'B'})}</div></div>`+uxMapList(SC.map);
   if(!R||!D.off.includes(R))return ctl+'<p class="msg" style="margin:14px 0">Choose a rival with data in the period selected above.</p>';
   const setsA=scSets(R),MAPN=SC.map?setsA.filter(x=>x.m===SC.map).length:0,mapOn=!!SC.map,useMap=mapOn&&MAPN>=5,mf=useMap?[SC.map]:null;
   const sets=useMap?setsA.filter(x=>x.m===SC.map):setsA,n=sets.length,w=sets.filter(x=>x.win===1).length,wr=n?w/n:0;
@@ -4920,7 +4934,25 @@ function chkRun(){
     const guess=g&&g[1]>=2?g[0]:'';
     const cells=[guess];e.players.forEach((p,i)=>{cells.push(p);cells.push(e.tags[i]||'')});
     return {players:e.players,tags:e.tags,n:e.n,vs:e.vs.size,guess,copy:cells.join('\t')}});
-  if(R.unk.length)R.warn.push(`${R.unk.length} frequent rivals are not in the known teams table (shown by their 3 players).`);
+  // trios that play a lot and are not a team of the Picks sheet (last 30 days, both sides of every set)
+  {const cut30=lastD?new Date(Date.parse(lastD)-30*DAYMS).toISOString().slice(0,10):'',own={},tri={};
+    const addO=(team,tags)=>(tags||[]).forEach(g=>{(own[g]||(own[g]=new Set())).add(team)});
+    for(const t in (F.pickTags||{}))addO(t,F.pickTags[t]);for(const t in (F.knownTags||{}))addO(t,F.knownTags[t]);
+    for(const m of sets){if(m.d<cut30)continue;
+      for(const [lb,tg,ol,ot,win] of [[m.a,m.ta,m.b,m.tb,m.y],[m.b,m.tb,m.a,m.ta,1-m.y]]){
+        if(lb)continue;const g=[...new Set((tg||[]).filter(Boolean))];if(g.length<3)continue;
+        const cnt={};g.forEach(x=>(own[x]||[]).forEach(tm=>cnt[tm]=(cnt[tm]||0)+1));if(Object.values(cnt).some(v=>v>=2))continue;
+        const k=g.slice().sort().join(','),e=tri[k]||(tri[k]={tags:g.slice().sort(),n:0,w:0,last:'',vs:{},from:new Set()});
+        e.n++;if(win===1)e.w++;if(m.d>e.last)e.last=m.d;const o=ol||'';e.vs[o]=(e.vs[o]||0)+1;g.forEach(x=>(own[x]||[]).forEach(tm=>e.from.add(tm)))}}
+    const nm=g=>(F.names&&F.names[g])||g;
+    R.tri=Object.values(tri).filter(e=>e.n>=5).sort((a,b)=>b.n-a.n||(a.last<b.last?1:-1)).slice(0,25).map(e=>{
+      const players=e.tags.map(nm),pre={};players.forEach(p=>{const i=String(p).indexOf('|');if(i>0){const x=p.slice(0,i).trim();pre[x]=(pre[x]||0)+1}});
+      const gs=Object.entries(pre).sort((a,b)=>b[1]-a[1])[0],guess=gs&&gs[1]>=2?gs[0]:'';
+      const cells=[guess];players.forEach((p,i)=>{cells.push(p);cells.push(e.tags[i])});
+      const vs=Object.entries(e.vs).sort((a,b)=>b[1]-a[1]);
+      return {players,tags:e.tags,n:e.n,w:e.w,last:e.last,vs:vs.filter(([o])=>o).slice(0,3),vsUn:e.vs['']||0,from:[...e.from],copy:cells.join('\t')}});
+    const big=R.tri.filter(e=>e.n>=10).length;
+    if(big)R.warn.push(`${big} ${big===1?'trio':'trios'} not in the Picks sheet played 10 sets or more in the last 30 days (see “Trios that play a lot and are not in Picks”).`)}
   // unknown maps / brawlers (recent sets only)
   const cut=lastD?new Date(Date.parse(lastD)-45*DAYMS).toISOString().slice(0,10):'';
   const um={},ub={};
@@ -4967,7 +4999,7 @@ function checkHTML(){
     <p class="msg" style="margin:0 0 4px">${esc(info)}</p><p class="msg" style="margin:0">Game types: ${tyTxt||'–'}${ov.first?' · first set '+fmtDate(ov.first):''}</p>
     <h3 class="sec-h">Selected teams (column B)</h3>
     <div class="tablewrap"><table class="rank tiny chk-t"><thead><tr><th>Team</th><th>Tournament</th><th>Region</th><th class="num">Tags</th><th class="num">Sets</th><th class="num">Last set</th><th>Status</th></tr></thead><tbody>${rows||'<tr><td colspan="7" class="msg">–</td></tr>'}</tbody></table></div>
-    <h3 class="sec-h">Rivals missing from the known teams table</h3>${unk}
+    <h3 class="sec-h">Trios that play a lot and are not in Picks</h3>${triHTML(R)}
     <h3 class="sec-h">Unknown maps (last 45 days)</h3>${list(R.maps,'No unknown maps.')}
     <h3 class="sec-h">Brawlers without a type</h3>${list(R.brs,'Every brawler has a type.')}
     <h3 class="sec-h">Ambiguous lineups</h3>${ambHTML(R)}
@@ -4985,6 +5017,12 @@ function ambHTML(R){const F=FULL,O=ovrLoad();if(!R.amb||!R.amb.length)return '<p
   const nm=g=>esc((F.names&&F.names[g])||g);
   return bulk+`<div class="tablewrap"><table class="rank tiny"><thead><tr><th>Players</th><th>Last played</th><th class="num">Sets</th><th>Counted for (click to change)</th></tr></thead><tbody>${R.amb.slice().sort((x,y)=>(ovrGet(O,x.k,x.c)?1:0)-(ovrGet(O,y.k,y.c)?1:0)).slice(0,400).map(e=>{const g0=ovrGet(O,e.k,e.c),cur=g0&&e.c.includes(g0)?g0:e.c[0];
     return `<tr><td>${e.tags.filter(Boolean).map(nm).join(' · ')}${pendTag(e)}</td><td>${fmtDate(e.d)}</td><td class="num">${e.n}</td><td><div class="chk-chips">${e.c.map(t=>`<button type="button" class="chk-chip ovr${t===cur?' on':''}" data-ovr="${esc(e.k)}" data-team="${esc(t)}">${esc(t)}${stOf(t)===1?' <small>tryout</small>':stOf(t)===2?' <small>old</small>':''}</button>`).join('')}</div></td></tr>`}).join('')}</tbody></table></div>`}
+function triHTML(R){const L=R.tri||[];
+  if(!L.length)return '<p class="msg">No trio outside the Picks sheet played 5 sets or more in the last 30 days.</p>';
+  const pc=e=>Math.round(100*e.w/e.n)+'%';
+  return `<p class="msg" style="margin:0 0 8px">Trios of 3 players that are not a team of the Picks sheet (no team with 2 of their 3 tags), with 5 sets or more in the last 30 days of data, on either side of the set. Most sets first. They come from the players you follow (SEGUIMIENTO) and from the rivals of your teams.</p>
+  <div class="tablewrap"><table class="rank tiny chk-tri"><thead><tr><th>Players</th><th class="num">Sets</th><th class="num">Win rate</th><th class="num">Last set</th><th>Played most against</th><th></th></tr></thead><tbody>${L.map(e=>`<tr><td>${e.players.map((p,i)=>`<div>${esc(p)} <small class="msg">${esc(e.tags[i])}</small></div>`).join('')}${e.from.length?`<small class="chk-from">1 player is in ${e.from.map(esc).join(', ')}</small>`:''}</td><td class="num"><b>${e.n}</b></td><td class="num"><span class="chk-wr" style="${wrSoft(e.w/e.n,e.n)}">${pc(e)}</span></td><td class="num">${fmtDate(e.last)}</td><td>${e.vs.map(([o,c])=>{const o2=String(o).replace(/^ext:/,'');return `<span class="chk-vs">${logo(o2,'l20')}${esc(o2)} <small>${c}</small></span>`}).join('')}${e.vsUn?`<span class="chk-vs msg">teams not in Picks <small>${e.vsUn}</small></span>`:''}</td><td><button type="button" class="btn quiet" data-chkcopy="${esc(e.copy)}">Copy row</button></td></tr>`).join('')}</tbody></table></div>
+  <p class="msg" style="font-size:12px;margin:6px 0 0">“Copy row” copies: team name (a guess from the player prefixes, check it), then each player and tag, separated by tabs. Paste it into column I of the Picks sheet (click the first cell and paste).</p>`}
 function renderCheck(){const el=$('checkview');if(el)el.innerHTML=checkHTML()}
 
 // ---- Brawler comparison (stats come from the "Brawlers" tab; a built-in copy is used until it loads)
@@ -5611,4 +5649,21 @@ section.panel[aria-label="Data"] .topgrid{display:none!important}
 td.hh-rg{vertical-align:middle;font-size:12px;font-weight:700;height:38px}td.hh-rg i.gt-rd{margin-right:7px;vertical-align:middle}.hh-rg span{min-width:0!important;font-size:12px!important}
 .hh-t{width:auto!important;min-width:0!important}.hh-rgh{width:96px}.hh-rgh i.gt-rd{display:block!important;width:10px!important;height:10px!important;margin:0 auto 4px;border-radius:3px}.hh-rg{min-width:150px}.hh-rgh span{font-size:9.5px!important}
 td.gt-l{text-align:left!important}td.gt-l .gt-br,td.gt-l .gt-tn{justify-content:flex-start!important}
+</style>
+
+<style>
+/* teams by tournament / region */
+.grpbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 8px}
+.grpbar>label{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted,#a9a6bd);font-weight:700}
+.grpbar>small{color:var(--muted,#a9a6bd);font-size:11.5px}
+.grp-rd{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:middle}
+.grpk{margin-top:0}.uxchip.out{border-style:dashed}
+.grp-act{display:inline-flex;gap:4px;margin-left:6px;align-items:center}.grp-act .btn{font-size:11.5px;padding:3px 8px}
+#statsscope .uxpicks{margin-top:0}
+.sc-ctl>.grpbar{flex:0 0 100%;margin:0}.sc-ctl .grpbar>label{flex:none;min-width:0;display:inline;gap:0}
+/* data check: trios not in Picks */
+.chk-tri td{vertical-align:top}.chk-tri td.num,.chk-tri .btn{white-space:nowrap}.chk-tri td div{white-space:nowrap}
+.chk-from{display:block;color:#ffc861;font-size:11px;margin-top:2px}
+.chk-wr{display:inline-block;min-width:44px;text-align:center;border-radius:5px;padding:1px 4px}
+.chk-vs{display:inline-flex;align-items:center;gap:4px;margin:0 10px 2px 0;white-space:nowrap}.chk-vs small{color:var(--muted,#a9a6bd)}
 </style>
