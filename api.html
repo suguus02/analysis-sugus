@@ -3651,7 +3651,7 @@ const SHEET={server:'Google Sheets',id:window.API_SHEET_ID,tab:'CALCULOS TOTAL P
 let FULL=null,sheetBusy=false,lastCheck=0;
 let flt2={from:store.get('tvt:from')||null,to:store.get('tvt:to')||null,type:store.get('tvt:type')||'all'};
 const addDays=(iso,n)=>{const d=new Date(iso+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)};
-function bounds(full){let mn='9999',mx='0000';for(const m of full.matches){if(m.d<mn)mn=m.d;if(m.d>mx)mx=m.d}return {mn,mx}}
+function bounds(full){let mn='9999',mx='0000';for(const m of full.matches){if(m.d<mn)mn=m.d;if(m.d>mx)mx=m.d}const td=new Date(Date.now()-5*3600e3).toISOString().slice(0,10);if(mx!=='0000'&&td>mx)mx=td;return {mn,mx}}
 function rangeOf(full){const b=bounds(full);let from=flt2.from||addDays(b.mx,-30),to=flt2.to||b.mx;if(from<b.mn)from=b.mn;if(to>b.mx)to=b.mx;return {from,to,mn:b.mn,mx:b.mx}}
 function hasTypes(full){return full.matches.some(m=>m.ty)}
 function filterDs(full){const r=rangeOf(full),ty=hasTypes(full)&&flt2.type!=='all'?flt2.type:null;return Object.assign({},full,{matches:full.matches.filter(m=>m.d>=r.from&&m.d<=r.to&&(!ty||m.ty===ty))})}
@@ -3669,6 +3669,7 @@ function rcalHTML(){
   const hint=RC.pending?(RC.from?'Now pick the end date':RC.to?'Now pick the start date':'Pick the start date'):'';
   return `<div class="rcal"><div class="rc-h"><button type="button" data-rcnav="-1"${prevOK?'':' disabled'} aria-label="Previous month">‹</button><b>${MONTHS[Mo-1]} ${Y}</b><button type="button" data-rcnav="1"${nextOK?'':' disabled'} aria-label="Next month">›</button></div>
    <div class="rc-g">${['Mo','Tu','We','Th','Fr','Sa','Su'].map(x=>`<span>${x}</span>`).join('')}${cells}</div>
+   <div class="rc-q">${[['1','Today'],['7','Last 7 days'],['30','Last 30 days']].map(([n,l])=>`<button type="button" data-rcq="${n}">${l}</button>`).join('')}</div>
    <div class="rc-lg"><button type="button" class="rc-go" data-rcgo="from"${RC.from?'':' disabled'} title="Go to this month"><i class="fr"></i>Start date: <b>${RC.from?fmtDate(RC.from):'–'}</b></button><button type="button" class="rc-go" data-rcgo="to"${RC.to?'':' disabled'} title="Go to this month"><i class="to"></i>End date: <b>${RC.to?fmtDate(RC.to):'–'}</b></button></div></div>`}
 function rcRender(){const el=$('rcal');if(el&&FULL)el.innerHTML=rcalHTML();if(typeof uxPerLabel==='function')uxPerLabel()}
 function syncFilterUI(){
@@ -3681,11 +3682,15 @@ function syncFilterUI(){
 function refilter(){if(busy||!FULL)return;saveF();build(FULL,custom)}
 $('rcal').addEventListener('click',e=>{if(!FULL)return;
   const go=e.target.closest('[data-rcgo]');if(go){const v=RC[go.dataset.rcgo];if(v){RC.m=v.slice(0,7);rcRender()}return}
+  const q=e.target.closest('[data-rcq]');if(q){const bd=bounds(FULL);let f=addDays(bd.mx,1-Number(q.dataset.rcq));if(f<bd.mn)f=bd.mn;if(!FULL.matches.some(m=>m.d>=f&&!m.s)){setStatus('There are no sets yet in that period (the game day starts at 5:00). Try again later or pick more days.',true);return}RC.from=f;RC.to=bd.mx;RC.m=bd.mx.slice(0,7);RC.pending=false;flt2.from=f;flt2.to=null;refilter();return}
   const nv=e.target.closest('[data-rcnav]');
   if(nv){const [Y,Mo]=RC.m.split('-').map(Number),d=new Date(Date.UTC(Y,Mo-1+Number(nv.dataset.rcnav),1));RC.m=d.toISOString().slice(0,7);rcRender();return}
   const b=e.target.closest('[data-rcd]');if(!b||b.disabled)return;const d=b.dataset.rcd;let {from,to}=RC;
   const dist=(x,y)=>Math.abs(Date.parse(x)-Date.parse(y));
-  if(d===from)from=null;else if(d===to)to=null;
+  if(from&&!to&&d===from)to=d;
+  else if(to&&!from&&d===to)from=d;
+  else if(from&&to&&from===to&&d===from){from=d;to=null}
+  else if(d===from)from=null;else if(d===to)to=null;
   else if(!from&&!to)from=d;
   else if(!from){if(d<=to)from=d;else{from=to;to=d}}
   else if(!to){if(d>=from)to=d;else{to=from;from=d}}
@@ -5667,3 +5672,4 @@ td.gt-l{text-align:left!important}td.gt-l .gt-br,td.gt-l .gt-tn{justify-content:
 .chk-wr{display:inline-block;min-width:44px;text-align:center;border-radius:5px;padding:1px 4px}
 .chk-vs{display:inline-flex;align-items:center;gap:4px;margin:0 10px 2px 0;white-space:nowrap}.chk-vs small{color:var(--muted,#a9a6bd)}
 </style>
+<style>.rc-q{display:flex;gap:4px;margin:6px 0 2px}.rc-q button{flex:1;font:inherit;font-size:11.5px;font-weight:700;padding:4px 6px;border-radius:6px;border:1px solid #3a3850;background:#1f1e2c;color:#ecebf5;cursor:pointer}.rc-q button:hover{border-color:#d63a50}</style>
