@@ -1844,7 +1844,7 @@ function build(newDs,isCustom){
       FULL=newDs;ds=f;custom=isCustom;applyTeamMeta(FULL);
       M=Engine.buildModel(noSh(ds),{lamT:LAM_T,lamTM:LAM_TM,boots:0});M.pending=true;VAL=null;
       DESC=Engine.describe(noSh(ds),M);
-      setup();syncFilterUI();updateSheetInfo();setStatus('');render();deferModel(my);
+      setup();syncFilterUI();updateSheetInfo();setStatus('');render();deferModel(my);shTick();
     }catch(err){setStatus('The model could not be calculated: '+err.message,true)}
     busy=false;
   },30);
@@ -3994,14 +3994,14 @@ async function drSave(){
   d.saved=new Date().toISOString();DR.bad=false;
   const cfg=drCfg();
   if(!cfg.url){const i=DR.local.findIndex(x=>x.id===d.id);const c=drClone(d);if(i>=0)DR.local[i]=c;else DR.local.push(c);
-    store.set('tvt:drlocal',JSON.stringify(DR.local));DR.msg='Saved in this browser only. Connect the sheet (bottom of this page) to share drafts with the team.';drRender();return}
+    store.set('tvt:drlocal',JSON.stringify(DR.local));shAfterSave(d);DR.msg='Saved in this browser only. Connect the sheet (bottom of this page) to share drafts with the team.';drRender();return}
   DR.busy=true;DR.msg='Saving…';drRender();
   try{
     const res=await fetch(cfg.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:cfg.token,action:'save',row:drToRow(d)})});
     const j=await res.json();if(!j.ok)throw new Error(j.error||'rejected');
     const c=drClone(d),i=DR.list.findIndex(x=>x.id===c.id);if(i>=0)DR.list[i]=c;else DR.list.push(c);
     DR.local=DR.local.filter(x=>x.id!==c.id);store.set('tvt:drlocal',JSON.stringify(DR.local));store.set('tvt:drafts',JSON.stringify(DR.list));
-    DR.msg='Saved to the sheet.'}
+    shAfterSave(d);DR.msg='Saved to the sheet.'}
   catch(e){DR.msg='Could not save: '+(e&&e.message||e)+'. Nothing was lost, press Save again.';DR.bad=true}
   DR.busy=false;drRender()}
 async function drDelete(id){
@@ -4039,7 +4039,10 @@ function drAssign(slot,val){const d=DR.cur;drSet(d,slot,val);const p=slot.split(
   else{const arr=p[0]==='ban'?d.bans[p[1]]:d.gb[p[1]];const i=arr.findIndex(x=>!x);DR.active=i>=0?p[0]+':'+p[1]+':'+i:''}}
 const drImg=(v,cls)=>bimg(v,cls)||`<span class="dr-tx">${esc(v)}</span>`;
 function drBanSlot(s,i){const d=DR.cur,slot='ban:'+s+':'+i,v=d.bans[s][i];
-  return `<div class="dr-sl ban${v?' fill':''}${DR.active===slot?' act':''}" data-slot="${slot}" role="button" tabindex="0" aria-label="Ban ${i+1}">${v?`<span class="dr-imgw">${drImg(v,'bi lg')}<u class="dr-no"></u></span><b>${esc(v)}</b><span class="dr-x" data-sclear="${slot}" title="Clear">×</span>`:`<small>Ban ${i+1}</small><span class="ph0">+</span>`}</div>`}
+  const sb=shBanOf(s,i);
+  if(!v&&sb)return `<div class="dr-sl ban shq${DR.active===slot?' act':''}" data-slot="${slot}" role="button" tabindex="0" aria-label="Ban ${i+1}" title="Not known yet: click this box and then the brawler; the page will learn this icon"><span class="dr-imgw"><img class="bi lg shimg" src="${sb.ic}" alt=""></span><b class="shwho">Who is it?</b></div>`;
+  return `<div class="dr-sl ban${v?' fill':''}${DR.active===slot?' act':''}" data-slot="${slot}" role="button" tabindex="0" aria-label="Ban ${i+1}">${v?`<span class="dr-imgw">${drImg(v,'bi lg')}<u class="dr-no"></u></span><b>${esc(v)}</b>${sb?`<span class="dr-ed" title="Read from the screenshot. Wrong? Click here and then the right brawler">✎</span>`:`<span class="dr-x" data-sclear="${slot}" title="Clear">×</span>`}`:`<small>Ban ${i+1}</small><span class="ph0">+</span>`}</div>`}
+function shBanOf(s,i){const it=DR.shot&&SHOT.list.find(x=>x.id===DR.shot);return it?it.bans[(s==='b'?0:3)+i]||null:null}
 function drGbSlot(s,i){const d=DR.cur,slot='gb:'+s+':'+i,v=d.gb[s][i];
   return `<div class="dr-sl gb${v?' fill':''}${DR.active===slot?' act':''}" data-slot="${slot}" role="button" tabindex="0" aria-label="Global ban ${i+1}">${v?`<span class="dr-imgw">${drImg(v,'bi lg')}<u class="dr-no"></u></span><b>${esc(v)}</b><span class="dr-x" data-sclear="${slot}" title="Clear">×</span>`:`<small>Global</small><span class="ph0">+</span>`}</div>`}
 function drPickCard(n,side){const d=DR.cur,slot='pick:'+n,v=d.picks[n-1],ok=drSlotOK(d,slot),nx=drNextPick(d)===n;
@@ -4073,7 +4076,7 @@ function drEditorHTML(){
     <p class="dr-msg${DR.bad?' bad':''}" role="status" style="margin-top:8px">${esc(DR.msg)}</p>`;
   if(DR.sug)return `<section class="panel">${drSubHTML()}<div class="dr-hd"><h2 class="ttl" style="margin:0">Draft Suggestion</h2><div class="seg2" style="margin-top:0" role="group" aria-label="How to choose brawlers"><button type="button" data-dmode="grid" aria-pressed="${DR.mode==='grid'}">Brawler rows</button><button type="button" data-dmode="list" aria-pressed="${DR.mode==='list'}">Pop-up list</button></div></div>
     ${DR.mode==='grid'?drPoolHTML():''}${head}${stage}${drWPHTML()}<div class="dr-btns" style="margin-top:10px"><button type="button" class="btn quiet" data-dclear="1">Clear draft</button></div></section>`;
-  return `<section class="panel">${drSubHTML()}<div class="dr-hd"><h2 class="ttl" style="margin:0">Save Draft</h2><div class="seg2" style="margin-top:0" role="group" aria-label="How to choose brawlers"><button type="button" data-dmode="grid" aria-pressed="${DR.mode==='grid'}">Brawler rows</button><button type="button" data-dmode="list" aria-pressed="${DR.mode==='list'}">Pop-up list</button></div></div>
+  return `<section class="panel">${drSubHTML()}${shBarHTML()}<div class="dr-hd"><h2 class="ttl" style="margin:0">Save Draft</h2><div class="seg2" style="margin-top:0" role="group" aria-label="How to choose brawlers"><button type="button" data-dmode="grid" aria-pressed="${DR.mode==='grid'}">Brawler rows</button><button type="button" data-dmode="list" aria-pressed="${DR.mode==='list'}">Pop-up list</button></div></div>
     ${DR.mode==='grid'?drPoolHTML():''}${head}${stage}${drWPHTML()}${below}</section>`}
 function drTI(n,kind,badge){
   if(!n)return `<div class="dr-ti${kind==='gb'?' gbi':''}"><span class="dr-t2"><span class="dr-tx">${badge||'–'}</span></span><small>&nbsp;</small></div>`;
@@ -4206,7 +4209,7 @@ $('draftview').addEventListener('click',e=>{
       if(!c.blue&&hh.nb){c.blue=hh.nb;got.push('blue team name')}if(!c.red&&hh.nr){c.red=hh.nr;got.push('red team name')}}
     DR.link=null;DR.msg='Date'+(got.length?', '+got.join(', '):'')+' set from the match of '+fmtDate(du.dataset.duse)+'. Press Save draft to keep it.';DR.bad=false;drRender();return}
   if(t.closest('[data-dnext]')){const o=DR.cur,n=drNew();n.date=o.date;n.blue=o.blue;n.red=o.red;n.coin=o.coin;n.gb=drClone(o.gb);n.kind=o.kind;n.km=o.km;n.su=o.su;DR.link=null;DR.cur=n;DR.active='';DR.msg='Ready for the next map.';DR.bad=false;drRender();return}
-  if(t.closest('[data-dclear]')){DR.cur=drNew();DR.active='';DR.msg='';DR.bad=false;drRender();return}
+  if(t.closest('[data-dclear]')){DR.shot='';DR.cur=drNew();DR.active='';DR.msg='';DR.bad=false;drRender();return}
   const ed=t.closest('[data-dedit]');if(ed){const d=drAll().find(x=>x.id===ed.dataset.dedit);if(d){DR.cur=drClone(d);delete DR.cur._local;DR.active='';DR.msg='Editing a saved draft. Press Update draft to save the changes.';DR.bad=false;drRender();window.scrollTo({top:0,behavior:'smooth'})}return}
   const dk=t.closest('[data-ddelask]');if(dk){DR.confirm=dk.dataset.ddelask;drRender();return}
   const dd=t.closest('[data-ddel]');if(dd){drDelete(dd.dataset.ddel);return}
@@ -5032,6 +5035,143 @@ function triHTML(R){const L=R.tri||[];
   return `<p class="msg" style="margin:0 0 8px">Trios of 3 players that are not a team of the Picks sheet (no team with 2 of their 3 tags), with 5 sets or more in the last 30 days of data, on either side of the set. Most sets first. They come from the players you follow (SEGUIMIENTO) and from the rivals of your teams.</p>
   <div class="tablewrap"><table class="rank tiny chk-tri"><thead><tr><th>Players</th><th class="num">Sets</th><th class="num">Win rate</th><th class="num">Last set</th><th>Played most against</th><th></th></tr></thead><tbody>${L.map(e=>`<tr><td>${e.players.map((p,i)=>`<div>${esc(p)} <small class="msg">${esc(e.tags[i])}</small></div>`).join('')}${e.from.length?`<small class="chk-from">1 player is in ${e.from.map(esc).join(', ')}</small>`:''}</td><td class="num"><b>${e.n}</b></td><td class="num"><span class="chk-wr" style="${wrSoft(e.w/e.n,e.n)}">${pc(e)}</span></td><td class="num">${fmtDate(e.last)}</td><td>${e.vs.map(([o,c])=>{const o2=String(o).replace(/^ext:/,'');return `<span class="chk-vs">${logo(o2,'l20')}${esc(o2)} <small>${c}</small></span>`}).join('')}${e.vsUn?`<span class="chk-vs msg">teams not in Picks <small>${e.vsUn}</small></span>`:''}</td><td><button type="button" class="btn quiet" data-chkcopy="${esc(e.copy)}">Copy row</button></td></tr>`).join('')}</tbody></table></div>
   <p class="msg" style="font-size:12px;margin:6px 0 0">“Copy row” copies: team name (a guess from the player prefixes, check it), then each player and tag, separated by tabs. Paste it into column I of the Picks sheet (click the first cell and paste).</p>`}
+// ===== Draft from end-of-game screenshots =====
+// The picture gives the bans (6 icons above the red "no" signs), the player names, the map and the result.
+// The picks, the teams and the set come from the API data (skins do not matter). The ban icons are learnt:
+// the first time an icon shows up you fill that ban by hand, and the page recognises it from then on.
+const SH_DX=[-.680,-.425,-.168,.209,.465,.722],SH_NX=[-.693,-.444,-.195,.206,.455,.693],SH_N=16;
+const SH_TZ={'North America':'America/Chicago','South America':'America/Sao_Paulo','EMEA':'Europe/Madrid','APAC':'Asia/Tokyo','China':'Asia/Shanghai'};
+const SHOT={list:[],lib:[],busy:0,msg:'',ocr:null,key:''};
+try{SHOT.list=JSON.parse(store.get('tvt:shots')||'[]')}catch(e){SHOT.list=[]}
+try{SHOT.lib=JSON.parse(store.get('tvt:banlib')||'[]')}catch(e){SHOT.lib=[]}
+const shSave=()=>{try{store.set('tvt:shots',JSON.stringify(SHOT.list.slice(-40)))}catch(e){}};
+const shLibSave=()=>{try{store.set('tvt:banlib',JSON.stringify(SHOT.lib))}catch(e){}};
+const shB64=a=>{let s='';for(let i=0;i<a.length;i++)s+=String.fromCharCode(a[i]);return btoa(s)};
+const shUnB64=s=>{const b=atob(s),a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a};
+// ---- reading the picture
+function shCanvas(w,h){const c=document.createElement('canvas');c.width=Math.max(1,Math.round(w));c.height=Math.max(1,Math.round(h));return c}
+function shCrop(img,x0,y0,x1,y1,w,h){const c=shCanvas(w||x1-x0,h||y1-y0),g=c.getContext('2d');g.imageSmoothingEnabled=true;g.imageSmoothingQuality='medium';g.drawImage(img,x0,y0,x1-x0,y1-y0,0,0,c.width,c.height);return c}
+function shBanFeat(img,i){const W=img.width,H=img.height,x=W/2+SH_DX[i]*H,y=.957*H,x0=x-.072*H,y0=y-.064*H,x1=x+.004*H,y1=y+.008*H;
+  const c=shCrop(img,x0,y0,x1,y1,SH_N,SH_N),d=c.getContext('2d').getImageData(0,0,SH_N,SH_N).data,f=new Uint8Array(SH_N*SH_N*3),m=new Uint8Array(SH_N*SH_N);
+  for(let k=0;k<SH_N*SH_N;k++){const r=d[k*4],g=d[k*4+1],b=d[k*4+2],gx=k%SH_N,gy=Math.floor(k/SH_N),px=x0+(gx+.5)*(x1-x0)/SH_N,py=y0+(gy+.5)*(y1-y0)/SH_N;
+    const circ=Math.hypot(px-x,py-y)<.03*H,bgB=b>150&&b>r+60&&b>g+40,bgR=r>110&&r>g+60&&r>b+60&&g<60;
+    f[k*3]=r;f[k*3+1]=g;f[k*3+2]=b;m[k]=circ||bgB||bgR?0:1}
+  const ic=shCrop(img,x0,y0,x1,y1,44,44).toDataURL('image/png');
+  return {f:shB64(f),m:shB64(m),ic}}
+function shDist(a,b){const fa=shUnB64(a.f),fb=shUnB64(b.f),ma=shUnB64(a.m),mb=shUnB64(b.m);let s=0,n=0;
+  for(let k=0;k<ma.length;k++){if(!ma[k]||!mb[k])continue;n++;s+=Math.abs(fa[k*3]-fb[k*3])+Math.abs(fa[k*3+1]-fb[k*3+1])+Math.abs(fa[k*3+2]-fb[k*3+2])}
+  return n<40?999:s/n/3}
+function shRecognise(ft){let best=null,bd=999;for(const e of SHOT.lib){const d=shDist(ft,e);if(d<bd){bd=d;best=e}}return bd<25&&best?best.b:''}
+function shThresh(c){const g=c.getContext('2d'),im=g.getImageData(0,0,c.width,c.height),d=im.data;
+  for(let k=0;k<d.length;k+=4){const v=(d[k]+d[k+1]+d[k+2])/3>170?0:255;d[k]=d[k+1]=d[k+2]=v;d[k+3]=255}g.putImageData(im,0,0);return c}
+function shOCRLoad(){if(SHOT.ocr)return SHOT.ocr;
+  SHOT.ocr=new Promise((res,rej)=>{const go=()=>window.Tesseract.createWorker('eng',1,{workerPath:'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',corePath:'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1',langPath:'https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng@1.0.0/4.0.0',gzip:true})
+      .then(async w=>{await w.setParameters({tessedit_pageseg_mode:'7'});res(w)}).catch(rej);
+    if(window.Tesseract)return go();const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';s.onload=go;s.onerror=()=>rej(new Error('the text reader could not be loaded (check the internet connection)'));document.head.appendChild(s)});
+  SHOT.ocr.catch(()=>{SHOT.ocr=null});return SHOT.ocr}
+async function shRead(file){
+  const img=await createImageBitmap(file),W=img.width,H=img.height;
+  if(W<H*1.2||H<300)throw new Error('this does not look like an end-of-game screen (the picture must be landscape and not too small)');
+  const W0=await shOCRLoad(),cx=W/2,txt=async c=>{const r=await W0.recognize(c);return String(r.data.text||'').replace(/\s+/g,' ').trim()};
+  const names=[];for(const nx of SH_NX){const c=shCrop(img,cx+nx*H-.125*H,.452*H,cx+nx*H+.125*H,.492*H);names.push(await txt(shThresh(shCrop(c,0,0,c.width,c.height,c.width*2,c.height*2))))}
+  const mc=shCrop(img,cx-.04*H,.05*H,cx+.2*H,.1*H),mapTxt=await txt(shThresh(mc));
+  const tl=shCrop(img,0,0,W*.06,H*.12,20,20).getContext('2d').getImageData(0,0,20,20).data;let r=0,b=0;for(let k=0;k<tl.length;k+=4){r+=tl[k];b+=tl[k+2]}
+  const bans=SH_DX.map((_,i)=>shBanFeat(img,i));
+  // a ban icon must sit on the red "no" sign: check the sign is there
+  const okSign=SH_DX.map(dx=>{const x=cx+dx*H,y=.957*H,c=shCrop(img,x-.022*H,y-.022*H,x+.022*H,y+.022*H,12,12).getContext('2d').getImageData(0,0,12,12).data;let n=0;for(let k=0;k<c.length;k+=4)if(c[k]>180&&c[k+1]<80&&c[k+2]<80)n++;return n>=8});
+  if(okSign.filter(Boolean).length<4)throw new Error('the 6 bans were not found in this picture (it must be the Victory / Defeat screen with the bans at the bottom)');
+  img.close&&img.close();
+  return {names,mapTxt,res:b>r?'W':'L',bans}}
+// ---- matching with the API data
+const shNorm=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+function shLev(a,b){if(a===b)return 0;const m=a.length,n=b.length;if(!m)return n;if(!n)return m;let p=Array.from({length:n+1},(_,j)=>j);
+  for(let i=1;i<=m;i++){const q=[i];for(let j=1;j<=n;j++)q[j]=Math.min(p[j]+1,q[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));p=q}return p[n]}
+const shSim=(a,b)=>{a=shNorm(a);b=shNorm(b);if(!a||!b)return 0;return 1-shLev(a,b)/Math.max(a.length,b.length)};
+let _shNI=null,_shNK='';
+function shNameIdx(){const F=FULL;if(!F||!F.names)return [];const k=Object.keys(F.names).length;if(_shNK===k&&_shNI)return _shNI;_shNK=k;_shNI=Object.entries(F.names).map(([t,n])=>[t,shNorm(n)]).filter(x=>x[1].length>=3);return _shNI}
+function shTagsFor(name){const q=shNorm(name);if(q.length<3)return [];const o=[];for(const [t,n] of shNameIdx()){const s=1-shLev(q,n)/Math.max(q.length,n.length);if(s>=.7)o.push([t,s])}return o.sort((a,b)=>b[1]-a[1]).slice(0,6)}
+function shMapOf(txt){let best='',bs=0;for(const [,ms] of (MODELIST||[]))for(const m of ms){const s=shSim(txt,m);if(s>bs){bs=s;best=m}}
+  if(!best){const all=[...new Set(((FULL&&FULL.matches)||[]).slice(-3000).map(m=>m.m))];for(const m of all){const s=shSim(txt,m);if(s>bs){bs=s;best=m}}}
+  return bs>=.7?best:''}
+function shTzOff(tz,ms){try{const p=new Intl.DateTimeFormat('en-US',{timeZone:tz,hourCycle:'h23',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'}).formatToParts(new Date(ms)),g=t=>+p.find(x=>x.type===t).value;
+  return Date.UTC(g('year'),g('month')-1,g('day'),g('hour'),g('minute'),g('second'))-ms}catch(e){return 0}}
+function shSetDist(m,ft){if(!ft||m.t==null)return 1e12;let d=m.d;if(m.t<5*3600){const x=new Date(d+'T00:00:00Z');x.setUTCDate(x.getUTCDate()+1);d=x.toISOString().slice(0,10)}
+  const base=Date.parse(d+'T00:00:00Z')+m.t*1000;let best=1e12;for(const tz of Object.values(SH_TZ)){const u=base-shTzOff(tz,base);best=Math.min(best,Math.abs(ft-u))}return best}
+const shSetKey=m=>m.d+'|'+m.m+'|'+m.t+'|'+(m.ta||[]).join(',');
+const shPicks=m=>[...(m.ba||[]),...(m.bb||[])].filter(Boolean).map(mkey).sort().join(',');
+function shSavedSet(m){const pk=shPicks(m);return drAll().some(d=>d.date===m.d&&mkey(d.map)===mkey(m.m)&&d.picks.filter(Boolean).map(mkey).sort().join(',')===pk)}
+function shCandidates(it){const F=FULL;if(!F||!F.matches)return [];const L=it.names.slice(0,3).map(shTagsFor),R=it.names.slice(3).map(shTagsFor);
+  const sc=(side,tags)=>side.reduce((a,c)=>{let b=0;for(const [t,s] of c)if(tags.includes(t))b=Math.max(b,s);return a+b},0);
+  const out=[],cut=Date.now()-21*864e5;
+  for(const m of F.matches){if(m.s||m.sh||!m.ta||!m.tb)continue;if(it.map&&m.m!==it.map)continue;if(Date.parse(m.d)<cut)continue;
+    const ab=sc(L,m.ta)+sc(R,m.tb),ba=sc(L,m.tb)+sc(R,m.ta),s=Math.max(ab,ba);if(s<3.6)continue;
+    out.push({m,left:ab>=ba?'a':'b',score:s,dist:shSetDist(m,it.ft)})}
+  return out}
+function shMatchAll(){if(!FULL)return false;let ch=false;const used=new Set(SHOT.list.filter(x=>x.set).map(x=>x.set));
+  for(const it of SHOT.list.slice().sort((a,b)=>a.ft-b.ft)){if(it.set)continue;
+    const C=shCandidates(it).filter(c=>!shSavedSet(c.m));if(!C.length){if(it.st!=='wait'){it.st='wait';ch=true}continue}
+    // the same set as an earlier picture (same game set, other game): same names and same bans
+    const near=C.filter(c=>c.dist<=75*60e3).sort((a,b)=>a.dist-b.dist||b.score-a.score);
+    let pick=near.find(c=>!used.has(shSetKey(c.m)))||near.find(c=>SHOT.list.some(o=>o!==it&&o.set===shSetKey(c.m)&&shSameBans(o,it)));
+    if(!pick&&Date.now()-it.ft>2*3600e3){const far=C.slice().sort((a,b)=>a.dist-b.dist);pick=far.find(c=>!used.has(shSetKey(c.m)));if(pick)it.check=1}
+    if(!pick){if(it.st!=='wait'){it.st='wait';ch=true}continue}
+    it.set=shSetKey(pick.m);it.left=pick.left;it.st='ready';used.add(it.set);ch=true}
+  if(ch)shSave();return ch}
+function shSameBans(a,b){let n=0;for(let i=0;i<6;i++)if(a.bans[i]&&b.bans[i]&&shDist(a.bans[i],b.bans[i])<25)n++;return n>=4}
+function shFindSet(key){return ((FULL&&FULL.matches)||[]).find(m=>!m.s&&!m.sh&&shSetKey(m)===key)||null}
+function shTick(){try{const k=FULL?FULL.matches.length+'|'+SHOT.list.length:'';if(k===SHOT.key)return;SHOT.key=k;if(shMatchAll()&&(view==='draft'))drRender()}catch(e){}}
+// ---- adding pictures
+async function shAdd(files){files=[...files].filter(f=>/^image\//.test(f.type));if(!files.length)return;
+  SHOT.busy+=files.length;SHOT.msg='Reading '+plural(files.length,'picture')+'… (the first time the text reader takes a few seconds to load)';drRender();
+  let ok=0,bad=[];
+  for(const f of files){try{const r=await shRead(f),mp=shMapOf(r.mapTxt);
+      SHOT.list.push({id:'s'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),ft:f.lastModified||Date.now(),added:Date.now(),names:r.names,map:mp,mapTxt:r.mapTxt,res:r.res,bans:r.bans,st:'wait'});ok++}
+    catch(e){bad.push((f.name||'picture')+': '+(e&&e.message||e))}
+    SHOT.busy--}
+  shSave();SHOT.key='';shMatchAll();
+  SHOT.msg=(ok?plural(ok,'picture')+' read. ':'')+(bad.length?'Could not read: '+bad.join(' · '):'');drRender()}
+// ---- opening a set in the editor
+function shBr(n){const k=mkey(n);return drNames().find(x=>mkey(x)===k)||String(n).toUpperCase()}
+function shTeamName(label,names){if(label)return String(label).replace(/^ext:/,'');const pre={};names.forEach(n=>{const m=/^\s*([A-Z0-9]{2,5})\s*\|/i.exec(n);if(m)pre[m[1].toUpperCase()]=(pre[m[1].toUpperCase()]||0)+1});
+  const g=Object.entries(pre).sort((a,b)=>b[1]-a[1])[0];return g&&g[1]>=2?g[0]:(names[0]||'Unknown')}
+function shOpen(id){const it=SHOT.list.find(x=>x.id===id);if(!it)return;const m=it.set&&shFindSet(it.set);if(!m){DR.msg='That set is not in the data any more.';DR.bad=true;drRender();return}
+  const L=it.left==='a',d=drNew(),tL=L?m.ta:m.tb,tR=L?m.tb:m.ta,bL=L?m.ba:m.bb,bR=L?m.bb:m.ba;
+  d.date=m.d;d.map=m.m;d.mode=modeOfMap(m.m)||'';d.su='U';d.coin='blue';d.kind=m.ty==='tournament'?'tr':'';
+  d.blue=shTeamName(L?m.a:m.b,it.names.slice(0,3));d.red=shTeamName(L?m.b:m.a,it.names.slice(3));
+  // each pick under its player, in the order of the picture
+  const order=(names,tags,brs)=>{const o=[],usedT=new Set();names.forEach(n=>{const c=shTagsFor(n).find(([t])=>tags.includes(t)&&!usedT.has(t));if(c){usedT.add(c[0]);o.push(brs[tags.indexOf(c[0])])}else o.push(null)});
+    const rest=tags.map((t,i)=>usedT.has(t)?null:brs[i]).filter(Boolean);return o.map(x=>x||rest.shift()||'')};
+  const pl=order(it.names.slice(0,3),tL||[],bL||[]),pr=order(it.names.slice(3),tR||[],bR||[]),pos=drPos('blue');
+  pos[0].forEach((n,i)=>d.picks[n-1]=pl[i]?shBr(pl[i]):'');pos[1].forEach((n,i)=>d.picks[n-1]=pr[i]?shBr(pr[i]):'');
+  const all=SHOT.list.filter(x=>x.set===it.set);
+  for(let i=0;i<6;i++){let b='';for(const x of all){if(x.bans[i]){b=shRecognise(x.bans[i]);if(b)break}}const s=i<3?'b':'r';d.bans[s][i%3]=b?shBr(b):''}
+  if(m.y===1||m.y===0)d.winner=(m.y===1)===L?'blue':'red';
+  d.notes=(m.sc?'Set score '+(L?m.sc:m.sc.split('-').reverse().join('-'))+' (blue-red)':'');
+  DR.cur=d;DR.shot=it.id;DR.active='';DR.link=null;const miss=6-[...d.bans.b,...d.bans.r].filter(Boolean).length;
+  DR.msg='Filled from the screenshot and the API'+(it.check?' (the picture is old: check it is the right set)':'')+'. '+(miss?`${miss} ${miss===1?'ban is':'bans are'} not known yet (“Who is it?”): click the box and then the brawler, and the page will learn ${miss===1?'that icon':'those icons'}. `:'')+'If a ban is wrong, click its ✎ and then the right brawler. Check everything and press Save draft.';DR.bad=false;drRender();window.scrollTo({top:0,behavior:'smooth'})}
+function shAfterSave(d){const id=DR.shot;if(!id)return;const it=SHOT.list.find(x=>x.id===id);DR.shot='';if(!it)return;const all=SHOT.list.filter(x=>x.set===it.set);
+  for(let i=0;i<6;i++){const b=(i<3?d.bans.b:d.bans.r)[i%3];if(!b)continue;for(const x of all){const f=x.bans[i];if(!f)continue;if(shRecognise(f)===b)continue;
+    SHOT.lib.push({b,f:f.f,m:f.m});const same=SHOT.lib.filter(e=>e.b===b);if(same.length>4)SHOT.lib.splice(SHOT.lib.indexOf(same[0]),1)}}
+  shLibSave();SHOT.list=SHOT.list.filter(x=>x.set!==it.set);shSave()}
+function shDel(id){const it=SHOT.list.find(x=>x.id===id);SHOT.list=SHOT.list.filter(x=>x!==it&&!(it&&it.set&&x.set===it.set&&x.st!=='ready'));if(DR.shot===id)DR.shot='';shSave();drRender()}
+// ---- what is shown
+function shBarHTML(){shMatchAll();
+  const groups=[],seen=new Set();for(const it of SHOT.list.slice().sort((a,b)=>b.ft-a.ft)){if(it.set){if(seen.has(it.set))continue;seen.add(it.set)}groups.push(it)}
+  const hm=t=>{const d=new Date(t);return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
+  const tn=n=>{const m=/^\s*([^|]{1,6})\|/.exec(n||'');return m?m[1].trim():(n||'?')};
+  const row=it=>{const n=SHOT.list.filter(x=>x.set&&x.set===it.set).length,m=it.set&&shFindSet(it.set);
+    const st=it.st==='ready'?`<span class="sh-st ok">ready${it.check?' · check the set':''}</span><button type="button" class="btn" data-shopen="${it.id}">Open</button>`:`<span class="sh-st">waiting for the game in the API…</span>`;
+    return `<div class="sh-it${it.id===DR.shot?' on':''}"><span class="sh-ics">${it.bans.map((b,i)=>`${i===3?'<i class="sh-vs">vs</i>':''}<img src="${b.ic}" alt="">`).join('')}</span><span class="sh-tx"><b>${esc(tn(it.names[0]))} vs ${esc(tn(it.names[3]))}</b><small>${hm(it.ft)} · ${esc(it.map||it.mapTxt||'map?')} · ${it.res==='W'?'Victory':'Defeat'}${n>1?' · '+n+' pictures of this set':''}${m?' · set '+esc(it.left==='a'?(m.sc||''):String(m.sc||'').split('-').reverse().join('-'))+' at '+String(Math.floor(m.t/3600)).padStart(2,'0')+':'+String(Math.floor(m.t%3600/60)).padStart(2,'0'):''}</small></span>${st}<button type="button" class="btn quiet" data-shdel="${it.id}" title="Remove">✕</button></div>`};
+  return `<div class="sh-bar"><div class="sh-hd"><label class="btn"><input type="file" accept="image/*" multiple hidden id="shFile">📷 Add end-of-game screenshots</label><span class="msg">or paste one here (Ctrl+V). The picks, teams and set come from the API; the bans from the picture.</span>${SHOT.busy?'<span class="sh-st">reading…</span>':''}</div>
+    ${SHOT.msg?`<p class="msg" style="margin:6px 0 0">${esc(SHOT.msg)}</p>`:''}${groups.length?`<div class="sh-list">${groups.map(row).join('')}</div>`:''}</div>`}
+function shStripHTML(){const it=DR.shot&&SHOT.list.find(x=>x.id===DR.shot);if(!it)return '';
+  return `<div class="sh-strip"><span class="lbl">Bans in the screenshot</span><span class="sh-ics big">${it.bans.map((b,i)=>{const r=shRecognise(b);return `${i===3?'<i class="sh-vs">vs</i>':''}<span class="sh-ic${r?'':' new'}" title="${r?esc(r):'Not known yet: fill this ban by hand and the page will learn it'}"><img src="${b.ic}" alt=""><small>${r?esc(shBr(r)):'new'}</small></span>`}).join('')}</span></div>`}
+document.addEventListener('change',e=>{if(e.target&&e.target.id==='shFile'){shAdd(e.target.files);e.target.value=''}});
+document.addEventListener('click',e=>{const o=e.target.closest&&e.target.closest('[data-shopen]');if(o){shOpen(o.dataset.shopen);return}const x=e.target.closest&&e.target.closest('[data-shdel]');if(x)shDel(x.dataset.shdel)});
+document.addEventListener('paste',e=>{if(view!=='draft'||DR.sug)return;const fs=[...((e.clipboardData&&e.clipboardData.files)||[])].filter(f=>/^image\//.test(f.type));if(fs.length){e.preventDefault();shAdd(fs)}});
+document.addEventListener('dragover',e=>{if(view==='draft'&&e.target.closest&&e.target.closest('.sh-bar'))e.preventDefault()});
+document.addEventListener('drop',e=>{if(view!=='draft'||!(e.target.closest&&e.target.closest('.sh-bar')))return;e.preventDefault();shAdd(e.dataTransfer.files)});
+
 function renderCheck(){const el=$('checkview');if(el)el.innerHTML=checkHTML()}
 
 // ---- Brawler comparison (stats come from the "Brawlers" tab; a built-in copy is used until it loads)
@@ -5677,3 +5817,18 @@ td.gt-l{text-align:left!important}td.gt-l .gt-br,td.gt-l .gt-tn{justify-content:
 .chk-vs{display:inline-flex;align-items:center;gap:4px;margin:0 10px 2px 0;white-space:nowrap}.chk-vs small{color:var(--muted,#a9a6bd)}
 </style>
 <style>.rc-q{display:flex;gap:4px;margin:6px 0 2px}.rc-q button{flex:1;font:inherit;font-size:11.5px;font-weight:700;padding:4px 6px;border-radius:6px;border:1px solid #3a3850;background:#1f1e2c;color:#ecebf5;cursor:pointer}.rc-q button:hover{border-color:#d63a50}</style>
+
+<style>
+.sh-bar{border:1px dashed #3a3850;border-radius:10px;padding:10px 12px;margin:0 0 12px;background:rgba(255,255,255,.02)}
+.sh-hd{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.sh-hd label.btn{cursor:pointer}
+.sh-list{display:flex;flex-direction:column;gap:5px;margin-top:8px}
+.sh-it{display:flex;align-items:center;gap:10px;background:#1b1a26;border:1px solid #2c2a3a;border-radius:8px;padding:5px 8px}.sh-it.on{border-color:#d63a50}
+.sh-ics{display:inline-flex;align-items:center;gap:2px;flex:0 0 auto}.sh-ics img{width:26px;height:26px;border-radius:4px}
+.sh-ics.big img{width:38px;height:38px}.sh-vs{font-style:normal;font-size:10px;color:var(--muted,#a9a6bd);margin:0 6px}
+.sh-tx{flex:1;min-width:0;display:flex;flex-direction:column}.sh-tx small{color:var(--muted,#a9a6bd);font-size:11.5px}
+.sh-st{font-size:11.5px;color:#ffc861;white-space:nowrap}.sh-st.ok{color:#7ee2a0}
+.sh-strip{display:flex;align-items:center;justify-content:center;gap:12px;margin:8px 0}
+.sh-ic{display:inline-flex;flex-direction:column;align-items:center;gap:1px}.sh-ic small{font-size:9.5px;color:#cfcde0}.sh-ic.new img{outline:2px solid #ffc861;outline-offset:1px}.sh-ic.new small{color:#ffc861}
+</style>
+<style>.dr-sl.shq{border-style:solid;border-color:#ffc861}.dr-sl.shq .shimg{border-radius:6px;opacity:.95}.dr-sl .shwho{color:#ffc861;font-size:10px}
+.dr-ed{position:absolute;top:-7px;right:-7px;width:20px;height:20px;border-radius:50%;background:#2b2a3d;border:1px solid #8e8ab0;color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;cursor:pointer}.dr-ed:hover{background:#d63a50;border-color:#d63a50}</style>
