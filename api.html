@@ -5103,11 +5103,12 @@ function shSavedSet(m){const pk=shPicks(m);return drAll().some(d=>d.date===m.d&&
 function shCandidates(it){const F=FULL;if(!F||!F.matches)return [];const L=it.names.slice(0,3).map(shTagsFor),R=it.names.slice(3).map(shTagsFor);
   const sc=(side,tags)=>side.reduce((a,c)=>{let b=0;for(const [t,s] of c)if(tags.includes(t))b=Math.max(b,s);return a+b},0);
   const out=[],cut=Date.now()-21*864e5;
-  for(const m of F.matches){if(m.s||m.sh||!m.ta||!m.tb)continue;if(it.map&&m.m!==it.map)continue;if(Date.parse(m.d)<cut)continue;
+  for(const m of F.matches){if(m.sh||!m.ta||!m.tb)continue;if(it.map&&m.m!==it.map)continue;if(Date.parse(m.d)<cut)continue;
     const ab=sc(L,m.ta)+sc(R,m.tb),ba=sc(L,m.tb)+sc(R,m.ta),s=Math.max(ab,ba);if(s<3.6)continue;
     out.push({m,left:ab>=ba?'a':'b',score:s,dist:shSetDist(m,it.ft)})}
   return out}
 function shMatchAll(){if(!FULL)return false;let ch=false;const used=new Set(SHOT.list.filter(x=>x.set).map(x=>x.set));
+  for(const it of SHOT.list){if(it.set&&!shFindSet(it.set)){used.delete(it.set);it.set=null;it.st='wait';ch=true}}
   for(const it of SHOT.list.slice().sort((a,b)=>a.ft-b.ft)){if(it.set)continue;
     const C=shCandidates(it).filter(c=>!shSavedSet(c.m));if(!C.length){if(it.st!=='wait'){it.st='wait';ch=true}continue}
     // the same set as an earlier picture (same game set, other game): same names and same bans
@@ -5118,7 +5119,8 @@ function shMatchAll(){if(!FULL)return false;let ch=false;const used=new Set(SHOT
     it.set=shSetKey(pick.m);it.left=pick.left;it.st='ready';used.add(it.set);ch=true}
   if(ch)shSave();return ch}
 function shSameBans(a,b){let n=0;for(let i=0;i<6;i++)if(a.bans[i]&&b.bans[i]&&shDist(a.bans[i],b.bans[i])<25)n++;return n>=4}
-function shFindSet(key){return ((FULL&&FULL.matches)||[]).find(m=>!m.s&&!m.sh&&shSetKey(m)===key)||null}
+function shDone(it,m){if(!m)return false;return Math.max(m.w||0,m.l||0)>=2||Date.now()-it.ft>40*60e3}
+function shFindSet(key){return ((FULL&&FULL.matches)||[]).find(m=>!m.sh&&shSetKey(m)===key)||null}
 function shTick(){try{const k=FULL?FULL.matches.length+'|'+SHOT.list.length:'';if(k===SHOT.key)return;SHOT.key=k;if(shMatchAll()&&(view==='draft'))drRender()}catch(e){}}
 // ---- adding pictures
 async function shAdd(files){files=[...files].filter(f=>/^image\//.test(f.type));if(!files.length)return;
@@ -5137,11 +5139,13 @@ function shTeamName(label,names){if(label)return String(label).replace(/^ext:/,'
 function shOpen(id){const it=SHOT.list.find(x=>x.id===id);if(!it)return;const m=it.set&&shFindSet(it.set);if(!m){DR.msg='That set is not in the data any more.';DR.bad=true;drRender();return}
   const L=it.left==='a',d=drNew(),tL=L?m.ta:m.tb,tR=L?m.tb:m.ta,bL=L?m.ba:m.bb,bR=L?m.bb:m.ba;
   d.date=m.d;d.map=m.m;d.mode=modeOfMap(m.m)||'';d.su='U';d.coin='blue';d.kind=m.ty==='tournament'?'tr':'';
-  d.blue=shTeamName(L?m.a:m.b,it.names.slice(0,3));d.red=shTeamName(L?m.b:m.a,it.names.slice(3));
   // each pick under its player, in the order of the picture
-  const order=(names,tags,brs)=>{const o=[],usedT=new Set();names.forEach(n=>{const c=shTagsFor(n).find(([t])=>tags.includes(t)&&!usedT.has(t));if(c){usedT.add(c[0]);o.push(brs[tags.indexOf(c[0])])}else o.push(null)});
-    const rest=tags.map((t,i)=>usedT.has(t)?null:brs[i]).filter(Boolean);return o.map(x=>x||rest.shift()||'')};
-  const pl=order(it.names.slice(0,3),tL||[],bL||[]),pr=order(it.names.slice(3),tR||[],bR||[]),pos=drPos('blue');
+  const order=(names,tags,brs)=>{const o=[],usedT=new Set();names.forEach(n=>{const c=shTagsFor(n).find(([t])=>tags.includes(t)&&!usedT.has(t));if(c){usedT.add(c[0]);o.push(tags.indexOf(c[0]))}else o.push(-1)});
+    const rest=tags.map((t,i)=>usedT.has(t)?-1:i).filter(i=>i>=0),ix=o.map(x=>x>=0?x:(rest.length?rest.shift():-1));
+    return {b:ix.map(i=>i>=0?brs[i]||'':''),t:ix.map(i=>i>=0?tags[i]:'').filter(Boolean)}};
+  const oL=order(it.names.slice(0,3),tL||[],bL||[]),oR=order(it.names.slice(3),tR||[],bR||[]),pl=oL.b,pr=oR.b,pos=drPos('blue');
+  const team=(label,tags)=>label?String(label).replace(/^ext:/,''):tags.map(t=>(FULL.names&&FULL.names[t])||t).join(' / ');
+  d.blue=team(L?m.a:m.b,oL.t);d.red=team(L?m.b:m.a,oR.t);
   pos[0].forEach((n,i)=>d.picks[n-1]=pl[i]?shBr(pl[i]):'');pos[1].forEach((n,i)=>d.picks[n-1]=pr[i]?shBr(pr[i]):'');
   const all=SHOT.list.filter(x=>x.set===it.set);
   for(let i=0;i<6;i++){let b='';for(const x of all){if(x.bans[i]){b=shRecognise(x.bans[i]);if(b)break}}const s=i<3?'b':'r';d.bans[s][i%3]=b?shBr(b):''}
@@ -5160,8 +5164,10 @@ function shBarHTML(){shMatchAll();
   const hm=t=>{const d=new Date(t);return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
   const tn=n=>{const m=/^\s*([^|]{1,6})\|/.exec(n||'');return m?m[1].trim():(n||'?')};
   const row=it=>{const n=SHOT.list.filter(x=>x.set&&x.set===it.set).length,m=it.set&&shFindSet(it.set);
-    const st=it.st==='ready'?`<span class="sh-st ok">ready${it.check?' · check the set':''}</span><button type="button" class="btn" data-shopen="${it.id}">Open</button>`:`<span class="sh-st">waiting for the game in the API…</span>`;
-    return `<div class="sh-it${it.id===DR.shot?' on':''}"><span class="sh-ics">${it.bans.map((b,i)=>`${i===3?'<i class="sh-vs">vs</i>':''}<img src="${b.ic}" alt="">`).join('')}</span><span class="sh-tx"><b>${esc(tn(it.names[0]))} vs ${esc(tn(it.names[3]))}</b><small>${hm(it.ft)} · ${esc(it.map||it.mapTxt||'map?')} · ${it.res==='W'?'Victory':'Defeat'}${n>1?' · '+n+' pictures of this set':''}${m?' · set '+esc(it.left==='a'?(m.sc||''):String(m.sc||'').split('-').reverse().join('-'))+' at '+String(Math.floor(m.t/3600)).padStart(2,'0')+':'+String(Math.floor(m.t%3600/60)).padStart(2,'0'):''}</small></span>${st}<button type="button" class="btn quiet" data-shdel="${it.id}" title="Remove">✕</button></div>`};
+    const sc=m?(it.left==='a'?(m.sc||''):String(m.sc||'').split('-').reverse().join('-')):'';
+    const st=it.st==='ready'&&!shDone(it,m)?`<span class="sh-st">set in progress ${esc(sc)} · it updates by itself</span><button type="button" class="btn quiet" data-shopen="${it.id}" title="The set is not over in the API yet: the score and the winner may change">Open anyway</button>`
+      :it.st==='ready'?`<span class="sh-st ok">ready${it.check?' · check the set':''}</span><button type="button" class="btn" data-shopen="${it.id}">Open</button>`:`<span class="sh-st">waiting for the game in the API…</span>`;
+    return `<div class="sh-it${it.id===DR.shot?' on':''}"><span class="sh-ics">${it.bans.map((b,i)=>`${i===3?'<i class="sh-vs">vs</i>':''}<img src="${b.ic}" alt="">`).join('')}</span><span class="sh-tx"><b>${esc(tn(it.names[0]))} vs ${esc(tn(it.names[3]))}</b><small>${hm(it.ft)} · ${esc(it.map||it.mapTxt||'map?')} · ${it.res==='W'?'Victory':'Defeat'}${n>1?' · '+n+' pictures of this set':''}${m?' · set '+esc(sc)+' at '+String(Math.floor(m.t/3600)%24).padStart(2,'0')+':'+String(Math.floor(m.t%3600/60)).padStart(2,'0'):''}</small></span>${st}<button type="button" class="btn quiet" data-shdel="${it.id}" title="Remove">✕</button></div>`};
   return `<div class="sh-bar"><div class="sh-hd"><label class="btn"><input type="file" accept="image/*" multiple hidden id="shFile">📷 Add end-of-game screenshots</label><span class="msg">or paste one here (Ctrl+V). The picks, teams and set come from the API; the bans from the picture.</span>${SHOT.busy?'<span class="sh-st">reading…</span>':''}</div>
     ${SHOT.msg?`<p class="msg" style="margin:6px 0 0">${esc(SHOT.msg)}</p>`:''}${groups.length?`<div class="sh-list">${groups.map(row).join('')}</div>`:''}</div>`}
 function shStripHTML(){const it=DR.shot&&SHOT.list.find(x=>x.id===DR.shot);if(!it)return '';
