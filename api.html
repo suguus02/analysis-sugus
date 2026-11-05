@@ -5051,7 +5051,21 @@ const shUnB64=s=>{const b=atob(s),a=new Uint8Array(b.length);for(let i=0;i<b.len
 // ---- reading the picture
 function shCanvas(w,h){const c=document.createElement('canvas');c.width=Math.max(1,Math.round(w));c.height=Math.max(1,Math.round(h));return c}
 function shCrop(img,x0,y0,x1,y1,w,h){const c=shCanvas(w||x1-x0,h||y1-y0),g=c.getContext('2d');g.imageSmoothingEnabled=true;g.imageSmoothingQuality='medium';g.drawImage(img,x0,y0,x1-x0,y1-y0,0,0,c.width,c.height);return c}
-function shBanFeat(img,i){const W=img.width,H=img.height,x=W/2+SH_DX[i]*H,y=.957*H,x0=x-.072*H,y0=y-.064*H,x1=x+.004*H,y1=y+.008*H;
+// where the game screen is inside the picture: from the 6 red "no" signs of the bans (a BlueStacks window bar or borders move it)
+function shGeom(img){const W=img.width,H=img.height,y0=Math.floor(H*.68),h=H-y0,c=shCrop(img,0,y0,W,H,W,h),d=c.getContext('2d').getImageData(0,0,W,h).data;
+  const red=new Uint8Array(W*h);for(let k=0;k<W*h;k++){const r=d[k*4],g=d[k*4+1],b=d[k*4+2];red[k]=r>170&&g<90&&b<90?1:0}
+  const lab=new Int32Array(W*h),st=[],cs=[];let n=0;
+  for(let s=0;s<W*h;s++){if(!red[s]||lab[s])continue;n++;let x0=1e9,x1=-1,yA=1e9,yB=-1,cnt=0;st.push(s);lab[s]=n;
+    while(st.length){const q=st.pop(),x=q%W,y=(q-x)/W;cnt++;if(x<x0)x0=x;if(x>x1)x1=x;if(y<yA)yA=y;if(y>yB)yB=y;
+      for(const o of [q-1,q+1,q-W,q+W]){if(o<0||o>=W*h||lab[o]||!red[o])continue;const ox=o%W;if(Math.abs(ox-x)>1)continue;lab[o]=n;st.push(o)}}
+    const w=x1-x0+1,hh=yB-yA+1;if(w<6||hh<6||Math.abs(w-hh)>Math.max(w,hh)*.35)continue;const fill=cnt/(w*hh);if(fill<.25||fill>.75)continue;
+    cs.push({x:(x0+x1+1)/2,y:(yA+yB+1)/2+y0,w})}
+  const big=cs.filter(c=>c.w>=H*.03);
+  if(big.length>=6){const med=a=>a.slice().sort((p,q)=>p-q)[Math.floor(a.length/2)],mw=med(big.map(c=>c.w)),B=big.filter(c=>Math.abs(c.w-mw)<mw*.3),my=med(B.map(c=>c.y));
+    const C=B.filter(c=>Math.abs(c.y-my)<mw).sort((a,b)=>a.x-b.x);
+    if(C.length===6){const Hg=(C[5].x-C[0].x)/1.402,cx=C[0].x+.680*Hg,top=my-.957*Hg;if(Hg>200)return {cx,top,H:Hg,ok:true}}}
+  return {cx:W/2,top:0,H,ok:false}}
+function shBanFeat(img,i,G){const H=G.H,x=G.cx+SH_DX[i]*H,y=G.top+.957*H,x0=x-.072*H,y0=y-.064*H,x1=x+.004*H,y1=y+.008*H;
   const c=shCrop(img,x0,y0,x1,y1,SH_N,SH_N),d=c.getContext('2d').getImageData(0,0,SH_N,SH_N).data,f=new Uint8Array(SH_N*SH_N*3),m=new Uint8Array(SH_N*SH_N);
   for(let k=0;k<SH_N*SH_N;k++){const r=d[k*4],g=d[k*4+1],b=d[k*4+2],gx=k%SH_N,gy=Math.floor(k/SH_N),px=x0+(gx+.5)*(x1-x0)/SH_N,py=y0+(gy+.5)*(y1-y0)/SH_N;
     const circ=Math.hypot(px-x,py-y)<.03*H,bgB=b>150&&b>r+60&&b>g+40,bgR=r>110&&r>g+60&&r>b+60&&g<60;
@@ -5063,25 +5077,28 @@ function shDist(a,b){const fa=shUnB64(a.f),fb=shUnB64(b.f),ma=shUnB64(a.m),mb=sh
   return n<40?999:s/n/3}
 function shRecognise(ft){let best=null,bd=999;for(const e of SHOT.lib){const d=shDist(ft,e);if(d<bd){bd=d;best=e}}return bd<25&&best?best.b:''}
 function shThresh(c){const g=c.getContext('2d'),im=g.getImageData(0,0,c.width,c.height),d=im.data;
-  for(let k=0;k<d.length;k+=4){const v=(d[k]+d[k+1]+d[k+2])/3>170?0:255;d[k]=d[k+1]=d[k+2]=v;d[k+3]=255}g.putImageData(im,0,0);return c}
+  for(let k=0;k<d.length;k+=4){const v=Math.min(d[k],d[k+1],d[k+2])>195?0:255;d[k]=d[k+1]=d[k+2]=v;d[k+3]=255}g.putImageData(im,0,0);
+  const p=Math.round(c.height*.4),o=shCanvas(c.width+2*p,c.height+2*p),og=o.getContext('2d');og.fillStyle='#fff';og.fillRect(0,0,o.width,o.height);og.drawImage(c,p,p);return o}
 function shOCRLoad(){if(SHOT.ocr)return SHOT.ocr;
   SHOT.ocr=new Promise((res,rej)=>{const go=()=>window.Tesseract.createWorker('eng',1,{workerPath:'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',corePath:'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1',langPath:'https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng@1.0.0/4.0.0',gzip:true})
       .then(async w=>{await w.setParameters({tessedit_pageseg_mode:'7'});res(w)}).catch(rej);
     if(window.Tesseract)return go();const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';s.onload=go;s.onerror=()=>rej(new Error('the text reader could not be loaded (check the internet connection)'));document.head.appendChild(s)});
   SHOT.ocr.catch(()=>{SHOT.ocr=null});return SHOT.ocr}
 async function shRead(file){
-  const img=await createImageBitmap(file),W=img.width,H=img.height;
-  if(W<H*1.2||H<300)throw new Error('this does not look like an end-of-game screen (the picture must be landscape and not too small)');
-  const W0=await shOCRLoad(),cx=W/2,txt=async c=>{const r=await W0.recognize(c);return String(r.data.text||'').replace(/\s+/g,' ').trim()};
-  const names=[];for(const nx of SH_NX){const c=shCrop(img,cx+nx*H-.125*H,.452*H,cx+nx*H+.125*H,.492*H);names.push(await txt(shThresh(shCrop(c,0,0,c.width,c.height,c.width*2,c.height*2))))}
-  const mc=shCrop(img,cx-.04*H,.05*H,cx+.2*H,.1*H),mapTxt=await txt(shThresh(mc));
-  const tl=shCrop(img,0,0,W*.06,H*.12,20,20).getContext('2d').getImageData(0,0,20,20).data;let r=0,b=0;for(let k=0;k<tl.length;k+=4){r+=tl[k];b+=tl[k+2]}
-  const bans=SH_DX.map((_,i)=>shBanFeat(img,i));
+  const img=await createImageBitmap(file);
+  if(img.width<img.height*1.2||img.height<300)throw new Error('this does not look like an end-of-game screen (the picture must be landscape and not too small)');
+  const G=shGeom(img),H=G.H,cx=G.cx,T=G.top;
+  if(!G.ok)throw new Error('the 6 bans were not found in this picture (it must be the Victory / Defeat screen with the bans at the bottom)');
+  const W0=await shOCRLoad(),txt=async c=>{const r=await W0.recognize(c);return String(r.data.text||'').replace(/\s+/g,' ').trim()};
+  const names=[];for(const nx of SH_NX){const c=shCrop(img,cx+nx*H-.125*H,T+.452*H,cx+nx*H+.125*H,T+.492*H);names.push(await txt(shThresh(shCrop(c,0,0,c.width,c.height,c.width*2,c.height*2))))}
+  const mc=shCrop(img,cx-.04*H,T+.05*H,cx+.2*H,T+.1*H),mapTxt=await txt(shThresh(shCrop(mc,0,0,mc.width,mc.height,mc.width*2,mc.height*2)));
+  const tl=shCrop(img,cx-.78*H,T+.005*H,cx-.5*H,T+.07*H,40,20).getContext('2d').getImageData(0,0,40,20).data;let r=0,b=0;for(let k=0;k<tl.length;k+=4){if(tl[k+2]>tl[k]+50)b++;else if(tl[k]>tl[k+2]+50&&tl[k+1]<120)r++}
+  const bans=SH_DX.map((_,i)=>shBanFeat(img,i,G));
   // a ban icon must sit on the red "no" sign: check the sign is there
-  const okSign=SH_DX.map(dx=>{const x=cx+dx*H,y=.957*H,c=shCrop(img,x-.022*H,y-.022*H,x+.022*H,y+.022*H,12,12).getContext('2d').getImageData(0,0,12,12).data;let n=0;for(let k=0;k<c.length;k+=4)if(c[k]>180&&c[k+1]<80&&c[k+2]<80)n++;return n>=8});
+  const okSign=SH_DX.map(dx=>{const x=cx+dx*H,y=T+.957*H,c=shCrop(img,x-.022*H,y-.022*H,x+.022*H,y+.022*H,12,12).getContext('2d').getImageData(0,0,12,12).data;let n=0;for(let k=0;k<c.length;k+=4)if(c[k]>180&&c[k+1]<80&&c[k+2]<80)n++;return n>=8});
   if(okSign.filter(Boolean).length<4)throw new Error('the 6 bans were not found in this picture (it must be the Victory / Defeat screen with the bans at the bottom)');
   img.close&&img.close();
-  return {names,mapTxt,res:b>r?'W':'L',bans}}
+  return {names,mapTxt,res:r>b*.6?'L':'W',bans}}
 // ---- matching with the API data
 const shNorm=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 function shLev(a,b){if(a===b)return 0;const m=a.length,n=b.length;if(!m)return n;if(!n)return m;let p=Array.from({length:n+1},(_,j)=>j);
