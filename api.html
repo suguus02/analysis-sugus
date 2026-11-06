@@ -2581,7 +2581,7 @@ async function balLoad(){
       const b=dy.br[e.br]||(dy.br[e.br]={n:e.br,score:0,ents:[],types:[]});b.score+=balScore(e);b.ents.push(e);if(!b.types.includes(e.type))b.types.push(e.type)}
     BAL={ents,days:Object.values(map).sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0)};BALst=2;
   }catch(e){BALst=0;BALerr=(e&&e.code==='gviz_private')?'The BALANCE tab could not be read (check the sheet is shared as Anyone with the link).':'Could not read the BALANCE tab ('+(e&&e.message||e)+').'}
-  if(view==='bal')renderBal();else if(view==='stats'&&typeof renderDetail==='function')renderDetail();
+  if(view==='bal')renderBal();else if(view==='stats'&&typeof renderDetail==='function')renderDetail();else if(view==='draft')drRender();
 }
 // the data every Balance section reads: all sets, or only the sets on the chosen map / mode
 let balSrcC=null;
@@ -4072,7 +4072,7 @@ function drEditorHTML(){
       <label class="dr-field"><span class="lbl">Map picked by</span><select class="dr-input" id="drMP"><option value="">Unknown</option>${[...new Set([d.blue,d.red,(d.mp&&d.mp!=='-')?d.mp:''].filter(Boolean))].map(t=>`<option value="${esc(t)}"${d.mp===t?' selected':''}>${esc(t)}</option>`).join('')}<option value="-"${d.mp==='-'?' selected':''}>Decider (nobody picked it)</option></select></label>
       ${d.kind!=='mq'?`<label class="chk" style="align-self:end;margin-bottom:6px" title="For drafts copied from the end-of-game screen: you know the bans and picks of each team but not who picked first"><input type="checkbox" id="drSU"${d.su?' checked':''}> Side unknown (no pick order)</label>`:''}
       ${d.kind?`<div class="dr-field"><span class="lbl">Date</span><div class="dr-find"><button type="button" class="btn quiet" data-dfind="1">Find the match date</button>${d.dc?'':'<button type="button" class="btn quiet" data-dexact="1">The date is exact</button>'}${d.dc?'<span class="dr-badge ok">date confirmed</span>':'<span class="dr-badge">date not confirmed</span>'}</div></div>`:''}</div>
-    ${d.su&&d.kind!=='mq'?`<p class="msg" style="margin:0 0 6px">Side unknown: put each team's 3 picks on its side in any order (the numbers don't matter) and its bans. This draft counts for picks and bans, and is left out of the 1st / last pick figures.</p>`:''}${d.kind?`<p class="msg" style="margin:0">${d.kind==='tr'?'Tournament: the 1st pick side is recorded as usual and the global bans are optional (leave them empty if that tournament has none), and you can tick “Side unknown” if the 1st pick side is not known (then the draft is left out of the 1st/last pick figures). ':''}${d.kind==='mq'?'Monthly qualifier: write the whole draft; the 1st pick side is not recorded, so this draft is left out of the 1st/last pick figures. ':''}“Find the match date” looks for a tournament game with these picks and this map in the month of the date (teams that are not in the Picks sheet are matched by their picks only), and asks you before changing the date.</p>${DR.link?drLinkHTML():''}`:''}
+    ${d.su&&d.kind!=='mq'?`<p class="msg" style="margin:0 0 6px">Side unknown: put each team's 3 picks on its side in any order (the numbers don't matter) and its bans. This draft counts for picks and bans, and is left out of the 1st / last pick figures.</p>${drCoinEstHTML(d)}`:''}${d.kind?`<p class="msg" style="margin:0">${d.kind==='tr'?'Tournament: the 1st pick side is recorded as usual and the global bans are optional (leave them empty if that tournament has none), and you can tick “Side unknown” if the 1st pick side is not known (then the draft is left out of the 1st/last pick figures). ':''}${d.kind==='mq'?'Monthly qualifier: write the whole draft; the 1st pick side is not recorded, so this draft is left out of the 1st/last pick figures. ':''}“Find the match date” looks for a tournament game with these picks and this map in the month of the date (teams that are not in the Picks sheet are matched by their picks only), and asks you before changing the date.</p>${DR.link?drLinkHTML():''}`:''}
     <div class="dr-btns"><button type="button" class="btn" data-dsave="1"${DR.busy?' disabled':''}>${isSaved?'Update draft':'Save draft'}</button><button type="button" class="btn quiet" data-dnext="1">Next map (keep teams and global bans)</button><button type="button" class="btn quiet" data-dclear="1">Clear draft</button></div></div>
     <p class="dr-msg${DR.bad?' bad':''}" role="status" style="margin-top:8px">${esc(DR.msg)}</p>`;
   if(DR.sug)return `<section class="panel">${drSubHTML()}<div class="dr-hd"><h2 class="ttl" style="margin:0">Draft Suggestion</h2><div class="seg2" style="margin-top:0" role="group" aria-label="How to choose brawlers"><button type="button" data-dmode="grid" aria-pressed="${DR.mode==='grid'}">Brawler rows</button><button type="button" data-dmode="list" aria-pressed="${DR.mode==='list'}">Pop-up list</button></div></div>
@@ -4090,7 +4090,7 @@ function drCard(d,focus,actions){
     :`<span class="dr-act"><button type="button" class="btn quiet" data-dedit="${esc(d.id)}">Edit</button><button type="button" class="btn quiet" data-ddelask="${esc(d.id)}">Delete</button></span>`):'';
   const nameSide=full=>{const team=d[full],won=d.winner===full,first=!drUnk(d)&&d.coin===full,s=full==='blue'?'b':'r';
     const gbs=`<span class="dr-items">${d.gb[s].map(x=>drTI(x,'gb')).join('')}</span>`;
-    const nm=`${hasImg(team)?logo(team,'l20'):''}<span class="nm" style="color:${tcol(team)}">${esc(team||'Unknown team')}</span>${won?'<span class="dr-wonmark" title="Winner">✓</span>':''}${drUnk(d)?'':`<img class="coinm" src="${first?COIN.blue:COIN.red}" alt="" title="${first?'1st pick (blue coin)':'last pick (red coin)'}">`}`;
+    const nm=`${hasImg(team)?logo(team,'l20'):''}<span class="nm" style="color:${tcol(team)}">${esc(team||'Unknown team')}</span>${won?'<span class="dr-wonmark" title="Winner">✓</span>':''}${drUnk(d)?(()=>{const E=drCoinEst(d);if(!E||E.few)return '';const q=full==='blue'?E.p:1-E.p;return q>=.65?`<span class="coinq" title="Estimated from the bans (side unknown): ${Math.round(100*q)}% this team had the 1st pick"><img class="coinm" src="${COIN.blue}" alt="">? ${Math.round(100*q)}%</span>`:''})():`<img class="coinm" src="${first?COIN.blue:COIN.red}" alt="" title="${first?'1st pick (blue coin)':'last pick (red coin)'}">`}`;
     const pc=full===LS?'blue':'red'; // layout class: 'blue' = the left panel, 'red' = the right one
     return `<div class="dr-sdc ${pc}"><div class="dr-sd ${pc}">${nm}</div>${gbs}</div>`};
   const bans=s=>d.bans[s].map(x=>drTI(x,'ban')).join('');
@@ -4103,6 +4103,38 @@ function drCard(d,focus,actions){
    <div class="dr-strip"><div class="dr-sr dr-srn">${nameSide(LS)}${drUnk(d)?'<span class="dr-unk mid">side unknown</span>':''}${nameSide(RS)}</div>
     <div class="dr-sr"><div class="dr-items">${bans(sk(LS))}<span class="dr-gap"></span>${picksL(LS)}</div><div class="dr-items" style="justify-content:flex-end">${picksR(RS)}<span class="dr-gap"></span>${bans(sk(RS))}</div></div></div>
    ${d.notes?`<p class="dr-notes">${esc(d.notes)}</p>`:''}</article>`}
+// ===== coin estimate from the bans (side unknown drafts) =====
+const drPatchOf=dt=>{const ds=((typeof BAL!=='undefined'&&BAL&&BAL.days)||[]).map(x=>x.d).filter(x=>x&&x<=dt).sort();return ds.length?ds[ds.length-1]:''};
+let _ceK='',_ceM={};
+function drCoinModel(pt){const all=drAll(),k=all.length+'|'+all.filter(x=>!drUnk(x)).length+'|'+(((typeof BAL!=='undefined'&&BAL&&BAL.days)||[]).length)+'|'+pt;
+  if(_ceM[k])return _ceM[k];if(_ceK!==all.length)_ceM={};_ceK=all.length;
+  const M={F:{},L:{},nF:0,nL:0,rawF:{},rawL:{},n:0,nP:0};
+  if(typeof BAL!=='undefined'&&!BAL&&BALst===0&&!BALerr)balLoad();
+  for(const x of all){if(drUnk(x)||!x.coin||x.mode==='(team choice)'||![...x.bans.b,...x.bans.r].some(Boolean))continue;const w=drPatchOf(x.date)===pt?1:.25;M.n++;if(w===1)M.nP++;
+    for(const [s,full] of [['b','blue'],['r','red']]){const first=x.coin===full,bs=[...new Set(x.bans[s].filter(Boolean).map(mkey))];
+      if(first){M.nF+=w}else{M.nL+=w}
+      for(const b of bs){const T=first?M.F:M.L,R=first?M.rawF:M.rawL;T[b]=(T[b]||0)+w;if(w===1)R[b]=(R[b]||0)+1}}}
+  return _ceM[k]=M}
+// p = chance that the blue team of the draft had the 1st pick
+function drCoinEst(d){if(!d||!drUnk(d))return null;const bb=d.bans.b.filter(Boolean),rb=d.bans.r.filter(Boolean);if(!bb.length&&!rb.length)return null;
+  const M=drCoinModel(drPatchOf(d.date));if(M.nF<4||M.nL<4)return {few:true,M};
+  const a=.5,pF=b=>((M.F[b]||0)+a)/(M.nF+2*a),pL=b=>((M.L[b]||0)+a)/(M.nL+2*a);let lr=0;const why=[];
+  for(const b of bb){const k=mkey(b),v=Math.log(pF(k)/pL(k));lr+=v;why.push({b,team:d.blue,v,s:'b'})}
+  for(const b of rb){const k=mkey(b),v=Math.log(pL(k)/pF(k));lr+=v;why.push({b,team:d.red,v,s:'r'})}
+  const p=1/(1+Math.exp(-.8*lr));
+  const pc=(x,n)=>n?Math.round(100*x/n)+'%':'–';
+  why.forEach(w=>{const k=mkey(w.b);w.txt=`${w.b} (banned by the 1st-pick team ${pc(M.F[k]||0,M.nF)}, by the last-pick team ${pc(M.L[k]||0,M.nL)})`});
+  return {p,why:why.filter(w=>Math.abs(w.v)>=.4).sort((x,y)=>Math.abs(y.v)-Math.abs(x.v)).slice(0,4),M}}
+function drCoinEstHTML(d){const E=drCoinEst(d);if(!E)return '';
+  if(E.few)return `<div class="dr-cest"><b>Coin estimate:</b> not enough saved drafts with the coin known yet (it needs a few of each coin).</div>`;
+  const blueFirst=E.p>=.5,q=blueFirst?E.p:1-E.p,firstT=blueFirst?d.blue:d.red,lastT=blueFirst?d.red:d.blue,sure=q>=.8?'very likely':q>=.65?'probably':'maybe (unclear)';
+  return `<div class="dr-cest${q<.65?' weak':''}"><div><b>Coin estimate:</b> <b style="color:${tcol(firstT)}">${esc(firstT||'Blue team')}</b> ${sure} had the <b>1st pick</b> and <b style="color:${tcol(lastT)}">${esc(lastT||'Red team')}</b> the last pick · <b>${Math.round(100*q)}%</b></div>
+    ${(()=>{const pro=E.why.filter(w=>blueFirst?w.v>0:w.v<0),con=E.why.filter(w=>blueFirst?w.v<0:w.v>0),f=L=>L.map(w=>`${esc(w.team||'')} banned ${esc(w.txt)}`).join(' · ');return (pro.length?`<small>Why: ${f(pro)}</small>`:'')+(con.length?`<small>Against it: ${f(con)}</small>`:'')})()}
+    <small>From ${plural(E.M.n,'saved draft')} with the coin known${E.M.nP?' ('+E.M.nP+' of this balance patch, they weigh more)':''}. Only a guess: the draft keeps “side unknown” unless you set the coin.</small>
+    <span class="dr-cest-b"><button type="button" class="btn quiet" data-coinset="blue">I know it: ${esc(d.blue||'blue team')} had the 1st pick</button><button type="button" class="btn quiet" data-coinset="red">I know it: ${esc(d.red||'red team')} had the 1st pick</button></span></div>`}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-coinset]');if(!b||!DR.cur)return;const d=DR.cur,op=drPos(d.coin),bl=op[0].map(n=>d.picks[n-1]),rd=op[1].map(n=>d.picks[n-1]);
+  d.coin=b.dataset.coinset;d.su='';const np=drPos(d.coin);d.picks=['','','','','',''];np[0].forEach((n,i)=>d.picks[n-1]=bl[i]||'');np[1].forEach((n,i)=>d.picks[n-1]=rd[i]||'');
+  DR.msg='Coin set. The picks are on their side but maybe not in their real order: put them in order (Pick 1 … Pick 6) if you know it, then press Save draft.';DR.bad=false;drRender()});
 const drInPer=d=>{if(!FULL||!FULL.matches||!FULL.matches.length)return true;const rg=rangeOf(FULL);return d.date>=rg.from&&d.date<=rg.to};
 function drListHTML(){
   const all=drAll(),teams=[...new Set(all.flatMap(d=>[d.blue,d.red]))].filter(Boolean).sort(),maps=[...new Set(all.map(d=>d.map))].filter(Boolean).sort();
@@ -5861,3 +5893,7 @@ td.gt-l{text-align:left!important}td.gt-l .gt-br,td.gt-l .gt-tn{justify-content:
 </style>
 <style>.dr-sl.shq{border-style:solid;border-color:#ffc861}.dr-sl.shq .shimg{border-radius:6px;opacity:.95}.dr-sl .shwho{color:#ffc861;font-size:10px}
 .dr-ed{position:absolute;top:-7px;right:-7px;width:20px;height:20px;border-radius:50%;background:#2b2a3d;border:1px solid #8e8ab0;color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;cursor:pointer}.dr-ed:hover{background:#d63a50;border-color:#d63a50}</style>
+<style>.dr-cest{margin:0 0 8px;padding:8px 10px;border-radius:8px;background:rgba(61,111,240,.10);border:1px solid rgba(61,111,240,.35);display:flex;flex-direction:column;gap:3px;font-size:12.5px}
+.dr-cest.weak{background:rgba(255,200,97,.08);border-color:rgba(255,200,97,.35)}.dr-cest small{color:var(--muted,#a9a6bd);font-size:11.5px}
+.dr-cest-b{display:flex;gap:6px;flex-wrap:wrap;margin-top:3px}.dr-cest-b .btn{font-size:11.5px;padding:3px 8px}
+.coinq{display:inline-flex;align-items:center;gap:2px;font-size:10.5px;color:#9fb5ff;opacity:.85;margin-left:4px}.coinq .coinm{opacity:.6}</style>
