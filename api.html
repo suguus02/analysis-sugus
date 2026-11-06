@@ -3405,7 +3405,7 @@ function grpBarHTML(){const {vs}=grpVals(),n=grpTeams().length;
 function grpChips(key,label,cur,col,fn,o){o=o||{};cur=(cur||[]).filter(Boolean);TPCB[key]={fn,cur:cur[0]||'',none:'',excl:o.excl||[]};
   const ok=t=>!(o.excl||[]).includes(t)&&(!o.only||o.only.includes(t)),T=grpTeams().filter(ok),extra=cur.filter(t=>!T.includes(t)&&ok(t));
   return `<div class="uxpick grpk"><label>${label}</label><div class="uxchips">${[...T,...extra].map(t=>`<button type="button" class="uxchip${cur.includes(t)?' on':''}${extra.includes(t)?' out':''}" style="--c:${col}" data-uxchip="${esc(key)}" data-t="${esc(t)}" title="${esc(t)}${extra.includes(t)?' · not in this group':''}">${logo(t,'l26')}</button>`).join('')}${o.tail||''}</div></div>`}
-document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-drper]');if(!b)return;DR.fPer=b.dataset.drper;try{store.set('tvt:drper',DR.fPer)}catch(_){}drRender()});
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-drper]');if(!b)return;DR.fPer=b.dataset.drper;try{store.set('tvt:drper',DR.fPer)}catch(_){}if(view==='draft')drRender();else renderDetail()});
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-grpby],[data-grpv],[data-grpall],[data-grpnone]');if(!b)return;
   if(b.dataset.grpby){if(GRP.by===b.dataset.grpby)return;GRP.by=b.dataset.grpby;GRP.v=''}
   else if(b.dataset.grpv!=null)GRP.v=b.dataset.grpv;
@@ -5398,16 +5398,18 @@ function drTablesFor(list,teams,pickFocus){
   const B=drTablesBlock(list,teams,m);
   return B.sum+seg+B.tabs}
 function draftsTab(){
-  const T=draftTeams(),all=drAll();
+  const T=draftTeams(),rg=FULL&&FULL.matches&&FULL.matches.length?rangeOf(FULL):null,perOn=DR.fPer!=='all'&&!!rg,tAll=drAll();
+  const all=perOn?tAll.filter(d=>d.date>=rg.from&&d.date<=rg.to):tAll;
+  const perSeg=rg?`<div class="seg2" role="group" aria-label="Dates" style="align-self:flex-end"><button type="button" data-drper="" aria-pressed="${perOn}" title="The dates of the calendar at the top of the page">${esc(fmtDate(rg.from))} – ${esc(fmtDate(rg.to))}</button><button type="button" data-drper="all" aria-pressed="${!perOn}">All dates</button></div>`:'';
   const base=all.filter(d=>scope==='pair'?(T.length===2&&((d.blue===T[0]&&d.red===T[1])||(d.blue===T[1]&&d.red===T[0]))):T.includes(d.blue)||T.includes(d.red));
-  if(!base.length)return `<p class="msg" style="margin:14px 0">${DR.loaded?'No drafts saved for '+(scope==='pair'?'this matchup':'the selected team'+(T.length===1?'':'s'))+' yet. Add them in the Drafts section.':'Loading drafts…'}</p>`;
+  if(!base.length)return `<div style="margin-top:14px">${perSeg}<p class="msg" style="margin:10px 0">${!DR.loaded?'Loading drafts…':perOn&&tAll.some(d=>scope==='pair'?(T.length===2&&((d.blue===T[0]&&d.red===T[1])||(d.blue===T[1]&&d.red===T[0]))):T.includes(d.blue)||T.includes(d.red))?'No saved drafts between these dates for '+(scope==='pair'?'this matchup':'the selected team'+(T.length===1?'':'s'))+'. Change the dates in the calendar at the top, or press “All dates”.':'No drafts saved for '+(scope==='pair'?'this matchup':'the selected team'+(T.length===1?'':'s'))+' yet. Add them in the Drafts section.'}</p></div>`;
   const maps=[...new Set(base.map(d=>d.map))].filter(Boolean).sort();
   if(DR.sMap&&!maps.includes(DR.sMap))DR.sMap='';
   const list=base.filter(d=>(!DR.sMap||d.map===DR.sMap)&&(!DR.sCoin||(!drUnk(d)&&d.coin===DR.sCoin)));
   const focus=scope==='one'?T[0]:'';
   DR.sBase=()=>base;
   const fil=`<div class="dr-sfil">${mapBoxHTML(DR.sMap,'data-drmapopen="s" data-x','Map')}${DR.sMap?'<button type="button" class="btn quiet" data-drmappick="" data-drk="s">All maps</button>':''}
-   <label class="dr-field"><span class="lbl">Coin</span><select class="dr-input" data-dsf="coin"><option value="">Both coins</option><option value="blue"${DR.sCoin==='blue'?' selected':''}>Blue coin</option><option value="red"${DR.sCoin==='red'?' selected':''}>Red coin</option></select></label><span class="msg">${plural(list.length,'draft')}</span></div>`;
+   <label class="dr-field"><span class="lbl">Coin</span><select class="dr-input" data-dsf="coin"><option value="">Both coins</option><option value="blue"${DR.sCoin==='blue'?' selected':''}>Blue coin</option><option value="red"${DR.sCoin==='red'?' selected':''}>Red coin</option></select></label>${perSeg}<span class="msg">${plural(list.length,'draft')}</span></div>`;
   const tabs=!list.length?'<p class="msg">No drafts match these filters.</p>':scope==='pair'?T.map(t=>`<div class="dr-tgrp" style="color:${tcol(t)}">${esc(t)}</div>${drTablesFor(list,[t])}`).join(''):drTablesFor(list,T);
   return `<div style="margin-top:14px">${fil}${tabs}<div class="dr-list" style="margin-top:0">${list.map(d=>drCard(d,focus,false)).join('')}</div></div>`}
 
