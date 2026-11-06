@@ -4126,12 +4126,13 @@ function drCoinEst(d){if(!d||!drUnk(d))return null;const bb=d.bans.b.filter(Bool
   why.forEach(w=>{const k=mkey(w.b);w.txt=`${w.b} (banned by the 1st-pick team ${pc(M.F[k]||0,M.nF)}, by the last-pick team ${pc(M.L[k]||0,M.nL)})`});
   return {p,why:why.filter(w=>Math.abs(w.v)>=.4).sort((x,y)=>Math.abs(y.v)-Math.abs(x.v)).slice(0,4),M}}
 function drCoinEstHTML(d){const E=drCoinEst(d);if(!E)return '';
-  if(E.few)return `<div class="dr-cest"><b>Coin estimate:</b> not enough saved drafts with the coin known yet (it needs a few of each coin).</div>`;
+  const btns=`<span class="dr-cest-b"><button type="button" class="btn quiet" data-coinset="blue">I know it: ${esc(d.blue||'blue team')} had the 1st pick</button><button type="button" class="btn quiet" data-coinset="red">I know it: ${esc(d.red||'red team')} had the 1st pick</button></span>`;
+  if(E.few)return `<div class="dr-cest"><b>Coin estimate:</b> not enough saved drafts with the coin known yet (it needs a few of each coin).${btns}</div>`;
   const blueFirst=E.p>=.5,q=blueFirst?E.p:1-E.p,firstT=blueFirst?d.blue:d.red,lastT=blueFirst?d.red:d.blue,sure=q>=.8?'very likely':q>=.65?'probably':'maybe (unclear)';
   return `<div class="dr-cest${q<.65?' weak':''}"><div><b>Coin estimate:</b> <b style="color:${tcol(firstT)}">${esc(firstT||'Blue team')}</b> ${sure} had the <b>1st pick</b> and <b style="color:${tcol(lastT)}">${esc(lastT||'Red team')}</b> the last pick · <b>${Math.round(100*q)}%</b></div>
     ${(()=>{const pro=E.why.filter(w=>blueFirst?w.v>0:w.v<0),con=E.why.filter(w=>blueFirst?w.v<0:w.v>0),f=L=>L.map(w=>`${esc(w.team||'')} banned ${esc(w.txt)}`).join(' · ');return (pro.length?`<small>Why: ${f(pro)}</small>`:'')+(con.length?`<small>Against it: ${f(con)}</small>`:'')})()}
     <small>From ${plural(E.M.n,'saved draft')} with the coin known${E.M.nP?' ('+E.M.nP+' of this balance patch, they weigh more)':''}. Only a guess: the draft keeps “side unknown” unless you set the coin.</small>
-    <span class="dr-cest-b"><button type="button" class="btn quiet" data-coinset="blue">I know it: ${esc(d.blue||'blue team')} had the 1st pick</button><button type="button" class="btn quiet" data-coinset="red">I know it: ${esc(d.red||'red team')} had the 1st pick</button></span></div>`}
+    ${btns}</div>`}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-coinset]');if(!b||!DR.cur)return;const d=DR.cur,op=drPos(d.coin),bl=op[0].map(n=>d.picks[n-1]),rd=op[1].map(n=>d.picks[n-1]);
   d.coin=b.dataset.coinset;d.su='';const np=drPos(d.coin);d.picks=['','','','','',''];np[0].forEach((n,i)=>d.picks[n-1]=bl[i]||'');np[1].forEach((n,i)=>d.picks[n-1]=rd[i]||'');
   DR.msg='Coin set. The picks are on their side but maybe not in their real order: put them in order (Pick 1 … Pick 6) if you know it, then press Save draft.';DR.bad=false;drRender()});
