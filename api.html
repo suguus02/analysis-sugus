@@ -3937,11 +3937,13 @@ DR.cur=drNew();
 const drClone=d=>JSON.parse(JSON.stringify(d));
 // the draft type is kept inside the Notes column as a tag, e.g. [[MQ|2026-02|C]] (MQ = Monthly Qualifier, MF = Monthly Final, C = date confirmed), so the DRAFTS sheet keeps its columns
 const KIND_NAME={mq:'Monthly Qualifier',mf:'Monthly Final',tr:'Tournament'};
-function drTag(o){let n=o.notes||'';const m=/^\[\[(MQ|MF|TR)\|(\d{4}-\d{2})?(\|C)?(\|U)?\]\]\s*/.exec(n);if(m){o.kind=m[1].toLowerCase();o.km=m[2]||'';o.dc=m[3]?'C':'';o.su=m[4]?'U':'';n=n.slice(m[0].length)}else{o.kind='';o.km='';o.dc='';o.su=''}
+function drTag(o){let n=o.notes||'';const m=/^\[\[(MQ|MF|TR)\|(\d{4}-\d{2})?(\|C)?(\|U)?(\|O)?\]\]\s*/.exec(n);o.po='';if(m){o.kind=m[1].toLowerCase();o.km=m[2]||'';o.dc=m[3]?'C':'';o.su=m[4]?'U':'';o.po=m[5]&&!m[4]?'O':'';n=n.slice(m[0].length)}else{o.kind='';o.km='';o.dc='';o.su=''}
+  const po=/^\[\[PO\]\]\s*/.exec(n);if(po){o.po='O';n=n.slice(po[0].length)}
   const su=/^\[\[SU\]\]\s*/.exec(n);if(su){if(o.kind!=='mq')o.su='U';n=n.slice(su[0].length)}
   const pk=/^\[\[PK\|([^\]]*)\]\]\s*/.exec(n);o.mp='';if(pk){o.mp=pk[1].trim().toUpperCase()==='-'?'-':pk[1].trim().toUpperCase();n=n.slice(pk[0].length)}o.notes=n;return o}
 const drUnk=d=>d.kind==='mq'||!!d.su; // side (coin) unknown
-const drTagged=d=>{const t=(d.kind?`[[${d.kind.toUpperCase()}|${d.km||''}${d.dc?'|C':''}${d.kind!=='mq'&&d.su?'|U':''}]]`:(d.su?'[[SU]]':''))+(d.mp?`[[PK|${String(d.mp).replace(/[\]|]/g,'')}]]`:'');return t+(t&&d.notes?' ':'')+d.notes}
+const drOrdUnk=d=>drUnk(d)||!!d.po; // the real order of the picks is not known
+const drTagged=d=>{const t=(d.kind?`[[${d.kind.toUpperCase()}|${d.km||''}${d.dc?'|C':''}${d.kind!=='mq'&&d.su?'|U':''}${d.kind!=='mq'&&!d.su&&d.po?'|O':''}]]`:(d.su?'[[SU]]':d.po?'[[PO]]':''))+(d.mp?`[[PK|${String(d.mp).replace(/[\]|]/g,'')}]]`:'');return t+(t&&d.notes?' ':'')+d.notes}
 const drKindLbl=d=>d.kind?KIND_NAME[d.kind]+(d.km?' '+MON[+d.km.slice(5,7)-1]+' '+d.km.slice(0,4):''):'';
 function drFindMatch(d){
   const src=(FULL&&FULL.matches)||[];if(!src.length)return {err:'The matches are not loaded yet.'};
@@ -4029,9 +4031,9 @@ const rarOf=n=>RARITY[mkey(n)]||'OTHER';
 DR.sort=store.get('tvt:drsort')==='az'?'az':'rarity';
 function drSorted(){const n=drNames();if(DR.sort==='az')return n;const ix=x=>{const i=RAR_ORDER.indexOf(rarOf(x));return i<0?99:i};return n.sort((a,b)=>ix(a)-ix(b)||a.localeCompare(b))}
 
-const drNextPick=d=>{const o=drUnk(d)?drPos(d.coin).flat():[1,2,3,4,5,6];for(const n of o)if(!d.picks[n-1])return n;return 0};
+const drNextPick=d=>{const o=drOrdUnk(d)?drPos(d.coin).flat():[1,2,3,4,5,6];for(const n of o)if(!d.picks[n-1])return n;return 0};
 const drLastPick=d=>{for(let n=6;n>=1;n--)if(d.picks[n-1])return n;return 0};
-const drSlotOK=(d,slot)=>{const p=slot.split(':');if(p[0]!=='pick'||drUnk(d))return true;const n=+p[1];return n===1||!!d.picks[n-2]||!!d.picks[n-1]};
+const drSlotOK=(d,slot)=>{const p=slot.split(':');if(p[0]!=='pick'||drOrdUnk(d))return true;const n=+p[1];return n===1||!!d.picks[n-2]||!!d.picks[n-1]};
 const drCanClear=(d,slot)=>true;
 function drTarget(){const d=DR.cur;if(DR.active&&drSlotOK(d,DR.active))return DR.active;const n=drNextPick(d);return n?'pick:'+n:''}
 function drUsedMap(d,slot){const m={},bs=drBanSide(slot);d.picks.forEach(x=>{if(x)m[mkey(x)]='PICKED'});[...(bs!=='r'?d.bans.b:[]),...(bs!=='b'?d.bans.r:[])].forEach(x=>{if(x)m[mkey(x)]='BANNED'});const gs=drGbSide(slot);[...(gs!=='r'?d.gb.b:[]),...(gs!=='b'?d.gb.r:[])].forEach(x=>{if(x)m[mkey(x)]='GLOBAL'});return m}
@@ -4047,10 +4049,10 @@ function shBanOf(s,i){const it=DR.shot&&SHOT.list.find(x=>x.id===DR.shot);return
 function drGbSlot(s,i){const d=DR.cur,slot='gb:'+s+':'+i,v=d.gb[s][i];
   return `<div class="dr-sl gb${v?' fill':''}${DR.active===slot?' act':''}" data-slot="${slot}" role="button" tabindex="0" aria-label="Global ban ${i+1}">${v?`<span class="dr-imgw">${drImg(v,'bi lg')}<u class="dr-no"></u></span><b>${esc(v)}</b><span class="dr-x" data-sclear="${slot}" title="Clear">×</span>`:`<small>Global</small><span class="ph0">+</span>`}</div>`}
 function drPickCard(n,side){const d=DR.cur,slot='pick:'+n,v=d.picks[n-1],ok=drSlotOK(d,slot),nx=drNextPick(d)===n;
-  return `<div class="dr-pk ${side}${v?' fill':''}${ok?'':' lock'}${DR.active===slot?' act':''}" data-slot="${slot}"${ok?'':' data-lock="1"'} role="button" tabindex="0" aria-label="Pick ${n}">${drUnk(d)?'':`<span class="dr-pn">${n}</span>`}${nx&&!drUnk(d)?'<span class="dr-next">NEXT</span>':''}${v?drImg(v,'bi lg'):'<span class="ph0">?</span>'}<b>${v?esc(v):'&nbsp;'}</b>${v&&drCanClear(d,slot)?`<span class="dr-x" data-sclear="${slot}" title="Clear">×</span>`:''}</div>`}
+  return `<div class="dr-pk ${side}${v?' fill':''}${ok?'':' lock'}${DR.active===slot?' act':''}" data-slot="${slot}"${ok?'':' data-lock="1"'} role="button" tabindex="0" aria-label="Pick ${n}">${drOrdUnk(d)?'':`<span class="dr-pn">${n}</span>`}${nx&&!drOrdUnk(d)?'<span class="dr-next">NEXT</span>':''}${v?drImg(v,'bi lg'):'<span class="ph0">?</span>'}<b>${v?esc(v):'&nbsp;'}</b>${v&&drCanClear(d,slot)?`<span class="dr-x" data-sclear="${slot}" title="Clear">×</span>`:''}</div>`}
 function drTeamBtn(full){const t=DR.cur[full];return `<div class="dr-tn ${full}"><button type="button" class="dr-tbtn ${full}${t?'':' empty'}" data-tpop="${full}">${t?logo(t,'l28')+`<span class="nm" style="color:${tcol(t)}">${esc(t)}</span>`:`<span>Choose ${full} team</span>`}</button></div>`}
 function drPoolHTML(){const d=DR.cur,tg=drTarget(),um=drUsedMap(d,tg),q=DR.gq.toLowerCase();
-  const label=tg?(tg.startsWith('pick')?(drUnk(d)?(pickSide(d.coin,+tg.split(':')[1])==='blue'?'a blue pick':'a red pick'):'Pick '+tg.split(':')[1]):tg.startsWith('ban')?'Ban':'Global ban'):'';
+  const label=tg?(tg.startsWith('pick')?(drOrdUnk(d)?(pickSide(d.coin,+tg.split(':')[1])==='blue'?'a blue pick':'a red pick'):'Pick '+tg.split(':')[1]):tg.startsWith('ban')?'Ban':'Global ban'):'';
   return `<div class="dr-pool"><div class="dr-poolh"><b>Brawlers</b><input class="dr-input" id="drGQ" placeholder="Search brawler" value="${esc(DR.gq)}" autocomplete="off"><div class="seg2" style="margin-top:0" role="group" aria-label="Sort brawlers"><button type="button" data-dsort="rarity" aria-pressed="${DR.sort==='rarity'}">By rarity</button><button type="button" data-dsort="az" aria-pressed="${DR.sort==='az'}">A–Z</button></div><span class="msg">${tg?'Filling: <b>'+label+'</b>. Click a slot to fill a different one.':'All six picks are done. Click a slot to change it.'}</span></div>${DR.sort==='rarity'?`<div class="dr-leg">${RAR_ORDER.map(r=>`<span><i style="background:${RAR_COL[r]}"></i>${RAR_NAME[r]}</span>`).join('')}</div>`:''}
    <div class="dr-pgrid">${drSorted().map(n=>{const st=um[mkey(n)];const hide=q&&!n.toLowerCase().includes(q);return `<button type="button" class="dr-pb${st?' used':''}" data-rar="${rarOf(n)}" data-gb="${esc(n)}" data-n="${esc(n.toLowerCase())}"${st?' disabled':''}${hide?' hidden':''}>${bimg(n,'bi lg')}<span>${esc(n)}</span>${st?`<em class="${st==='PICKED'?'':'bn'}">${st==='GLOBAL'?'BANNED':st}</em>`:''}</button>`}).join('')}</div></div>`}
 const drSubHTML=()=>`<div class="dr-sub"><div class="seg2" role="group" aria-label="Draft mode"><button type="button" data-vsub="draft" aria-pressed="${!DR.sug}">Save Draft</button><button type="button" data-vsub="suggest" aria-pressed="${DR.sug}">Draft Suggestion</button></div></div>`;
@@ -4070,7 +4072,7 @@ function drEditorHTML(){
     <label class="dr-field notes"><span class="lbl">Notes</span><textarea class="dr-input" id="drNotes" rows="3">${esc(d.notes)}</textarea></label></div>
     <div class="dr-row1"><label class="dr-field"><span class="lbl">Draft type</span><select class="dr-input" id="drKind"><option value="">Normal</option><option value="mq"${d.kind==='mq'?' selected':''}>Monthly Qualifier</option><option value="mf"${d.kind==='mf'?' selected':''}>Monthly Final</option><option value="tr"${d.kind==='tr'?' selected':''}>Tournament</option></select></label>
       <label class="dr-field"><span class="lbl">Map picked by</span><select class="dr-input" id="drMP"><option value="">Unknown</option>${[...new Set([d.blue,d.red,(d.mp&&d.mp!=='-')?d.mp:''].filter(Boolean))].map(t=>`<option value="${esc(t)}"${d.mp===t?' selected':''}>${esc(t)}</option>`).join('')}<option value="-"${d.mp==='-'?' selected':''}>Decider (nobody picked it)</option></select></label>
-      ${d.kind!=='mq'?`<label class="chk" style="align-self:end;margin-bottom:6px" title="For drafts copied from the end-of-game screen: you know the bans and picks of each team but not who picked first"><input type="checkbox" id="drSU"${d.su?' checked':''}> Side unknown (no pick order)</label>`:''}
+      ${d.kind!=='mq'?`<label class="chk" style="align-self:end;margin-bottom:6px" title="For drafts copied from the end-of-game screen: you know the bans and picks of each team but not who picked first"><input type="checkbox" id="drSU"${d.su?' checked':''}> Side unknown (no pick order)</label>`:''}${d.kind!=='mq'&&!d.su?`<label class="chk" style="align-self:end;margin-bottom:6px" title="You know the coin but not the real order of the picks: the draft counts for everything by coin, and not for Pick 1 / Pick 6"><input type="checkbox" id="drPO"${d.po?' checked':''}> Pick order unknown (only the coin is known)</label>`:''}
       ${d.kind?`<div class="dr-field"><span class="lbl">Date</span><div class="dr-find"><button type="button" class="btn quiet" data-dfind="1">Find the match date</button>${d.dc?'':'<button type="button" class="btn quiet" data-dexact="1">The date is exact</button>'}${d.dc?'<span class="dr-badge ok">date confirmed</span>':'<span class="dr-badge">date not confirmed</span>'}</div></div>`:''}</div>
     ${d.su&&d.kind!=='mq'?`<p class="msg" style="margin:0 0 6px">Side unknown: put each team's 3 picks on its side in any order (the numbers don't matter) and its bans. This draft counts for picks and bans, and is left out of the 1st / last pick figures.</p>${drCoinEstHTML(d)}`:''}${d.kind?`<p class="msg" style="margin:0">${d.kind==='tr'?'Tournament: the 1st pick side is recorded as usual and the global bans are optional (leave them empty if that tournament has none), and you can tick “Side unknown” if the 1st pick side is not known (then the draft is left out of the 1st/last pick figures). ':''}${d.kind==='mq'?'Monthly qualifier: write the whole draft; the 1st pick side is not recorded, so this draft is left out of the 1st/last pick figures. ':''}“Find the match date” looks for a tournament game with these picks and this map in the month of the date (teams that are not in the Picks sheet are matched by their picks only), and asks you before changing the date.</p>${DR.link?drLinkHTML():''}`:''}
     <div class="dr-btns"><button type="button" class="btn" data-dsave="1"${DR.busy?' disabled':''}>${isSaved?'Update draft':'Save draft'}</button><button type="button" class="btn quiet" data-dnext="1">Next map (keep teams and global bans)</button><button type="button" class="btn quiet" data-dclear="1">Clear draft</button></div></div>
@@ -4097,10 +4099,10 @@ function drCard(d,focus,actions){
   // with a team selected it is always shown on the left (the coin shows who has the 1st pick, whatever the side)
   const sw=!!focus&&d.red===focus&&d.blue!==focus,LS=sw?'red':'blue',RS=sw?'blue':'red',sk=f=>f==='blue'?'b':'r';
   const sideNs=full=>[1,2,3,4,5,6].filter(n=>pickSide(d.coin,n)===full);
-  const picksL=full=>sideNs(full).map(n=>drTI(d.picks[n-1],'',drUnk(d)?'':n)).join('');
-  const picksR=full=>sideNs(full).reverse().map(n=>drTI(d.picks[n-1],'',drUnk(d)?'':n)).join('');
+  const picksL=full=>sideNs(full).map(n=>drTI(d.picks[n-1],'',drOrdUnk(d)?'':n)).join('');
+  const picksR=full=>sideNs(full).reverse().map(n=>drTI(d.picks[n-1],'',drOrdUnk(d)?'':n)).join('');
   return `<article class="dr-card2"><div class="dr-info"><span class="mdate">${d.date?fmtDate(d.date):'–'}</span><span class="dr-cm">${ic}${d.map?mimg(d.map,'th'):''}${esc(d.map||'')}</span>${pill}${d.kind?`<span class="dr-badge kind">${esc(drKindLbl(d))}</span>${d.dc?'':'<span class="dr-badge">date not confirmed</span>'}`:''}${d.mp?(d.mp==='-'?'<span class="dr-badge">decider map</span>':`<span class="dr-badge">map picked by ${esc(d.mp)}</span>`):''}${d._local?'<span class="dr-badge">this browser only</span>':''}${act}</div>
-   <div class="dr-strip"><div class="dr-sr dr-srn">${nameSide(LS)}${drUnk(d)?'<span class="dr-unk mid">side unknown</span>':''}${nameSide(RS)}</div>
+   <div class="dr-strip"><div class="dr-sr dr-srn">${nameSide(LS)}${drUnk(d)?'<span class="dr-unk mid">side unknown</span>':d.po?'<span class="dr-unk mid" title="The coin is known, the real order of the picks is not">pick order unknown</span>':''}${nameSide(RS)}</div>
     <div class="dr-sr"><div class="dr-items">${bans(sk(LS))}<span class="dr-gap"></span>${picksL(LS)}</div><div class="dr-items" style="justify-content:flex-end">${picksR(RS)}<span class="dr-gap"></span>${bans(sk(RS))}</div></div></div>
    ${d.notes?`<p class="dr-notes">${esc(d.notes)}</p>`:''}</article>`}
 // ===== coin estimate from the bans (side unknown drafts) =====
@@ -4134,8 +4136,8 @@ function drCoinEstHTML(d){const E=drCoinEst(d);if(!E)return '';
     <small>From ${plural(E.M.n,'saved draft')} with the coin known${E.M.nP?' ('+E.M.nP+' of this balance patch, they weigh more)':''}. Only a guess: the draft keeps “side unknown” unless you set the coin.</small>
     ${btns}</div>`}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-coinset]');if(!b||!DR.cur)return;const d=DR.cur,op=drPos(d.coin),bl=op[0].map(n=>d.picks[n-1]),rd=op[1].map(n=>d.picks[n-1]);
-  d.coin=b.dataset.coinset;d.su='';const np=drPos(d.coin);d.picks=['','','','','',''];np[0].forEach((n,i)=>d.picks[n-1]=bl[i]||'');np[1].forEach((n,i)=>d.picks[n-1]=rd[i]||'');
-  DR.msg='Coin set. The picks are on their side but maybe not in their real order: put them in order (Pick 1 … Pick 6) if you know it, then press Save draft.';DR.bad=false;drRender()});
+  d.coin=b.dataset.coinset;d.su='';d.po='O';const np=drPos(d.coin);d.picks=['','','','','',''];np[0].forEach((n,i)=>d.picks[n-1]=bl[i]||'');np[1].forEach((n,i)=>d.picks[n-1]=rd[i]||'');
+  DR.msg='Coin set, with “Pick order unknown” ticked: every brawler stays with its team and the draft counts for everything by coin, but not for Pick 1 / Pick 6. If you know the real order, put the picks in order and untick it. Then press Save draft.';DR.bad=false;drRender()});
 const drInPer=d=>{if(!FULL||!FULL.matches||!FULL.matches.length)return true;const rg=rangeOf(FULL);return d.date>=rg.from&&d.date<=rg.to};
 function drListHTML(){
   const all=drAll(),teams=[...new Set(all.flatMap(d=>[d.blue,d.red]))].filter(Boolean).sort(),maps=[...new Set(all.map(d=>d.map))].filter(Boolean).sort();
@@ -4160,7 +4162,7 @@ function drOrderTable(team,list){
   const col=o=>{const E=groups[o],N=E.length,bn={},pk={},slot={};
     for(const {d,side} of E){const s_=side==='blue'?'b':'r';
       for(const b of d.bans[s_])if(b)bn[b]=(bn[b]||0)+1;
-      for(let i=1;i<=6;i++){if(pickSide(d.coin,i)!==side)continue;const b=d.picks[i-1];if(!b)continue;pk[b]=(pk[b]||0)+1;if(i===(o==='first'?1:6))slot[b]=(slot[b]||0)+1}}
+      for(let i=1;i<=6;i++){if(pickSide(d.coin,i)!==side)continue;const b=d.picks[i-1];if(!b)continue;pk[b]=(pk[b]||0)+1;if(!d.po&&i===(o==='first'?1:6))slot[b]=(slot[b]||0)+1}}
     const names=[...new Set([...Object.keys(bn),...Object.keys(pk)])];
     const rows=names.map(b=>({b,bn:bn[b]||0,pk:pk[b]||0,sl:slot[b]||0})).sort((x,y)=>y.bn-x.bn||y.pk-x.pk||x.b.localeCompare(y.b)).slice(0,15);
     const pc=v=>N?Math.round(100*v/N)+'%':'–',c=v=>v?v:'<span class="msg">–</span>';
@@ -4234,7 +4236,7 @@ $('draftview').addEventListener('click',e=>{
   const mk=t.closest('[data-mpick]');if(mk){const [mode,map]=mk.dataset.mpick.split('|');DR.cur.mode=mode;DR.cur.map=map;drClosePop();drRender();return}
   const so=t.closest('[data-dsort]');if(so){DR.sort=so.dataset.dsort;store.set('tvt:drsort',DR.sort);drRender();return}
   const dm=t.closest('[data-dmode]');if(dm){DR.mode=dm.dataset.dmode;store.set('tvt:drmode',DR.mode);drRender();return}
-  const co=t.closest('[data-coin]');if(co){DR.cur.coin=co.dataset.coin;drRender();return}
+  const co=t.closest('[data-coin]');if(co){const d=DR.cur;if(drOrdUnk(d)&&d.coin!==co.dataset.coin){const op=drPos(d.coin),bl=op[0].map(n=>d.picks[n-1]),rd=op[1].map(n=>d.picks[n-1]);d.coin=co.dataset.coin;const np=drPos(d.coin);d.picks=['','','','','',''];np[0].forEach((n,i)=>d.picks[n-1]=bl[i]||'');np[1].forEach((n,i)=>d.picks[n-1]=rd[i]||'')}else d.coin=co.dataset.coin;drRender();return}
   const wn=t.closest('[data-win]');if(wn){DR.cur.winner=wn.dataset.win;drRender();return}
   if(t.closest('[data-dsave]')){drSave();return}
   if(t.closest('[data-dfind]')){DR.link=drFindMatch(DR.cur);drRender();return}
@@ -4245,7 +4247,7 @@ $('draftview').addEventListener('click',e=>{
       const known=new Set((M?allTeams():[]).map(x=>x.toUpperCase()));
       if(!c.blue&&hh.nb){c.blue=hh.nb;got.push('blue team name')}if(!c.red&&hh.nr){c.red=hh.nr;got.push('red team name')}}
     DR.link=null;DR.msg='Date'+(got.length?', '+got.join(', '):'')+' set from the match of '+fmtDate(du.dataset.duse)+'. Press Save draft to keep it.';DR.bad=false;drRender();return}
-  if(t.closest('[data-dnext]')){const o=DR.cur,n=drNew();n.date=o.date;n.blue=o.blue;n.red=o.red;n.coin=o.coin;n.gb=drClone(o.gb);n.kind=o.kind;n.km=o.km;n.su=o.su;DR.link=null;DR.cur=n;DR.active='';DR.msg='Ready for the next map.';DR.bad=false;drRender();return}
+  if(t.closest('[data-dnext]')){const o=DR.cur,n=drNew();n.date=o.date;n.blue=o.blue;n.red=o.red;n.coin=o.coin;n.gb=drClone(o.gb);n.kind=o.kind;n.km=o.km;n.su=o.su;n.po=o.po;DR.link=null;DR.cur=n;DR.active='';DR.msg='Ready for the next map.';DR.bad=false;drRender();return}
   if(t.closest('[data-dclear]')){DR.shot='';DR.cur=drNew();DR.active='';DR.msg='';DR.bad=false;drRender();return}
   const ed=t.closest('[data-dedit]');if(ed){const d=drAll().find(x=>x.id===ed.dataset.dedit);if(d){DR.cur=drClone(d);delete DR.cur._local;DR.active='';DR.msg='Editing a saved draft. Press Update draft to save the changes.';DR.bad=false;drRender();window.scrollTo({top:0,behavior:'smooth'})}return}
   const dk=t.closest('[data-ddelask]');if(dk){DR.confirm=dk.dataset.ddelask;drRender();return}
@@ -4260,7 +4262,8 @@ $('draftview').addEventListener('input',e=>{const t=e.target;
 $('draftview').addEventListener('change',e=>{const t=e.target;
   if(t.id==='drDate'){DR.cur.date=t.value;DR.cur.dc='';DR.link=null;if(DR.cur.kind)drRender();return}
   if(t.id==='drMP'){DR.cur.mp=t.value;return}
-  if(t.id==='drSU'){DR.cur.su=t.checked?'U':'';DR.link=null;drRender();return}
+  if(t.id==='drSU'){DR.cur.su=t.checked?'U':'';DR.cur.po=t.checked?'':'O';DR.link=null;drRender();return}
+  if(t.id==='drPO'){DR.cur.po=t.checked?'O':'';DR.link=null;drRender();return}
   if(t.id==='drKind'){DR.cur.kind=t.value;if(t.value==='mq')DR.cur.su='';if(!t.value){DR.cur.km='';DR.cur.dc=''}DR.link=null;drRender();return}
   if(t.id==='drFTeam'){drSetFTeam(t.value);return}
   if(t.id==='drFMap'){DR.fMap=t.value;drRender()}});
@@ -5099,8 +5102,11 @@ function shGeom(img){const W=img.width,H=img.height,y0=Math.floor(H*.68),h=H-y0,
     cs.push({x:(x0+x1+1)/2,y:(yA+yB+1)/2+y0,w})}
   const big=cs.filter(c=>c.w>=H*.03);
   if(big.length>=6){const med=a=>a.slice().sort((p,q)=>p-q)[Math.floor(a.length/2)],mw=med(big.map(c=>c.w)),B=big.filter(c=>Math.abs(c.w-mw)<mw*.3),my=med(B.map(c=>c.y));
-    const C=B.filter(c=>Math.abs(c.y-my)<mw).sort((a,b)=>a.x-b.x);
-    if(C.length===6){const Hg=(C[5].x-C[0].x)/1.402,cx=C[0].x+.680*Hg,top=my-.957*Hg;if(Hg>200)return {cx,top,H:Hg,ok:true}}}
+    const C=B.filter(c=>Math.abs(c.y-my)<mw*.5).sort((a,b)=>a.x-b.x);
+    // the 6 signs: the first and the last fix the size; the 4 others must fall where the layout puts them
+    let best=null;for(let i=0;i<C.length;i++)for(let j=C.length-1;j>i;j--){const Hg=(C[j].x-C[i].x)/1.402;if(Hg<200)continue;const tol=.025*Hg;
+      const pick=SH_DX.map(dx=>C.find(c=>Math.abs(c.x-(C[i].x+(dx+.680)*Hg))<tol));if(pick.every(Boolean)){const e=pick.reduce((s,c,k)=>s+Math.abs(c.x-(C[i].x+(SH_DX[k]+.680)*Hg)),0);if(!best||e<best.e)best={e,Hg,x0:C[i].x,y:pick.reduce((s,c)=>s+c.y,0)/6}}}
+    if(best){const cx=best.x0+.680*best.Hg,top=best.y-.957*best.Hg;return {cx,top,H:best.Hg,ok:true}}}
   return {cx:W/2,top:0,H,ok:false}}
 function shBanFeat(img,i,G){const H=G.H,x=G.cx+SH_DX[i]*H,y=G.top+.957*H,x0=x-.072*H,y0=y-.064*H,x1=x+.004*H,y1=y+.008*H;
   const c=shCrop(img,x0,y0,x1,y1,SH_N,SH_N),d=c.getContext('2d').getImageData(0,0,SH_N,SH_N).data,f=new Uint8Array(SH_N*SH_N*3),m=new Uint8Array(SH_N*SH_N);
@@ -5401,7 +5407,7 @@ function drTablesBlock(list,teams,mode){
       for(const ts of (mode==='both'?[s,s==='b'?'r':'b']:mode==='enemy'?[s==='b'?'r':'b']:[s])){const tf=ts==='b'?'blue':'red',won=d.winner===tf,known=!drUnk(d),first=known&&d.coin===tf;
       [1,2,3,4,5,6].filter(n=>pickSide(d.coin,n)===tf).forEach(n=>{const b=d.picks[n-1];if(!b)return;
         const e=ent(pk,b,()=>({n:0,w:0,f:{n:0,w:0},z:{n:0,w:0}}));e.n++;if(won)e.w++;
-        if(known&&n===1){e.f.n++;if(won)e.f.w++}if(known&&n===6){e.z.n++;if(won)e.z.w++}});
+        if(known&&!d.po&&n===1){e.f.n++;if(won)e.f.w++}if(known&&!d.po&&n===6){e.z.n++;if(won)e.z.w++}});
       const bs=d.bans[ts].filter(Boolean);
       bs.forEach(b=>{const e=ent(bn,b,()=>({n:0,f:0,z:0}));e.n++;if(known){if(first)e.f++;else e.z++}});
       const comb=(arr,size,out)=>{const k=[...arr].sort().join(' + ');if(arr.length===size)ent(out,k,()=>({n:0})).n++};
