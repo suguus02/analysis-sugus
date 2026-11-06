@@ -3405,6 +3405,7 @@ function grpBarHTML(){const {vs}=grpVals(),n=grpTeams().length;
 function grpChips(key,label,cur,col,fn,o){o=o||{};cur=(cur||[]).filter(Boolean);TPCB[key]={fn,cur:cur[0]||'',none:'',excl:o.excl||[]};
   const ok=t=>!(o.excl||[]).includes(t)&&(!o.only||o.only.includes(t)),T=grpTeams().filter(ok),extra=cur.filter(t=>!T.includes(t)&&ok(t));
   return `<div class="uxpick grpk"><label>${label}</label><div class="uxchips">${[...T,...extra].map(t=>`<button type="button" class="uxchip${cur.includes(t)?' on':''}${extra.includes(t)?' out':''}" style="--c:${col}" data-uxchip="${esc(key)}" data-t="${esc(t)}" title="${esc(t)}${extra.includes(t)?' · not in this group':''}">${logo(t,'l26')}</button>`).join('')}${o.tail||''}</div></div>`}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-drper]');if(!b)return;DR.fPer=b.dataset.drper;try{store.set('tvt:drper',DR.fPer)}catch(_){}drRender()});
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-grpby],[data-grpv],[data-grpall],[data-grpnone]');if(!b)return;
   if(b.dataset.grpby){if(GRP.by===b.dataset.grpby)return;GRP.by=b.dataset.grpby;GRP.v=''}
   else if(b.dataset.grpv!=null)GRP.v=b.dataset.grpv;
@@ -3926,7 +3927,7 @@ function updateSheetInfo(){
 const DR_HEAD=['Id','Date','Mode','Map','Coin','Blue','Red','BlueBan1','BlueBan2','BlueBan3','RedBan1','RedBan2','RedBan3','Pick1','Pick2','Pick3','Pick4','Pick5','Pick6','BlueGlobal1','BlueGlobal2','RedGlobal1','RedGlobal2','Winner','Notes','Saved'];
 const DRAFT_API={url:'https://script.google.com/macros/s/AKfycbwDBOrumF2pEIsbS3IhyuQ71k1nl-znai4E7C1jVcpR5zQk_ke5ZtlAZEeepn-86D4lDA/exec',token:'SUGUS'}; // filled in once the Apps Script web app is deployed
 const drCfg=()=>({url:DRAFT_API.url||store.get('tvt:drurl')||'',token:DRAFT_API.token||store.get('tvt:drtok')||''});
-const DR={fOrder:'',list:[],local:[],loaded:false,err:'',cur:null,pop:null,confirm:null,fTeam:'',fMap:'',sMap:'',sCoin:'',eMode:'team',bComb:'trios',gComb:'single',link:null,busy:false,msg:'',bad:false};
+const DR={fPer:store.get('tvt:drper')||'',fOrder:'',list:[],local:[],loaded:false,err:'',cur:null,pop:null,confirm:null,fTeam:'',fMap:'',sMap:'',sCoin:'',eMode:'team',bComb:'trios',gComb:'single',link:null,busy:false,msg:'',bad:false};
 try{DR.list=JSON.parse(store.get('tvt:drafts')||'[]')}catch(e){}
 try{DR.local=JSON.parse(store.get('tvt:drlocal')||'[]')}catch(e){}
 const pickSide=(coin,n)=>{const o=coin==='blue'?'red':'blue';return (n===1||n===4||n===5)?coin:o};
@@ -4104,15 +4105,17 @@ function drCard(d,focus,actions){
    ${d.notes?`<p class="dr-notes">${esc(d.notes)}</p>`:''}</article>`}
 function drListHTML(){
   const all=drAll(),teams=[...new Set(all.flatMap(d=>[d.blue,d.red]))].filter(Boolean).sort(),maps=[...new Set(all.map(d=>d.map))].filter(Boolean).sort();
-  const base=all.filter(d=>(!DR.fTeam||d.blue===DR.fTeam||d.red===DR.fTeam)&&(!DR.fMap||d.map===DR.fMap));
+  const rg=FULL&&FULL.matches&&FULL.matches.length?rangeOf(FULL):null,perOn=DR.fPer!=='all'&&!!rg,inPer=d=>!perOn||(d.date>=rg.from&&d.date<=rg.to);
+  const base=all.filter(d=>inPer(d)&&(!DR.fTeam||d.blue===DR.fTeam||d.red===DR.fTeam)&&(!DR.fMap||d.map===DR.fMap));
+  const perSeg=rg?`<div class="seg2" role="group" aria-label="Dates" style="align-self:flex-end"><button type="button" data-drper="" aria-pressed="${perOn}" title="The dates of the calendar at the top of the page">${esc(fmtDate(rg.from))} – ${esc(fmtDate(rg.to))}</button><button type="button" data-drper="all" aria-pressed="${!perOn}">All dates</button></div>`:'';
   const hasFirst=d=>d.coin===(d.blue===DR.fTeam?'blue':'red');
   const list=(DR.fTeam&&DR.fOrder)?base.filter(d=>!drUnk(d)&&(DR.fOrder==='first'?hasFirst(d):!hasFirst(d))):base;
   const ordSeg=DR.fTeam?`<div class="seg2" role="group" aria-label="Pick order" style="align-self:flex-end"><button type="button" data-drord="" aria-pressed="${!DR.fOrder}">Any pick order</button><button type="button" data-drord="first" aria-pressed="${DR.fOrder==='first'}">${esc(DR.fTeam)} has 1st pick</button><button type="button" data-drord="last" aria-pressed="${DR.fOrder==='last'}">${esc(DR.fTeam)} has last pick</button></div>`:'';
   const opt=(arr,v)=>`<option value="">All</option>`+arr.map(x=>`<option value="${esc(x)}"${x===v?' selected':''}>${esc(x)}</option>`).join('');
   return `<section class="panel"><h2>Saved drafts</h2>
-   <div class="dr-filters"><label class="dr-field"><span class="lbl">Team</span><input class="dr-input" id="drFTeam" list="drFTeamL" autocomplete="off" placeholder="All teams · type a name and press Enter" value="${esc(DR.fTeam)}" style="min-width:260px"><datalist id="drFTeamL">${teams.map(x=>`<option value="${esc(x)}">`).join('')}</datalist></label>${DR.fTeam?'<button type="button" class="btn quiet" data-drfteamclear="1">All teams</button>':''}${mapBoxHTML(DR.fMap,'data-drmapopen="f" data-x',"Map")}${DR.fMap?'<button type="button" class="btn quiet" data-drmappick="" data-drk="f">All maps</button>':''}${ordSeg}<span class="msg">${plural(list.length,'draft')}${DR.fOrder&&DR.fTeam?' · side unknown drafts are left out':''}${DR.fTeamErr?' · '+esc(DR.fTeamErr):''}</span></div>
+   <div class="dr-filters"><label class="dr-field"><span class="lbl">Team</span><input class="dr-input" id="drFTeam" list="drFTeamL" autocomplete="off" placeholder="All teams · type a name and press Enter" value="${esc(DR.fTeam)}" style="min-width:260px"><datalist id="drFTeamL">${teams.map(x=>`<option value="${esc(x)}">`).join('')}</datalist></label>${DR.fTeam?'<button type="button" class="btn quiet" data-drfteamclear="1">All teams</button>':''}${mapBoxHTML(DR.fMap,'data-drmapopen="f" data-x',"Map")}${DR.fMap?'<button type="button" class="btn quiet" data-drmappick="" data-drk="f">All maps</button>':''}${perSeg}${ordSeg}<span class="msg">${plural(list.length,'draft')}${perOn&&all.length>base.length&&!DR.fTeam&&!DR.fMap?' of '+all.length+' (the rest are outside these dates)':''}${DR.fOrder&&DR.fTeam?' · side unknown drafts are left out':''}${DR.fTeamErr?' · '+esc(DR.fTeamErr):''}</span></div>
    ${DR.err&&!all.length?`<p class="dr-msg" style="margin-top:10px">${esc(DR.err)}</p>`:''}
-   <div class="dr-list">${list.length?list.map(d=>drCard(d,DR.fTeam,true)).join(''):`<p class="msg">${DR.loaded?'No drafts yet. Fill the form above and press Save draft.':'Loading drafts…'}</p>`}</div>${drOrderTable(DR.fTeam,base)}</section>`}
+   <div class="dr-list">${list.length?list.map(d=>drCard(d,DR.fTeam,true)).join(''):`<p class="msg">${!DR.loaded?'Loading drafts…':all.length&&perOn?'No saved drafts between these dates. Change the dates in the calendar at the top, or press “All dates”.':'No drafts yet. Fill the form above and press Save draft.'}</p>`}</div>${drOrderTable(DR.fTeam,base)}</section>`}
 // what a team (or, with no team selected, every team) bans and picks when it has the 1st pick (blue coin) and when it has the last pick (red coin)
 function drOrderTable(team,list){
   const known=list.filter(d=>!drUnk(d)),unk=list.length-known.length;
