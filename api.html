@@ -4103,6 +4103,7 @@ function drCard(d,focus,actions){
    <div class="dr-strip"><div class="dr-sr dr-srn">${nameSide(LS)}${drUnk(d)?'<span class="dr-unk mid">side unknown</span>':''}${nameSide(RS)}</div>
     <div class="dr-sr"><div class="dr-items">${bans(sk(LS))}<span class="dr-gap"></span>${picksL(LS)}</div><div class="dr-items" style="justify-content:flex-end">${picksR(RS)}<span class="dr-gap"></span>${bans(sk(RS))}</div></div></div>
    ${d.notes?`<p class="dr-notes">${esc(d.notes)}</p>`:''}</article>`}
+const drInPer=d=>{if(!FULL||!FULL.matches||!FULL.matches.length)return true;const rg=rangeOf(FULL);return d.date>=rg.from&&d.date<=rg.to};
 function drListHTML(){
   const all=drAll(),teams=[...new Set(all.flatMap(d=>[d.blue,d.red]))].filter(Boolean).sort(),maps=[...new Set(all.map(d=>d.map))].filter(Boolean).sort();
   const rg=FULL&&FULL.matches&&FULL.matches.length?rangeOf(FULL):null,perOn=DR.fPer!=='all'&&!!rg,inPer=d=>!perOn||(d.date>=rg.from&&d.date<=rg.to);
@@ -4498,7 +4499,7 @@ function teamCardHTML(team,k){
   const riv=Engine.rivalsFor(ds,DB,team,5,mf).map(r=>{const q=(r.w+r.l)?r.w/(r.w+r.l):0;return `<div class="tc-rv"><div>${teamLabel(r,'a')}</div><small>${r.w}–${r.l}${r.d?'–'+r.d:''}</small><span class="heat" style="${bd(q)}">${Math.round(q*100)}%</span></div>`}).join('');
   const P=Engine.playersFor(ds,team,mf);
   const pls=teamPlayers(team,P).filter(p=>p.n).map(p=>`<div class="tc-pl"><div class="phead"><b>${esc(p.name)}</b><small>${Math.round(100*p.w/p.n)}% win rate [${p.n} sets]</small></div>${cardTbl([['Brawler'],['Picks',1],['Wins',1],['WR',1]],p.list.slice(0,10).map((x,i)=>row(i,`<td class="ic">${brc(x.b)}<span class="nmx">${esc(x.b)}</span></td>`,x.w,x.n)),'',['auto','52px','52px','66px'])}</div>`).join('');
-  const dr=drAll().filter(d=>d.blue===team||d.red===team);let dh='';
+  const dr=drAll().filter(d=>(d.blue===team||d.red===team)&&drInPer(d));let dh='';
   if(dr.length){const pk={},bn={},gb={},bnB={},bnR={};for(const d of dr){const s=d.blue===team?'b':'r',full=s==='b'?'blue':'red';[1,2,3,4,5,6].filter(i=>pickSide(d.coin,i)===full).forEach(i=>{const b=d.picks[i-1];if(b)pk[b]=(pk[b]||0)+1});d.bans[s].forEach(b=>{if(b){bn[b]=(bn[b]||0)+1;if(!drUnk(d)){const o=d.coin==='red'?bnR:bnB;o[b]=(o[b]||0)+1}}});d.gb[s].forEach(b=>{if(b)gb[b]=(gb[b]||0)+1})}
     dh=`<div class="tc-sec"><div class="lbl">Saved drafts · ${plural(dr.length,'draft')}</div><div class="tc-dr"><div><small>Most picked</small><div class="row">${drTopChips(pk,6)}</div></div><div><small class="coinh"><img class="coinm" src="${COIN.blue}" alt="">Most banned · blue coin</small><div class="row">${drTopChips(bnB,6)}</div></div><div><small class="coinh"><img class="coinm" src="${COIN.red}" alt="">Most banned · red coin</small><div class="row">${drTopChips(bnR,6)}</div></div><div><small>Global bans</small><div class="row">${drTopChips(gb,6)}</div></div></div></div>`}
   const rec=ty=>{const q=sets.filter(x=>x.ty===ty),qw=q.filter(x=>x.win===1).length;return q.length?[qw,q.length-qw]:null};
@@ -4752,7 +4753,7 @@ function scoutHTML(){
     if(c.length)ctr.push(`${bn(x.k)} → ${c.map(o=>`${bn(o.nm)} ${pcs(o.p)} <small>[${o.n}]</small>`).join(', ')}`)}
   if(ctr.length)plan.push(li(`Counter-picks to their top brawlers (all teams, ${useMap?'only on '+bn(SC.map)+(ctrFb?' where there is data, otherwise all maps':''):'all maps'}): `+ctr.join(' · ')));
   // drafts
-  const dr=drAll().filter(d=>(d.blue===R||d.red===R)&&(!useMap||balMapOK(d.map,{map:SC.map})));let draftsH='';
+  const dr=drAll().filter(d=>(d.blue===R||d.red===R)&&drInPer(d)&&(!useMap||balMapOK(d.map,{map:SC.map})));let draftsH='';
   if(dr.length){const bB={},bR={},ag2={},pk={};
     for(const d of dr){const s=d.blue===R?'b':'r',o=s==='b'?'r':'b',full=s==='b'?'blue':'red';
       d.bans[s].forEach(b=>{if(b&&!drUnk(d)){const q=d.coin==='red'?bR:bB;q[b]=(q[b]||0)+1}});d.bans[o].forEach(b=>{if(b)ag2[b]=(ag2[b]||0)+1});
@@ -4810,7 +4811,7 @@ function scoutHTML(){
     if(!ST.ok)return `<div class="sc-sty">Ban style: not enough drafts (${dn}, needs 8). Neutral weights used.</div>`;
     const pc=x=>Math.round(x*100)+'%',lead=[['meta bans',ST.pm],['target bans against the rival',ST.pt],['bans of its own picks',ST.po]].sort((a,b)=>b[1]-a[1])[0];
     return `<div class="sc-sty">Ban style · <b>mostly ${lead[0]}</b> · meta ${pc(ST.pm)} · target ${pc(ST.pt)} · own picks ${pc(ST.po)} <span>(from ${dn} over all patches)</span></div>`};
-  const scDrafts=t=>{const L=drAll().filter(d=>(d.blue===t||d.red===t)&&(!mapOn||balMapOK(d.map,{map:SC.map})));
+  const scDrafts=t=>{const L=drAll().filter(d=>(d.blue===t||d.red===t)&&drInPer(d)&&(!mapOn||balMapOK(d.map,{map:SC.map})));
     return L.length?`<div class="tc-sec" style="margin-top:14px"><div class="lbl" style="align-self:stretch;display:block;text-align:center;color:${tcol(t)}">Saved drafts · ${esc(t)} · ${plural(L.length,'draft')}${mapOn?' on '+esc(SC.map):''}</div><div style="overflow-x:auto"><div class="dr-list" style="margin-top:0">${L.slice(0,10).map(d=>drCard(d,t,false)).join('')}</div></div>${L.length>10?`<p class="msg" style="margin:4px 0 0">Showing the latest 10 of ${L.length}. All of them are in the Drafts tab.</p>`:''}</div>`:''};
   const liftBox=ST=>{const L=ST&&ST.L;if(!L||!L.n)return `<div class="sc-bs"><p class="sc-sty" style="padding:0">Meta or the rival? Not enough drafts against rivals with games in the data yet (tournament drafts, and scrim drafts from 3 Nov 2026).</p></div>`;
     const x=L.lift,few=L.n<15,v=few?'Few drafts yet':x>=1.6?'Targets the rival':x>=1.25?'Sometimes targets the rival':'Bans meta / map, not the rival',vc=few?'var(--muted)':x>=1.6?'#57d98a':x>=1.25?'#e8c15a':'#9aa3c7';
