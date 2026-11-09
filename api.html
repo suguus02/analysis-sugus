@@ -5179,23 +5179,28 @@ function shMatchAll(){if(!FULL)return false;let ch=false;const used=new Set(SHOT
       else if(it.st!=='wait'){it.st='wait';ch=true}continue}
     // the same set as an earlier picture (same game set, other game): same names and same bans
     const near=C.filter(c=>c.dist<=75*60e3).sort((a,b)=>a.dist-b.dist||b.score-a.score);
-    let pick=near.find(c=>!used.has(shSetKey(c.m)))||near.find(c=>SHOT.list.some(o=>o!==it&&o.set===shSetKey(c.m)&&shSameBans(o,it)));
-    if(!pick&&Date.now()-it.ft>2*3600e3){const far=C.slice().sort((a,b)=>a.dist-b.dist);pick=far.find(c=>!used.has(shSetKey(c.m)));if(pick)it.check=1}
-    if(!pick){if(it.st!=='wait'){it.st='wait';ch=true}continue}
-    it.set=shSetKey(pick.m);it.left=pick.left;it.st='ready';used.add(it.set);ch=true}
+    let pick=it.pick?null:near.find(c=>!used.has(shSetKey(c.m)))||near.find(c=>SHOT.list.some(o=>o!==it&&o.set===shSetKey(c.m)&&shSameBans(o,it)));
+    if(!pick&&!it.pick&&Date.now()-it.ft>2*3600e3){const far=C.slice().sort((a,b)=>a.dist-b.dist);pick=far.find(c=>!used.has(shSetKey(c.m)));if(pick)it.check=1}
+    if(it.pick){const c=C.find(c=>shSetKey(c.m)===it.pick);if(c)pick=c}
+    if(!pick){const op=C.filter(c=>!used.has(shSetKey(c.m))).sort((a,b)=>a.m.d<b.m.d?1:a.m.d>b.m.d?-1:b.m.t-a.m.t).slice(0,6).map(c=>shSetKey(c.m)+'§'+c.left);const ok=JSON.stringify(op);
+      if(it.st!=='wait'||JSON.stringify(it.opts||[])!==ok){it.st='wait';it.opts=op;ch=true}continue}
+    it.set=shSetKey(pick.m);it.left=pick.left;it.st='ready';it.opts=null;used.add(it.set);ch=true}
   if(ch)shSave();return ch}
 function shSameBans(a,b){let n=0;for(let i=0;i<6;i++)if(a.bans[i]&&b.bans[i]&&shDist(a.bans[i],b.bans[i])<25)n++;return n>=4}
 function shDone(it,m){if(!m)return false;return Math.max(m.w||0,m.l||0)>=2||Date.now()-it.ft>40*60e3}
 function shFindSet(key){return ((FULL&&FULL.matches)||[]).find(m=>!m.sh&&shSetKey(m)===key)||null}
 function shTick(){try{const k=FULL?FULL.matches.length+'|'+SHOT.list.length:'';if(k===SHOT.key)return;SHOT.key=k;if(shMatchAll()&&(view==='draft'))drRender()}catch(e){}}
 // ---- adding pictures
+// the time in the file name, if it has one (it survives copies and downloads, the file date does not)
+function shNameTime(n){const m=/(20\d\d)[-._ ]?(\d\d)[-._ ]?(\d\d)\D{0,4}(\d\d)[-._:h ]?(\d\d)(?:[-._:m ]?(\d\d))?/.exec(String(n||''));if(!m)return 0;
+  const t=new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+(m[6]||0)).getTime();return t>Date.parse('2026-01-01')&&t<=Date.now()+60e3&&+m[4]<24&&+m[5]<60?t:0}
 async function shAdd(files){files=[...files].filter(f=>/^image\//.test(f.type));if(!files.length)return;
   SHOT.busy+=files.length;SHOT.msg='Reading '+plural(files.length,'picture')+'… (the first time the text reader takes a few seconds to load)';drRender();
   let ok=0,bad=[],dup=0;
   for(const f of files){try{const r=await shRead(f),mp=shMapOf(r.mapTxt),ft=f.lastModified||Date.now();
       const same=SHOT.list.find(o=>Math.abs(o.ft-ft)<90e3&&o.names.every((n,i)=>shSim(n,r.names[i])>=.8)&&o.bans.every((b,i)=>r.bans[i]&&shDist(b,r.bans[i])<15));
       if(same){dup++;SHOT.busy--;continue}
-      SHOT.list.push({id:'s'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),ft:f.lastModified||Date.now(),added:Date.now(),names:r.names,map:mp,mapTxt:r.mapTxt,res:r.res,bans:r.bans,st:'wait'});ok++}
+      SHOT.list.push({id:'s'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),ft:shNameTime(f.name)||ft,added:Date.now(),names:r.names,map:mp,mapTxt:r.mapTxt,res:r.res,bans:r.bans,st:'wait'});ok++}
     catch(e){bad.push((f.name||'picture')+': '+(e&&e.message||e))}
     SHOT.busy--}
   shSave();SHOT.key='';shMatchAll();
@@ -5228,6 +5233,13 @@ function shAfterSave(d){const id=DR.shot;if(!id)return;const it=SHOT.list.find(x
   shLibSave();SHOT.list=SHOT.list.filter(x=>x.set!==it.set);shSave()}
 function shDel(id){const it=SHOT.list.find(x=>x.id===id);SHOT.list=SHOT.list.filter(x=>x!==it&&!(it&&it.set&&x.set===it.set&&x.st!=='ready'));if(DR.shot===id)DR.shot='';shSave();drRender()}
 // ---- what is shown
+// the sets this picture could be (same players, same map), newest first; the chosen one is selected
+function shSetSelHTML(it){const C=shCandidates(it).filter(c=>shSetKey(c.m)===it.set||!shSavedSet(c.m)).sort((a,b)=>a.m.d<b.m.d?1:a.m.d>b.m.d?-1:b.m.t-a.m.t).slice(0,10);
+  if(!C.length)return '';const hm=t=>String(Math.floor(t/3600)%24).padStart(2,'0')+':'+String(Math.floor(t%3600/60)).padStart(2,'0');
+  const o=C.map(c=>{const k=shSetKey(c.m),sc=c.left==='a'?(c.m.sc||''):String(c.m.sc||'').split('-').reverse().join('-');return `<option value="${esc(k)}"${k===it.set?' selected':''}>${esc(fmtDate(c.m.d))} ${hm(c.m.t)} · ${esc(sc)}</option>`}).join('');
+  return `<label class="sh-sel" title="The set of this picture. The page picks it by the time of the picture; change it if it is wrong.">Set <select data-shsel="${it.id}">${it.set?'':'<option value="" selected>— choose —</option>'}${o}</select></label>`}
+document.addEventListener('change',e=>{const s=e.target.closest&&e.target.closest('[data-shsel]');if(!s)return;const it=SHOT.list.find(x=>x.id===s.dataset.shsel);if(!it)return;
+  if(!s.value){it.pick='';return}it.pick=s.value;it.set=null;it.st='wait';it.check=0;if(DR.shot===it.id)DR.shot='';SHOT.key='';shMatchAll();shSave();drRender()});
 function shBarHTML(){shMatchAll();
   const groups=[],seen=new Set();for(const it of SHOT.list.slice().sort((a,b)=>b.ft-a.ft)){if(it.set){if(seen.has(it.set))continue;seen.add(it.set)}groups.push(it)}
   const hm=t=>{const d=new Date(t);return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
@@ -5237,12 +5249,14 @@ function shBarHTML(){shMatchAll();
     const st=it.st==='ready'&&!shDone(it,m)?`<span class="sh-st">set in progress ${esc(sc)} · it updates by itself</span><button type="button" class="btn quiet" data-shopen="${it.id}" title="The set is not over in the API yet: the score and the winner may change">Open anyway</button>`
       :it.st==='ready'?`<span class="sh-st ok">ready${it.check?' · check the set':''}</span><button type="button" class="btn" data-shopen="${it.id}">Open</button>`
       :it.st==='saved'?`<span class="sh-st dup" title="${esc(it.savedTxt||'')}">already saved as a draft (${esc(it.savedTxt||'')}) · you can remove it</span>`:`<span class="sh-st">waiting for the game in the API…</span>`;
-    return `<div class="sh-it${it.id===DR.shot?' on':''}"><span class="sh-ics">${it.bans.map((b,i)=>`${i===3?'<i class="sh-vs">vs</i>':''}<img src="${b.ic}" alt="">`).join('')}</span><span class="sh-tx"><b>${esc(tn(it.names[0]))} vs ${esc(tn(it.names[3]))}</b><small>${hm(it.ft)} · ${esc(it.map||it.mapTxt||'map?')} · ${it.res==='W'?'Victory':'Defeat'}${n>1?' · '+n+' pictures of this set':''}${m?' · set '+esc(sc)+' at '+String(Math.floor(m.t/3600)%24).padStart(2,'0')+':'+String(Math.floor(m.t%3600/60)).padStart(2,'0'):''}</small></span>${st}<button type="button" class="btn quiet" data-shdel="${it.id}" title="Remove">✕</button></div>`};
+    const sel=it.st==='saved'?'':shSetSelHTML(it);
+    return `<div class="sh-it${it.id===DR.shot?' on':''}"><span class="sh-ics">${it.bans.map((b,i)=>`${i===3?'<i class="sh-vs">vs</i>':''}<img src="${b.ic}" alt="">`).join('')}</span><span class="sh-tx"><b>${esc(tn(it.names[0]))} vs ${esc(tn(it.names[3]))}</b><small>${hm(it.ft)} · ${esc(it.map||it.mapTxt||'map?')} · ${it.res==='W'?'Victory':'Defeat'}${n>1?' · '+n+' pictures of this set':''}${m?' · set '+esc(sc)+' at '+String(Math.floor(m.t/3600)%24).padStart(2,'0')+':'+String(Math.floor(m.t%3600/60)).padStart(2,'0'):''}</small></span>${sel}${st}<button type="button" class="btn quiet" data-shdel="${it.id}" title="Remove">✕</button></div>`};
   return `<div class="sh-bar"><div class="sh-hd"><label class="btn"><input type="file" accept="image/*" multiple hidden id="shFile">📷 Add end-of-game screenshots</label><span class="msg">or paste one here (Ctrl+V). The picks, teams and set come from the API; the bans from the picture.</span>${SHOT.busy?'<span class="sh-st">reading…</span>':''}</div>
     ${SHOT.msg?`<p class="msg" style="margin:6px 0 0">${esc(SHOT.msg)}</p>`:''}${groups.length?`<div class="sh-list">${groups.map(row).join('')}</div>`:''}</div>`}
 function shStripHTML(){const it=DR.shot&&SHOT.list.find(x=>x.id===DR.shot);if(!it)return '';
   return `<div class="sh-strip"><span class="lbl">Bans in the screenshot</span><span class="sh-ics big">${it.bans.map((b,i)=>{const r=shRecognise(b);return `${i===3?'<i class="sh-vs">vs</i>':''}<span class="sh-ic${r?'':' new'}" title="${r?esc(r):'Not known yet: fill this ban by hand and the page will learn it'}"><img src="${b.ic}" alt=""><small>${r?esc(shBr(r)):'new'}</small></span>`}).join('')}</span></div>`}
 document.addEventListener('change',e=>{if(e.target&&e.target.id==='shFile'){shAdd(e.target.files);e.target.value=''}});
+document.addEventListener('click',e=>{const k=e.target.closest&&e.target.closest('[data-shpick]');if(!k)return;const [id,key]=k.dataset.shpick.split('§');const it=SHOT.list.find(x=>x.id===id);if(!it)return;it.pick=key;it.check=0;SHOT.key='';shMatchAll();shSave();drRender()});
 document.addEventListener('click',e=>{const o=e.target.closest&&e.target.closest('[data-shopen]');if(o){shOpen(o.dataset.shopen);return}const x=e.target.closest&&e.target.closest('[data-shdel]');if(x)shDel(x.dataset.shdel)});
 document.addEventListener('paste',e=>{if(view!=='draft'||DR.sug)return;const fs=[...((e.clipboardData&&e.clipboardData.files)||[])].filter(f=>/^image\//.test(f.type));if(fs.length){e.preventDefault();shAdd(fs)}});
 document.addEventListener('dragover',e=>{if(view==='draft'&&e.target.closest&&e.target.closest('.sh-bar'))e.preventDefault()});
@@ -6068,3 +6082,5 @@ td.gt-l{text-align:left!important}td.gt-l .gt-br,td.gt-l .gt-tn{justify-content:
 
 .wb-fav img.big{width:44px;height:44px}.wb .tablewrap{overflow-x:auto}.wb-btn[disabled]{opacity:.45;cursor:default}
 </style>
+<style>.sh-pick{white-space:normal;display:flex;flex-wrap:wrap;gap:4px;align-items:center;max-width:520px}.sh-pick .btn{font-size:11px;padding:2px 7px}</style>
+<style>.sh-sel{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--muted,#a9a6bd);white-space:nowrap}.sh-sel select{font:inherit;font-size:11.5px;background:#1f1e2c;color:#ecebf5;border:1px solid #3a3850;border-radius:6px;padding:3px 5px;max-width:190px}</style>
