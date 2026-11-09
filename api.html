@@ -5170,25 +5170,33 @@ const shPicks=m=>[...(m.ba||[]),...(m.bb||[])].filter(Boolean).map(mkey).sort().
 function shSavedDraft(m){const pk=shPicks(m);return drAll().find(d=>d.date===m.d&&mkey(d.map)===mkey(m.m)&&d.picks.filter(Boolean).map(mkey).sort().join(',')===pk)||null}
 function shSavedSet(m){const pk=shPicks(m);return drAll().some(d=>d.date===m.d&&mkey(d.map)===mkey(m.m)&&d.picks.filter(Boolean).map(mkey).sort().join(',')===pk)}
 function shCandidates(it){const F=FULL;if(!F||!F.matches)return [];const L=it.names.slice(0,3).map(shTagsFor),R=it.names.slice(3).map(shTagsFor);
-  const sc=(side,tags)=>side.reduce((a,c)=>{let b=0;for(const [t,s] of c)if(tags.includes(t))b=Math.max(b,s);return a+b},0);
+  // per team: names that match a player of the set (st), names that only match by team prefix (pf), names that cannot be read (un)
+  const side=(cs,tags)=>{let st=0,pf=0,un=0,sc=0;for(const c of cs){let b=0;for(const [t,s] of c)if(tags.includes(t))b=Math.max(b,s);sc+=b;if(b>=.7)st++;else if(b>0)pf++;if(!c.length||c[0][1]<.7)un++}return {st,pf,un,sc}};
+  const good=(x,y)=>x.st+y.st>=4||(x.st>=2&&(y.st+y.pf>=2||(y.un===3&&x.st===3)))||(y.st>=2&&(x.st+x.pf>=2||(x.un===3&&y.st===3)));
+  const fair=(x,y)=>Math.max(x.st,y.st)>=1&&x.st+y.st+.5*(x.pf+y.pf)>=2;
   const out=[],cut=Date.now()-21*864e5;
   for(const m of F.matches){if(m.sh||!m.ta||!m.tb)continue;if(it.map&&m.m!==it.map)continue;if(Date.parse(m.d)<cut)continue;
-    const lA=sc(L,m.ta),rB=sc(R,m.tb),lB=sc(L,m.tb),rA=sc(R,m.ta),ab=lA+rB,ba=lB+rA,s=Math.max(ab,ba);
-    // both teams read: 3.6 of 6 names; a rival the reader cannot read (other alphabets): the map and 2+ names of one team
-    if(s<3.6&&!(it.map&&Math.max(lA,rB,lB,rA)>=1.6))continue;
-    out.push({m,left:ab>=ba?'a':'b',score:s,dist:shSetDist(m,it.ft)})}
+    const la=side(L,m.ta),rb=side(R,m.tb),lb=side(L,m.tb),ra=side(R,m.ta),gA=good(la,rb),gB=good(lb,ra),sA=la.sc+rb.sc,sB=lb.sc+ra.sc;
+    const left=gA!==gB?(gA?'a':'b'):(sA>=sB?'a':'b'),ok=gA||gB;if(!ok&&!fair(la,rb)&&!fair(lb,ra))continue;
+    const tw=left==='a'?(m.w||0):(m.l||0),tl=left==='a'?(m.l||0):(m.w||0),fit=!it.res||(it.res==='W'?tw>0:tl>0);
+    out.push({m,left,score:Math.max(sA,sB),ok,fit,dist:shSetDist(m,it.ft)})}
   return out}
+const shOkC=it=>shCandidates(it).filter(c=>c.ok);
+// the time of a set in ms (any region): for 'is the picture much later than the set'
+const shSetGap=(m,ft)=>{let d=m.d;if(m.t<5*3600){const x=new Date(d+'T00:00:00Z');x.setUTCDate(x.getUTCDate()+1);d=x.toISOString().slice(0,10)}return ft-(Date.parse(d+'T00:00:00Z')+m.t*1000)};
 function shMatchAll(){if(!FULL)return false;let ch=false;const used=new Set(SHOT.list.filter(x=>x.set).map(x=>x.set));
   for(const it of SHOT.list){if(it.set&&!shFindSet(it.set)){used.delete(it.set);it.set=null;it.st='wait';ch=true}}
   for(const it of SHOT.list.slice().sort((a,b)=>a.ft-b.ft)){if(it.set)continue;
-    const CA=shCandidates(it),C=CA.filter(c=>!shSavedSet(c.m));
+    const CA=shOkC(it),C=CA.filter(c=>!shSavedSet(c.m));
     if(!C.length){const sv=CA.filter(c=>c.dist<=75*60e3||Date.now()-it.ft>2*3600e3).sort((a,b)=>a.dist-b.dist).map(c=>shSavedDraft(c.m)).find(Boolean);
       if(sv){const tx=fmtDate(sv.date)+' · '+(sv.blue||'?')+' vs '+(sv.red||'?')+' · '+sv.map;if(it.st!=='saved'||it.savedTxt!==tx){it.st='saved';it.savedTxt=tx;ch=true}}
       else if(it.st!=='wait'){it.st='wait';ch=true}continue}
     // the same set as an earlier picture (same game set, other game): same names and same bans
-    const near=C.filter(c=>c.dist<=75*60e3).sort((a,b)=>a.dist-b.dist||b.score-a.score);
+    const near=C.filter(c=>c.dist<=75*60e3).sort((a,b)=>(b.fit-a.fit)||a.dist-b.dist||b.score-a.score);
     let pick=it.pick?null:near.find(c=>!used.has(shSetKey(c.m)))||near.find(c=>SHOT.list.some(o=>o!==it&&o.set===shSetKey(c.m)&&shSameBans(o,it)));
-    if(!pick&&!it.pick&&Date.now()-it.ft>2*3600e3){const far=C.slice().sort((a,b)=>a.dist-b.dist);pick=far.find(c=>!used.has(shSetKey(c.m)));if(pick)it.check=1}
+    // a picture copied or downloaded later (its time is hours after the sets): only when one set clearly fits
+    if(!pick&&!it.pick){const late=C.filter(c=>c.fit&&!used.has(shSetKey(c.m))&&shSetGap(c.m,it.ft)>3*3600e3);const best=late.length?Math.max(...late.map(c=>c.score)):0,top=late.filter(c=>c.score>=best-.3);
+      if(top.length===1&&late.length===C.filter(c=>c.fit&&!used.has(shSetKey(c.m))).length){pick=top[0];it.check=1}}
     if(it.pick){const c=C.find(c=>shSetKey(c.m)===it.pick);if(c)pick=c}
     if(!pick){const op=C.filter(c=>!used.has(shSetKey(c.m))).sort((a,b)=>a.m.d<b.m.d?1:a.m.d>b.m.d?-1:b.m.t-a.m.t).slice(0,6).map(c=>shSetKey(c.m)+'§'+c.left);const ok=JSON.stringify(op);
       if(it.st!=='wait'||JSON.stringify(it.opts||[])!==ok){it.st='wait';it.opts=op;ch=true}continue}
@@ -5242,24 +5250,28 @@ function shAfterSave(d){const id=DR.shot;if(!id)return;const it=SHOT.list.find(x
 function shDel(id){const it=SHOT.list.find(x=>x.id===id);SHOT.list=SHOT.list.filter(x=>x!==it&&!(it&&it.set&&x.set===it.set&&x.st!=='ready'));if(DR.shot===id)DR.shot='';shSave();drRender()}
 // ---- what is shown
 // the sets this picture could be (same players, same map), newest first; the chosen one is selected
-function shSetSelHTML(it){const C=shCandidates(it).filter(c=>shSetKey(c.m)===it.set||!shSavedSet(c.m)).sort((a,b)=>Math.round(b.score*2)-Math.round(a.score*2)||(a.m.d<b.m.d?1:a.m.d>b.m.d?-1:b.m.t-a.m.t)).slice(0,10);
-  if(!C.length)return '';const hm=t=>String(Math.floor(t/3600)%24).padStart(2,'0')+':'+String(Math.floor(t%3600/60)).padStart(2,'0');
-  const o=C.map(c=>{const k=shSetKey(c.m),sc=c.left==='a'?(c.m.sc||''):String(c.m.sc||'').split('-').reverse().join('-');const opp=c.left==='a'?c.m.b:c.m.a,ot=c.left==='a'?c.m.tb:c.m.ta,on=opp?String(opp).replace(/^ext:/,''):(ot||[]).map(t=>(FULL.names&&FULL.names[t])||t).join(' / ');
-    return `<option value="${esc(k)}"${k===it.set?' selected':''}>${esc(fmtDate(c.m.d))} ${hm(c.m.t)} · ${esc(sc)} · vs ${esc(on)}</option>`}).join('');
-  return `<label class="sh-sel" title="The set of this picture. The page picks it by the time of the picture; change it if it is wrong.">Set <select data-shsel="${it.id}">${it.set?'':'<option value="" selected>— choose —</option>'}${o}</select></label>`}
+function shSetSelHTML(it){const all=shCandidates(it).filter(c=>shSetKey(c.m)===it.set||!shSavedSet(c.m));
+  const srt=L=>L.sort((a,b)=>(b.fit-a.fit)||Math.round(b.score*2)-Math.round(a.score*2)||(a.m.d<b.m.d?1:a.m.d>b.m.d?-1:b.m.t-a.m.t));
+  const G=srt(all.filter(c=>c.ok||shSetKey(c.m)===it.set)).slice(0,10),W=G.length?[]:srt(all.filter(c=>!c.ok)).slice(0,8);
+  if(!G.length&&!W.length)return '';const hm=t=>String(Math.floor(t/3600)%24).padStart(2,'0')+':'+String(Math.floor(t%3600/60)).padStart(2,'0');
+  const nm=t=>String((FULL.names&&FULL.names[t])||t).replace(/[\u200b-\u200f]/g,'').trim();
+  const opt=c=>{const k=shSetKey(c.m),sc=c.left==='a'?(c.m.sc||''):String(c.m.sc||'').split('-').reverse().join('-'),ot=c.left==='a'?c.m.tb:c.m.ta;
+    return `<option value="${esc(k)}"${k===it.set?' selected':''}>${esc(fmtDate(c.m.d))} ${hm(c.m.t)} · ${esc(sc)} · vs ${esc((ot||[]).map(nm).join(', '))}${c.fit?'':' · ✗ no '+(it.res==='W'?'win':'loss')+' in this set'}</option>`};
+  return `<label class="sh-sel" title="The set of this picture: only sets with these players on this map. The page picks it by the time of the picture; change it if it is wrong.">Set <select data-shsel="${it.id}">${it.set?'':`<option value="" selected>— choose (${G.length?plural(G.length,'set'):'no clear set'}) —</option>`}${G.map(opt).join('')}${W.length?`<optgroup label="Not a clear match (other players)">${W.map(opt).join('')}</optgroup>`:''}</select></label>`}
 document.addEventListener('change',e=>{const s=e.target.closest&&e.target.closest('[data-shsel]');if(!s)return;const it=SHOT.list.find(x=>x.id===s.dataset.shsel);if(!it)return;
   if(!s.value){it.pick='';return}it.pick=s.value;it.set=null;it.st='wait';it.check=0;if(DR.shot===it.id)DR.shot='';SHOT.key='';shMatchAll();shSave();drRender()});
 function shBarHTML(){shMatchAll();
   const groups=[],seen=new Set();for(const it of SHOT.list.slice().sort((a,b)=>b.ft-a.ft)){if(it.set){if(seen.has(it.set))continue;seen.add(it.set)}groups.push(it)}
   const hm=t=>{const d=new Date(t);return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
   const tn=n=>{const m=/^\s*([^|]{1,6})\|/.exec(n||'');return m?m[1].trim():(n||'?')};
+  const tns=L=>{const c={};L.forEach(n=>{const m=/^\s*([A-Za-z0-9]{1,6})\s*\|/.exec(n||'');if(m){const k=m[1].toUpperCase();c[k]=(c[k]||0)+1}});const k=Object.keys(c).sort((a,b)=>c[b]-c[a]);return k.length?k.join('/'):tn(L[0])};
   const row=it=>{const n=SHOT.list.filter(x=>x.set&&x.set===it.set).length,m=it.set&&shFindSet(it.set);
     const sc=m?(it.left==='a'?(m.sc||''):String(m.sc||'').split('-').reverse().join('-')):'';
     const st=it.st==='ready'&&!shDone(it,m)?`<span class="sh-st">set in progress ${esc(sc)} · it updates by itself</span><button type="button" class="btn quiet" data-shopen="${it.id}" title="The set is not over in the API yet: the score and the winner may change">Open anyway</button>`
       :it.st==='ready'?`<span class="sh-st ok">ready${it.check?' · check the set':''}</span><button type="button" class="btn" data-shopen="${it.id}">Open</button>`
-      :it.st==='saved'?`<span class="sh-st dup" title="${esc(it.savedTxt||'')}">already saved as a draft (${esc(it.savedTxt||'')}) · you can remove it</span>`:`<span class="sh-st">waiting for the game in the API…</span>`;
+      :it.st==='saved'?`<span class="sh-st dup" title="${esc(it.savedTxt||'')}">already saved as a draft (${esc(it.savedTxt||'')}) · you can remove it</span>`:`<span class="sh-st">${shOkC(it).length?'choose the set':'waiting for the game in the API…'}</span>`;
     const sel=it.st==='saved'?'':shSetSelHTML(it);
-    return `<div class="sh-it${it.id===DR.shot?' on':''}"><span class="sh-ics">${it.bans.map((b,i)=>`${i===3?'<i class="sh-vs">vs</i>':''}<img src="${b.ic}" alt="">`).join('')}</span><span class="sh-tx"><b>${esc(tn(it.names[0]))} vs ${esc(tn(it.names[3]))}</b><small>${hm(it.ft)} · ${esc(it.map||it.mapTxt||'map?')} · ${it.res==='W'?'Victory':'Defeat'}${n>1?' · '+n+' pictures of this set':''}${m?' · set '+esc(sc)+' at '+String(Math.floor(m.t/3600)%24).padStart(2,'0')+':'+String(Math.floor(m.t%3600/60)).padStart(2,'0'):''}</small></span>${sel}${st}<button type="button" class="btn quiet" data-shdel="${it.id}" title="Remove">✕</button></div>`};
+    return `<div class="sh-it${it.id===DR.shot?' on':''}"><span class="sh-ics">${it.bans.map((b,i)=>`${i===3?'<i class="sh-vs">vs</i>':''}<img src="${b.ic}" alt="">`).join('')}</span><span class="sh-tx"><b title="Names read: ${esc(it.names.slice(0,3).join(', '))} vs ${esc(it.names.slice(3).join(', '))}">${esc(tns(it.names.slice(0,3)))} vs ${esc(tns(it.names.slice(3)))}</b><small>${hm(it.ft)} · ${esc(it.map||it.mapTxt||'map?')} · ${it.res==='W'?'Victory':'Defeat'}${n>1?' · '+n+' pictures of this set':''}${m?' · set '+esc(sc)+' at '+String(Math.floor(m.t/3600)%24).padStart(2,'0')+':'+String(Math.floor(m.t%3600/60)).padStart(2,'0'):''}</small></span>${sel}${st}<button type="button" class="btn quiet" data-shdel="${it.id}" title="Remove">✕</button></div>`};
   return `<div class="sh-bar"><div class="sh-hd"><label class="btn"><input type="file" accept="image/*" multiple hidden id="shFile">📷 Add end-of-game screenshots</label><span class="msg">or paste one here (Ctrl+V). The picks, teams and set come from the API; the bans from the picture.</span>${SHOT.busy?'<span class="sh-st">reading…</span>':''}</div>
     ${SHOT.msg?`<p class="msg" style="margin:6px 0 0">${esc(SHOT.msg)}</p>`:''}${groups.length?`<div class="sh-list">${groups.map(row).join('')}</div>`:''}</div>`}
 function shStripHTML(){const it=DR.shot&&SHOT.list.find(x=>x.id===DR.shot);if(!it)return '';
@@ -6094,3 +6106,4 @@ td.gt-l{text-align:left!important}td.gt-l .gt-br,td.gt-l .gt-tn{justify-content:
 <style>.sh-pick{white-space:normal;display:flex;flex-wrap:wrap;gap:4px;align-items:center;max-width:520px}.sh-pick .btn{font-size:11px;padding:2px 7px}</style>
 <style>.sh-sel{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--muted,#a9a6bd);white-space:nowrap}.sh-sel select{font:inherit;font-size:11.5px;background:#1f1e2c;color:#ecebf5;border:1px solid #3a3850;border-radius:6px;padding:3px 5px;max-width:190px}</style>
 <style>.sh-sel select{max-width:260px}</style>
+<style>.sh-sel select{max-width:330px}</style>
