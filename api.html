@@ -4047,7 +4047,7 @@ function drBanSlot(s,i){const d=DR.cur,slot='ban:'+s+':'+i,v=d.bans[s][i];
   const sb=shBanOf(s,i);
   if(!v&&sb)return `<div class="dr-sl ban shq${DR.active===slot?' act':''}" data-slot="${slot}" role="button" tabindex="0" aria-label="Ban ${i+1}" title="Not known yet: click this box and then the brawler; the page will learn this icon"><span class="dr-imgw"><img class="bi lg shimg" src="${sb.ic}" alt=""></span><b class="shwho">Who is it?</b></div>`;
   return `<div class="dr-sl ban${v?' fill':''}${DR.active===slot?' act':''}" data-slot="${slot}" role="button" tabindex="0" aria-label="Ban ${i+1}">${v?`<span class="dr-imgw">${drImg(v,'bi lg')}<u class="dr-no"></u></span><b>${esc(v)}</b>${sb?`<span class="dr-ed" title="Read from the screenshot. Wrong? Click here and then the right brawler">✎</span>`:`<span class="dr-x" data-sclear="${slot}" title="Clear">×</span>`}`:`<small>Ban ${i+1}</small><span class="ph0">+</span>`}</div>`}
-function shBanOf(s,i){const it=DR.shot&&SHOT.list.find(x=>x.id===DR.shot);return it?it.bans[(s==='b'?0:3)+i]||null:null}
+function shBanOf(s,i){if(DR.banshot){const k=(s==='b'?0:3)+i;return DR.banshot.bans[DR.banshot.flip?(k+3)%6:k]||null}const it=DR.shot&&SHOT.list.find(x=>x.id===DR.shot);return it?it.bans[(s==='b'?0:3)+i]||null:null}
 function drGbSlot(s,i){const d=DR.cur,slot='gb:'+s+':'+i,v=d.gb[s][i];
   return `<div class="dr-sl gb${v?' fill':''}${DR.active===slot?' act':''}" data-slot="${slot}" role="button" tabindex="0" aria-label="Global ban ${i+1}">${v?`<span class="dr-imgw">${drImg(v,'bi lg')}<u class="dr-no"></u></span><b>${esc(v)}</b><span class="dr-x" data-sclear="${slot}" title="Clear">×</span>`:`<small>Global</small><span class="ph0">+</span>`}</div>`}
 function drPickCard(n,side){const d=DR.cur,slot='pick:'+n,v=d.picks[n-1],ok=drSlotOK(d,slot),nx=drNextPick(d)===n;
@@ -4081,7 +4081,7 @@ function drEditorHTML(){
     <p class="dr-msg${DR.bad?' bad':''}" role="status" style="margin-top:8px">${esc(DR.msg)}</p>`;
   if(DR.sug)return `<section class="panel">${drSubHTML()}<div class="dr-hd"><h2 class="ttl" style="margin:0">Draft Suggestion</h2><div class="seg2" style="margin-top:0" role="group" aria-label="How to choose brawlers"><button type="button" data-dmode="grid" aria-pressed="${DR.mode==='grid'}">Brawler rows</button><button type="button" data-dmode="list" aria-pressed="${DR.mode==='list'}">Pop-up list</button></div></div>
     ${DR.mode==='grid'?drPoolHTML():''}${head}${stage}${drWPHTML()}<div class="dr-btns" style="margin-top:10px"><button type="button" class="btn quiet" data-dclear="1">Clear draft</button></div></section>`;
-  return `<section class="panel">${drSubHTML()}${shBarHTML()}<div class="dr-hd"><h2 class="ttl" style="margin:0">Save Draft</h2><div class="seg2" style="margin-top:0" role="group" aria-label="How to choose brawlers"><button type="button" data-dmode="grid" aria-pressed="${DR.mode==='grid'}">Brawler rows</button><button type="button" data-dmode="list" aria-pressed="${DR.mode==='list'}">Pop-up list</button></div></div>
+  return `<section class="panel">${drSubHTML()}${fsBarHTML()}<div class="dr-hd"><h2 class="ttl" style="margin:0">Save Draft</h2><div class="seg2" style="margin-top:0" role="group" aria-label="How to choose brawlers"><button type="button" data-dmode="grid" aria-pressed="${DR.mode==='grid'}">Brawler rows</button><button type="button" data-dmode="list" aria-pressed="${DR.mode==='list'}">Pop-up list</button></div></div>
     ${DR.mode==='grid'?drPoolHTML():''}${head}${stage}${drWPHTML()}${below}</section>`}
 function drTI(n,kind,badge){
   if(!n)return `<div class="dr-ti${kind==='gb'?' gbi':''}"><span class="dr-t2"><span class="dr-tx">${badge||'–'}</span></span><small>&nbsp;</small></div>`;
@@ -4250,7 +4250,7 @@ $('draftview').addEventListener('click',e=>{
       if(!c.blue&&hh.nb){c.blue=hh.nb;got.push('blue team name')}if(!c.red&&hh.nr){c.red=hh.nr;got.push('red team name')}}
     DR.link=null;DR.msg='Date'+(got.length?', '+got.join(', '):'')+' set from the match of '+fmtDate(du.dataset.duse)+'. Press Save draft to keep it.';DR.bad=false;drRender();return}
   if(t.closest('[data-dnext]')){const o=DR.cur,n=drNew();n.date=o.date;n.blue=o.blue;n.red=o.red;n.coin=o.coin;n.gb=drClone(o.gb);n.kind=o.kind;n.km=o.km;n.su=o.su;n.po=o.po;DR.link=null;DR.cur=n;DR.active='';DR.msg='Ready for the next map.';DR.bad=false;drRender();return}
-  if(t.closest('[data-dclear]')){DR.shot='';DR.cur=drNew();DR.active='';DR.msg='';DR.bad=false;drRender();return}
+  if(t.closest('[data-dclear]')){DR.shot='';DR.banshot=null;DR.fsKey='';DR.cur=drNew();DR.active='';DR.msg='';DR.bad=false;drRender();return}
   const ed=t.closest('[data-dedit]');if(ed){const d=drAll().find(x=>x.id===ed.dataset.dedit);if(d){DR.cur=drClone(d);delete DR.cur._local;DR.active='';DR.msg='Editing a saved draft. Press Update draft to save the changes.';DR.bad=false;drRender();window.scrollTo({top:0,behavior:'smooth'})}return}
   const dk=t.closest('[data-ddelask]');if(dk){DR.confirm=dk.dataset.ddelask;drRender();return}
   const dd=t.closest('[data-ddel]');if(dd){drDelete(dd.dataset.ddel);return}
@@ -5245,7 +5245,7 @@ function shOpen(id){const it=SHOT.list.find(x=>x.id===id);if(!it)return;const m=
   d.notes=(m.sc?'Set score '+(L?m.sc:m.sc.split('-').reverse().join('-'))+' (blue-red)':'');
   DR.cur=d;DR.shot=it.id;DR.active='';DR.link=null;const miss=6-[...d.bans.b,...d.bans.r].filter(Boolean).length;
   DR.msg='Filled from the screenshot and the API'+(it.check?' (the picture is old: check it is the right set)':'')+'. '+(miss?`${miss} ${miss===1?'ban is':'bans are'} not known yet (“Who is it?”): click the box and then the brawler, and the page will learn ${miss===1?'that icon':'those icons'}. `:'')+'If a ban is wrong, click its ✎ and then the right brawler. Check everything and press Save draft.';DR.bad=false;drRender();window.scrollTo({top:0,behavior:'smooth'})}
-function shAfterSave(d){const id=DR.shot;if(!id)return;const it=SHOT.list.find(x=>x.id===id);DR.shot='';if(!it)return;const all=SHOT.list.filter(x=>x.set===it.set);
+function shAfterSave(d){if(DR.banshot){fsLearn(d);DR.banshot=null;DR.fsKey='';return}const id=DR.shot;if(!id)return;const it=SHOT.list.find(x=>x.id===id);DR.shot='';if(!it)return;const all=SHOT.list.filter(x=>x.set===it.set);
   for(let i=0;i<6;i++){const b=(i<3?d.bans.b:d.bans.r)[i%3];if(!b)continue;for(const x of all){const f=x.bans[i];if(!f)continue;if(shRecognise(f)===b)continue;
     SHOT.lib.push({b,f:f.f,m:f.m});const same=SHOT.lib.filter(e=>e.b===b);if(same.length>4)SHOT.lib.splice(SHOT.lib.indexOf(same[0]),1)}}
   shLibSave();SHOT.list=SHOT.list.filter(x=>x.set!==it.set);shSave()}
@@ -5282,7 +5282,7 @@ function shStripHTML(){const it=DR.shot&&SHOT.list.find(x=>x.id===DR.shot);if(!i
 document.addEventListener('change',e=>{if(e.target&&e.target.id==='shFile'){shAdd(e.target.files);e.target.value=''}});
 document.addEventListener('click',e=>{const k=e.target.closest&&e.target.closest('[data-shpick]');if(!k)return;const [id,key]=k.dataset.shpick.split('§');const it=SHOT.list.find(x=>x.id===id);if(!it)return;it.pick=key;it.check=0;SHOT.key='';shMatchAll();shSave();drRender()});
 document.addEventListener('click',e=>{const o=e.target.closest&&e.target.closest('[data-shopen]');if(o){shOpen(o.dataset.shopen);return}const x=e.target.closest&&e.target.closest('[data-shdel]');if(x)shDel(x.dataset.shdel)});
-document.addEventListener('paste',e=>{if(view!=='draft'||DR.sug)return;const fs=[...((e.clipboardData&&e.clipboardData.files)||[])].filter(f=>/^image\//.test(f.type));if(fs.length){e.preventDefault();shAdd(fs)}});
+document.addEventListener('paste',e=>{if(view!=='draft'||DR.sug)return;const fs=[...((e.clipboardData&&e.clipboardData.files)||[])].filter(f=>/^image\//.test(f.type));if(fs.length){e.preventDefault();fsBans(fs[0])}});
 document.addEventListener('dragover',e=>{if(view==='draft'&&e.target.closest&&e.target.closest('.sh-bar'))e.preventDefault()});
 document.addEventListener('drop',e=>{if(view!=='draft'||!(e.target.closest&&e.target.closest('.sh-bar')))return;e.preventDefault();shAdd(e.dataTransfer.files)});
 
@@ -5393,6 +5393,74 @@ document.addEventListener('click',e=>{if(view!=='worlds')return;const t=e.target
     try{store.set('tvt:wbres',JSON.stringify(WB_RES))}catch(_){}renderWB();return}
   const z=t.closest&&t.closest('[data-wbtz]');if(z){WB_TZ=z.dataset.wbtz;try{store.set('tvt:wbtz',WB_TZ)}catch(_){}renderWB();return}
   if(t.closest&&t.closest('[data-wbclear]')){WB_RES={};try{store.set('tvt:wbres','{}')}catch(_){}renderWB()}});
+
+// ===== Draft: fill from a set of the API (+ bans from the end-of-game screenshot) =====
+// 1) You pick the set (day, team or player): teams, map, picks, winner and the set score come from the API, so they
+//    cannot be wrong. 2) The bans: by hand, or from the screenshot; only the icons the page knows for sure are put, the
+//    rest stay empty ('Who is it?') and are learnt when you save.
+const FS={day:'',q:'',forget:0};try{const s=JSON.parse(store.get('tvt:fs')||'{}');FS.day=s.day||'';FS.q=s.q||''}catch(e){}
+const fsSave=()=>{try{store.set('tvt:fs',JSON.stringify({day:FS.day,q:FS.q}))}catch(e){}};
+let FS_LIB=[];try{FS_LIB=JSON.parse(store.get('tvt:banlib2')||'[]')||[]}catch(e){FS_LIB=[]}
+const fsLibSave=()=>{try{store.set('tvt:banlib2',JSON.stringify(FS_LIB))}catch(e){}};
+const fsHM=t=>String(Math.floor(t/3600)%24).padStart(2,'0')+':'+String(Math.floor(t%3600/60)).padStart(2,'0');
+const fsNm=t=>String((FULL&&FULL.names&&FULL.names[t])||t).replace(/[​-‏]/g,'').trim();
+const fsLab=(m,s)=>{const l=s==='a'?m.a:m.b;return l?String(l).replace(/^ext:/,''):''};
+// the brawler of a ban icon, only when it is clear: close to what was learnt, and clearly closer than any other brawler
+function fsRecog(ft){if(!ft)return '';const best={};for(const e of FS_LIB){const d=shDist(ft,e);if(best[e.b]==null||d<best[e.b])best[e.b]=d}
+  const L=Object.entries(best).sort((a,b)=>a[1]-b[1]);if(!L.length)return '';const [b,d]=L[0],d2=L[1]?L[1][1]:999;return d<=26&&d2-d>=10?b:''}
+function fsDays(){const s=new Set();for(const m of ((FULL&&FULL.matches)||[]))if(!m.sh&&m.d)s.add(m.d);return [...s].sort().reverse().slice(0,45)}
+function fsBarHTML(){if(!FULL||!FULL.matches)return '';const days=fsDays();if(!days.length)return '';if(!days.includes(FS.day))FS.day=days[0];
+  const q=FS.q.trim().toLowerCase(),has=(m,s)=>{if(!q)return true;const t=s==='a'?m.ta:m.tb;return (fsLab(m,s).toLowerCase().includes(q))||(t||[]).some(x=>fsNm(x).toLowerCase().includes(q))};
+  const L=FULL.matches.filter(m=>!m.sh&&m.d===FS.day&&m.ta&&m.tb&&(has(m,'a')||has(m,'b'))).sort((a,b)=>a.t-b.t);
+  const side=(m,s,key)=>{const t=(s==='a'?m.ta:m.tb)||[],lb=fsLab(m,s),nm=t.map(fsNm).join(' · ');
+    return `<button type="button" class="fs-tm${q&&has(m,s)?' hit':''}" data-fsfill="${esc(key)}§${s}" title="Fill the draft with this team on the left (blue)"><b>${esc(lb||nm)}</b>${lb?`<small>${esc(nm)}</small>`:''}</button>`};
+  const rows=L.slice(0,120).map(m=>{const key=shSetKey(m),sv=shSavedSet(m),on=DR.fsKey===key;
+    return `<div class="fs-row${sv?' sv':''}${on?' on':''}"><span class="fs-t">${fsHM(m.t)}</span><span class="fs-mp">${esc(m.m)}</span>${side(m,'a',key)}<span class="fs-sc">${m.w||0}-${m.l||0}</span>${side(m,'b',key)}<span class="fs-st">${on?'in the draft ↓':sv?'saved ✓':''}</span></div>`}).join('');
+  const bs=DR.banshot,known=bs?bs.bans.filter(f=>fsRecog(f)).length:0,nb=new Set(FS_LIB.map(e=>e.b)).size;
+  return `<div class="fs-bar"><div class="fs-hd"><b class="fs-n">1</b><span class="fs-ttl">Fill from a set of the API</span>
+      <select data-fsday aria-label="Day">${days.map(d=>`<option value="${d}"${d===FS.day?' selected':''}>${esc(fmtDate(d))}</option>`).join('')}</select>
+      <input type="search" data-fsq value="${esc(FS.q)}" placeholder="Team or player (TE, Kuru, HMBLE…)" aria-label="Team or player">
+      <span class="msg">Click the team that goes on the left (blue). Teams, map, picks, winner and set score come from the API.</span></div>
+    <div class="fs-list">${rows||`<p class="msg" style="margin:6px 2px">No sets${q?' with “'+esc(FS.q)+'”':''} on ${esc(fmtDate(FS.day))}.</p>`}</div>
+    <div class="fs-hd fs-b"><b class="fs-n">2</b><span class="fs-ttl">Bans</span>
+      <label class="btn"><input type="file" accept="image/*" hidden id="fsFile">📷 From the end-of-game screenshot</label><span class="msg">or paste it here (Ctrl+V), or put them by hand below.</span>
+      ${bs?`<span class="fs-ok">${known} of 6 recognised${known<6?' · the rest say “Who is it?”':''}</span><button type="button" class="btn quiet" data-fsflip title="If the bans came out on the wrong team">⇄ Swap the bans of the two teams</button>`:''}
+      <span class="fs-lib">${nb?plural(nb,'brawler')+' learnt':'nothing learnt yet: it learns each icon when you save'}${nb?` <button type="button" class="btn quiet" data-fsforget>${FS.forget?'Click again to forget them':'Forget'}</button>`:''}</span></div></div>`}
+function fsFill(key,s){const m=shFindSet(key);if(!m)return;const L=s==='a',d=drNew(),pos=drPos('blue');
+  d.date=m.d;d.map=m.m;d.mode=modeOfMap(m.m)||'';d.su='U';d.coin='blue';d.kind=m.ty==='tournament'?'tr':'';
+  const team=(lb,t)=>lb||(t||[]).map(fsNm).join(' / ');d.blue=team(fsLab(m,L?'a':'b'),L?m.ta:m.tb);d.red=team(fsLab(m,L?'b':'a'),L?m.tb:m.ta);
+  const pl=(L?m.ba:m.bb)||[],pr=(L?m.bb:m.ba)||[];pos[0].forEach((n,i)=>d.picks[n-1]=pl[i]?shBr(pl[i]):'');pos[1].forEach((n,i)=>d.picks[n-1]=pr[i]?shBr(pr[i]):'');
+  if(m.y===1||m.y===0)d.winner=(m.y===1)===L?'blue':'red';
+  const sc=L?(m.w||0)+'-'+(m.l||0):(m.l||0)+'-'+(m.w||0);d.notes='Set score '+sc+' (blue-red)';
+  DR.cur=d;DR.fsKey=key;DR.banshot=null;DR.shot='';DR.active='';DR.link=null;DR.bad=false;
+  DR.msg=`Filled from the set of ${fmtDate(m.d)} ${fsHM(m.t)} on ${m.m}. Now the bans: the end-of-game screenshot (step 2) or by hand. Then Save draft.`;
+  drRender();const el=document.querySelector('.dr-hd');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})}
+function fsApply(){const d=DR.cur,bs=DR.banshot;if(!d||!bs)return;for(let i=0;i<6;i++){const f=bs.bans[bs.flip?(i+3)%6:i],b=fsRecog(f),s=i<3?'b':'r';d.bans[s][i%3]=b?shBr(b):''}}
+async function fsBans(file){if(!file)return;DR.msg='Reading the bans…';DR.bad=false;drRender();
+  try{const img=await createImageBitmap(file);if(img.width<img.height*1.2||img.height<300)throw new Error('this does not look like an end-of-game screen');
+    const G=shGeom(img);if(!G.ok)throw new Error('the 6 bans were not found in this picture (it must be the Victory / Defeat screen with the bans at the bottom)');
+    const bans=SH_DX.map((_,i)=>shBanFeat(img,i,G));img.close&&img.close();
+    DR.banshot={bans,flip:false};fsApply();const k=bans.filter(f=>fsRecog(f)).length;
+    DR.msg=k===6?'The 6 bans were recognised. Check them (✎ to change one) and press Save draft.':`${k} of 6 bans recognised. Fill the ones that say “Who is it?”: click the box and then the brawler. The page learns them when you save.`}
+  catch(e){DR.msg='Could not read the bans: '+(e&&e.message||e);DR.bad=true}
+  drRender()}
+// learn the icons of the saved draft; a correction also removes the icons that gave the wrong brawler
+function fsLearn(d){const bs=DR.banshot;if(!bs)return;
+  for(let i=0;i<6;i++){const f=bs.bans[bs.flip?(i+3)%6:i],v=(i<3?d.bans.b:d.bans.r)[i%3];if(!f||!v)continue;const r=fsRecog(f);if(r===v)continue;
+    if(r)FS_LIB=FS_LIB.filter(e=>!(e.b===r&&shDist(f,e)<22));
+    FS_LIB.push({b:v,f:f.f,m:f.m});const same=FS_LIB.filter(e=>e.b===v);if(same.length>6)FS_LIB.splice(FS_LIB.indexOf(same[0]),1)}
+  fsLibSave()}
+document.addEventListener('click',e=>{if(view!=='draft')return;const t=e.target;
+  const f=t.closest&&t.closest('[data-fsfill]');if(f){const [k,s]=f.dataset.fsfill.split('§');fsFill(k,s);return}
+  if(t.closest&&t.closest('[data-fsflip]')){if(DR.banshot){DR.banshot.flip=!DR.banshot.flip;fsApply();DR.msg='Bans swapped between the two teams.';drRender()}return}
+  if(t.closest&&t.closest('[data-fsforget]')){if(FS.forget){FS_LIB=[];fsLibSave();FS.forget=0;DR.msg='The learnt ban icons were forgotten.'}else FS.forget=1;drRender()}});
+document.addEventListener('change',e=>{const t=e.target;if(!t)return;
+  if(t.matches&&t.matches('[data-fsday]')){FS.day=t.value;fsSave();drRender();return}
+  if(t.id==='fsFile'){fsBans(t.files&&t.files[0]);t.value=''}});
+let _fsT=0;document.addEventListener('input',e=>{const t=e.target;if(!(t&&t.matches&&t.matches('[data-fsq]')))return;FS.q=t.value;fsSave();clearTimeout(_fsT);
+  _fsT=setTimeout(()=>{const pos=t.selectionStart;drRender();const n=document.querySelector('[data-fsq]');if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(_){}}},250)});
+document.addEventListener('dragover',e=>{if(view==='draft'&&e.target.closest&&e.target.closest('.fs-bar'))e.preventDefault()});
+document.addEventListener('drop',e=>{if(view!=='draft'||!(e.target.closest&&e.target.closest('.fs-bar')))return;e.preventDefault();const f=[...e.dataTransfer.files].find(x=>/^image\//.test(x.type));if(f)fsBans(f)});
 
 function renderCheck(){const el=$('checkview');if(el)el.innerHTML=checkHTML()}
 
@@ -6110,3 +6178,20 @@ td.gt-l{text-align:left!important}td.gt-l .gt-br,td.gt-l .gt-tn{justify-content:
 <style>.sh-sel{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--muted,#a9a6bd);white-space:nowrap}.sh-sel select{font:inherit;font-size:11.5px;background:#1f1e2c;color:#ecebf5;border:1px solid #3a3850;border-radius:6px;padding:3px 5px;max-width:190px}</style>
 <style>.sh-sel select{max-width:260px}</style>
 <style>.sh-sel select{max-width:330px}</style>
+<style>
+.fs-bar{border:1px solid #34324a;border-radius:12px;padding:10px 12px;margin:0 0 12px;background:rgba(255,255,255,.02);display:flex;flex-direction:column;gap:8px}
+.fs-hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.fs-hd .msg{font-size:12px}
+.fs-n{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#d63a50;color:#fff;font-size:12px}
+.fs-ttl{font-weight:800;font-size:13px;letter-spacing:.02em}
+.fs-hd select{width:auto!important;flex:0 0 auto}.fs-hd select,.fs-hd input{font:inherit;font-size:12.5px;background:#1f1e2c;color:#ecebf5;border:1px solid #3a3850;border-radius:8px;padding:5px 8px}.fs-hd input{min-width:230px}
+.fs-list{max-height:290px;overflow:auto;display:flex;flex-direction:column;gap:3px;padding-right:4px}
+.fs-row{display:grid;grid-template-columns:44px 130px minmax(0,1fr) 40px minmax(0,1fr) 92px;align-items:center;gap:6px;background:#1b1a26;border:1px solid #2a2938;border-radius:8px;padding:3px 6px}
+.fs-row.sv{opacity:.55}.fs-row.on{border-color:#d63a50;opacity:1}
+.fs-t{font-family:var(--mono,monospace);font-size:12px;color:#a9a6bd}.fs-mp{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fs-tm{all:unset;box-sizing:border-box;cursor:pointer;border-radius:6px;padding:3px 7px;display:flex;flex-direction:column;min-width:0;border:1px solid transparent}
+.fs-tm:hover{background:#2a2938;border-color:#3d6ff0}.fs-tm b{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fs-tm small{font-size:10.5px;color:#a9a6bd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fs-tm.hit b{color:#ffc861}.fs-sc{font-family:var(--mono,monospace);font-weight:700;text-align:center}
+.fs-st{font-size:11px;color:#7ee2a0;text-align:right}.fs-row.on .fs-st{color:#ff8a9a}
+.fs-b{border-top:1px dashed #34324a;padding-top:8px}.fs-b label.btn{cursor:pointer;font-size:12px;padding:6px 12px}.fs-ok{font-size:12px;color:#7ee2a0}.fs-lib{margin-left:auto;font-size:11.5px;color:#a9a6bd;display:inline-flex;gap:6px;align-items:center}
+@media (max-width:760px){.fs-row{grid-template-columns:40px minmax(0,1fr) 34px minmax(0,1fr);}.fs-mp{grid-column:2/5}.fs-st{display:none}.fs-hd input{min-width:0;flex:1}}
+</style>
