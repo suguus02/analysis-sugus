@@ -3580,6 +3580,8 @@ $('detailpanel').addEventListener('click',e=>{
   const fxd=e.target.closest('[data-fxdel]');if(fxd){FIXB.list.splice(+fxd.dataset.fxdel,1);fixbSave();renderDetail();return}
   const dem=e.target.closest('[data-drem]');if(dem){DR.eMode=dem.dataset.drem;renderDetail();return}
   const dbc=e.target.closest('[data-drbc]');if(dbc){DR.bComb=dbc.dataset.drbc;renderDetail();return}
+  if(e.target.closest('[data-drshowpk]')){DR.showPk=!DR.showPk;renderDetail();return}
+  const dlc=e.target.closest('[data-drlc]');if(dlc){DR.lCoin=dlc.dataset.drlc;renderDetail();return}
   const dgc=e.target.closest('[data-drgc]');if(dgc){DR.gComb=dgc.dataset.drgc;renderDetail();return}
   const mtc=e.target.closest('[data-mt]');if(mtc){msTeam=mtc.dataset.mt;rivalSel=0;renderDetail();return}
   const dt=e.target.closest('[data-dt]');if(dt){dateTeam=dt.dataset.dt;dateSel=null;rivalSel=0;calMonth=null;renderDetail();return}
@@ -5623,7 +5625,7 @@ function drTopChips(map,limit){const arr=Object.entries(map).sort((a,b)=>b[1]-a[
 const bI=n=>`<span title="${esc(n)}">${bimg(n,'bi')||esc(n)}</span>`;
 const pc2=(w,n)=>n?`<td class="num heat" style="${wrHeat(w/n)}">${Math.round(w/n*100)}%</td>`:'<td class="num msg">–</td>';
 function drTablesBlock(list,teams,mode){
-  const pk={},bn={},gbS={},gbD={},bnT={},bnD={};let w=0,l=0,nd=0;
+  const pk={},bn={},gbS={},gbD={},bnT={},bnD={},bnT1={},bnD1={},bnTL={},bnDL={};let w=0,l=0,nd=0,nF=0,nL=0;
   const ent=(m,k,mk)=>m[k]||(m[k]=mk());
   for(const d of list){let used=false;
     for(const s of ['b','r']){const full=s==='b'?'blue':'red',team=d[full];if(!teams.includes(team))continue;used=true;
@@ -5635,7 +5637,8 @@ function drTablesBlock(list,teams,mode){
       const bs=d.bans[ts].filter(Boolean);
       bs.forEach(b=>{const e=ent(bn,b,()=>({n:0,f:0,z:0}));e.n++;if(known){if(first)e.f++;else e.z++}});
       const comb=(arr,size,out)=>{const k=[...arr].sort().join(' + ');if(arr.length===size)ent(out,k,()=>({n:0})).n++};
-      comb(bs,3,bnT);if(bs.length>=2)for(let i=0;i<bs.length;i++)for(let j=i+1;j<bs.length;j++)comb([bs[i],bs[j]],2,bnD);
+      if(known){if(first)nF++;else nL++}
+      for(const [T3,D2] of [[bnT,bnD]].concat(known?[first?[bnT1,bnD1]:[bnTL,bnDL]]:[])){comb(bs,3,T3);if(bs.length>=2)for(let i=0;i<bs.length;i++)for(let j=i+1;j<bs.length;j++)comb([bs[i],bs[j]],2,D2)}
       const gs=d.gb[ts].filter(Boolean);
       gs.forEach(b=>{const e=ent(gbS,b,()=>({n:0,maps:{}}));e.n++;if(d.map)e.maps[d.map]=(e.maps[d.map]||0)+1});
       if(gs.length===2){const k=[...gs].sort().join(' + '),e=ent(gbD,k,()=>({n:0,maps:{}}));e.n++;if(d.map)e.maps[d.map]=(e.maps[d.map]||0)+1}}}
@@ -5654,7 +5657,15 @@ function drTablesBlock(list,teams,mode){
   const bcRows=srt(bcM).map(([k,e],i)=>`<tr><td class="rk">${i+1}</td><td class="ic">${ics(k)}</td><td class="num">${e.n}</td></tr>`).join('');
   const gc=DR.gComb==='duos'?'duos':'single',gM=gc==='duos'?gbD:gbS;
   const gRows=srt(gM).map(([k,e],i)=>`<tr><td class="rk">${i+1}</td><td class="ic">${ics(k)}</td><td class="num">${e.n}</td><td class="dmaps">${mapsH(e.maps)}</td></tr>`).join('');
-  return {sum,tabs:`<div class="dr-tabs">${wrap('Picks',pkH,pkRows,'dr-wide2')}${wrap('Bans',bnH,bnRows,'dr-wide2')}${wrap('Banned together (one team)','<tr><th class="rk"></th><th>'+(bc==='duos'?'Duo':'Trio')+'</th><th class="num">Times</th></tr>',bcRows,'',sw('data-drbc',bc,['trios','Trios'],['duos','Duos']))}</div><div class="dr-sub">Global bans <span style="font-weight:500;text-transform:none;letter-spacing:0">· made before the match, so the pick order does not apply</span></div><div class="dr-tabs">${wrap('Global bans','<tr><th class="rk"></th><th>'+(gc==='duos'?'Duo':'Brawler')+'</th><th class="num">Times</th><th>Maps</th></tr>',gRows,'dr-wide2',sw('data-drgc',gc,['single','Single'],['duos','Duos']))}</div>`}}
+  const cH=(c,txt,n)=>`<span class="dr-ch"><span>${txt}</span><img class="coinm" src="${COIN[c]}" alt=""><small>${plural(n,'draft')}</small></span>`;
+  const one=(m,key)=>Object.entries(m).map(([k,e])=>[k,key?e[key]:e.n]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]||(a[0]<b[0]?-1:1));
+  const t3=(title,L,ic,first)=>wrap(title,`<tr><th class="rk"></th><th>${first}</th><th class="num">Times</th></tr>`,L.map(([k,n],i)=>`<tr><td class="rk">${i+1}</td><td class="ic">${ic(k)}</td><td class="num">${n}</td></tr>`).join(''),'dr-c3');
+  const bc3=(m,t)=>t3(t,one(m),ics,bc==='duos'?'Duo':'Trio'),bcM1=bc==='duos'?bnD1:bnT1,bcML=bc==='duos'?bnDL:bnTL;
+  const pkOn=!!DR.showPk;
+  return {sum,tabs:`<div class="dr-pkbar"><button type="button" class="btn quiet" data-drshowpk aria-expanded="${pkOn}">${pkOn?'Hide picks ▴':'Show picks ▾'}</button></div>
+    ${pkOn?`<div class="dr-tabs">${wrap('Picks',pkH,pkRows,'dr-wide2')}</div>`:''}
+    <div class="dr-sub">Bans</div><div class="dr-3">${t3('Total',one(bn),bI,'Brawler')}${t3(cH('blue','When having 1st',nF),one(bn,'f'),bI,'Brawler')}${t3(cH('red','When having last',nL),one(bn,'z'),bI,'Brawler')}</div>
+    <div class="dr-sub">Banned together (one team) ${sw('data-drbc',bc,['trios','Trios'],['duos','Duos'])}</div><div class="dr-3">${bc3(bcM,'Total')}${bc3(bcM1,cH('blue','When having 1st',nF))}${bc3(bcML,cH('red','When having last',nL))}</div><div class="dr-sub">Global bans <span style="font-weight:500;text-transform:none;letter-spacing:0">· made before the match, so the pick order does not apply</span></div><div class="dr-tabs">${wrap('Global bans','<tr><th class="rk"></th><th>'+(gc==='duos'?'Duo':'Brawler')+'</th><th class="num">Times</th><th>Maps</th></tr>',gRows,'dr-wide2',sw('data-drgc',gc,['single','Single'],['duos','Duos']))}</div>`}}
 function drTablesFor(list,teams,pickFocus){
   const m=DR.eMode==='enemy'?'enemy':DR.eMode==='both'?'both':'team';
   const seg=`<span class="seg2" style="margin:0 0 10px"><button type="button" data-drem="team" aria-pressed="${m==='team'}">Selected team</button><button type="button" data-drem="enemy" aria-pressed="${m==='enemy'}">Enemies</button><button type="button" data-drem="both" aria-pressed="${m==='both'}">Both added together</button></span>`;
@@ -5668,13 +5679,17 @@ function draftsTab(){
   if(!base.length)return `<div style="margin-top:14px">${perSeg}<p class="msg" style="margin:10px 0">${!DR.loaded?'Loading drafts…':perOn&&tAll.some(d=>scope==='pair'?(T.length===2&&((d.blue===T[0]&&d.red===T[1])||(d.blue===T[1]&&d.red===T[0]))):T.includes(d.blue)||T.includes(d.red))?'No saved drafts between these dates for '+(scope==='pair'?'this matchup':'the selected team'+(T.length===1?'':'s'))+'. Change the dates in the calendar at the top, or press “All dates”.':'No drafts saved for '+(scope==='pair'?'this matchup':'the selected team'+(T.length===1?'':'s'))+' yet. Add them in the Drafts section.'}</p></div>`;
   const maps=[...new Set(base.map(d=>d.map))].filter(Boolean).sort();
   if(DR.sMap&&!maps.includes(DR.sMap))DR.sMap='';
-  const list=base.filter(d=>(!DR.sMap||d.map===DR.sMap)&&(!DR.sCoin||(!drUnk(d)&&d.coin===DR.sCoin)));
+  const list=base.filter(d=>!DR.sMap||d.map===DR.sMap);
   const focus=scope==='one'?T[0]:'';
   DR.sBase=()=>base;
   const fil=`<div class="dr-sfil">${mapBoxHTML(DR.sMap,'data-drmapopen="s" data-x','Map')}${DR.sMap?'<button type="button" class="btn quiet" data-drmappick="" data-drk="s">All maps</button>':''}
-   <label class="dr-field"><span class="lbl">Coin</span><select class="dr-input" data-dsf="coin"><option value="">Both coins</option><option value="blue"${DR.sCoin==='blue'?' selected':''}>Blue coin</option><option value="red"${DR.sCoin==='red'?' selected':''}>Red coin</option></select></label>${perSeg}<span class="msg">${plural(list.length,'draft')}</span></div>`;
+   ${perSeg}<span class="msg">${plural(list.length,'draft')}</span></div>`;
   const tabs=!list.length?'<p class="msg">No drafts match these filters.</p>':scope==='pair'?T.map(t=>`<div class="dr-tgrp" style="color:${tcol(t)}">${esc(t)}</div>${drTablesFor(list,[t])}`).join(''):drTablesFor(list,T);
-  return `<div style="margin-top:14px">${fil}${tabs}<div class="dr-list" style="margin-top:0">${list.map(d=>drCard(d,focus,false)).join('')}</div></div>`}
+  // the coin of the selected team in each draft (in a matchup, of the first team): only for the list below
+  const me=d=>T.includes(d.blue)&&(scope!=='pair'||d.blue===T[0])?'blue':'red',had=d=>drUnk(d)?'':d.coin===me(d)?'f':'l';
+  const lc=['f','l'].includes(DR.lCoin)?DR.lCoin:'',shown=list.filter(d=>!lc||had(d)===lc),cnt=k=>list.filter(d=>had(d)===k).length,who=scope==='pair'?T[0]:T.length===1?T[0]:'the selected teams';
+  const lbar=`<div class="dr-lcoin"><span class="lbl">Drafts</span><span class="seg2"><button type="button" data-drlc="" aria-pressed="${!lc}">All ${list.length}</button><button type="button" data-drlc="f" aria-pressed="${lc==='f'}" title="${esc(who)} had the 1st pick"><img class="coinm" src="${COIN.blue}" alt=""> 1st ${cnt('f')}</button><button type="button" data-drlc="l" aria-pressed="${lc==='l'}" title="${esc(who)} had the last pick"><img class="coinm" src="${COIN.red}" alt=""> Last ${cnt('l')}</button></span>${lc?`<span class="msg">Only the list changes; drafts with the side unknown are only in “All”.</span>`:''}</div>`;
+  return `<div style="margin-top:14px">${fil}${tabs}${lbar}<div class="dr-list" style="margin-top:0">${shown.map(d=>drCard(d,focus,false)).join('')||'<p class="msg">No drafts with that coin.</p>'}</div></div>`}
 
 $('sheetGo').addEventListener('click',()=>{if(!busy){syncSheet(false);drLoad()}});
 $('sheetAll').addEventListener('click',()=>{if(!busy){syncSheet(true);drLoad()}});
@@ -6194,4 +6209,13 @@ td.gt-l{text-align:left!important}td.gt-l .gt-br,td.gt-l .gt-tn{justify-content:
 .fs-st{font-size:11px;color:#7ee2a0;text-align:right}.fs-row.on .fs-st{color:#ff8a9a}
 .fs-b{border-top:1px dashed #34324a;padding-top:8px}.fs-b label.btn{cursor:pointer;font-size:12px;padding:6px 12px}.fs-ok{font-size:12px;color:#7ee2a0}.fs-lib{margin-left:auto;font-size:11.5px;color:#a9a6bd;display:inline-flex;gap:6px;align-items:center}
 @media (max-width:760px){.fs-row{grid-template-columns:40px minmax(0,1fr) 34px minmax(0,1fr);}.fs-mp{grid-column:2/5}.fs-st{display:none}.fs-hd input{min-width:0;flex:1}}
+</style>
+<style>
+.dr-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:12px}
+.dr-3 .dr-top{min-width:0}.dr-3 .tablewrap{max-height:340px;overflow:auto}.dr-3 table.rank{min-width:0!important;width:100%}
+.dr-ch{display:inline-flex;align-items:center;gap:6px}.dr-ch .coinm{width:20px;height:20px}.dr-ch small{font-weight:500;color:var(--muted,#a9a6bd);font-size:11px;text-transform:none;letter-spacing:0}
+.dr-pkbar{margin:2px 0 10px}
+.dr-sub .seg2{margin-left:8px;vertical-align:middle}.dr-sub .seg2 button{font-size:11px!important;padding:3px 10px!important;letter-spacing:0}
+.dr-lcoin{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0 8px}.dr-lcoin .seg2 button{display:inline-flex;align-items:center;gap:5px}.dr-lcoin .coinm{width:18px;height:18px}
+@media (max-width:900px){.dr-3{grid-template-columns:1fr}}
 </style>
