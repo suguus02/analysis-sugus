@@ -5151,7 +5151,13 @@ function shLev(a,b){if(a===b)return 0;const m=a.length,n=b.length;if(!m)return n
 const shSim=(a,b)=>{a=shNorm(a);b=shNorm(b);if(!a||!b)return 0;return 1-shLev(a,b)/Math.max(a.length,b.length)};
 let _shNI=null,_shNK='';
 function shNameIdx(){const F=FULL;if(!F||!F.names)return [];const k=Object.keys(F.names).length;if(_shNK===k&&_shNI)return _shNI;_shNK=k;_shNI=Object.entries(F.names).map(([t,n])=>[t,shNorm(n)]).filter(x=>x[1].length>=3);return _shNI}
-function shTagsFor(name){const q=shNorm(name);if(q.length<3)return [];const o=[];for(const [t,n] of shNameIdx()){const s=1-shLev(q,n)/Math.max(q.length,n.length);if(s>=.7)o.push([t,s])}return o.sort((a,b)=>b[1]-a[1]).slice(0,6)}
+function shTagsFor(name){const q=shNorm(name);const o=[];if(q.length>=3)for(const [t,n] of shNameIdx()){const s=1-shLev(q,n)/Math.max(q.length,n.length);if(s>=.7)o.push([t,s])}
+  // the name cannot be read (other alphabets): use the team prefix before the '|', e.g. 'TE | ...'
+  if(!o.length){const m=/^\s*([A-Za-z0-9]{2,5})\s*[|lI1!\]\[]/.exec(String(name||''));if(m){const pf=m[1].toUpperCase();for(const [t,n] of shPrefIdx())if(n===pf)o.push([t,.6])}}
+  return o.sort((a,b)=>b[1]-a[1]).slice(0,o[0]&&o[0][1]>=.7?6:40)}
+let _shPI=null,_shPK='';
+function shPrefIdx(){const F=FULL;if(!F||!F.names)return [];const k=Object.keys(F.names).length;if(_shPK===k&&_shPI)return _shPI;_shPK=k;
+  _shPI=Object.entries(F.names).map(([t,n])=>{const m=/^\s*([^|]{2,5})\s*\|/.exec(String(n||''));return [t,m?m[1].trim().toUpperCase():'']}).filter(x=>x[1]);return _shPI}
 function shMapOf(txt){let best='',bs=0;for(const [,ms] of (MODELIST||[]))for(const m of ms){const s=shSim(txt,m);if(s>bs){bs=s;best=m}}
   if(!best){const all=[...new Set(((FULL&&FULL.matches)||[]).slice(-3000).map(m=>m.m))];for(const m of all){const s=shSim(txt,m);if(s>bs){bs=s;best=m}}}
   return bs>=.7?best:''}
@@ -5167,7 +5173,9 @@ function shCandidates(it){const F=FULL;if(!F||!F.matches)return [];const L=it.na
   const sc=(side,tags)=>side.reduce((a,c)=>{let b=0;for(const [t,s] of c)if(tags.includes(t))b=Math.max(b,s);return a+b},0);
   const out=[],cut=Date.now()-21*864e5;
   for(const m of F.matches){if(m.sh||!m.ta||!m.tb)continue;if(it.map&&m.m!==it.map)continue;if(Date.parse(m.d)<cut)continue;
-    const ab=sc(L,m.ta)+sc(R,m.tb),ba=sc(L,m.tb)+sc(R,m.ta),s=Math.max(ab,ba);if(s<3.6)continue;
+    const lA=sc(L,m.ta),rB=sc(R,m.tb),lB=sc(L,m.tb),rA=sc(R,m.ta),ab=lA+rB,ba=lB+rA,s=Math.max(ab,ba);
+    // both teams read: 3.6 of 6 names; a rival the reader cannot read (other alphabets): the map and 2+ names of one team
+    if(s<3.6&&!(it.map&&Math.max(lA,rB,lB,rA)>=1.6))continue;
     out.push({m,left:ab>=ba?'a':'b',score:s,dist:shSetDist(m,it.ft)})}
   return out}
 function shMatchAll(){if(!FULL)return false;let ch=false;const used=new Set(SHOT.list.filter(x=>x.set).map(x=>x.set));
@@ -5234,9 +5242,10 @@ function shAfterSave(d){const id=DR.shot;if(!id)return;const it=SHOT.list.find(x
 function shDel(id){const it=SHOT.list.find(x=>x.id===id);SHOT.list=SHOT.list.filter(x=>x!==it&&!(it&&it.set&&x.set===it.set&&x.st!=='ready'));if(DR.shot===id)DR.shot='';shSave();drRender()}
 // ---- what is shown
 // the sets this picture could be (same players, same map), newest first; the chosen one is selected
-function shSetSelHTML(it){const C=shCandidates(it).filter(c=>shSetKey(c.m)===it.set||!shSavedSet(c.m)).sort((a,b)=>a.m.d<b.m.d?1:a.m.d>b.m.d?-1:b.m.t-a.m.t).slice(0,10);
+function shSetSelHTML(it){const C=shCandidates(it).filter(c=>shSetKey(c.m)===it.set||!shSavedSet(c.m)).sort((a,b)=>Math.round(b.score*2)-Math.round(a.score*2)||(a.m.d<b.m.d?1:a.m.d>b.m.d?-1:b.m.t-a.m.t)).slice(0,10);
   if(!C.length)return '';const hm=t=>String(Math.floor(t/3600)%24).padStart(2,'0')+':'+String(Math.floor(t%3600/60)).padStart(2,'0');
-  const o=C.map(c=>{const k=shSetKey(c.m),sc=c.left==='a'?(c.m.sc||''):String(c.m.sc||'').split('-').reverse().join('-');return `<option value="${esc(k)}"${k===it.set?' selected':''}>${esc(fmtDate(c.m.d))} ${hm(c.m.t)} · ${esc(sc)}</option>`}).join('');
+  const o=C.map(c=>{const k=shSetKey(c.m),sc=c.left==='a'?(c.m.sc||''):String(c.m.sc||'').split('-').reverse().join('-');const opp=c.left==='a'?c.m.b:c.m.a,ot=c.left==='a'?c.m.tb:c.m.ta,on=opp?String(opp).replace(/^ext:/,''):(ot||[]).map(t=>(FULL.names&&FULL.names[t])||t).join(' / ');
+    return `<option value="${esc(k)}"${k===it.set?' selected':''}>${esc(fmtDate(c.m.d))} ${hm(c.m.t)} · ${esc(sc)} · vs ${esc(on)}</option>`}).join('');
   return `<label class="sh-sel" title="The set of this picture. The page picks it by the time of the picture; change it if it is wrong.">Set <select data-shsel="${it.id}">${it.set?'':'<option value="" selected>— choose —</option>'}${o}</select></label>`}
 document.addEventListener('change',e=>{const s=e.target.closest&&e.target.closest('[data-shsel]');if(!s)return;const it=SHOT.list.find(x=>x.id===s.dataset.shsel);if(!it)return;
   if(!s.value){it.pick='';return}it.pick=s.value;it.set=null;it.st='wait';it.check=0;if(DR.shot===it.id)DR.shot='';SHOT.key='';shMatchAll();shSave();drRender()});
@@ -6084,3 +6093,4 @@ td.gt-l{text-align:left!important}td.gt-l .gt-br,td.gt-l .gt-tn{justify-content:
 </style>
 <style>.sh-pick{white-space:normal;display:flex;flex-wrap:wrap;gap:4px;align-items:center;max-width:520px}.sh-pick .btn{font-size:11px;padding:2px 7px}</style>
 <style>.sh-sel{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--muted,#a9a6bd);white-space:nowrap}.sh-sel select{font:inherit;font-size:11.5px;background:#1f1e2c;color:#ecebf5;border:1px solid #3a3850;border-radius:6px;padding:3px 5px;max-width:190px}</style>
+<style>.sh-sel select{max-width:260px}</style>
