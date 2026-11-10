@@ -1156,6 +1156,7 @@ table.rank td.ic,.pgrid .rank td.ic{text-align:left}table.rank th:nth-child(2),.
       <button type="button" class="tabbtn" role="tab" data-tab="drafts" aria-selected="false">Drafts</button>
       <button type="button" class="tabbtn" role="tab" data-tab="card" aria-selected="false">Card</button>
       <button type="button" class="tabbtn" role="tab" data-tab="scout" aria-selected="false">Scouting</button>
+      <button type="button" class="tabbtn" role="tab" data-tab="report" aria-selected="false">Report</button>
       <button type="button" class="tabbtn" role="tab" data-tab="group" aria-selected="false">Results</button>
     </div>
     <div id="detail"></div>
@@ -2552,7 +2553,7 @@ function datesTab(){
 }
 function applyView(){
   document.querySelectorAll('.mnav').forEach(b=>b.setAttribute('aria-selected',(b.dataset.view===view||(b.dataset.view==='draft'&&view==='suggest'))?'true':'false'));
-  $('predview').hidden=view!=='pred';$('statsview').hidden=view!=='stats';$('tourview').hidden=view!=='tour';$('checkview').hidden=view!=='check';$('wbview').hidden=view!=='worlds';$('brawlview').hidden=view!=='brawl';$('balview').hidden=view!=='bal';$('draftview').hidden=view!=='draft'&&view!=='suggest';$('statsscope').hidden=view!=='stats'||tab==='scout'||tab==='match'||tab==='caster';$('pickpanel').hidden=view==='tour'||view==='check'||view==='worlds'||view==='brawl'||view==='bal'||view==='draft'||view==='suggest'||view==='stats';
+  $('predview').hidden=view!=='pred';$('statsview').hidden=view!=='stats';$('tourview').hidden=view!=='tour';$('checkview').hidden=view!=='check';$('wbview').hidden=view!=='worlds';$('brawlview').hidden=view!=='brawl';$('balview').hidden=view!=='bal';$('draftview').hidden=view!=='draft'&&view!=='suggest';$('statsscope').hidden=view!=='stats'||tab==='scout'||tab==='report'||tab==='match'||tab==='caster';$('pickpanel').hidden=view==='tour'||view==='check'||view==='worlds'||view==='brawl'||view==='bal'||view==='draft'||view==='suggest'||view==='stats';
   if(view==='check')renderCheck();if(view==='worlds')renderWB();if(view==='brawl'){renderBrawl();brLoad()}if(view==='bal')renderBal();if(view==='tour')renderTour();drSwitch();if(view==='draft'||view==='suggest')drRender();
   $('mapsbox').hidden=view!=='pred';decorateTiles();
 }
@@ -3541,9 +3542,9 @@ function groupTab(){
 function renderDetail(){
   uxApplyHash();if(tab==='scout')uxSyncScout();
   document.querySelectorAll('.tabbtn').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===tab?'true':'false'));
-  $('statsscope').innerHTML=(tab==='scout'||tab==='match'||tab==='caster')?'':scopeWithMaps();$('statsscope').hidden=view!=='stats'||tab==='scout'||tab==='match'||tab==='caster';tselPaint();
-  const nd=tab!=='drafts'&&tab!=='scout'&&tab!=='match'&&tab!=='caster'&&((scope==='one'&&!M.D.off.includes(curOne()))||(scope==='pool'&&poolTeams&&!poolTeams.some(t=>M.D.off.includes(t))));
-  $('detail').innerHTML=nd?'<div class="nodata">NO DATA</div>':tab==='stats'?statsTab():tab==='players'?playersTab():tab==='drafts'?draftsTab():tab==='card'?cardTab():tab==='scout'?scoutHTML():tab==='group'?groupTab():tab==='caster'?casterTab():datesTab();
+  $('statsscope').innerHTML=(tab==='scout'||tab==='report'||tab==='match'||tab==='caster')?'':scopeWithMaps();$('statsscope').hidden=view!=='stats'||tab==='scout'||tab==='report'||tab==='match'||tab==='caster';tselPaint();
+  const nd=tab!=='drafts'&&tab!=='scout'&&tab!=='report'&&tab!=='match'&&tab!=='caster'&&((scope==='one'&&!M.D.off.includes(curOne()))||(scope==='pool'&&poolTeams&&!poolTeams.some(t=>M.D.off.includes(t))));
+  $('detail').innerHTML=nd?'<div class="nodata">NO DATA</div>':tab==='stats'?statsTab():tab==='players'?playersTab():tab==='drafts'?draftsTab():tab==='card'?cardTab():tab==='scout'?scoutHTML():tab==='report'?reportHTML():tab==='group'?groupTab():tab==='caster'?casterTab():datesTab();
   applyView();decorateTiles();tselPaint();if(tab==='caster')requestAnimationFrame(casFit);uxPost();
 }
 $('statsscope').addEventListener('click',e=>{
@@ -5464,6 +5465,133 @@ let _fsT=0;document.addEventListener('input',e=>{const t=e.target;if(!(t&&t.matc
 document.addEventListener('dragover',e=>{if(view==='draft'&&e.target.closest&&e.target.closest('.fs-bar'))e.preventDefault()});
 document.addEventListener('drop',e=>{if(view!=='draft'||!(e.target.closest&&e.target.closest('.fs-bar')))return;e.preventDefault();const f=[...e.dataTransfer.files].find(x=>/^image\//.test(x.type));if(f)fsBans(f)});
 
+// ===== Team report (Team stats > Report) =====
+// One report per team: automatic sections from the data + a notes box in each section. Notes are kept in this browser
+// and in the REPORTS tab of the sheet (TEAM | SECTION | TEXT | UPDATED), so the whole team reads the same.
+// Tournament dates (for 'Before tournaments') come from the TORNEOS tab: EQUIPO | TORNEO | FECHA INICIO | FECHA FIN | RESULTADO | NOTAS.
+const RP={team:'',sheet:{},tor:[],st:0,msg:{}};
+try{RP.team=store.get('tvt:rpteam')||''}catch(e){}
+let RP_LOCAL={};try{RP_LOCAL=JSON.parse(store.get('tvt:rpnotes')||'{}')||{}}catch(e){RP_LOCAL={}}
+const rpLocalSave=()=>{try{store.set('tvt:rpnotes',JSON.stringify(RP_LOCAL))}catch(e){}};
+const RP_SEC=[['claude','Analysis (Claude)'],['form','Profile and form'],['maps','Maps and modes'],['draft','Draft: picks and combos'],['bans','Bans'],['players','Players'],['changes','Recent changes'],['tribe','Against Tribe'],['prep','Before tournaments'],['style','How they play'],['plan','Plan against them']];
+const rpDate=v=>{v=String(v==null?'':v).trim();let m=/^Date\((\d+),(\d+),(\d+)/.exec(v);if(m)return `${m[1]}-${String(+m[2]+1).padStart(2,'0')}-${String(+m[3]).padStart(2,'0')}`;
+  m=/^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(v);if(m)return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(v);if(m)return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;return ''};
+const rpAdd=(d,n)=>{const x=new Date(d+'T00:00:00Z');x.setUTCDate(x.getUTCDate()+n);return x.toISOString().slice(0,10)};
+async function rpLoad(force){if(RP.st===1||(RP.st===2&&!force))return;RP.st=1;
+  try{const rows=await gviz('sheet=REPORTS&headers=1&tq='+encodeURIComponent('select *'));const o={};
+    for(const r of rows.slice(1)){const t=String(r[0]||'').trim().toUpperCase(),s=String(r[1]||'').trim();if(t&&s)o[t+'|'+s]={text:String(r[2]==null?'':r[2]),at:String(r[3]||'')}}RP.sheet=o}catch(e){}
+  try{const rows=await gviz('sheet=TORNEOS&headers=1&tq='+encodeURIComponent('select *'));
+    RP.tor=rows.slice(1).map(r=>({team:String(r[0]||'').trim().toUpperCase(),kind:String(r[1]||'').trim(),from:rpDate(r[2]),to:rpDate(r[3])||rpDate(r[2]),res:String(r[4]||'').trim(),note:String(r[5]||'').trim()})).filter(x=>x.team&&x.from)}catch(e){}
+  RP.st=2;if(view==='stats'&&tab==='report')renderDetail()}
+function rpNote(team,sec){const k=team+'|'+sec,l=RP_LOCAL[k],s=RP.sheet[k];if(l&&!l.synced)return {text:l.text,pending:true};return {text:s?s.text:(l?l.text:''),pending:false}}
+async function rpSave(team,sec,text){const k=team+'|'+sec;RP_LOCAL[k]={text,t:Date.now(),synced:false};rpLocalSave();RP.msg[sec]='Saving…';rpPaintMsg(sec);
+  const cfg=drCfg();if(!cfg.url){RP.msg[sec]='Saved in this browser only (the sheet is not connected).';rpPaintMsg(sec);return}
+  try{const res=await fetch(cfg.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:cfg.token,action:'note',team,section:sec,text})});
+    const j=await res.json();if(!j.ok)throw new Error(j.error==='unknown action'?'the sheet code is not updated yet (paste the new code and update the web app)':(j.error||'rejected'));
+    RP_LOCAL[k].synced=true;rpLocalSave();RP.sheet[k]={text,at:new Date().toISOString()};RP.msg[sec]='Saved to the sheet ✓'}
+  catch(e){RP.msg[sec]='Saved in this browser only: '+(e&&e.message||e)}
+  rpPaintMsg(sec)}
+function rpPaintMsg(sec){const el=document.querySelector(`[data-rpmsg="${sec}"]`);if(el)el.textContent=RP.msg[sec]||''}
+// ---- data helpers (sets: one per set, from the team's side)
+function rpSets(team,matches){const out=[];for(const m of matches){if(m.s||m.y===0.5)continue;const a=m.a===team;if(!a&&m.b!==team)continue;
+  out.push({d:m.d,t:m.t,m:m.m,ty:m.ty,win:a?m.y:1-m.y,mine:((a?m.ba:m.bb)||[]).filter(Boolean),theirs:((a?m.bb:m.ba)||[]).filter(Boolean),opp:String((a?m.b:m.a)||'').replace(/^ext:/,''),tags:(a?m.ta:m.tb)||[]})}return out}
+const rpCount=(sets,f)=>{const o={};for(const x of sets)for(const k of f(x)){const e=o[k]||(o[k]={k,n:0,w:0});e.n++;e.w+=x.win}return Object.values(o).sort((a,b)=>b.n-a.n||b.w-a.w)};
+const rpPct=x=>Math.round(100*x)+'%';
+const rpWR=(w,n)=>n?`<span class="rp-wr" style="${wrHeat(w/n)}">${rpPct(w/n)}</span>`:'<span class="rp-wr">–</span>';
+const rpTbl=(head,rows,empty)=>rows.length?`<table class="rp-t"><thead><tr>${head.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`:`<p class="msg">${empty||'No data'}</p>`;
+const rpBr=b=>`<span class="rp-b">${bimg(b,'bi')||''}<span>${esc(b)}</span></span>`;
+const rpCombo=k=>`<span class="rp-cb">${String(k).split(' + ').map(b=>bimg(b,'bi')||esc(b)).join('<i>+</i>')}</span>`;
+function rpTeamDrafts(team){return drAll().filter(d=>d.blue===team||d.red===team)}
+// ---- sections
+function rpForm(team,S){const n=S.length,w=S.filter(x=>x.win===1).length;
+  const ty=k=>{const q=S.filter(x=>k==='t'?x.ty==='tournament':x.ty!=='tournament'),qw=q.filter(x=>x.win===1).length;return q.length?`${qw}–${q.length-qw} ${rpWR(qw,q.length)}`:'–'};
+  const last=scMatches(team,10);const D=M.D,rk=D.off.map(t=>[t,M.x[D.teams.indexOf(t)+1]]).sort((a,b)=>b[1]-a[1]),pos=rk.findIndex(x=>x[0]===team);
+  const half=S.slice().sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:a.t-b.t),h2=half.slice(Math.floor(half.length/2)),h1=half.slice(0,Math.floor(half.length/2));
+  const wr=L=>L.length?L.filter(x=>x.win===1).length/L.length:0,trend=h1.length>=6&&h2.length>=6?wr(h2)-wr(h1):0;
+  return `<div class="rp-kpis"><div><small>Sets</small><b>${w}–${n-w}</b>${rpWR(w,n)}</div><div><small>Scrims</small><b>${ty('s')}</b></div><div><small>Tournament</small><b>${ty('t')}</b></div><div><small>Strength rank</small><b>${pos>=0?'#'+(pos+1)+' of '+rk.length:'–'}</b></div><div><small>Trend in the period</small><b class="${trend>=.08?'up':trend<=-.08?'down':''}">${Math.abs(trend)<.08?'stable':trend>0?'▲ +'+rpPct(trend):'▼ '+rpPct(trend)}</b></div></div>
+  <div class="rp-last"><small>Last ${last.length} matches (newest first)</small><div>${last.map(x=>`<span class="rp-m ${x.win===1?'w':x.win===0?'l':'d'}" title="${esc(x.d)} · ${esc(x.name)} ${x.w}-${x.l}"><b>${x.w}-${x.l}</b><small>${esc(String(x.name).slice(0,16))}</small></span>`).join('')}</div></div>`}
+function rpMaps(S){const L=rpCount(S,x=>[x.m]);const all=S.length?S.filter(x=>x.win===1).length/S.length:0;
+  const rows=L.slice(0,14).map(e=>`<tr><td>${mimg(e.k,'rp-mi')}${esc(e.k)}</td><td class="n">${e.n}</td><td class="n">${e.w}–${e.n-e.w}</td><td>${rpWR(e.w,e.n)}</td><td class="n ${e.n>=4&&e.w/e.n-all>=.12?'up':e.n>=4&&e.w/e.n-all<=-.12?'down':''}">${e.n>=4?(e.w/e.n-all>=0?'+':'')+Math.round(100*(e.w/e.n-all)):''}</td></tr>`);
+  const md=rpCount(S,x=>[modeOfMap(x.m)||'?']).filter(e=>e.k!=='?');
+  return `<div class="rp-2"><div>${rpTbl(['Map','Sets','W–L','WR','vs their avg'],rows)}</div><div><small class="rp-h">By mode</small>${rpTbl(['Mode','Sets','WR'],md.map(e=>`<tr><td>${esc(e.k)}</td><td class="n">${e.n}</td><td>${rpWR(e.w,e.n)}</td></tr>`))}</div></div>`}
+function rpDraft(team,S,allS){const pk=rpCount(S,x=>x.mine),tot=S.length||1;
+  // how often every team picks each brawler, to find the picks that are 'theirs'
+  const lg={};let lgN=0;for(const m of ds.matches){if(m.s||m.y===0.5)continue;for(const side of [m.ba,m.bb]){if(!side)continue;lgN++;for(const b of side)if(b)lg[b]=(lg[b]||0)+1}}
+  const sig=pk.filter(e=>e.n>=4).map(e=>Object.assign({r:(e.n/tot)/Math.max(.01,(lg[e.k]||0)/Math.max(1,lgN))},e)).filter(e=>e.r>=1.8).sort((a,b)=>b.r-a.r).slice(0,5);
+  const duo={},tri={};for(const x of S){const b=[...x.mine].sort();for(let i=0;i<b.length;i++)for(let j=i+1;j<b.length;j++){const k=b[i]+' + '+b[j],e=duo[k]||(duo[k]={k,n:0,w:0});e.n++;e.w+=x.win}if(b.length===3){const k=b.join(' + '),e=tri[k]||(tri[k]={k,n:0,w:0});e.n++;e.w+=x.win}}
+  const srt=o=>Object.values(o).sort((a,b)=>b.n-a.n||b.w-a.w);
+  const DR0=rpTeamDrafts(team).filter(d=>!drOrdUnk(d)),p1={},p6={};
+  for(const d of DR0){const side=d.blue===team?'blue':'red';if(d.coin===side){const b=d.picks[0];if(b)p1[b]=(p1[b]||0)+1}else{const b=d.picks[5];if(b)p6[b]=(p6[b]||0)+1}}
+  const top=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  return `<div class="rp-3"><div><small class="rp-h">Most picked</small>${rpTbl(['Brawler','Sets','% sets','WR'],pk.slice(0,12).map(e=>`<tr><td>${rpBr(e.k)}</td><td class="n">${e.n}</td><td class="n">${rpPct(e.n/tot)}</td><td>${rpWR(e.w,e.n)}</td></tr>`))}</div>
+    <div><small class="rp-h">Their picks (much more than the other teams)</small>${rpTbl(['Brawler','Them','Others'],sig.map(e=>`<tr><td>${rpBr(e.k)}</td><td class="n">${rpPct(e.n/tot)}</td><td class="n">${rpPct((lg[e.k]||0)/Math.max(1,lgN))}</td></tr>`),'No brawler stands out.')}
+      <small class="rp-h">With the 1st pick (#1) · ${plural(DR0.filter(d=>d.coin===(d.blue===team?'blue':'red')).length,'draft')}</small><div class="rp-chips">${top(p1).map(([b,n])=>`<span>${bimg(b,'bi')}${n}</span>`).join('')||'<span class="msg">–</span>'}</div>
+      <small class="rp-h">With the last pick (#6) · ${plural(DR0.filter(d=>d.coin!==(d.blue===team?'blue':'red')).length,'draft')}</small><div class="rp-chips">${top(p6).map(([b,n])=>`<span>${bimg(b,'bi')}${n}</span>`).join('')||'<span class="msg">–</span>'}</div></div>
+    <div><small class="rp-h">Duos</small>${rpTbl(['Duo','Sets','WR'],srt(duo).filter(e=>e.n>=3).slice(0,6).map(e=>`<tr><td>${rpCombo(e.k)}</td><td class="n">${e.n}</td><td>${rpWR(e.w,e.n)}</td></tr>`))}
+      <small class="rp-h">Trios</small>${rpTbl(['Trio','Sets','WR'],srt(tri).filter(e=>e.n>=2).slice(0,5).map(e=>`<tr><td>${rpCombo(e.k)}</td><td class="n">${e.n}</td><td>${rpWR(e.w,e.n)}</td></tr>`))}</div></div>`}
+function rpBans(team){const L=rpTeamDrafts(team),f={},l={},t={};let nf=0,nl=0;
+  for(const d of L){const s=d.blue===team?'b':'r',full=s==='b'?'blue':'red',bs=d.bans[s].filter(Boolean),known=!drUnk(d),first=known&&d.coin===full;
+    if(known){if(first)nf++;else nl++}for(const b of bs){t[b]=(t[b]||0)+1;if(known){if(first)f[b]=(f[b]||0)+1;else l[b]=(l[b]||0)+1}}}
+  if(!L.length)return '<p class="msg">No saved drafts of this team yet.</p>';
+  const col=(title,o,n)=>`<div><small class="rp-h">${title}${n!=null?' · '+plural(n,'draft'):''}</small>${rpTbl(['Brawler','Times'],Object.entries(o).sort((a,b)=>b[1]-a[1]).slice(0,7).map(([b,c])=>`<tr><td>${rpBr(b)}</td><td class="n">${c}</td></tr>`))}</div>`;
+  return `<p class="rp-src">From ${plural(L.length,'saved draft')} (all dates).</p><div class="rp-3">${col('Total',t,L.length)}${col(`When having 1st <img class="coinm" src="${COIN.blue}" alt="">`,f,nf)}${col(`When having last <img class="coinm" src="${COIN.red}" alt="">`,l,nl)}</div>`}
+function rpPlayers(team){const P=teamPlayers(team,Engine.playersFor(ds,team,null));
+  return `<div class="rp-pl">${P.map(p=>{const top3=p.list.slice(0,3).reduce((a,x)=>a+x.n,0);return `<div class="rp-p"><b>${esc(p.name)}</b><small>${p.n} sets · ${rpWR(p.w,p.n)} · top 3 brawlers = ${p.n?rpPct(top3/p.n):'–'} of his sets</small>
+    ${rpTbl(['Brawler','Sets','WR'],p.list.slice(0,7).map(x=>`<tr><td>${rpBr(x.b)}</td><td class="n">${x.n}</td><td>${rpWR(x.w,x.n)}</td></tr>`))}</div>`}).join('')}</div>`}
+function rpChanges(team){const A=rpSets(team,FULL.matches);if(!A.length)return '<p class="msg">No data.</p>';
+  const lastD=A.reduce((m,x)=>x.d>m?x.d:m,''),cut=rpAdd(lastD,-13),cut0=rpAdd(cut,-45);
+  const R=A.filter(x=>x.d>=cut),P=A.filter(x=>x.d<cut&&x.d>=cut0);if(R.length<5||P.length<5)return `<p class="msg">Not enough sets to compare (last 14 days: ${R.length}, the 45 days before: ${P.length}).</p>`;
+  const rate=(L,b)=>L.filter(x=>x.mine.includes(b)).length/L.length,bs=[...new Set([...R,...P].flatMap(x=>x.mine))];
+  const ch=bs.map(b=>({b,r:rate(R,b),p:rate(P,b),n:R.filter(x=>x.mine.includes(b)).length})),wr=L=>L.filter(x=>x.win===1).length/L.length;
+  const up=ch.filter(x=>x.p===0&&x.n>=2).sort((a,b)=>b.r-a.r).slice(0,8),rise=ch.filter(x=>x.p>0&&x.r-x.p>=.1&&x.n>=3).sort((a,b)=>(b.r-b.p)-(a.r-a.p)),down=ch.filter(x=>x.p>=.12&&x.r<=x.p/3).sort((a,b)=>b.p-a.p);
+  const li=(L,f)=>L.slice(0,6).map(x=>`<span class="rp-chg">${bimg(x.b,'bi')}<span>${esc(x.b)}</span><small>${f(x)}</small></span>`).join('')||'<span class="msg">none</span>';
+  return `<p class="rp-src">Last 14 days (${fmtDate(cut)} – ${fmtDate(lastD)}, ${plural(R.length,'set')}, ${rpPct(wr(R))} WR) against the 45 days before (${plural(P.length,'set')}, ${rpPct(wr(P))} WR). All the data, not only the period.</p>
+    <div class="rp-chgs"><div><small class="rp-h">New picks</small>${li(up,x=>rpPct(x.r)+' of sets')}</div><div><small class="rp-h">Playing more</small>${li(rise,x=>rpPct(x.p)+' → '+rpPct(x.r))}</div><div><small class="rp-h">Dropped</small>${li(down,x=>rpPct(x.p)+' → '+rpPct(x.r))}</div></div>`}
+function rpTribe(team){const US='TRIBE GAMING';if(team===US)return '<p class="msg">This is our team.</p>';
+  const A=rpSets(team,FULL.matches).filter(x=>x.opp===US);if(!A.length)return '<p class="msg">No sets against Tribe in the data.</p>';
+  const w=A.filter(x=>x.win===1).length,mp=rpCount(A,x=>[x.m]),last=A.slice().sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:b.t-a.t).slice(0,8);
+  return `<div class="rp-2"><div><div class="rp-kpis"><div><small>Sets against Tribe</small><b>${w}–${A.length-w}</b>${rpWR(w,A.length)}</div><div><small>Tribe won</small><b>${A.length-w}</b>${rpWR(A.length-w,A.length)}</div></div>
+    ${rpTbl(['Map','Sets','Their WR'],mp.slice(0,8).map(e=>`<tr><td>${mimg(e.k,'rp-mi')}${esc(e.k)}</td><td class="n">${e.n}</td><td>${rpWR(e.w,e.n)}</td></tr>`))}</div>
+    <div><small class="rp-h">Last sets (all the data)</small>${rpTbl(['Date','Map','Their picks','Result'],last.map(x=>`<tr><td>${fmtDate(x.d)}</td><td>${esc(x.m)}</td><td>${x.mine.map(b=>bimg(b,'bi')).join('')}</td><td class="${x.win===1?'down':'up'}">${x.win===1?'They won':'Tribe won'}</td></tr>`))}</div></div>`}
+function rpPrep(team){const T=RP.tor.filter(x=>x.team===team).sort((a,b)=>a.from<b.from?1:-1);const A=rpSets(team,FULL.matches);
+  const now=(()=>{const lastD=A.reduce((m,x)=>x.d>m?x.d:m,'');if(!lastD)return '';const R=A.filter(x=>x.d>=rpAdd(lastD,-13)&&x.ty!=='tournament'),B=A.filter(x=>x.d<rpAdd(lastD,-13)&&x.d>=rpAdd(lastD,-58));
+    if(!R.length)return '';const pk=rpCount(R,x=>x.mine).slice(0,8),nw=B.length>=10?rpCount(R,x=>x.mine).filter(e=>e.n>=2&&!B.some(x=>x.mine.includes(e.k))).slice(0,8):null,mp=rpCount(R,x=>[x.m]).slice(0,5);const up=RP.tor.find(x=>x.team===team&&x.from>lastD);
+    return `<div class="rp-now"><b>${up?'Now, before '+esc(up.kind)+' ('+fmtDate(up.from)+')':'Their last 14 days'}</b> · ${plural(R.length,'set')}<div class="rp-chgs"><div><small class="rp-h">Most played</small>${pk.map(e=>`<span class="rp-chg">${bimg(e.k,'bi')}<span>${esc(e.k)}</span><small>${e.n}</small></span>`).join('')}</div><div><small class="rp-h">New (not played in the 45 days before)</small>${nw==null?'<span class="msg">not enough earlier sets to tell</span>':nw.map(e=>`<span class="rp-chg">${bimg(e.k,'bi')}<span>${esc(e.k)}</span><small>${e.n}</small></span>`).join('')||'<span class="msg">none</span>'}</div><div><small class="rp-h">Maps practised</small>${mp.map(e=>`<span class="rp-chg"><span>${esc(e.k)}</span><small>${e.n}</small></span>`).join('')}</div></div></div>`})();
+  if(!T.length)return `${now}<p class="msg">Add this team's tournaments in the <b>TORNEOS</b> tab of the sheet (team, tournament, start and end date, result) to see how they prepare: what they play the 2 weeks before each Monthly Qualifier / Final and how much of it they take to the tournament.</p>`;
+  let sumO=0,sumN=0,cntT=0;
+  const rows=T.filter(t=>t.from<=(A.reduce((m,x)=>x.d>m?x.d:m,'')||t.from)).map(t=>{const w0=rpAdd(t.from,-14),w1=rpAdd(t.from,-1),b0=rpAdd(t.from,-59);
+    const prep=A.filter(x=>x.d>=w0&&x.d<=w1&&x.ty!=='tournament'),before=A.filter(x=>x.d>=b0&&x.d<w0),tourS=A.filter(x=>x.d>=t.from&&x.d<=t.to&&x.ty==='tournament');
+    const drs=rpTeamDrafts(team).filter(d=>d.date>=t.from&&d.date<=t.to&&d.kind);const side=d=>d.blue===team?[0,3,4]:[1,2,5];
+    const tp=[...tourS.flatMap(x=>x.mine),...drs.flatMap(d=>drPos(d.coin)[d.blue===team?0:1].map(n=>d.picks[n-1]).filter(Boolean))];
+    const pc={};for(const x of prep)for(const b of x.mine)pc[b]=(pc[b]||0)+1;const cov=tp.filter(b=>(pc[b]||0)>=2).length;
+    const nw=before.length>=10?Object.entries(pc).filter(([b,c])=>c>=2&&!before.some(x=>x.mine.includes(b))).map(([b])=>b):[],nwUsed=nw.filter(b=>tp.includes(b));
+    if(tp.length){sumO+=cov/tp.length;cntT++}sumN+=nw.length;
+    const topP=Object.entries(pc).sort((a,b)=>b[1]-a[1]).slice(0,6);
+    return `<tr><td><b>${esc(t.kind||'Tournament')}</b><small>${fmtDate(t.from)}${t.to!==t.from?' – '+fmtDate(t.to):''}${t.res?' · '+esc(t.res):''}</small></td><td class="n">${prep.length}</td><td>${topP.map(([b,c])=>`<span class="rp-ic">${bimg(b,'bi')}<small>${c}</small></span>`).join('')||'–'}</td>
+      <td>${nw.map(b=>`<span class="rp-ic${nwUsed.includes(b)?' used':''}" title="${esc(b)}${nwUsed.includes(b)?' · used in the tournament':' · not used in the tournament'}">${bimg(b,'bi')}</span>`).join('')||'–'}</td>
+      <td class="n">${tp.length?`${rpPct(cov/tp.length)} <small>of ${tp.length}</small>`:'<small>no tournament data</small>'}</td></tr>`}).join('');
+  const sum=cntT?`<p class="rp-sum">On average, <b>${rpPct(sumO/cntT)}</b> of the picks they played in a tournament had been played (2+ times) in their scrims of the 2 weeks before, and they tried <b>${(sumN/Math.max(1,T.length)).toFixed(1)}</b> new picks before each tournament (green = they used it in the tournament).</p>`:'';
+  return `${now}${sum}<table class="rp-t rp-prep"><thead><tr><th>Tournament</th><th>Scrim sets 2 weeks before</th><th>Most practised</th><th>New picks</th><th>Tournament picks already practised</th></tr></thead><tbody>${rows}</tbody></table>`}
+function reportHTML(){rpLoad();const T=allTeams().filter(t=>M.D.off.includes(t));
+  if(!RP.team||!T.includes(RP.team)){RP.team=(SC&&SC.rival&&T.includes(SC.rival))?SC.rival:(scope==='one'&&T.includes(curOne())?curOne():T[0]||'')}
+  const team=RP.team,ctl=`<div class="sc-ctl" data-noexport="1">${grpBarHTML()}<div class="uxpicks">${tpChips('rpteam','Team',team,t=>{RP.team=t;try{store.set('tvt:rpteam',t)}catch(_){}renderDetail()},{cls:'B'})}</div></div>`;
+  if(!team)return ctl+'<p class="msg">Choose a team.</p>';
+  const S=rpSets(team,ds.matches),pl=teamPlayers(team,{}).map(p=>p.name);
+  const auto={form:()=>rpForm(team,S),maps:()=>rpMaps(S),draft:()=>rpDraft(team,S),bans:()=>rpBans(team),players:()=>rpPlayers(team),changes:()=>rpChanges(team),tribe:()=>rpTribe(team),prep:()=>rpPrep(team)};
+  const hint={claude:'Claude writes the analysis here when you ask for it (“analyse NAVI”). You can change it.',style:'Aggressive or passive, how they react when they are behind, how they adapt between games, what you saw in VODs and scrims…',plan:'What to ban, which maps to look for, what to avoid in the draft, keys of the match…'};
+  const secs=RP_SEC.map(([k,title],i)=>{let a='';try{a=auto[k]?auto[k]():''}catch(e){a=`<p class="msg">Could not build this part: ${esc(e&&e.message||e)}</p>`}
+    const N=rpNote(team,k);
+    return `<section class="rp-sec rp-${k}" id="rp-${k}"><h3>${i?`<span class="rp-n">${i}</span>`:"<span class=\"rp-n c\">✦</span>"}${esc(title)}</h3>${a}<div class="rp-note"><textarea data-rpnote="${k}" rows="${a?2:5}" placeholder="${esc(hint[k]||'Your notes about this part…')}">${esc(N.text)}</textarea><div class="rp-print">${esc(N.text)}</div>
+      <div class="rp-nb"><button type="button" class="btn quiet" data-rpsave="${k}">Save note</button><span class="msg" data-rpmsg="${k}">${N.pending?'Not saved to the sheet yet':esc(RP.msg[k]||'')}</span></div></div></section>`}).join('');
+  return `${ctl}<div id="rpdoc" class="rp"><header class="rp-hd" style="--c:${tcol(team)}">${logo(team,'rp-logo')}<div><h2>${esc(team)}</h2><p>${esc(REGION[team]||'')}${pl.length?' · '+pl.map(esc).join(' · '):''}</p><p class="rp-per">Period of the page: ${(()=>{const r=rangeOf(FULL);return esc(fmtDate(r.from))+' – '+esc(fmtDate(r.to))})()} · ${plural(S.length,'set')}${RP.st===2?'':' · loading notes…'}</p></div>
+    <button type="button" class="btn quiet rp-pdf" data-rppdf>Print / save as PDF</button></header>${secs}</div>`}
+document.addEventListener('click',e=>{if(view!=='stats'||tab!=='report')return;const t=e.target;
+  const s=t.closest&&t.closest('[data-rpsave]');if(s){const k=s.dataset.rpsave,ta=document.querySelector(`[data-rpnote="${k}"]`);if(ta)rpSave(RP.team,k,ta.value);return}
+  if(t.closest&&t.closest('[data-rppdf]')){document.body.classList.add('rp-printing');setTimeout(()=>{window.print();setTimeout(()=>document.body.classList.remove('rp-printing'),500)},50)}});
+document.addEventListener('input',e=>{const t=e.target;if(!(t&&t.dataset&&t.dataset.rpnote))return;const k=RP.team+'|'+t.dataset.rpnote;RP_LOCAL[k]={text:t.value,t:Date.now(),synced:false};rpLocalSave();
+  const m=document.querySelector(`[data-rpmsg="${t.dataset.rpnote}"]`);if(m)m.textContent='Not saved to the sheet yet';const p=t.parentNode.querySelector('.rp-print');if(p)p.textContent=t.value});
+
 function renderCheck(){const el=$('checkview');if(el)el.innerHTML=checkHTML()}
 
 // ---- Brawler comparison (stats come from the "Brawlers" tab; a built-in copy is used until it loads)
@@ -6218,4 +6346,42 @@ td.gt-l{text-align:left!important}td.gt-l .gt-br,td.gt-l .gt-tn{justify-content:
 .dr-sub .seg2{margin-left:8px;vertical-align:middle}.dr-sub .seg2 button{font-size:11px!important;padding:3px 10px!important;letter-spacing:0}
 .dr-lcoin{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0 8px}.dr-lcoin .seg2 button{display:inline-flex;align-items:center;gap:5px}.dr-lcoin .coinm{width:18px;height:18px}
 @media (max-width:900px){.dr-3{grid-template-columns:1fr}}
+</style>
+<style>
+.rp{display:flex;flex-direction:column;gap:14px;margin-top:12px}
+.rp-hd{display:flex;align-items:center;gap:16px;padding:16px 18px;border-radius:14px;background:linear-gradient(120deg,color-mix(in srgb,var(--c) 22%,#1b1a26),#1b1a26 65%);border:1px solid color-mix(in srgb,var(--c) 40%,#2c2a3a)}
+.rp-hd .rp-logo{width:64px;height:64px;object-fit:contain}.rp-hd h2{margin:0;font-size:26px;letter-spacing:.02em}.rp-hd p{margin:3px 0 0;color:#cfcde0;font-size:13px}.rp-hd .rp-per{color:#a9a6bd;font-size:12px}.rp-pdf{margin-left:auto}
+.rp-sec{background:#1b1a26;border:1px solid #2c2a3a;border-radius:14px;padding:12px 16px}
+.rp-sec h3{margin:0 0 10px;font-size:15px;display:flex;align-items:center;gap:8px}
+.rp-n{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:#d63a50;color:#fff;font-size:12px}.rp-n.c{background:#7b5cff}
+.rp-claude{border-color:#4b3f8f;background:linear-gradient(180deg,rgba(123,92,255,.10),#1b1a26)}
+.rp-h{display:block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#a9a6bd;font-weight:800;margin:8px 0 4px}
+.rp-src,.rp-sum{color:#a9a6bd;font-size:12px;margin:0 0 6px}.rp-sum{color:#ecebf5;font-size:13px;background:#24233a;border-radius:8px;padding:8px 10px}
+.rp-kpis{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}.rp-kpis>div{background:#22212e;border-radius:10px;padding:8px 12px;display:flex;flex-direction:column;gap:2px;min-width:120px}
+.rp-kpis small{color:#a9a6bd;font-size:11px}.rp-kpis b{font-size:17px}.rp-kpis .rp-wr{align-self:flex-start}
+.up{color:#7ee2a0}.down{color:#ff8a9a}
+.rp-wr{display:inline-block;min-width:38px;text-align:center;border-radius:5px;padding:1px 5px;font-family:var(--mono,monospace);font-size:12px;font-weight:700}
+.rp-last small{color:#a9a6bd;font-size:11px}.rp-last>div{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.rp-m{display:flex;flex-direction:column;align-items:center;min-width:70px;padding:4px 6px;border-radius:8px;background:#22212e;border-top:3px solid #888}.rp-m.w{border-color:#5fcf8a}.rp-m.l{border-color:#e5484d}.rp-m small{font-size:10px;color:#a9a6bd;white-space:nowrap}
+.rp .coinm{width:16px!important;height:16px!important;vertical-align:-3px}.rp-2>div,.rp-3>div,.rp-p{min-width:0;overflow-x:auto}.rp-t td,.rp-t th{white-space:nowrap}
+.rp-2{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:16px}.rp-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.rp-t{width:100%!important;min-width:0!important;border-collapse:collapse;font-size:12.5px}.rp-t th{text-align:left;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#8e8ab0;padding:4px 6px;font-weight:700}.rp-t td{padding:4px 6px;border-top:1px solid #2a2938;vertical-align:middle}.rp-t td.n{font-family:var(--mono,monospace);text-align:right}
+.rp-t small{display:block;color:#a9a6bd;font-size:11px}
+.rp-mi{width:22px;height:22px;object-fit:cover;border-radius:4px;vertical-align:middle;margin-right:6px}
+.rp-b{display:inline-flex;align-items:center;gap:6px}.rp-b .bi,.rp-cb .bi,.rp-chips .bi,.rp-chg .bi,.rp-ic .bi,.rp-t td .bi{width:24px;height:24px}
+.rp-cb{display:inline-flex;align-items:center;gap:2px}.rp-cb i{font-style:normal;color:#8e8ab0;font-size:10px}
+.rp-chips{display:flex;flex-wrap:wrap;gap:6px}.rp-chips span{display:inline-flex;align-items:center;gap:3px;background:#22212e;border-radius:6px;padding:2px 6px;font-family:var(--mono,monospace);font-size:12px}
+.rp-chgs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.rp-chgs>div{display:flex;flex-wrap:wrap;gap:5px;align-content:flex-start}.rp-chgs .rp-h{width:100%}
+.rp-chg{display:inline-flex;align-items:center;gap:5px;background:#22212e;border-radius:7px;padding:3px 7px;font-size:12px}.rp-chg small{color:#a9a6bd;font-family:var(--mono,monospace)}
+.rp-now{background:#22212e;border-radius:10px;padding:8px 12px;margin-bottom:8px}
+.rp-ic{display:inline-flex;align-items:center;gap:1px;margin-right:4px;opacity:.65}.rp-ic.used{opacity:1;outline:2px solid #5fcf8a;border-radius:5px}.rp-ic small{font-size:10px;color:#a9a6bd}
+.rp-prep td{vertical-align:top}
+.rp-pl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.rp-p{background:#22212e;border-radius:10px;padding:8px 10px}.rp-p>small{display:block;color:#a9a6bd;font-size:11.5px;margin:2px 0 4px}
+.rp-note{margin-top:10px}.rp-note textarea{width:100%;box-sizing:border-box;resize:vertical;min-height:52px;background:#14131c;color:#ecebf5;border:1px solid #34324a;border-radius:8px;padding:8px 10px;font:inherit;font-size:13px;line-height:1.45}
+.rp-note textarea:focus{outline:none;border-color:#7b5cff}.rp-nb{display:flex;align-items:center;gap:10px;margin-top:4px}.rp-nb .msg{font-size:11.5px}
+.rp-print{display:none;white-space:pre-wrap}
+@media (max-width:900px){.rp-2,.rp-3,.rp-pl,.rp-chgs{grid-template-columns:1fr}.rp-hd{flex-wrap:wrap}.rp-pdf{margin-left:0}}
+@media print{body.rp-printing *{visibility:hidden!important}body.rp-printing #rpdoc,body.rp-printing #rpdoc *{visibility:visible!important}
+  body.rp-printing #rpdoc{position:absolute;left:0;top:0;width:100%}body.rp-printing .rp-note textarea,body.rp-printing .rp-nb,body.rp-printing .rp-pdf{display:none!important}
+  body.rp-printing .rp-print{display:block;font-size:12px}body.rp-printing .rp-sec{break-inside:avoid}}
 </style>
