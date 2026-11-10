@@ -5469,21 +5469,21 @@ document.addEventListener('drop',e=>{if(view!=='draft'||!(e.target.closest&&e.ta
 // One report per team: automatic sections from the data + a notes box in each section. Notes are kept in this browser
 // and in the REPORTS tab of the sheet (TEAM | SECTION | TEXT | UPDATED), so the whole team reads the same.
 // Tournament dates (for 'Before tournaments') come from the TORNEOS tab: EQUIPO | TORNEO | FECHA INICIO | FECHA FIN | RESULTADO | NOTAS.
-const RP={team:'',sheet:{},tor:[],st:0,msg:{}};
+const RP={team:'',sheet:{},tor:[],st:0,msg:{},map:''};
 try{RP.team=store.get('tvt:rpteam')||''}catch(e){}
 let RP_LOCAL={};try{RP_LOCAL=JSON.parse(store.get('tvt:rpnotes')||'{}')||{}}catch(e){RP_LOCAL={}}
 const rpLocalSave=()=>{try{store.set('tvt:rpnotes',JSON.stringify(RP_LOCAL))}catch(e){}};
-const RP_SEC=[['claude','Analysis (Claude)'],['form','Profile and form'],['maps','Maps and modes'],['draft','Draft: picks and combos'],['bans','Bans'],['players','Players'],['changes','Recent changes'],['tribe','Against Tribe'],['prep','Before tournaments'],['style','How they play'],['plan','Plan against them']];
+const RP_SEC=[['claude','Analysis (Claude)'],['prep','Tournaments: preparation and picks'],['form','Profile and form'],['maps','Maps and modes'],['bans','Bans'],['draft','Draft: picks and combos'],['players','Players'],['changes','Recent changes'],['tribe','Against Tribe'],['style','How they play'],['plan','Plan against them']];
 const rpDate=v=>{v=String(v==null?'':v).trim();let m=/^Date\((\d+),(\d+),(\d+)/.exec(v);if(m)return `${m[1]}-${String(+m[2]+1).padStart(2,'0')}-${String(+m[3]).padStart(2,'0')}`;
   m=/^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(v);if(m)return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
   m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(v);if(m)return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;return ''};
 const rpAdd=(d,n)=>{const x=new Date(d+'T00:00:00Z');x.setUTCDate(x.getUTCDate()+n);return x.toISOString().slice(0,10)};
-async function rpLoad(force){if(RP.st===1||(RP.st===2&&!force))return;RP.st=1;
+async function rpLoad(force){if(RP.st===1||(RP.st===2&&!force&&Date.now()-(RP.at||0)<45000))return;const was=JSON.stringify([RP.sheet,RP.tor]);RP.st=1;RP.at=Date.now();
   try{const rows=await gviz('sheet=REPORTS&headers=1&tq='+encodeURIComponent('select *'));const o={};
     for(const r of rows.slice(1)){const t=String(r[0]||'').trim().toUpperCase(),s=String(r[1]||'').trim();if(t&&s)o[t+'|'+s]={text:String(r[2]==null?'':r[2]),at:String(r[3]||'')}}RP.sheet=o}catch(e){}
   try{const rows=await gviz('sheet=TORNEOS&headers=1&tq='+encodeURIComponent('select *'));
     RP.tor=rows.slice(1).map(r=>({team:String(r[0]||'').trim().toUpperCase(),kind:String(r[1]||'').trim(),from:rpDate(r[2]),to:rpDate(r[3])||rpDate(r[2]),res:String(r[4]||'').trim(),note:String(r[5]||'').trim()})).filter(x=>x.team&&x.from)}catch(e){}
-  RP.st=2;if(view==='stats'&&tab==='report')renderDetail()}
+  RP.st=2;if(view==='stats'&&tab==='report'&&JSON.stringify([RP.sheet,RP.tor])!==was)renderDetail()}
 function rpNote(team,sec){const k=team+'|'+sec,l=RP_LOCAL[k],s=RP.sheet[k];if(l&&!l.synced)return {text:l.text,pending:true};return {text:s?s.text:(l?l.text:''),pending:false}}
 async function rpSave(team,sec,text){const k=team+'|'+sec;RP_LOCAL[k]={text,t:Date.now(),synced:false};rpLocalSave();RP.msg[sec]='Saving…';rpPaintMsg(sec);
   const cfg=drCfg();if(!cfg.url){RP.msg[sec]='Saved in this browser only (the sheet is not connected).';rpPaintMsg(sec);return}
@@ -5494,7 +5494,7 @@ async function rpSave(team,sec,text){const k=team+'|'+sec;RP_LOCAL[k]={text,t:Da
   rpPaintMsg(sec)}
 function rpPaintMsg(sec){const el=document.querySelector(`[data-rpmsg="${sec}"]`);if(el)el.textContent=RP.msg[sec]||''}
 // ---- data helpers (sets: one per set, from the team's side)
-function rpSets(team,matches){const out=[];for(const m of matches){if(m.s||m.y===0.5)continue;const a=m.a===team;if(!a&&m.b!==team)continue;
+function rpSets(team,matches,raw){const out=[],mp=raw?'':RP.map;for(const m of matches){if(m.s||m.y===0.5||(mp&&m.m!==mp))continue;const a=m.a===team;if(!a&&m.b!==team)continue;
   out.push({d:m.d,t:m.t,m:m.m,ty:m.ty,win:a?m.y:1-m.y,mine:((a?m.ba:m.bb)||[]).filter(Boolean),theirs:((a?m.bb:m.ba)||[]).filter(Boolean),opp:String((a?m.b:m.a)||'').replace(/^ext:/,''),tags:(a?m.ta:m.tb)||[]})}return out}
 const rpCount=(sets,f)=>{const o={};for(const x of sets)for(const k of f(x)){const e=o[k]||(o[k]={k,n:0,w:0});e.n++;e.w+=x.win}return Object.values(o).sort((a,b)=>b.n-a.n||b.w-a.w)};
 const rpPct=x=>Math.round(100*x)+'%';
@@ -5502,7 +5502,8 @@ const rpWR=(w,n)=>n?`<span class="rp-wr" style="${wrHeat(w/n)}">${rpPct(w/n)}</s
 const rpTbl=(head,rows,empty)=>rows.length?`<table class="rp-t"><thead><tr>${head.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`:`<p class="msg">${empty||'No data'}</p>`;
 const rpBr=b=>`<span class="rp-b">${bimg(b,'bi')||''}<span>${esc(b)}</span></span>`;
 const rpCombo=k=>`<span class="rp-cb">${String(k).split(' + ').map(b=>bimg(b,'bi')||esc(b)).join('<i>+</i>')}</span>`;
-function rpTeamDrafts(team){return drAll().filter(d=>d.blue===team||d.red===team)}
+function rpTeamDrafts(team){return drAll().filter(d=>(d.blue===team||d.red===team)&&(!RP.map||d.map===RP.map))}
+const rpDS=()=>RP.map?Object.assign({},ds,{matches:ds.matches.filter(m=>m.m===RP.map)}):ds;
 // ---- sections
 function rpForm(team,S){const n=S.length,w=S.filter(x=>x.win===1).length;
   const ty=k=>{const q=S.filter(x=>k==='t'?x.ty==='tournament':x.ty!=='tournament'),qw=q.filter(x=>x.win===1).length;return q.length?`${qw}–${q.length-qw} ${rpWR(qw,q.length)}`:'–'};
@@ -5517,7 +5518,7 @@ function rpMaps(S){const L=rpCount(S,x=>[x.m]);const all=S.length?S.filter(x=>x.
   return `<div class="rp-2"><div>${rpTbl(['Map','Sets','W–L','WR','vs their avg'],rows)}</div><div><small class="rp-h">By mode</small>${rpTbl(['Mode','Sets','WR'],md.map(e=>`<tr><td>${esc(e.k)}</td><td class="n">${e.n}</td><td>${rpWR(e.w,e.n)}</td></tr>`))}</div></div>`}
 function rpDraft(team,S,allS){const pk=rpCount(S,x=>x.mine),tot=S.length||1;
   // how often every team picks each brawler, to find the picks that are 'theirs'
-  const lg={};let lgN=0;for(const m of ds.matches){if(m.s||m.y===0.5)continue;for(const side of [m.ba,m.bb]){if(!side)continue;lgN++;for(const b of side)if(b)lg[b]=(lg[b]||0)+1}}
+  const lg={};let lgN=0;for(const m of rpDS().matches){if(m.s||m.y===0.5)continue;for(const side of [m.ba,m.bb]){if(!side)continue;lgN++;for(const b of side)if(b)lg[b]=(lg[b]||0)+1}}
   const sig=pk.filter(e=>e.n>=4).map(e=>Object.assign({r:(e.n/tot)/Math.max(.01,(lg[e.k]||0)/Math.max(1,lgN))},e)).filter(e=>e.r>=1.8).sort((a,b)=>b.r-a.r).slice(0,5);
   const duo={},tri={};for(const x of S){const b=[...x.mine].sort();for(let i=0;i<b.length;i++)for(let j=i+1;j<b.length;j++){const k=b[i]+' + '+b[j],e=duo[k]||(duo[k]={k,n:0,w:0});e.n++;e.w+=x.win}if(b.length===3){const k=b.join(' + '),e=tri[k]||(tri[k]={k,n:0,w:0});e.n++;e.w+=x.win}}
   const srt=o=>Object.values(o).sort((a,b)=>b.n-a.n||b.w-a.w);
@@ -5536,7 +5537,7 @@ function rpBans(team){const L=rpTeamDrafts(team),f={},l={},t={};let nf=0,nl=0;
   if(!L.length)return '<p class="msg">No saved drafts of this team yet.</p>';
   const col=(title,o,n)=>`<div><small class="rp-h">${title}${n!=null?' · '+plural(n,'draft'):''}</small>${rpTbl(['Brawler','Times'],Object.entries(o).sort((a,b)=>b[1]-a[1]).slice(0,7).map(([b,c])=>`<tr><td>${rpBr(b)}</td><td class="n">${c}</td></tr>`))}</div>`;
   return `<p class="rp-src">From ${plural(L.length,'saved draft')} (all dates).</p><div class="rp-3">${col('Total',t,L.length)}${col(`When having 1st <img class="coinm" src="${COIN.blue}" alt="">`,f,nf)}${col(`When having last <img class="coinm" src="${COIN.red}" alt="">`,l,nl)}</div>`}
-function rpPlayers(team){const P=teamPlayers(team,Engine.playersFor(ds,team,null));
+function rpPlayers(team){const P=teamPlayers(team,Engine.playersFor(rpDS(),team,null));
   return `<div class="rp-pl">${P.map(p=>{const top3=p.list.slice(0,3).reduce((a,x)=>a+x.n,0);return `<div class="rp-p"><b>${esc(p.name)}</b><small>${p.n} sets · ${rpWR(p.w,p.n)} · top 3 brawlers = ${p.n?rpPct(top3/p.n):'–'} of his sets</small>
     ${rpTbl(['Brawler','Sets','WR'],p.list.slice(0,7).map(x=>`<tr><td>${rpBr(x.b)}</td><td class="n">${x.n}</td><td>${rpWR(x.w,x.n)}</td></tr>`))}</div>`}).join('')}</div>`}
 function rpChanges(team){const A=rpSets(team,FULL.matches);if(!A.length)return '<p class="msg">No data.</p>';
@@ -5554,41 +5555,63 @@ function rpTribe(team){const US='TRIBE GAMING';if(team===US)return '<p class="ms
   return `<div class="rp-2"><div><div class="rp-kpis"><div><small>Sets against Tribe</small><b>${w}–${A.length-w}</b>${rpWR(w,A.length)}</div><div><small>Tribe won</small><b>${A.length-w}</b>${rpWR(A.length-w,A.length)}</div></div>
     ${rpTbl(['Map','Sets','Their WR'],mp.slice(0,8).map(e=>`<tr><td>${mimg(e.k,'rp-mi')}${esc(e.k)}</td><td class="n">${e.n}</td><td>${rpWR(e.w,e.n)}</td></tr>`))}</div>
     <div><small class="rp-h">Last sets (all the data)</small>${rpTbl(['Date','Map','Their picks','Result'],last.map(x=>`<tr><td>${fmtDate(x.d)}</td><td>${esc(x.m)}</td><td>${x.mine.map(b=>bimg(b,'bi')).join('')}</td><td class="${x.win===1?'down':'up'}">${x.win===1?'They won':'Tribe won'}</td></tr>`))}</div></div>`}
-function rpPrep(team){const T=RP.tor.filter(x=>x.team===team).sort((a,b)=>a.from<b.from?1:-1);const A=rpSets(team,FULL.matches);
-  const now=(()=>{const lastD=A.reduce((m,x)=>x.d>m?x.d:m,'');if(!lastD)return '';const R=A.filter(x=>x.d>=rpAdd(lastD,-13)&&x.ty!=='tournament'),B=A.filter(x=>x.d<rpAdd(lastD,-13)&&x.d>=rpAdd(lastD,-58));
-    if(!R.length)return '';const pk=rpCount(R,x=>x.mine).slice(0,8),nw=B.length>=10?rpCount(R,x=>x.mine).filter(e=>e.n>=2&&!B.some(x=>x.mine.includes(e.k))).slice(0,8):null,mp=rpCount(R,x=>[x.m]).slice(0,5);const up=RP.tor.find(x=>x.team===team&&x.from>lastD);
-    return `<div class="rp-now"><b>${up?'Now, before '+esc(up.kind)+' ('+fmtDate(up.from)+')':'Their last 14 days'}</b> · ${plural(R.length,'set')}<div class="rp-chgs"><div><small class="rp-h">Most played</small>${pk.map(e=>`<span class="rp-chg">${bimg(e.k,'bi')}<span>${esc(e.k)}</span><small>${e.n}</small></span>`).join('')}</div><div><small class="rp-h">New (not played in the 45 days before)</small>${nw==null?'<span class="msg">not enough earlier sets to tell</span>':nw.map(e=>`<span class="rp-chg">${bimg(e.k,'bi')}<span>${esc(e.k)}</span><small>${e.n}</small></span>`).join('')||'<span class="msg">none</span>'}</div><div><small class="rp-h">Maps practised</small>${mp.map(e=>`<span class="rp-chg"><span>${esc(e.k)}</span><small>${e.n}</small></span>`).join('')}</div></div></div>`})();
-  if(!T.length)return `${now}<p class="msg">Add this team's tournaments in the <b>TORNEOS</b> tab of the sheet (team, tournament, start and end date, result) to see how they prepare: what they play the 2 weeks before each Monthly Qualifier / Final and how much of it they take to the tournament.</p>`;
-  let sumO=0,sumN=0,cntT=0;
-  const rows=T.filter(t=>t.from<=(A.reduce((m,x)=>x.d>m?x.d:m,'')||t.from)).map(t=>{const w0=rpAdd(t.from,-14),w1=rpAdd(t.from,-1),b0=rpAdd(t.from,-59);
+function rpPrep(team){const lastD=FULL.matches.reduce((m,x)=>x.d>m?x.d:m,'');
+  const A=rpSets(team,FULL.matches),DRS=rpTeamDrafts(team);
+  const cnt=L=>{const o={};for(const b of L)o[b]=(o[b]||0)+1;return Object.entries(o).sort((a,b)=>b[1]-a[1])};
+  const banOf=(L)=>cnt(L.flatMap(d=>(d.blue===team?d.bans.b:d.bans.r)||[]).filter(Boolean));
+  const pickOfDr=L=>L.flatMap(d=>drPos(d.coin)[d.blue===team?0:1].map(n=>d.picks[n-1]).filter(Boolean));
+  const item=(b,n,cls,tip)=>`<div class="tp-r${cls?' '+cls:''}"${tip?` title="${esc(tip)}"`:''}>${bimg(b,'bi')}<span>${esc(b)}</span><small>${n}</small></div>`;
+  const list=(L,f,max)=>L.length?L.slice(0,max||99).map(f).join(''):'<p class="tp-e">–</p>';
+  const col=(o)=>`<div class="tp-col${o.now?' now':''}"><div class="tp-hd"><b>${o.title}</b><small>${o.sub}</small></div>
+    <div class="tp-pct">${o.pct}</div>
+    <div class="tp-g tp-sh"><div><small>2 weeks before</small><b>${plural(o.prep.length,'scrim set')}</b></div><div><small>${o.now?'Next':'Tournament'}</small><b>${o.tlab}</b></div></div>
+    <div class="tp-lbl">Bans</div><div class="tp-g"><div>${o.pb}</div><div>${o.tb}</div></div>
+    <div class="tp-lbl">Picks</div><div class="tp-g"><div>${o.pp}</div><div>${o.tp}</div></div></div>`;
+  const T=RP.tor.filter(x=>x.team===team&&x.from<=(lastD||x.from)).sort((a,b)=>a.from<b.from?1:-1);
+  let sumO=0,cntT=0,sumN=0;
+  const cols=T.map(t=>{const w0=rpAdd(t.from,-14),w1=rpAdd(t.from,-1),b0=rpAdd(t.from,-59);
     const prep=A.filter(x=>x.d>=w0&&x.d<=w1&&x.ty!=='tournament'),before=A.filter(x=>x.d>=b0&&x.d<w0),tourS=A.filter(x=>x.d>=t.from&&x.d<=t.to&&x.ty==='tournament');
-    const drs=rpTeamDrafts(team).filter(d=>d.date>=t.from&&d.date<=t.to&&d.kind);const side=d=>d.blue===team?[0,3,4]:[1,2,5];
-    const tp=[...tourS.flatMap(x=>x.mine),...drs.flatMap(d=>drPos(d.coin)[d.blue===team?0:1].map(n=>d.picks[n-1]).filter(Boolean))];
-    const pc={};for(const x of prep)for(const b of x.mine)pc[b]=(pc[b]||0)+1;const cov=tp.filter(b=>(pc[b]||0)>=2).length;
-    const nw=before.length>=10?Object.entries(pc).filter(([b,c])=>c>=2&&!before.some(x=>x.mine.includes(b))).map(([b])=>b):[],nwUsed=nw.filter(b=>tp.includes(b));
-    if(tp.length){sumO+=cov/tp.length;cntT++}sumN+=nw.length;
-    const topP=Object.entries(pc).sort((a,b)=>b[1]-a[1]).slice(0,6);
-    return `<tr><td><b>${esc(t.kind||'Tournament')}</b><small>${fmtDate(t.from)}${t.to!==t.from?' – '+fmtDate(t.to):''}${t.res?' · '+esc(t.res):''}</small></td><td class="n">${prep.length}</td><td>${topP.map(([b,c])=>`<span class="rp-ic">${bimg(b,'bi')}<small>${c}</small></span>`).join('')||'–'}</td>
-      <td>${nw.map(b=>`<span class="rp-ic${nwUsed.includes(b)?' used':''}" title="${esc(b)}${nwUsed.includes(b)?' · used in the tournament':' · not used in the tournament'}">${bimg(b,'bi')}</span>`).join('')||'–'}</td>
-      <td class="n">${tp.length?`${rpPct(cov/tp.length)} <small>of ${tp.length}</small>`:'<small>no tournament data</small>'}</td></tr>`}).join('');
-  const sum=cntT?`<p class="rp-sum">On average, <b>${rpPct(sumO/cntT)}</b> of the picks they played in a tournament had been played (2+ times) in their scrims of the 2 weeks before, and they tried <b>${(sumN/Math.max(1,T.length)).toFixed(1)}</b> new picks before each tournament (green = they used it in the tournament).</p>`:'';
-  return `${now}${sum}<table class="rp-t rp-prep"><thead><tr><th>Tournament</th><th>Scrim sets 2 weeks before</th><th>Most practised</th><th>New picks</th><th>Tournament picks already practised</th></tr></thead><tbody>${rows}</tbody></table>`}
+    const tDr=DRS.filter(d=>d.date>=t.from&&d.date<=t.to&&d.kind),pDr=DRS.filter(d=>d.date>=w0&&d.date<=w1&&!d.kind);
+    const tpL=tourS.length?tourS.flatMap(x=>x.mine):pickOfDr(tDr),tp=cnt(tpL),pc={};for(const x of prep)for(const b of x.mine)pc[b]=(pc[b]||0)+1;
+    const nw=new Set(before.length>=10?Object.entries(pc).filter(([b,c])=>c>=2&&!before.some(x=>x.mine.includes(b))).map(([b])=>b):[]);
+    const cov=tpL.filter(b=>(pc[b]||0)>=2).length;if(tpL.length){sumO+=cov/tpL.length;cntT++}sumN+=nw.size;
+    const tw=tourS.filter(x=>x.win===1).length;
+    return col({title:esc(t.kind||'Tournament'),sub:fmtDate(t.from)+(t.to!==t.from?' – '+fmtDate(t.to):'')+(t.res?' · '+esc(t.res):''),
+      pct:tpL.length?`<b style="color:${cov/tpL.length>=.85?'#7ee2a0':cov/tpL.length>=.7?'#ffc861':'#ff8a80'}">${rpPct(cov/tpL.length)}</b><small>picks already practised<br>${cov} of ${tpL.length} tournament picks</small>`:'<small>no tournament sets or drafts</small>',
+      prep,tlab:tourS.length?`${plural(tourS.length,'set')} · ${tw}–${tourS.length-tw}`:tDr.length?plural(tDr.length,'draft'):'–',
+      pb:pDr.length?list(banOf(pDr),([b,n])=>item(b,n),6):'<p class="tp-e">no scrim drafts</p>',tb:tDr.length?list(banOf(tDr),([b,n])=>item(b,n),6):'<p class="tp-e">no drafts</p>',
+      pp:list(Object.entries(pc).sort((a,b)=>b[1]-a[1]),([b,n])=>item(b,n,(tp.some(e=>e[0]===b)?'hit':'')+(nw.has(b)?' new':''),tp.some(e=>e[0]===b)?'used in the tournament':''),12),
+      tp:list(tp,([b,n])=>item(b,n,(pc[b]||0)>=2?'hit':'miss',(pc[b]||0)>=2?'practised '+pc[b]+' times before':'not practised (0–1 times) in the 2 weeks before'))})}).join('');
+  // the first column: now (their last 14 days)
+  const now=(()=>{if(!lastD)return '';const w0=rpAdd(lastD,-13),R=A.filter(x=>x.d>=w0&&x.ty!=='tournament'),B=A.filter(x=>x.d<w0&&x.d>=rpAdd(lastD,-58));
+    const pc={};for(const x of R)for(const b of x.mine)pc[b]=(pc[b]||0)+1;const nw=new Set(B.length>=10?Object.entries(pc).filter(([b,c])=>c>=2&&!B.some(x=>x.mine.includes(b))).map(([b])=>b):[]);
+    const up=RP.tor.filter(x=>x.team===team&&x.from>lastD).sort((a,b)=>a.from<b.from?-1:1)[0],pDr=DRS.filter(d=>d.date>=w0&&!d.kind);
+    return col({now:1,title:up?'Now, before '+esc(up.kind):'Now',sub:'their last 14 days · '+fmtDate(w0)+' – '+fmtDate(lastD),pct:'<small>what they are practising right now</small>',prep:R,
+      tlab:up?esc(up.kind)+' · '+fmtDate(up.from):'not in TORNEOS',pb:pDr.length?list(banOf(pDr),([b,n])=>item(b,n),6):'<p class="tp-e">no scrim drafts</p>',tb:'',
+      pp:list(Object.entries(pc).sort((a,b)=>b[1]-a[1]),([b,n])=>item(b,n,nw.has(b)?'new':''),12),tp:''})})();
+  const sum=cntT?`<p class="rp-sum">On average, <b>${rpPct(sumO/cntT)}</b> of the picks they played in a tournament had been played (2+ times) in their scrims of the 2 weeks before, and they tried <b>${(sumN/Math.max(1,T.length)).toFixed(1)}</b> new picks before each tournament.</p>`:'';
+  const key=`<p class="tp-key"><span class="tp-r hit"><i></i>green</span> practised before and used in the tournament · <span class="tp-r miss"><i></i>red</span> used in the tournament without practising it (0–1 times) · <span class="tp-nw">NEW</span> new pick: played 2+ times in those 2 weeks and not once in the 45 days before</p>`;
+  const help=T.length?'':`<p class="msg">Add this team's tournaments in the <b>TORNEOS</b> tab of the sheet (team, tournament, start and end date, result) to compare what they practise the 2 weeks before each tournament with what they play in it.</p>`;
+  return `${sum}${key}<div class="tp-wrap">${now}${cols}</div>${help}`}
 function reportHTML(){rpLoad();const T=allTeams().filter(t=>M.D.off.includes(t));
   if(!RP.team||!T.includes(RP.team)){RP.team=(SC&&SC.rival&&T.includes(SC.rival))?SC.rival:(scope==='one'&&T.includes(curOne())?curOne():T[0]||'')}
-  const team=RP.team,ctl=`<div class="sc-ctl" data-noexport="1">${grpBarHTML()}<div class="uxpicks">${tpChips('rpteam','Team',team,t=>{RP.team=t;try{store.set('tvt:rpteam',t)}catch(_){}renderDetail()},{cls:'B'})}</div></div>`;
+  const team=RP.team,maps=team?rpCount(rpSets(team,FULL.matches,1),x=>[x.m]).map(e=>e.k):[];if(RP.map&&!maps.includes(RP.map))RP.map='';
+  const msel=`<div class="tp-ctl"><label><small class="rp-h">Map</small><select data-rpmap aria-label="Map"><option value="">All maps</option>${maps.map(m=>`<option${m===RP.map?' selected':''}>${esc(m)}</option>`).join('')}</select></label>${RP.map?`<span class="msg">The whole report is only on <b>${esc(RP.map)}</b> (the last 10 matches and the strength rank are not).</span>`:''}</div>`;
+  const ctl=`<div class="sc-ctl" data-noexport="1">${grpBarHTML()}<div class="uxpicks">${tpChips('rpteam','Team',team,t=>{RP.team=t;try{store.set('tvt:rpteam',t)}catch(_){}renderDetail()},{cls:'B'})}</div>${msel}</div>`;
   if(!team)return ctl+'<p class="msg">Choose a team.</p>';
   const S=rpSets(team,ds.matches),pl=teamPlayers(team,{}).map(p=>p.name);
   const auto={form:()=>rpForm(team,S),maps:()=>rpMaps(S),draft:()=>rpDraft(team,S),bans:()=>rpBans(team),players:()=>rpPlayers(team),changes:()=>rpChanges(team),tribe:()=>rpTribe(team),prep:()=>rpPrep(team)};
   const hint={claude:'Claude writes the analysis here when you ask for it (“analyse NAVI”). You can change it.',style:'Aggressive or passive, how they react when they are behind, how they adapt between games, what you saw in VODs and scrims…',plan:'What to ban, which maps to look for, what to avoid in the draft, keys of the match…'};
-  const secs=RP_SEC.map(([k,title],i)=>{let a='';try{a=auto[k]?auto[k]():''}catch(e){a=`<p class="msg">Could not build this part: ${esc(e&&e.message||e)}</p>`}
+  let _rpn=0;const secs=RP_SEC.map(([k,title],i)=>{let a='';try{a=auto[k]?auto[k]():''}catch(e){a=`<p class="msg">Could not build this part: ${esc(e&&e.message||e)}</p>`}
     const N=rpNote(team,k);
-    return `<section class="rp-sec rp-${k}" id="rp-${k}"><h3>${i?`<span class="rp-n">${i}</span>`:"<span class=\"rp-n c\">✦</span>"}${esc(title)}</h3>${a}<div class="rp-note"><textarea data-rpnote="${k}" rows="${a?2:5}" placeholder="${esc(hint[k]||'Your notes about this part…')}">${esc(N.text)}</textarea><div class="rp-print">${esc(N.text)}</div>
+    return `<section class="rp-sec rp-${k}" id="rp-${k}"><h3>${k!=='claude'?`<span class="rp-n">${++_rpn}</span>`:"<span class=\"rp-n c\">✦</span>"}${esc(title)}</h3>${a}<div class="rp-note"><textarea data-rpnote="${k}" rows="${a?2:5}" placeholder="${esc(hint[k]||'Your notes about this part…')}">${esc(N.text)}</textarea><div class="rp-print">${esc(N.text)}</div>
       <div class="rp-nb"><button type="button" class="btn quiet" data-rpsave="${k}">Save note</button><span class="msg" data-rpmsg="${k}">${N.pending?'Not saved to the sheet yet':esc(RP.msg[k]||'')}</span></div></div></section>`}).join('');
-  return `${ctl}<div id="rpdoc" class="rp"><header class="rp-hd" style="--c:${tcol(team)}">${logo(team,'rp-logo')}<div><h2>${esc(team)}</h2><p>${esc(REGION[team]||'')}${pl.length?' · '+pl.map(esc).join(' · '):''}</p><p class="rp-per">Period of the page: ${(()=>{const r=rangeOf(FULL);return esc(fmtDate(r.from))+' – '+esc(fmtDate(r.to))})()} · ${plural(S.length,'set')}${RP.st===2?'':' · loading notes…'}</p></div>
+  return `${ctl}<div id="rpdoc" class="rp"><header class="rp-hd" style="--c:${tcol(team)}">${logo(team,'rp-logo')}<div><h2>${esc(team)}</h2><p>${esc(REGION[team]||'')}${pl.length?' · '+pl.map(esc).join(' · '):''}</p><p class="rp-per">Period of the page: ${(()=>{const r=rangeOf(FULL);return esc(fmtDate(r.from))+' – '+esc(fmtDate(r.to))})()} · ${plural(S.length,'set')}${RP.map?' · only on '+esc(RP.map):''}${RP.st===2?'':' · loading notes…'}</p></div>
     <button type="button" class="btn quiet rp-pdf" data-rppdf>Print / save as PDF</button></header>${secs}</div>`}
 document.addEventListener('click',e=>{if(view!=='stats'||tab!=='report')return;const t=e.target;
   const s=t.closest&&t.closest('[data-rpsave]');if(s){const k=s.dataset.rpsave,ta=document.querySelector(`[data-rpnote="${k}"]`);if(ta)rpSave(RP.team,k,ta.value);return}
   if(t.closest&&t.closest('[data-rppdf]')){document.body.classList.add('rp-printing');setTimeout(()=>{window.print();setTimeout(()=>document.body.classList.remove('rp-printing'),500)},50)}});
+document.addEventListener('change',e=>{const t=e.target;if(t&&t.matches&&t.matches('[data-rpmap]')){RP.map=t.value;renderDetail()}});
 document.addEventListener('input',e=>{const t=e.target;if(!(t&&t.dataset&&t.dataset.rpnote))return;const k=RP.team+'|'+t.dataset.rpnote;RP_LOCAL[k]={text:t.value,t:Date.now(),synced:false};rpLocalSave();
   const m=document.querySelector(`[data-rpmsg="${t.dataset.rpnote}"]`);if(m)m.textContent='Not saved to the sheet yet';const p=t.parentNode.querySelector('.rp-print');if(p)p.textContent=t.value});
 
@@ -6375,6 +6398,24 @@ td.gt-l{text-align:left!important}td.gt-l .gt-br,td.gt-l .gt-tn{justify-content:
 .rp-chg{display:inline-flex;align-items:center;gap:5px;background:#22212e;border-radius:7px;padding:3px 7px;font-size:12px}.rp-chg small{color:#a9a6bd;font-family:var(--mono,monospace)}
 .rp-now{background:#22212e;border-radius:10px;padding:8px 12px;margin-bottom:8px}
 .rp-ic{display:inline-flex;align-items:center;gap:1px;margin-right:4px;opacity:.65}.rp-ic.used{opacity:1;outline:2px solid #5fcf8a;border-radius:5px}.rp-ic small{font-size:10px;color:#a9a6bd}
+.tp-ctl{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px}.tp-ctl .msg{font-size:12.5px}.tp-ctl label{display:flex;align-items:center;gap:8px}
+.tp-ctl select{background:#1a1924;color:inherit;border:1px solid #3a3850;border-radius:7px;padding:5px 8px;font:inherit;font-size:13px}
+.tp-key{font-size:11.5px;color:#a9a6bd;margin:4px 0 8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.tp-key .tp-r{display:inline-flex;padding:1px 6px;margin:0}.tp-key .tp-r i{display:none}
+.tp-wrap{display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;align-items:flex-start}
+.tp-col{flex:0 0 300px;background:#1c1b27;border:1px solid #302e42;border-radius:10px;padding:10px}
+.tp-col.now{border-color:#6b5bd6;background:#211f33}
+.tp-hd b{display:block;font-size:14px}.tp-hd small{color:#a9a6bd;font-size:11.5px}
+.tp-pct{display:flex;align-items:center;gap:8px;min-height:44px;margin:6px 0;padding:6px 8px;background:#15141e;border-radius:8px}
+.tp-pct b{font-size:24px;font-family:var(--mono,monospace)}.tp-pct small{font-size:11px;color:#a9a6bd;line-height:1.3}
+.tp-g{display:grid;grid-template-columns:1fr 1fr;gap:6px}.tp-g>div{min-width:0}
+.tp-sh>div{background:#15141e;border-radius:7px;padding:4px 7px}.tp-sh small{display:block;font-size:10px;color:#a9a6bd;text-transform:uppercase;letter-spacing:.04em}.tp-sh b{font-size:12px}
+.tp-lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:#a9a6bd;margin:9px 0 4px;border-bottom:1px solid #302e42;padding-bottom:2px}
+.tp-r{display:flex;align-items:center;gap:5px;font-size:11.5px;padding:2px 4px;border-radius:6px;margin-bottom:2px;border-left:3px solid transparent;position:relative}
+.tp-r .bi{width:20px!important;height:20px!important;flex:0 0 auto}.tp-r span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tp-r small{font-family:var(--mono,monospace);color:#a9a6bd}
+.tp-r.hit{border-left-color:#5fcf8a;background:rgba(95,207,138,.12)}.tp-r.miss{border-left-color:#ff8a80;background:rgba(255,138,128,.12)}
+.tp-r.new span::after,.tp-nw{content:'NEW';font-size:8.5px;font-weight:700;color:#1a1924;background:#ffc861;border-radius:3px;padding:0 3px;margin-left:4px;vertical-align:1px}
+.tp-e{font-size:11px;color:#77748c;margin:2px 4px}
 .rp-prep td{vertical-align:top}
 .rp-pl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.rp-p{background:#22212e;border-radius:10px;padding:8px 10px}.rp-p>small{display:block;color:#a9a6bd;font-size:11.5px;margin:2px 0 4px}
 .rp-note{margin-top:10px}.rp-note textarea{width:100%;box-sizing:border-box;resize:vertical;min-height:52px;background:#14131c;color:#ecebf5;border:1px solid #34324a;border-radius:8px;padding:8px 10px;font:inherit;font-size:13px;line-height:1.45}
