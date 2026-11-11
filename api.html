@@ -1249,6 +1249,27 @@ td.pkd{font-family:var(--mono,monospace);font-size:12px;color:#cfcce0}
 #detailpanel>.tabs .tabbtn{border:0;border-radius:8px;margin:0;padding:7px 13px}
 #detailpanel>.tabs .tabbtn[aria-selected="true"]{background:rgba(168,85,247,.18);color:var(--fg);box-shadow:inset 0 0 0 1px rgba(168,85,247,.5)}
 .bntri{display:inline-flex;gap:3px}.bntri img{width:26px!important;height:26px!important}
+
+#detail h3.sec-h.uxnotitle,#detail .uxhide{display:none!important}
+.scmaps.v{flex-direction:column;align-items:stretch}.scmaps.v .scm-l,.scmaps.v .scm-r{flex:none;width:100%;min-width:0}
+.scmaps.v .scm-r{border-top:1px solid var(--line);padding-top:10px}
+.sc-hint{margin:2px 0 8px;font-size:12px}
+
+/* match window: bigger */
+.gm.cdw{width:min(1500px,97vw);max-height:95vh}
+.gm.cdw .gm-hd b{font-size:20px}.gm.cdw .gm-sc{font-size:30px}
+.cd-grid.mbox{gap:16px;padding:8px 18px 16px}
+.cd-head{grid-template-columns:86px 1fr 150px 1fr 48px;min-height:58px}
+.cd-head .res{font-size:13px}.cd-head .setmap{font-size:16px}.cd-tm{font-size:12px}
+.cd-head .mapimg img{width:34px;height:50px}
+.cd-hb .bz-b{width:34px;height:34px;border-radius:7px}.cd-coin{width:30px;height:30px}
+.mbox .set.cd .matchup{padding:14px 12px;gap:8px;grid-template-columns:40px minmax(0,1fr) auto minmax(0,1fr)}
+.mbox .set.cd .setno{font-size:16px}.mbox .set.cd .vs{font-size:14px}
+.mbox .set.cd .bi.card{width:46px!important;height:46px!important;border-radius:9px}
+.mbox .set.cd .bcell .bnm{font-size:11px}.mbox .set.cd .pbold{font-size:12.5px}
+.cd-st{font-size:12px;margin-top:2px}.cd-n{font-size:11px;padding:0 5px}
+@media(max-width:1100px){.cd-grid.mbox{grid-template-columns:1fr}}
+.cd-coin.r{margin:0 0 0 4px}
 </style>
 
 <div class="wrap">
@@ -2413,7 +2434,7 @@ function ddBuild(team,cls,key,pool){
   return {team,cls,key,pool,wlHTML,lu:LU?LU.html:'',luAct:!!(LU&&LU.act),CS,combos,active,items0,sub,what,what2,wrl,log,nSingles,mapCols,
     selects:(l1,l2)=>selects('own',l1)+selects('enemy',l2),tsel:(l1,l2)=>tsel('own',l1)+tsel('enemy',l2),
     summary:`<div class="toolrow"><button type="button" class="btn quiet"${fk} data-clear="1"${active?'':' disabled'}>Clear filters</button><span class="sumline"><b>${CS.games}</b> counted sets${active?' match the filters':''} on ${esc(filterLabel())}${CS.games<15?'<span class="flag">low data</span>':''}</span></div>`,
-    logTitle:`Set log · ${log.filter(x=>!x.s).length} sets${active?' matching the filters':''}${log.some(x=>x.s)?` · ${log.filter(x=>x.s).length} single game${log.filter(x=>x.s).length===1?'':'s'} (not counted)`:''}`,
+    logTitle:`Comps · ${log.filter(x=>!x.s).length} sets${active?' matching the filters':''}${log.some(x=>x.s)?` · ${log.filter(x=>x.s).length} single game${log.filter(x=>x.s).length===1?'':'s'} (not counted)`:''}`,
     logHTML:logTable(log.slice(0,300),{tall:true,team:pool,noTag:true})+(log.length>300?'<p class="msg" style="margin:6px 0 0">Showing the 300 most recent sets.</p>':''),
     types:typesHTML(sub,subject,team,cls,wrl,mapCols,active),np:npHTML(items0,subject)};
 }
@@ -2440,7 +2461,7 @@ function bansHTML(team,cls,D){const own=bnSubj==='own',mf=mapsFilter(),mset=mf?n
   const tbl=(o,n)=>{const rows=Object.entries(o).sort((a,b)=>b[1]-a[1]||(a[0]<b[0]?-1:1));return `<div class="scroll pds bnsc"><table class="rank fit"><thead><tr><th class="rk"></th><th>${trio?'Trio of bans':'Brawler'}</th><th class="num">${trio?'Times':'Bans'}</th><th class="num">% of ${n}</th></tr></thead><tbody>${rows.map(([b,c],i)=>`<tr><td class="rk">${i+1}</td><td class="ic">${trio?`<span class="bntri" title="${esc(b)}">${b.split(' + ').map(x=>bimg(x,'bi')).join('')}</span>`:`<span class="bnc">${bimg(b,'bi')}<span class="bnm">${esc(b)}</span></span>`}</td><td class="num">${c}</td><td class="num">${n?Math.round(100*c/n)+'%':'–'}</td></tr>`).join('')||'<tr><td colspan="4" class="msg">No data</td></tr>'}</tbody></table></div>`};
   const col=(title,o,n)=>`<div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0">${title}</div><span class="msg" style="font-size:11.5px">${plural(n,'set')}</span></div>${tbl(o,n)}</div>`;
   const seg=`<div class="seg2" role="group" aria-label="Whose bans"><button type="button" data-bnsubj="own" aria-pressed="${own}">${esc(team)}'s bans</button><button type="button" data-bnsubj="ag" aria-pressed="${!own}">Bans against ${esc(team)}</button></div>`;
-  return `<div class="bnblock"><div class="toolrow" style="justify-content:center;margin-top:18px"><div class="ttl" style="margin:0">Bans</div>${seg}<div class="seg2" role="group" aria-label="Single bans or trios"><button type="button" data-bnkind="one" aria-pressed="${!trio}">Each ban</button><button type="button" data-bnkind="trio" aria-pressed="${trio}">Trios of bans</button></div></div>
+  return `<h3 class="sec-h dvh">Bans</h3><div class="bnblock"><div class="toolrow" style="justify-content:center;margin-top:4px">${seg}<div class="seg2" role="group" aria-label="Single bans or trios"><button type="button" data-bnkind="one" aria-pressed="${!trio}">Each ban</button><button type="button" data-bnkind="trio" aria-pressed="${trio}">Trios of bans</button></div></div>
     <p class="msg" style="margin:0 0 10px;text-align:center">From ${plural(ns,'set')} with bans from the API${ndr?' and '+plural(ndr,'saved draft'):''}${mf?' on '+plural(mf.length,'map'):''}. The pick order is known when it was set by opening the set (or in a saved draft).</p>
     <div class="pdgrid p3">${col('Total',T,tot)}${col(`${coinI(true)} With 1st pick`,F,nf)}${col(`${coinI(false)} With last pick`,Lc,nl)}</div></div>`}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-bnsubj]');if(b){bnSubj=b.dataset.bnsubj;store.set('tvt:bnsubj',bnSubj);renderDetail();return}const k=e.target.closest&&e.target.closest('[data-bnkind]');if(k){bnKind=k.dataset.bnkind;store.set('tvt:bnkind',bnKind);renderDetail()}});
@@ -2456,6 +2477,7 @@ function deepDive(){
   return `<h3 class="sec-h">${pool?'Pooled team stats':'Team deep dive'}</h3>
     ${pool?'':one?'<div style="margin:2px 0 12px;display:flex;justify-content:center">'+tstrip(team,';min-width:260px')+'</div>':'<div class="segs" style="justify-content:center">'+teamSeg+'</div>'}
     ${pool?D.wlHTML+D.lu+poolTableHTML(pt,D.items0):`<div class="wlrow">${D.wlHTML}${D.lu}</div>`}
+    <h3 class="sec-h dvh">Picks</h3>
     <div class="toolrow">${subjSeg}</div>
     <p class="msg" style="margin:0 0 10px">${desc}</p>
     <div class="pdgrid${pool?'':' p3'}"><div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0" title="${D.what}">${own?'Brawlers':'Brawlers used against'}${active?' (filtered)':''} · ${CS.picks.length}</div></div>
@@ -2463,8 +2485,9 @@ function deepDive(){
     <div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0" title="${D.what2}">${own?'Combos':'Combos used against'} · ${combos.length} ${comboKind==='duos'?'duos':'full'}</div>
       <div class="seg2" role="group" aria-label="Combo size"><button type="button" data-ck="duos" aria-pressed="${comboKind==='duos'}">Duos</button><button type="button" data-ck="trios" aria-pressed="${comboKind==='trios'}">Full Combo</button></div>
       <label class="chk" title="Only combos used more than once"><input type="checkbox" data-rep="1"${onlyRepeat?' checked':''}> Only repeated</label></div>
-      <div class="scroll pds">${rankTable(combos,cls,comboKind==='duos'?'Duo':'Full Combo',[],D.wrl)}</div></div>${pool?'':rivCol(team,cls,D)}</div>${pool?'':bansHTML(team,cls,D)}${D.np}
-    <div class="fwrap" style="margin-top:18px">
+      <div class="scroll pds">${rankTable(combos,cls,comboKind==='duos'?'Duo':'Full Combo',[],D.wrl)}</div></div>${pool?'':rivCol(team,cls,D)}</div>${D.np}${pool?'':bansHTML(team,cls,D)}
+    <h3 class="sec-h dvh">Comp</h3>
+    <div class="fwrap" style="margin-top:6px">
     <div class="fbar">${D.selects('Filter: '+(pool?'selected teams':esc(team))+' brawlers','Filter: enemy brawlers')}</div>
     <div class="fbar" style="margin-top:0">${D.tsel('Filter: '+(pool?'selected teams':esc(team))+' types','Filter: enemy types')}</div>
     ${D.summary}
@@ -2487,12 +2510,14 @@ function pairDeep(){
     :`<div class="pdcol dc"><div class="toolrow pdhead"><div class="ttl" style="margin:0" title="${D.what2}">${comboKind==='duos'?'Duos':'Full combo'} · ${D.combos.length}</div></div><div class="scroll pds">${rankTable(D.combos,D.cls,comboKind==='duos'?'Duo':'Full Combo',[],'',1)}</div></div>`;
   const two=(f)=>`<div class="pair2">${f(A)}${f(B)}</div>`;
   return `<h3 class="sec-h">Team deep dive</h3>
+    <h3 class="sec-h dvh">Picks</h3>
     <div class="toolrow">${subjSeg}<div class="seg2" role="group" aria-label="Combo size"><button type="button" data-ck="duos" aria-pressed="${comboKind==='duos'}">Duos</button><button type="button" data-ck="trios" aria-pressed="${comboKind==='trios'}">Full Combo</button></div><label class="chk" title="Only combos used more than once"><input type="checkbox" data-rep="1"${onlyRepeat?' checked':''}> Only repeated</label></div>
     <p class="msg" style="margin:0 0 10px">Win rate is always the one of the team in each column${own?'':' (its results in the sets where the rival used that brawler)'}. Each team has its own filters below.</p>
     <div class="pdgrid p4">${tstrip(sel.a,';grid-column:span 2')}${tstrip(sel.b,';grid-column:span 2')}<div style="grid-column:span 2">${A.wlHTML}${A.lu}</div><div style="grid-column:span 2">${B.wlHTML}${B.lu}</div>${col(A,'p')}${col(A,'c')}${col(B,'p')}${col(B,'c')}</div>
     ${two(D=>`<div>${D.np}</div>`)}
-    <div class="pair2 fwrap" style="margin-top:18px">${[A,B].map(D=>`<div class="pfilt">${tstrip(D.team)}<div class="fbar">${D.selects('Filter: '+esc(D.team)+' brawlers','Filter: enemy brawlers')}</div><div class="fbar" style="margin-top:0">${D.tsel('Filter: '+esc(D.team)+' types','Filter: enemy types')}</div>${D.summary}</div>`).join('')}</div>
-    <div class="toolrow" style="justify-content:center;margin-top:14px"><div class="ttl" style="margin:0">Set log</div>${resSeg()}${nSingles||!showSingles?`<label class="chk"><input type="checkbox" data-sgl="1"${showSingles?' checked':''}> Show single games (${nSingles})</label>`:''}</div>
+    <h3 class="sec-h dvh">Comp</h3>
+    <div class="pair2 fwrap" style="margin-top:6px">${[A,B].map(D=>`<div class="pfilt">${tstrip(D.team)}<div class="fbar">${D.selects('Filter: '+esc(D.team)+' brawlers','Filter: enemy brawlers')}</div><div class="fbar" style="margin-top:0">${D.tsel('Filter: '+esc(D.team)+' types','Filter: enemy types')}</div>${D.summary}</div>`).join('')}</div>
+    <div class="toolrow" style="justify-content:center;margin-top:14px"><div class="ttl" style="margin:0">Comps</div>${resSeg()}${nSingles||!showSingles?`<label class="chk"><input type="checkbox" data-sgl="1"${showSingles?' checked':''}> Show single games (${nSingles})</label>`:''}</div>
     ${[A,B].map(D=>`<div class="plog">${tstrip(D.team)}<p class="msg" style="margin:6px 0 0;text-align:center">${D.logTitle}</p>${D.logHTML}</div>`).join('')}
     ${playersTab(true)}<div class="pair2" style="margin-top:6px">${[A,B].map(D=>`<div>${tstrip(D.team)}${D.types}</div>`).join('')}</div>
     <p class="foot" style="margin-top:10px">Picks and wins count sets (single games and draws excluded). Win rate = wins / picks. Each filter box only offers options that still appear in the sets matching the other boxes. With few sets the percentages swing a lot.</p>
@@ -2527,20 +2552,21 @@ function tselPaint(){
     el.style.background=`linear-gradient(115deg,${stops.join(',')})`;if(el.classList.contains('tstrip')||el.classList.contains('phead'))el.style.borderColor=`hsl(${hs[0]},50%,42%)`;
   });
 }
+function selTeams(){return scope==='one'?[curOne()].filter(Boolean):scope==='pair'?[sel.a,sel.b].filter(Boolean):((poolTeams||(poolTeams=visTeams())).filter(x=>allTeams().includes(x)))}
+function setSelTeams(L){L=[...new Set(L.filter(Boolean))];
+  if(L.length===1){scope='one';oneTeam=L[0]}
+  else if(L.length===2){scope='pair';sel.a=L[0];sel.b=L[1];focus='A'}
+  else{scope='pool';poolTeams=L}}
 function scopeHTML(){
-  const off=allTeams(),WR=wrAll(),wt=t=>WR[t]&&WR[t].n?wrTxt(WR[t]):(M.D.off.includes(t)?'–':'NO DATA'),tile=(t,on,attr)=>`<button type="button" class="tile${on?' selA':''}" ${attr}="${esc(t)}" aria-pressed="${on}" title="${esc(t)} · win rate ${wt(t)} sets">${logo(t,'l40')}${tnTile(t)}<small class="twr">${wt(t)}</small></button>`;
-  const seg=`<div class="seg2" style="margin-top:0" role="group" aria-label="Team scope"><button type="button" data-scope="one" aria-pressed="${scope==='one'}">1 team</button><button type="button" data-scope="pair" aria-pressed="${scope==='pair'}">Compare 2 teams</button><button type="button" data-scope="pool" aria-pressed="${scope==='pool'}">Several teams together</button></div>`;
+  const off=allTeams(),S=selTeams();
   const regs=[...new Set(off.map(t=>REGION[t]).filter(Boolean))];
   const leg=`<div class="reglegend">${regs.map(r=>`<span><i style="background:${REGC[r]}"></i>${r}</span>`).join('')}</div>`;
-  const box=(open,label,inner,cls,tc)=>`<button type="button" class="tsel${cls?' '+cls:''}" data-tpopen="${open}" data-tc="${esc((tc||[]).join('¦'))}"><span class="tsel-sh"></span><span class="tsel-in"><span class="tsel-l">${label}</span>${inner}</span></button>`;
-  const one1=t=>t?`${tdot(t)}${logo(t,'l40')}<span class="tsel-t"><b>${esc(t)}</b><small>${wt(t)}</small>${tselN(t)}</span>`:`<span class="tsel-t"><b>Select team</b></span>`;
-  let body='';
   const rs_=()=>{clrF();renderDetail()};
-  if(scope==='one'){body=`<div class="tselrow">${box('one','Team',one1(curOne()),'',[curOne()])}</div>${grpBarHTML()}${grpChips('st1','Team',[curOne()],'#3d6ff0',t=>{oneTeam=t;rs_()})}`}
-  else if(scope==='pool'){const pt=(poolTeams||(poolTeams=visTeams())).filter(x=>off.includes(x));
-    body=`<div class="tselrow">${box('pool','Teams',`<span class="tsel-chips">${pt.map(x=>logo(x,'l28')).join('')}</span><span class="tsel-t tsel-r"><b>${pt.length?plural(pt.length,'team')+' selected':'Select teams'}</b><small>click to change</small></span>`,'wide',pt)}</div>${grpBarHTML()}${grpChips('stp','Teams (click to add or remove)',pt,'#3d6ff0',t=>{const p_=poolTeams||(poolTeams=visTeams()),i=p_.indexOf(t);if(i>=0)p_.splice(i,1);else p_.push(t);rs_()},{tail:`<span class="grp-act"><button type="button" class="btn quiet" data-grpall="1">Add all of ${GRP.v==='*'?'them':esc(GRP.v)}</button><button type="button" class="btn quiet" data-grpnone="1">Clear</button></span>`})}<p class="msg" style="margin:8px 0 0">Every set is counted from the side of each selected team, so a set between two selected teams appears once for each of them.</p>`}
-  else body=`<div class="tselrow pair">${box('pairA','Team A',one1(sel.a),'A',[sel.a])}<button type="button" class="swap" data-tpswap="1" aria-label="Swap teams">⇄</button>${box('pairB','Team B',one1(sel.b),'B',[sel.b])}</div>${grpBarHTML()}<div class="uxpicks">${grpChips('stA','Team A',[sel.a],'#3d6ff0',t=>tpSetPair('A',t),{only:M.D.off,excl:[sel.b]})}${grpChips('stB','Team B',[sel.b],'#e5484d',t=>tpSetPair('B',t),{only:M.D.off,excl:[sel.a]})}</div>`;
-  return `<div class="shd"><div class="lbl">What do you want to look at?</div>${scope==='pair'?'':leg}</div>${seg}${body}`;
+  const what=S.length===0?'No team selected':S.length===1?'1 team':S.length===2?'Comparing 2 teams':plural(S.length,'team')+' together';
+  const colOf=t=>scope==='pair'&&t===sel.b?'#e5484d':'#3d6ff0';
+  const chips=grpChips('stsel',`Teams · ${what}`,S,'#3d6ff0',t=>{const L=selTeams(),i=L.indexOf(t);if(i>=0)L.splice(i,1);else L.push(t);setSelTeams(L);rs_()},
+    {colOf,tail:`<span class="grp-act"><button type="button" class="btn quiet" data-grpall="1">All of ${GRP.v==='*'?'them':esc(GRP.v)}</button><button type="button" class="btn quiet" data-grpnone="1"${S.length?'':' disabled'}>Clear</button></span>`});
+  return `<div class="shd"><div class="lbl">What do you want to look at?</div>${leg}</div><p class="msg sc-hint">Click a team to select it · click another one to compare them (3 or more = several teams together) · click a selected team to remove it</p>${grpBarHTML()}${chips}${scope==='pool'&&S.length>2?'<p class="msg" style="margin:8px 0 0">Every set is counted from the side of each selected team, so a set between two selected teams appears once for each of them.</p>':''}`;
 }
 function statMapsHTML(){
   const byKey={};PICKMAPS.forEach(m=>byKey[mkey(m)]=m);
@@ -2812,8 +2838,8 @@ function mxCard(m,L,idx){const nm=g=>sheetName(g,(ds.names||{})[g])||g||'—',I=
   const num=n=>I.first&&!I.po?(I.num[mkey(n)]||''):'';
   const stat=g=>{const q=ST&&ST.P[String(g||'').toUpperCase()];if(!q)return '';return `<span class="cd-st" title="${q.n} game${q.n>1?'s':''}: kills/deaths, damage per game"><b>${q.k}/${q.d}</b><span>${fmtK(q.dm/q.n)}</span>${q.st?'<i>★</i>':''}</span>`};
   const trio=S=>`<div class="trio">${S.b.map((n,k)=>{const p=num(n);return `<div class="bcell"><span class="bnm">${p?`<i class="cd-n">${p}</i>`:''}${esc(n||'—')}</span>${bimg(n,'bi card')}<span class="pbold">${esc(nm(S.tg[k])).replace('|','|<wbr>')}</span>${stat(S.tg[k])}</div>`}).join('')}</div>`;
-  const bans=S=>`<span class="cd-hb">${I.first?coinI(I.first===S.s,'cd-coin'):''}${S.bn.some(Boolean)?S.bn.filter(Boolean).map(x=>`<span class="bz-b" title="Ban: ${esc(x)}">${bimg(x,'mx-bni')}</span>`).join(''):''}</span>`;
-  return `<div class="set cd${m.s?' solo':''}" data-cdi="${idx}" title="Click to see it big and to set the pick order"><div class="cd-head"><span class="res ${sc}">${st.toUpperCase()}</span>${bans(a)}<span class="setmap"${mapCol(m.m)}>${esc(m.m)}<small class="cd-tm">${mxHM(m.t)}${ST?' · '+ST.games+' game'+(ST.games>1?'s':''):''}</small></span>${bans(b)}<span class="mapimg">${mimg(m.m,'')}</span></div>
+  const bans=(S,left)=>{const c=I.first?coinI(I.first===S.s,'cd-coin'+(left?' r':'')):'',B=S.bn.some(Boolean)?S.bn.filter(Boolean).map(x=>`<span class="bz-b" title="Ban: ${esc(x)}">${bimg(x,'mx-bni')}</span>`).join(''):'';return `<span class="cd-hb">${left?B+c:c+B}</span>`};
+  return `<div class="set cd${m.s?' solo':''}" data-cdi="${idx}" title="Click to see it big and to set the pick order"><div class="cd-head"><span class="res ${sc}">${st.toUpperCase()}</span>${bans(a,true)}<span class="setmap"${mapCol(m.m)}>${esc(m.m)}<small class="cd-tm">${mxHM(m.t)}${ST?' · '+ST.games+' game'+(ST.games>1?'s':''):''}</small></span>${bans(b)}<span class="mapimg">${mimg(m.m,'')}</span></div>
     <div class="matchup"><span class="setno">${L?m.w:m.l}-${L?m.l:m.w}</span>${trio(a)}<span class="vs">VS</span>${trio(b)}</div></div>`}
 let CDL=[];
 function cdGrid(){return `<div class="gm-sub">${CDL.length} ${CDL.length===1?'set':'sets'} · click a set to see it big and to set who had the 1st pick and the order of the picks</div><div class="cd-grid mbox">${CDL.map((x,i)=>mxCard(x.m,x.L,i)).join('')}</div>`}
@@ -3588,7 +3614,7 @@ $('statsscope').addEventListener('click',e=>{
   const sm=e.target.closest('[data-sm]');if(sm){const m=sm.dataset.sm;if(!m)statMaps=[];else{const i=statMaps.indexOf(m);if(i>=0)statMaps.splice(i,1);else statMaps.push(m)}renderDetail();return}
   const smo=e.target.closest('[data-smode]');if(smo){const ms=smo.dataset.smode.split('|');if(ms.every(m=>statMaps.includes(m)))statMaps=statMaps.filter(m=>!ms.includes(m));else ms.forEach(m=>{if(!statMaps.includes(m))statMaps.push(m)});renderDetail();return}});
 function scopeWithMaps(){const s=scopeHTML();if(!['stats','players','card'].includes(tab))return s;let mh='';try{mh=statMapsHTML()}catch(e){mh=''}
-  return mh?`<div class="scmaps"><div class="scm-l">${s}</div><div class="scm-r">${mh}</div></div>`:s}
+  return mh?`<div class="scmaps v"><div class="scm-l">${s}</div><div class="scm-r">${mh}</div></div>`:s}
 // ===== Team Stats > Caster =====
 // two teams, one map, dates; everything counts sets
 const CAS=(()=>{const d={a:'',b:'',map:'',from:'',to:'',cmp:'tour',cvT:'',cvR:'',pick:[],sort:{}};try{return Object.assign(d,JSON.parse(store.get('tvt:caster')||'{}'))}catch(e){return d}})();
@@ -3748,13 +3774,13 @@ function grpBarHTML(){const {vs}=grpVals(),n=grpTeams().length;
   return `<div class="grpbar" data-noexport="1"><label>Teams by</label><span class="cas-seg">${[['tour','Tournament'],['reg','Region']].map(([v,l])=>`<button type="button" data-grpby="${v}" aria-pressed="${GRP.by===v}">${l}</button>`).join('')}</span><span class="cas-opt">${[...vs,'*'].map(v=>`<button type="button" data-grpv="${esc(v)}" aria-pressed="${v===GRP.v}">${GRP.by==='reg'&&REGC[v]?`<i class="grp-rd" style="background:${REGC[v]}"></i>`:''}${v==='*'?'All':esc(v)}</button>`).join('')}</span><small>${n} teams</small></div>`}
 function grpChips(key,label,cur,col,fn,o){o=o||{};cur=(cur||[]).filter(Boolean);TPCB[key]={fn,cur:cur[0]||'',none:'',excl:o.excl||[]};
   const ok=t=>!(o.excl||[]).includes(t)&&(!o.only||o.only.includes(t)),T=grpTeams().filter(ok),extra=cur.filter(t=>!T.includes(t)&&ok(t));
-  return `<div class="uxpick grpk"><label>${label}</label><div class="uxchips">${[...T,...extra].map(t=>`<button type="button" class="uxchip${cur.includes(t)?' on':''}${extra.includes(t)?' out':''}" style="--c:${col}" data-uxchip="${esc(key)}" data-t="${esc(t)}" title="${esc(t)}${extra.includes(t)?' · not in this group':''}">${logo(t,'l26')}</button>`).join('')}${o.tail||''}</div></div>`}
+  return `<div class="uxpick grpk"><label>${label}</label><div class="uxchips">${[...T,...extra].map(t=>`<button type="button" class="uxchip${cur.includes(t)?' on':''}${extra.includes(t)?' out':''}" style="--c:${o.colOf?o.colOf(t):col}" data-uxchip="${esc(key)}" data-t="${esc(t)}" title="${esc(t)}${extra.includes(t)?' · not in this group':''}">${logo(t,'l26')}</button>`).join('')}${o.tail||''}</div></div>`}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-drper]');if(!b)return;DR.fPer=b.dataset.drper;try{store.set('tvt:drper',DR.fPer)}catch(_){}if(view==='draft')drRender();else renderDetail()});
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-grpby],[data-grpv],[data-grpall],[data-grpnone]');if(!b)return;
   if(b.dataset.grpby){if(GRP.by===b.dataset.grpby)return;GRP.by=b.dataset.grpby;GRP.v=''}
   else if(b.dataset.grpv!=null)GRP.v=b.dataset.grpv;
-  else if(b.dataset.grpall!=null){const pt=poolTeams||(poolTeams=visTeams());grpTeams().forEach(t=>{if(!pt.includes(t))pt.push(t)});clrF()}
-  else{poolTeams=[];clrF()}
+  else if(b.dataset.grpall!=null){const L=selTeams();grpTeams().forEach(t=>{if(!L.includes(t))L.push(t)});setSelTeams(L);clrF()}
+  else{setSelTeams([]);clrF()}
   store.set('tvt:grp',JSON.stringify(GRP));renderDetail()});
 // 3) the team of Team stats and the rival of Scouting follow each other
 function uxSyncScout(){try{const o=curOne();if(SC._one!==o){SC._one=o;if(o!==SC.us)SC.rival=o}}catch(e){}}
@@ -3777,7 +3803,7 @@ document.addEventListener('click',e=>{const g=e.target.closest&&e.target.closest
 // 5) team stats: inner tabs
 let uxTab=store.get('tvt:uxtab')||'br';
 function uxStatsTabs(){const d=$('detail');if(!d||d.querySelector('.uxtabs'))return;const ch=[...d.children];if(!ch.some(c=>c.classList.contains('fwrap')))return;
-  const first=ch.findIndex(c=>c.classList.contains('toolrow'));if(first<0)return;let g='br';const G={br:[],log:[],pl:[],ty:[]};
+  let first=ch.findIndex(c=>c.classList.contains('toolrow'));if(first<0)return;if(first>0&&ch[first-1].classList.contains('dvh'))first--;let g='br';const G={br:[],log:[],pl:[],ty:[]};
   G.dr=[];ch.slice(first).forEach(c=>{const t=(c.tagName==='H3'?c.innerText:'').toUpperCase();if(/SAVED DRAFTS/.test(t))g='dr';else if(/PLAYER STATS/.test(t))g='pl';else if(/TYPE COMBINATIONS/.test(t))g='ty';if(/SAVED DRAFTS|PLAYER STATS|TYPE COMBINATIONS/.test(t))c.classList.add('uxnotitle');G[g].push(c);c.dataset.uxg=g});
   const names=[['br','Brawlers, bans, combos & set log'],['pl','Players'],['ty','Types'],['dr','Drafts']].filter(([k])=>G[k].length);if(!names.some(([k])=>k===uxTab))uxTab='br';
   const bar=document.createElement('div');bar.className='uxtabs';bar.innerHTML=names.map(([k,l])=>`<button type="button" data-uxtab="${k}" aria-pressed="${k===uxTab}">${l}</button>`).join('');ch[first].before(bar);uxShowTab()}
@@ -6404,7 +6430,7 @@ body{padding-bottom:50px}
 <script>
 (function(){
   // [label, main section, Team Stats tab]
-  const T=[['Team Stats','stats','stats'],['Match Selector','stats','match'],['Drafts','stats','drafts'],['Card','stats','card'],['Scouting','stats','scout'],['Results','stats','group'],null,
+  const T=[['Team Stats','stats','stats'],['Match Selector','stats','match'],['Card','stats','card'],['Scouting','stats','scout'],['Results','stats','group'],null,
            ['Draft','draft'],['Team Predictor','pred'],['Balance','bal'],['Data check','check'],['Worlds bracket','worlds']];
   const bar=document.getElementById('sheetbar');if(!bar)return;
   bar.innerHTML=T.map((t,i)=>t?`<button type="button" class="sb-t${t[2]&&t[2]!=='stats'?' sb-sub':''}" data-sb="${i}">${t[0]}</button>`:'<span class="sb-sep"></span>').join('');
