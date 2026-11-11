@@ -1270,6 +1270,20 @@ td.pkd{font-family:var(--mono,monospace);font-size:12px;color:#cfcce0}
 .cd-st{font-size:12px;margin-top:2px}.cd-n{font-size:11px;padding:0 5px}
 @media(max-width:1100px){.cd-grid.mbox{grid-template-columns:1fr}}
 .cd-coin.r{margin:0 0 0 4px}
+
+.mx-x.bz-x{grid-template-columns:70px 124px minmax(200px,300px) 124px 70px;justify-content:center;align-items:start;gap:16px 22px}
+.bz-xc{display:flex;flex-direction:column;align-items:center;gap:8px}
+.bz-xh{font-size:10px;letter-spacing:.08em;color:#8e8ab0;text-transform:uppercase;height:14px}
+.bz-xb,.bz-xp{position:relative;width:62px;height:62px;border-radius:10px;overflow:hidden;display:block;flex:none}
+.bz-xb,.bz-xp{margin:21px 0 40px}.bz-xb{border:2px solid #7f1d1d}.bz-xb.e{border:1px dashed #3a3650}
+.bz-xb::after{content:'';position:absolute;left:-4px;right:-4px;top:50%;height:3px;background:#ef4444;transform:rotate(-45deg)}.bz-xb.e::after{display:none}
+.bz-xb .bz-xi{filter:grayscale(.5) brightness(.85)}
+.bz-xp{border:2px solid #2a2838}.bz-xp.bz-pick{cursor:pointer;outline:2px dashed #facc15;outline-offset:-2px}.bz-xp.bz-pick.on{outline:2px solid #4ade80}
+.bz-xi{width:100%!important;height:100%!important;object-fit:cover;display:block;border-radius:0!important}
+.bz-xp .bz-n{top:3px;left:3px;font-size:11px}
+.bz-cp{display:none;max-width:760px;margin:0 auto 12px;padding:8px 12px;border:1px solid #3a3650;border-radius:10px;background:#15141c;color:#cfcce0;font-size:12.5px;text-align:left;display:flex;flex-direction:column;gap:3px}
+.mx-s.open .bz-cp{display:flex}.bz-cp.weak{opacity:.8}.bz-cp small{font-size:11px;color:#9a97ad}.bz-cpc{width:18px;height:18px;vertical-align:-4px;margin-right:6px}
+@media(max-width:900px){.mx-x.bz-x{grid-template-columns:52px 90px 1fr 90px 52px;gap:6px}.bz-xb,.bz-xp{width:48px;height:48px}}
 </style>
 
 <div class="wrap">
@@ -2817,7 +2831,17 @@ function mxSet(m,L,open){const key=mxKey(m);MXM[key]={m,L};const nm=g=>sheetName
   const num=(n)=>{if(E){const i=E.list.indexOf(n);return i>=0?i+1:''}return I.first&&!I.po?(I.num[mkey(n)]||''):''};
   const stat=g=>{const q=ST&&ST.P[String(g||'').toUpperCase()];if(!q)return '';return `<div class="bz-st" title="${q.n} game${q.n>1?'s':''}: ${q.k} kills, ${q.d} deaths, ${fmtK(q.dm/q.n)} damage, ${fmtK(q.h/q.n)} healing and ${fmtK(q.tk/q.n)} damage taken per game">
     <b>${q.k}/${q.d}</b><span>${fmtK(q.dm/q.n)} dmg</span>${q.h/q.n>=1000?`<span>${fmtK(q.h/q.n)} heal</span>`:''}${q.st?`<span class="bz-star">★${q.st>1?q.st:''}</span>`:''}</div>`};
-  const card=(n,g,bn)=>{const p=num(n);return `<div class="bz-cw"><div class="mx-c${E?' bz-pick':''}${E&&p?' on':''}"${E?` data-mxpk="${esc(n)}"`:''}>${bimg(n,'mx-ci')}${p?`<span class="bz-n">${p}</span>`:''}${bn?`<span class="mx-bn" title="${esc(nm(g))} banned ${esc(bn)}">${bimg(bn,'mx-bni')}</span>`:''}<span class="mx-cn">${esc(nm(g))}</span></div>${stat(g)}</div>`};
+  const card=(n,g,bn)=>{const p=num(n);return `<div class="bz-cw"><div class="mx-c${E?' bz-pick':''}${E&&p?' on':''}"${E?` data-mxpk="${esc(n)}"`:''}>${bimg(n,'mx-ci')}${p?`<span class="bz-n">${p}</span>`:''}<span class="mx-cn">${esc(nm(g))}</span></div>${stat(g)}</div>`};
+  // bans and picks columns between the players and the map
+  const bansCol=S=>`<div class="bz-xc"><div class="bz-xh">Bans</div>${[0,1,2].map(i=>{const x=S.bn[i];return x?`<span class="bz-xb" title="${esc(nm(S.tg[i]))} banned ${esc(x)}">${bimg(x,'bz-xi')}</span>`:'<span class="bz-xb e"></span>'}).join('')}</div>`;
+  const picksCol=S=>{const L_=S.b.map((n,i)=>({n,p:num(n)}));if(!E&&I.first&&!I.po)L_.sort((x,y)=>(x.p||9)-(y.p||9));
+    return `<div class="bz-xc"><div class="bz-xh">Picks</div>${L_.map(x=>`<span class="bz-xp${E?' bz-pick':''}${E&&x.p?' on':''}"${E?` data-mxpk="${esc(x.n)}"`:''}>${bimg(x.n,'bz-xi')}${x.p?`<span class="bz-n">${x.p}</span>`:''}</span>`).join('')}</div>`};
+  // coin prediction from the bans (same model as the Draft tab), while the 1st pick is unknown
+  const coinPred=(()=>{if(I.first||!(a.bn.some(Boolean)||b.bn.some(Boolean)))return '';let P_=null;try{P_=drCoinEst({date:m.d,bans:{b:a.bn.slice(),r:b.bn.slice()},blue:L?m.a:m.b,red:L?m.b:m.a,kind:'',su:'U',picks:Array(6).fill(''),coin:'blue'})}catch(e){}
+    if(!P_)return '';if(P_.few)return '<div class="bz-cp"><b>Coin prediction:</b> not enough saved drafts with the coin known yet.</div>';
+    const lft=P_.p>=.5,q=lft?P_.p:1-P_.p,sure=q>=.8?'very likely':q>=.65?'probably':'maybe (unclear)',side=lft?'left':'right',tm=(lft?(L?m.a:m.b):(L?m.b:m.a))||(lft?'The left team':'The right team');
+    const pro=P_.why.filter(w=>lft?w.v>0:w.v<0),con=P_.why.filter(w=>lft?w.v<0:w.v>0),f=L2=>L2.map(w=>`${esc(w.s==='b'?'left':'right')} banned ${esc(w.txt)}`).join(' · ');
+    return `<div class="bz-cp${q<.65?' weak':''}"><div>${coinI(true,'bz-cpc')}<b>Coin prediction:</b> ${lft?'◀ ':''}<b>${esc(tm)}</b> (${side}) ${sure} had the <b>1st pick</b> · <b>${Math.round(100*q)}%</b>${lft?'':' ▶'}</div>${pro.length?`<small>Why: ${f(pro)}</small>`:''}${con.length?`<small>Against it: ${f(con)}</small>`:''}<small>From ${plural(P_.M.n,'saved draft')} with the coin known${P_.M.nP?' ('+P_.M.nP+' of this balance patch, they weigh more)':''}. Only a guess: press Left or Right had 1st to save it.</small></div>`})();
   const bmini=L_=>L_.some(Boolean)?`<span class="bz-bans" title="Bans">${L_.filter(Boolean).map(x=>`<span class="bz-b" title="${esc(x)}">${bimg(x,'mx-bni')}</span>`).join('')}</span>`:'<span class="bz-bans"></span>';
   const head=S=>{const f=I.first?I.first===S.s:null;return `<div class="bz-sh${f===true?' f':''}">${f===true?'1st pick':f===false?'Last pick':'&nbsp;'}</div>`};
   const ctl=`<div class="bz-ctl"><span>Pick order</span><span class="seg2"><button type="button" data-mxf="${a.s}" aria-pressed="${lf===true}">◀ Left had 1st</button><button type="button" data-mxf="${b.s}" aria-pressed="${lf===false}">Right had 1st ▶</button><button type="button" data-mxf="" aria-pressed="${!I.first}">Unknown</button></span>
@@ -2826,10 +2850,10 @@ function mxSet(m,L,open){const key=mxKey(m);MXM[key]={m,L};const nm=g=>sheetName
   return `<div class="mx-s${open?' open':''}" data-mxk="${esc(key)}"><div class="mx-r bz-r" data-mxs>${mi?`<img class="mx-md" src="${mi}" alt="" title="${esc(md)}">`:'<span class="mx-md"></span>'}
     ${bmini(a.bn)}<span class="mx-bs">${a.b.map(n=>bimg(n,'mx-b')).join('')}</span><b class="mx-g${ya===1?' w':''}">${a.g??''}</b>${mk(ya)}
     <span class="mx-mid"><span class="bz-mn">${esc(m.m)}</span>${lf===true?'<small class="bz-1">◀ 1st</small>':lf===false?'<small class="bz-1">1st ▶</small>':''}</span>${mk(ya===.5?.5:1-ya)}<b class="mx-g${ya===0?' w':''}">${b.g??''}</b><span class="mx-bs">${b.b.map(n=>bimg(n,'mx-b')).join('')}</span>${bmini(b.bn)}<span class="mx-ch">⌄</span></div>
-    ${ctl}
-    <div class="mx-x"><div class="mx-col">${head(a)}${a.b.map((n,i)=>card(n,a.tg[i],a.bn[i])).join('')}</div>
+    ${ctl}${coinPred}
+    <div class="mx-x bz-x">${bansCol(a)}<div class="mx-col">${head(a)}${a.b.map((n,i)=>card(n,a.tg[i],a.bn[i])).join('')}</div>
       <div class="mx-map">${mimg(m.m,'mx-mi')}<span class="mx-tm">${mxHM(m.t)}</span><span class="mx-mn">${esc(m.m)}${ST?`<small>${ST.games} game${ST.games>1?'s':''}${ST.dur?' · '+Math.round(ST.dur/60)+' min':''}</small>`:''}</span></div>
-      <div class="mx-col">${head(b)}${b.b.map((n,i)=>card(n,b.tg[i],b.bn[i])).join('')}</div></div></div>`}
+      <div class="mx-col">${head(b)}${b.b.map((n,i)=>card(n,b.tg[i],b.bn[i])).join('')}</div>${bansCol(b)}</div></div>`}
 // a set as a card (match windows): bans in the header with the pick-order coin, stats under each player; click = the big view
 const coinI=(first,cls)=>`<img class="${cls||'coinm'}" src="${first?COIN.blue:COIN.red}" alt="${first?'1st pick':'Last pick'}" title="${first?'1st pick':'Last pick'}">`;
 function mxCard(m,L,idx){const nm=g=>sheetName(g,(ds.names||{})[g])||g||'—',I=setInfo(m),ST=setStatsC(m);
