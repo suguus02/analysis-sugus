@@ -5326,6 +5326,9 @@ function wbSim(rat,res,bo,boGF,N){
   const team=t=>T[t]||(T[t]={n:0,po:0,t6:0,t4:0,f:0,c:0});
   const allT=new Set();for(const f of WB_FMT)for(const s of [f[4],f[5]])if(s.t)allT.add(s.t);allT.forEach(team);
   const pw=(x,y,b)=>wbSeries(1/(1+Math.exp((rat[y]||0)-(rat[x]||0))),b);
+  // one coherent bracket to draw: the favourite of every match goes on (or the result you set), so a team is never in two places
+  {const W={},L={};for(const [id,,,,sa,sb] of WB_FMT){const g=s=>s.t||(s.w?W[s.w]:L[s.l]);const a=g(sa),b=g(sb),p=pw(a,b,id==='GF'?boGF:bo);
+    const win=res[id]===a||res[id]===b?res[id]:(p>=.5?a:b);W[id]=win;L[id]=win===a?b:a;M[id].path=[a,b,p]}}
   for(let it=0;it<N;it++){const W={},L={};const reach={};
     for(const [id,,,,sa,sb] of WB_FMT){const g=s=>s.t||(s.w?W[s.w]:L[s.l]);const a=g(sa),b=g(sb),m=M[id];
       m.a[a]=(m.a[a]||0)+1;m.b[b]=(m.b[b]||0)+1;
@@ -5340,7 +5343,7 @@ function wbSim(rat,res,bo,boGF,N){
 function wbMatchHTML(id,S,res,tz){const f=WB_FMT.find(x=>x[0]===id),m=S.M[id],N=S.N;
   const top=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]);
   // the most likely pairing of this match, and the chance of each team to win it if that is the pairing
-  const P=Object.entries(m.pair).sort((a,b)=>b[1].n-a[1].n)[0]||['|',{n:0,wa:0}],[ta,tb]=P[0].split('|'),pa=P[1].n?P[1].wa/P[1].n:.5;
+  const [ta,tb,pa]=m.path||['','',.5];
   const [hh,mm]=f[3].split(':').map(Number),es=(hh-8+24)%24;
   const when=tz==='es'?`${WB_DAY[f[2]].slice(0,3)} ${String(es).padStart(2,'0')}:${String(mm).padStart(2,'0')} Madrid`:`${WB_DAY[f[2]].slice(0,3)} ${f[3]} JST`;
   const fx=res[id]===ta||res[id]===tb?res[id]:'';res={[id]:fx};
@@ -5389,7 +5392,7 @@ function renderWB(){const el=$('wbview');if(!el)return;if(!FULL||!FULL.matches){
     <div class="wb-ctl"><label>Times</label><span class="wb-seg"><button type="button" data-wbtz="jst" aria-pressed="${WB_TZ==='jst'}">JST</button><button type="button" data-wbtz="es" aria-pressed="${WB_TZ==='es'}">Madrid</button></span><button type="button" class="wb-btn" data-wbclear="1"${nres?'':' disabled'}>↺ Clear results${nres?' ('+nres+')':''}</button></div></div>
     ${wbFavHTML(S)}<h3>Day 1 · Fri 20 Nov · Groups (double elimination, top 2 go to the playoffs)</h3><div class="wb-groups">${wbGroupHTML('A',S,WB_RES,WB_TZ)}${wbGroupHTML('B',S,WB_RES,WB_TZ)}</div>
     <h3>Days 2–3 · Sat 21 – Sun 22 Nov · Playoffs (double elimination)</h3>${wbPlayoffHTML(S,WB_RES,WB_TZ)}${wbTableHTML(S)}
-    <p class="wb-note">% in each match: chance to win that match (Bo5, final Bo7) in its most likely pairing. “x% to be here”: chance that this team is the one playing that match; hover a team to see who else could be there. The results you set are kept in this browser. It is a guess from scrims and tournaments: rosters, the new patch and preparation are not in it.</p></section>`}
+    <p class="wb-note">The bracket shows the most likely path: the favourite of every match goes on (or the result you set), so every team is in one place only. % in each match: chance to win that match (Bo5, final Bo7). “x% to be here”: chance that this team is the one playing that match; hover a team to see who else could be there. The results you set are kept in this browser. It is a guess from scrims and tournaments: rosters, the new patch and preparation are not in it.</p></section>`}
 document.addEventListener('click',e=>{if(view!=='worlds')return;const t=e.target;
   const r=t.closest&&t.closest('[data-wbres]');if(r){const [id,team]=r.dataset.wbres.split('|');if(WB_RES[id]===team)delete WB_RES[id];else WB_RES[id]=team;
     // a later result whose team cannot play that match any more is simply ignored by the simulation
