@@ -2229,8 +2229,9 @@ function logTable(items,o){
   const pl=(arr,tg,tm)=>[0,1,2].map(k=>`<td class="pn">${pnHTML(arr[k],tg&&tg[k],o.noTag,isSub(tm,tg&&tg[k]))}</td>`).join('');
   const br=arr=>[0,1,2].map(k=>`<td class="bn">${arr[k]?(bimg(arr[k],'bi tbl')||esc(arr[k])):'—'}</td>`).join('');
   const bnm=L=>`<td class="lbn">${(L||[]).some(Boolean)?`<span class="bz-bans">${L.filter(Boolean).map(b=>`<span class="bz-b" title="Ban: ${esc(b)}">${bimg(b,'mx-bni')}</span>`).join('')}</span>`:''}</td>`;
+  const lbans=(x,mine)=>{if((mine?x.myBans:x.opBans)&&(mine?x.myBans:x.opBans).some(Boolean))return mine?x.myBans:x.opBans;const m=mOfI(x.i);if(!m)return null;const B=setBans(m);if(!B.src)return null;const tm=x.myTeam||x.team,mineA=m.a===tm||(m.b!==tm&&brKey(m.ba)===brKey(x.mine));return (mineA===mine)?B.a:B.b};
   const fst=x=>{const m=mOfI(x.i);if(!m)return '';const I=setInfo(m);if(!I.first)return '';const tm=x.myTeam||x.team,mineA=m.a===tm||(m.b!==tm&&brKey(m.ba)===brKey(x.mine));const f=(I.first==='a')===mineA;return `<span class="lg-coins">${coinI(f,'lg-coin')}${coinI(!f,'lg-coin')}</span>`};
-  const rows=items.map(x=>`<tr class="${x.s?'solo':''} lg-clk" data-slk="${x.i}" data-slt="${esc(x.myTeam||x.team||'')}" title="Click to open the set"><td>${ic(x.win)}</td><td class="sc">${esc(x.sc||'')}</td><td class="dt">${fmtDate(x.d)}</td><td class="mpn"${(()=>{const md=modeOfMap(x.map),c=md&&MODE_COL[mkey(md)];return c?` style="color:${c}"`:''})()}>${esc(x.map)}${x.s?'<small>single game</small>':''}</td>${o.team?`<td class="pn">${esc(x.team||'')}</td>`:''}${pl(x.myNames,x.myTags,x.myTeam||x.team)}${bnm(x.myBans)}${br(x.mine)}<td class="vsx">${fst(x)||'vs'}</td>${br(x.theirs)}${bnm(x.opBans)}${pl(x.opNames,x.opTags,x.opTeam||o.opTeam)}${o.opp?`<td class="op">${esc(x.opp||'')}</td>`:''}<td class="gty">${x.ty==='tournament'?'<span class="tg tt">Tournament</span>':x.ty==='friendly'?'<span class="tg tf">Friendly</span>':''}</td></tr>`).join('');
+  const rows=items.map(x=>`<tr class="${x.s?'solo':''} lg-clk" data-slk="${x.i}" data-slt="${esc(x.myTeam||x.team||'')}" title="Click to open the set"><td>${ic(x.win)}</td><td class="sc">${esc(x.sc||'')}</td><td class="dt">${fmtDate(x.d)}</td><td class="mpn"${(()=>{const md=modeOfMap(x.map),c=md&&MODE_COL[mkey(md)];return c?` style="color:${c}"`:''})()}>${esc(x.map)}${x.s?'<small>single game</small>':''}</td>${o.team?`<td class="pn">${esc(x.team||'')}</td>`:''}${pl(x.myNames,x.myTags,x.myTeam||x.team)}${bnm(lbans(x,true))}${br(x.mine)}<td class="vsx">${fst(x)||'vs'}</td>${br(x.theirs)}${bnm(lbans(x,false))}${pl(x.opNames,x.opTags,x.opTeam||o.opTeam)}${o.opp?`<td class="op">${esc(x.opp||'')}</td>`:''}<td class="gty">${x.ty==='tournament'?'<span class="tg tt">Tournament</span>':x.ty==='friendly'?'<span class="tg tf">Friendly</span>':''}</td></tr>`).join('');
   return `<div class="mbox"><div class="scrollx" style="${o.tall?'':'max-height:none'}"><table class="ltbl"><thead><tr><th></th><th>Score</th><th>Date</th><th>Map</th>${o.team?'<th>Team</th>':''}<th colspan="3">Players</th><th>Bans</th><th colspan="3">Brawlers</th><th></th><th colspan="3">Brawlers</th><th>Bans</th><th colspan="3">Players</th>${o.opp?'<th>Opponent</th>':''}<th>Type</th></tr></thead><tbody>${rows||'<tr><td colspan="21">No sets</td></tr>'}</tbody></table></div></div>`;
 }
 function compareHTML(){
@@ -2737,6 +2738,11 @@ function setInfo(m){const d=setDraft(m);if(!d||drUnk(d))return {d,first:'',num:{
   const p=drPos(d.coin),bl=brKey(p[0].map(n=>d.picks[n-1])),blueA=bl===brKey(m.ba)?true:bl===brKey(m.bb)?false:(d.blue===m.a);
   const first=(d.coin==='blue')===blueA?'a':'b',num={};if(!d.po)d.picks.forEach((b,i)=>{if(b)num[mkey(b)]=i+1});
   return {d,first,num,po:!!d.po}}
+// bans of a set: from the API, or else from its saved draft (drafts saved before the API gave bans)
+function setBans(m){if((m.na||[]).some(Boolean)||(m.nb||[]).some(Boolean))return {a:m.na||[],b:m.nb||[],src:'api'};
+  const d=setDraft(m);if(!d||!d.bans||!((d.bans.b||[]).some(Boolean)||(d.bans.r||[]).some(Boolean)))return {a:[],b:[],src:''};
+  const p=drPos(d.coin),bl=brKey(p[0].map(n=>d.picks[n-1])),blueA=bl===brKey(m.ba)?true:bl===brKey(m.bb)?false:(d.blue===m.a);
+  return {a:(blueA?d.bans.b:d.bans.r)||[],b:(blueA?d.bans.r:d.bans.b)||[],src:'draft'}}
 async function drPersist(d){d.saved=new Date().toISOString();const cfg=drCfg(),c=drClone(d);DRV++;
   if(!cfg.url){const i=DR.local.findIndex(x=>x.id===d.id);if(i>=0)DR.local[i]=c;else DR.local.push(c);store.set('tvt:drlocal',JSON.stringify(DR.local));return 'local'}
   const res=await fetch(cfg.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:cfg.token,action:'save',row:drToRow(d)})});
@@ -2778,7 +2784,7 @@ const fmtK=x=>x>=1000?(x/1000).toFixed(x>=10000?0:1)+'k':String(Math.round(x));
 // shared set row (Match Selector + Results scrim window + Set log): L=true -> left side is m.a
 const mxKey=m=>m.d+'|'+m.t+'|'+m.i;
 function mxSet(m,L,open){const key=mxKey(m);MXM[key]={m,L};const nm=g=>sheetName(g,(ds.names||{})[g])||g||'—';
-  const sd=A=>({s:A?'a':'b',b:(A?m.ba:m.bb)||[],tg:(A?m.ta:m.tb)||[],bn:(A?m.na:m.nb)||[],g:A?m.w:m.l}),a=sd(L),b=sd(!L),ya=L?m.y:1-m.y,md=modeOfMap(m.m),mi=IMGS['mode'+mkey(md)];
+  const SB=setBans(m),sd=A=>({s:A?'a':'b',b:(A?m.ba:m.bb)||[],tg:(A?m.ta:m.tb)||[],bn:SB[A?'a':'b'],g:A?m.w:m.l}),a=sd(L),b=sd(!L),ya=L?m.y:1-m.y,md=modeOfMap(m.m),mi=IMGS['mode'+mkey(md)];
   const ok='<span class="mx-ok">✓</span>',ko='<span class="mx-ko">✕</span>',dr='<span class="mx-dr">=</span>',mk=w=>w===1?ok:w===0?ko:dr;
   const I=setInfo(m),E=MXE&&MXE.key===key?MXE:null,ST=setStats(m);
   const lf=I.first?(I.first===a.s):null;
@@ -2801,7 +2807,7 @@ function mxSet(m,L,open){const key=mxKey(m);MXM[key]={m,L};const nm=g=>sheetName
 // a set as a card (match windows): bans in the header with the pick-order coin, stats under each player; click = the big view
 const coinI=(first,cls)=>`<img class="${cls||'coinm'}" src="${first?COIN.blue:COIN.red}" alt="${first?'1st pick':'Last pick'}" title="${first?'1st pick':'Last pick'}">`;
 function mxCard(m,L,idx){const nm=g=>sheetName(g,(ds.names||{})[g])||g||'—',I=setInfo(m),ST=setStatsC(m);
-  const sd=A=>({s:A?'a':'b',b:(A?m.ba:m.bb)||[],tg:(A?m.ta:m.tb)||[],bn:(A?m.na:m.nb)||[]}),a=sd(L),b=sd(!L),ya=L?m.y:1-m.y;
+  const SB=setBans(m),sd=A=>({s:A?'a':'b',b:(A?m.ba:m.bb)||[],tg:(A?m.ta:m.tb)||[],bn:SB[A?'a':'b']}),a=sd(L),b=sd(!L),ya=L?m.y:1-m.y;
   const [sc,st]=ya===1?['win','Victory']:ya===0?['lose','Defeat']:['draw','Draw'];
   const num=n=>I.first&&!I.po?(I.num[mkey(n)]||''):'';
   const stat=g=>{const q=ST&&ST.P[String(g||'').toUpperCase()];if(!q)return '';return `<span class="cd-st" title="${q.n} game${q.n>1?'s':''}: kills/deaths, damage per game"><b>${q.k}/${q.d}</b><span>${fmtK(q.dm/q.n)}</span>${q.st?'<i>★</i>':''}</span>`};
