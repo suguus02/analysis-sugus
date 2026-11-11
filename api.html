@@ -1321,6 +1321,20 @@ td.pkd{font-family:var(--mono,monospace);font-size:12px;color:#cfcce0}
 @media(max-width:900px){.mx-x.bz-x{grid-template-columns:52px 90px 1fr 90px 52px;gap:6px}.bz-xb,.bz-xp{width:48px;height:48px}}
 .scmaps.v .scm-r{zoom:1}
 @media(max-width:1200px){.scmaps.v .scm-r{zoom:.85}}
+.cd-bsum{display:flex;flex-direction:column;gap:8px;padding:10px 18px 4px}
+.cd-bs{display:flex;align-items:center;gap:14px;background:#0d0c12;border:1px solid #22202e;border-radius:12px;padding:10px 12px}
+.cd-bt{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:150px;font-size:13px}.cd-bt img{margin-bottom:2px}.cd-bt small{font-size:10.5px;color:#8e8ab0;letter-spacing:.04em}
+.cd-bl{display:flex;flex-wrap:wrap;gap:8px}
+.cd-bi{display:flex;flex-direction:column;align-items:center;gap:3px;background:#15141c;border:1px solid #2a2838;border-radius:8px;padding:5px 6px 3px}
+.cd-bi .bz-b{width:40px;height:40px;border-radius:6px}.cd-bi .bz-b img{filter:grayscale(1) brightness(.8)}.cd-bi .bz-b::after{height:2px;background:#f43f5e}
+.cd-bi small{font-size:11px;color:#9a97ad;font-family:var(--mono,monospace)}
+.cd-bsum.cdpk{padding:8px 18px 4px}.cd-bs .cdmore{display:none}.cd-bs.all .cdmore{display:flex}
+.cd-mb{align-self:center;background:none;border:1px dashed #3a3650;color:#c4b5fd;border-radius:8px;padding:8px 10px;font-size:12px;cursor:pointer}.cd-mb:hover{border-color:#a855f7}.cd-sh{font-size:11px;letter-spacing:.08em;color:#8e8ab0;text-transform:uppercase;text-align:center;margin:2px 0}
+.cd-pk{display:block;width:40px;height:40px;border-radius:6px;overflow:hidden;border:1px solid #2a2838}.cd-pk img{filter:none!important}
+.cd-bi.cdpk small i{font-style:normal;color:#4ade80}
+.cd-team{background:#0d0c12;border:1px solid #22202e;border-radius:12px;padding:6px 12px}
+.cd-team .cd-bs{border:0;background:none;padding:5px 0;border-radius:0}.cd-team .cd-bs+.cd-bs{border-top:1px dashed #22202e}
+.cd-team .cd-bs+.cd-bs .cd-bt b,.cd-team .cd-bs+.cd-bs .cd-bt img{visibility:hidden;height:0;margin:0;display:block}
 </style>
 
 <div class="wrap">
@@ -2903,9 +2917,20 @@ function mxCard(m,L,idx){const nm=g=>sheetName(g,(ds.names||{})[g])||g||'—',I=
   return `<div class="set cd${m.s?' solo':''}" data-cdi="${idx}" title="Click to see it big and to set the pick order"><div class="cd-head"><span class="res ${sc}">${st.toUpperCase()}</span>${bans(a,true)}<span class="setmap"${mapCol(m.m)}>${esc(m.m)}<small class="cd-tm">${mxHM(m.t)}${ST?' · '+ST.games+' game'+(ST.games>1?'s':''):''}</small></span>${bans(b)}<span class="mapimg">${mimg(m.m,'')}</span></div>
     <div class="matchup"><span class="setno">${L?m.w:m.l}-${L?m.l:m.w}</span>${trio(a)}<span class="vs">VS</span>${trio(b)}</div></div>`}
 let CDL=[];
-function cdGrid(){return `<div class="gm-sub">${CDL.length} ${CDL.length===1?'set':'sets'} · click a set to see it big and to set who had the 1st pick and the order of the picks</div><div class="cd-grid mbox">${CDL.map((x,i)=>mxCard(x.m,x.L,i)).join('')}</div>`}
+// summary of the bans of each team in the whole match (most banned first)
+function cdBanSum(picks,rows){if(!CDL.length)return rows?[]:'';const C=[{},{}],W=[{},{}];let n=0;
+  for(const x of CDL){if(x.m.s)continue;let A_,B_;if(picks){A_=x.m.ba;B_=x.m.bb}else{const B=setBans(x.m);if(!B.src)continue;A_=B.a;B_=B.b}n++;const ya=x.L?x.m.y:1-x.m.y;
+    [x.L?A_:B_,x.L?B_:A_].forEach((L,i)=>{for(const b of L||[])if(b){C[i][b]=(C[i][b]||0)+1;W[i][b]=(W[i][b]||0)+((i===0?ya:1-ya)===1?1:0)}})}
+  if(!n)return rows?[]:'';const m0=CDL[0].m,L0=CDL[0].L,nm=g=>sheetName(g,(ds.names||{})[g])||g;
+  const tn=i=>{const t=i===0?(L0?m0.a:m0.b):(L0?m0.b:m0.a);return t?logo(t,'l20')+`<b>${esc(t)}</b>`:`<b>${esc(((i===0)===L0?m0.ta:m0.tb||[]).map(nm).slice(0,3).join(' / ')||'Rival')}</b>`};
+  const row=i=>{const E=Object.entries(C[i]).sort((a,b)=>b[1]-a[1]||(a[0]<b[0]?-1:1));return `<div class="cd-bs"><div class="cd-bt">${tn(i)}<small>${picks?'picks':'bans'} · ${n} sets</small></div><div class="cd-bl">${E.map(([b,c],k)=>picks?`<span class="cd-bi cdpk${k>=10?' cdmore':''}" title="${esc(b)} · picked in ${c} of ${n} sets · won ${W[i][b]||0}"><span class="cd-pk">${bimg(b,'mx-bni')}</span><small>${c}× <i>${W[i][b]||0}W</i></small></span>`:`<span class="cd-bi" title="${esc(b)} · banned in ${c} of ${n} sets"><span class="bz-b">${bimg(b,'mx-bni')}</span><small>${c}×</small></span>`).join('')||`<span class="msg">no ${picks?'picks':'bans'}</span>`}${picks&&E.length>10?`<button type="button" class="cd-mb" data-cdmore>+${E.length-10} more</button>`:''}</div></div>`};
+  if(rows)return [row(0),row(1)];return `<div class="cd-bsum${picks?' cdpk':''}">${row(0)}${row(1)}</div>`}
+// one box per team: its bans, then its picks
+function cdTeamSum(){const B=cdBanSum(false,true),P=cdBanSum(true,true);if(!B.length&&!P.length)return '';return `<div class="cd-bsum">${[0,1].map(i=>`<div class="cd-team">${B[i]||''}${P[i]||''}</div>`).join('')}</div>`}
+function cdGrid(){return cdTeamSum()+`<div class="gm-sub">${CDL.length} ${CDL.length===1?'set':'sets'} · click a set to see it big and to set who had the 1st pick and the order of the picks</div><div class="cd-grid mbox">${CDL.map((x,i)=>mxCard(x.m,x.L,i)).join('')}</div>`}
 function cdBody(list){CDL=list;return `<div class="cd-wrap">${cdGrid()}</div>`}
 document.addEventListener('click',e=>{const t=e.target;if(!t.closest)return;const w=t.closest('.cd-wrap');if(!w)return;
+  const mo=t.closest('[data-cdmore]');if(mo){const r=mo.closest('.cd-bs');const on=r.classList.toggle('all');mo.textContent=on?'show less':'+'+r.querySelectorAll('.cdmore').length+' more';return}
   const bk=t.closest('[data-cdback]');if(bk){w.innerHTML=cdGrid();return}
   const c=t.closest('[data-cdi]');if(c){const x=CDL[+c.dataset.cdi];if(!x)return;MXE=null;
     w.innerHTML=`<div class="cd-back"><button type="button" class="btn quiet" data-cdback>← Back to all the sets</button></div><div class="gm-list mx-list">${mxSet(x.m,x.L,true)}</div>`;w.scrollTop=0}});
