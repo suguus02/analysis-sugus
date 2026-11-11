@@ -2647,7 +2647,16 @@ function mxSet(m,L,open){const nm=g=>sheetName(g,(ds.names||{})[g])||g||'—';
     <div class="mx-x"><div class="mx-col">${a.b.map((n,i)=>card(n,a.tg[i])).join('')}</div>
       <div class="mx-map">${mimg(m.m,'mx-mi')}<span class="mx-tm">${mxHM(m.t)}</span><span class="mx-mn">${esc(m.m)}</span></div>
       <div class="mx-col">${b.b.map((n,i)=>card(n,b.tg[i])).join('')}</div></div></div>`}
-let mxOpen=0;
+let mxOpen=0,MXL=[];
+// scrim window for a Match Selector row (same window as Results)
+function mxModal(e){if(!e)return;const L=e.sets,nm=g=>sheetName(g,(ds.names||{})[g])||g;
+  const rows=L.map(x=>mxSet(x.m,x.L,false)).join(''),rvN=e.b||[...e.bp].slice(0,3).join(' / ')||'Rival';
+  let ov=document.getElementById('gmOv');if(!ov){ov=document.createElement('div');ov.id='gmOv';document.body.appendChild(ov)}
+  ov.innerHTML=`<div class="gm" role="dialog" aria-label="Scrim"><div class="gm-top"><span class="gm-date">${fmtDate(dateSel)} · ${mxHM(e.t0)}–${mxHM(e.t1)}</span><button type="button" class="gm-close" data-gmclose aria-label="Close">✕</button></div>
+    <div class="gm-hd"><span class="gm-t">${logo(e.a,'gm-lg')}<b>${esc(e.a)}</b></span><span class="gm-sc"><b class="${e.w>e.l?'w':''}">${e.w}</b> – <b class="${e.l>e.w?'w':''}">${e.l}</b></span><span class="gm-t r"><b>${esc(rvN)}</b>${e.b?logo(e.b,'gm-lg'):''}</span></div>
+    <div class="gm-sub">${L.length} ${L.length===1?'set':'sets'} · click a set to see the players and the map</div><div class="gm-list mx-list">${rows}</div>
+    <div class="gm-ft"><button type="button" class="btn" data-gmclose>Close</button></div></div>`;
+  ov.classList.add('on')}
 // all matches (sets vs the same rival) on a day; listed team on the left (the chosen team when there is one)
 function mxMatches(d,team){const T=new Set(allTeams()),G={},nm=g=>sheetName(g,(ds.names||{})[g])||g;
   for(const m of ds.matches){if(m.s||m.d!==d)continue;const ia=T.has(m.a),ib=T.has(m.b);if(!ia&&!ib)continue;
@@ -2663,24 +2672,24 @@ function datesTab(){
   if(!dateSel||!IX[dateSel]){dateSel=dates[0].d;calMonth=dateSel.slice(0,7);mxOpen=0}
   const dayT=Object.entries(IX[dateSel]).map(([n,e])=>({n:n,sets:e.n,riv:Object.keys(e.riv)})).sort((a,b)=>b.sets-a.sets||(a.n<b.n?-1:1));
   if(msTeam&&!IX[dateSel][msTeam])msTeam='';
-  const team=msTeam||'',played=new Set(dates.map(x=>x.d)),L=mxMatches(dateSel,team);if(mxOpen>=L.length)mxOpen=-1;
+  const team=msTeam||'',played=new Set(dates.map(x=>x.d)),L=mxMatches(dateSel,team);MXL=L;
   const tcards=`<button type="button" class="mtc${!team?' on':''}" data-mt=""><span class="mtn"><b>All teams</b></span><small>${plural(L.length&&!team?L.length:mxMatches(dateSel,'').length,'match')} this day</small></button>`+dayT.map(e=>{const rv=e.riv.filter(Boolean),nrv=e.riv.length-rv.length;return `<button type="button" class="mtc${e.n===team?' on':''}" data-mt="${esc(e.n)}" style="--tc:${tcol(e.n)}"><span class="mtn">${logo(e.n,'l28')}<b>${esc(e.n)}</b>${tdot(e.n)}</span><small>${plural(e.sets,'set')}${rv.length||nrv?' · vs '+esc(rv.concat(nrv?['other']:[]).join(', ')):''}</small></button>`}).join('');
   const tn=e=>e.b?`${logo(e.b,'l28')}<b>${esc(e.b)}</b>`:`<span class="mx-pp">${esc([...e.bp].slice(0,3).join(' · ')||'Rival')}</span>`;
-  const rows=L.map((e,i)=>{const op=i===mxOpen;
+  const rows=L.map((e,i)=>{const op=false;
     const modes=[...new Set(e.sets.map(x=>modeOfMap(x.m.m)))].map(md=>{const mi=IMGS['mode'+mkey(md)];return mi?`<img class="mx-mm" src="${mi}" title="${esc(md)}" alt="">`:''}).join('');
     return `<tr class="mx-tr${op?' on':''}" data-mxo="${i}"><td class="mx-time">${mxHM(e.t0)}–${mxHM(e.t1)}</td><td class="mx-ta">${logo(e.a,'l28')}<b>${esc(e.a)}</b></td>
-      <td class="mx-sc"><b class="${e.w>e.l?'w':e.w<e.l?'l':''}">${e.w}</b>–<b class="${e.l>e.w?'w':e.l<e.w?'l':''}">${e.l}</b></td><td class="mx-tb">${tn(e)}</td><td class="num">${e.sets.length}</td><td class="mx-mds">${modes}</td><td class="mx-cc">${op?'⌃':'⌄'}</td></tr>
-      ${op?`<tr class="mx-det"><td colspan="7"><div class="mx-list">${e.sets.map((x,k)=>mxSet(x.m,x.L,k===0)).join('')}</div></td></tr>`:''}`}).join('');
+      <td class="mx-sc"><b class="${e.w>e.l?'w':e.w<e.l?'l':''}">${e.w}</b>–<b class="${e.l>e.w?'w':e.l<e.w?'l':''}">${e.l}</b></td><td class="mx-tb">${tn(e)}</td><td class="num">${e.sets.length}</td><td class="mx-mds">${modes}</td><td class="mx-cc">↗</td></tr>
+`}).join('');
   return `<div class="mpickrow msrow" style="margin-top:14px"><div class="dbox msdate"><button type="button" class="dbtn${calOpen?' open':''}" data-calopen="1" aria-expanded="${calOpen}"><span class="dl">Date</span><b>${fmtDate(dateSel)}</b><small>${plural(dayT.length,'team')} played</small><span class="dcar">▾</span></button>${calOpen?`<div class="calpop">${calendarHTML(played,dates)}</div>`:''}</div>
     <div class="dbox msteam"><button type="button" class="dbtn${msPop==='team'?' open':''}" data-mspop="team" aria-expanded="${msPop==='team'}"><span class="dl">Team</span><b class="msb">${team?logo(team,'l28')+`<span>${esc(team)}</span>`:'<span>All teams</span>'}</b><small>optional filter · click to change</small><span class="dcar">▾</span></button>${msPop==='team'?`<div class="calpop mspop"><div class="lbl">Teams that played on ${fmtDate(dateSel)} · ${dayT.length}</div><div class="mtcs">${tcards}</div></div>`:''}</div></div>
     <div class="mx-wrap">${L.length?`<div class="lbl">${team?esc(team)+' · ':''}Matches on ${fmtDate(dateSel)} · ${L.length}</div>
     <table class="mx-t"><thead><tr><th>Time</th><th>Team</th><th>Score</th><th>Rival</th><th class="num">Sets</th><th>Modes</th><th></th></tr></thead><tbody>${rows}</tbody></table>
-    <p class="msg" style="font-size:11.5px;margin-top:8px">Click a match to see its sets · click a set to see the players and the map · single games are not shown</p>`:'<p class="msg">No matches this day.</p>'}</div>
+    <p class="msg" style="font-size:11.5px;margin-top:8px">Click a match to open it · click a set to see the players and the map · single games are not shown</p>`:'<p class="msg">No matches this day.</p>'}</div>
     ${team?`<div class="mtop" style="margin-top:18px">${recentHTML(team,null)}</div>`:''}`;
 }
 document.addEventListener('click',e=>{const t=e.target;if(!t.closest)return;
-  const s=t.closest('[data-mxs]');if(s){s.parentNode.classList.toggle('open');return}
-  const o=t.closest('[data-mxo]');if(o){const i=+o.dataset.mxo;mxOpen=mxOpen===i?-1:i;renderDetail()}});
+  const s=t.closest('[data-mxs]');if(s){const it=s.parentNode,on=it.classList.contains('open'),box=it.closest('.mx-list');if(box)box.querySelectorAll('.mx-s.open').forEach(x=>x.classList.remove('open'));if(!on)it.classList.add('open');return}
+  const o=t.closest('[data-mxo]');if(o){mxModal(MXL[+o.dataset.mxo])}});
 function applyView(){
   document.querySelectorAll('.mnav').forEach(b=>b.setAttribute('aria-selected',(b.dataset.view===view||(b.dataset.view==='draft'&&view==='suggest'))?'true':'false'));
   $('predview').hidden=view!=='pred';$('statsview').hidden=view!=='stats';$('tourview').hidden=view!=='tour';$('checkview').hidden=view!=='check';$('wbview').hidden=view!=='worlds';$('brawlview').hidden=view!=='brawl';$('balview').hidden=view!=='bal';$('draftview').hidden=view!=='draft'&&view!=='suggest';$('statsscope').hidden=view!=='stats'||tab==='scout'||tab==='report'||tab==='match'||tab==='caster';$('pickpanel').hidden=view==='tour'||view==='check'||view==='worlds'||view==='brawl'||view==='bal'||view==='draft'||view==='suggest'||view==='stats';
@@ -3597,7 +3606,7 @@ let GTM=[];
 function gtModal(i){const it=GTM[i];if(!it)return;const {t,e,o}=it,nmOf=g=>esc(sheetName(g,(ds.names||{})[g])||g);
   const hm_=t=>String(Math.floor(t/3600)%24).padStart(2,'0')+':'+String(Math.floor(t%3600/60)).padStart(2,'0');
   const L=e.sets.slice().sort((a,b)=>a.m.t-b.m.t),rv=o||'',rvN=rv||[...e.rv.keys()].slice(0,3).map(g=>sheetName(g,(ds.names||{})[g])||g).join(' / ');
-  const rows=L.map((x,k)=>mxSet(x.m,x.sd==='a',k===0)).join('');
+  const rows=L.map(x=>mxSet(x.m,x.sd==='a',false)).join('');
   let ov=document.getElementById('gmOv');if(!ov){ov=document.createElement('div');ov.id='gmOv';document.body.appendChild(ov)}
   ov.innerHTML=`<div class="gm" role="dialog" aria-label="Scrim"><div class="gm-top"><span class="gm-date">${fmtDate(e.d)} · ${hm_(L[0].m.t)}–${hm_(Math.max(...L.map(x=>x.m.last||x.m.t)))}</span><button type="button" class="gm-close" data-gmclose aria-label="Close">✕</button></div>
     <div class="gm-hd"><span class="gm-t">${logo(t,'gm-lg')}<b>${esc(t)}</b></span><span class="gm-sc"><b class="${e.w>e.l?'w':''}">${e.w}</b> – <b class="${e.l>e.w?'w':''}">${e.l}</b></span><span class="gm-t r"><b>${esc(rvN||'Rival')}</b>${rv?logo(rv,'gm-lg'):''}</span></div>
@@ -4465,20 +4474,31 @@ function dsProb(){const base=wpTeamProb(DS.me,DS.opp,DS.map);const b=base==null?
 const dsChoose=L=>{const k=DS.diff==='hard'?1:DS.diff==='easy'?8:3,top=L.slice(0,Math.min(k,L.length));if(!top.length)return null;
   const w=top.map((x,i)=>Math.pow(.55,i)),t=w.reduce((a,b)=>a+b,0);let r=Math.random()*t;for(let i=0;i<top.length;i++){r-=w[i];if(r<=0)return top[i]}return top[0]};
 // bot bans: what the rival bans in its saved drafts (same map and same coin weigh more) + what hurts us the most
-function dsBotBans(){const opp=DS.opp,mapK=mkey(DS.map),botFirst=DS.d.coin==='red',cnt={},nD={n:0};
-  for(const d of drAll()){for(const side of opp?[d.blue===opp?'b':d.red===opp?'r':'']:['b','r']){if(!side)continue;const bans=(d.bans&&d.bans[side])||[];if(!bans.some(Boolean))continue;
-    let w=1;if(mkey(d.map||'')===mapK)w*=opp?2:3;if(opp&&!drUnk(d)&&((d.coin==='blue')===(side==='b'))===botFirst)w*=1.5;nD.n++;
-    for(const b of bans)if(b){const k=mkey(b);cnt[k]=(cnt[k]||0)+w}}}
-  const mx=Math.max(1,...Object.values(cnt)),L=dsScores('ban',opp,DS.me,[],[],{picks:Array(6).fill(''),bans:{b:[],r:[]},gb:{b:[],r:[]},coin:DS.d.coin});
-  const sMax=Math.max(...L.map(x=>x.score),.01),sc=L.map(x=>({name:x.name,score:.6*((cnt[mkey(x.name)]||0)/mx)+.4*(x.score/sMax),f:cnt[mkey(x.name)]||0})).sort((a,b)=>b.score-a.score);
+// how often a brawler is banned by the side with (first=true) or without the 1st pick; same map counts x4; team drafts first, all teams count less
+function dsBanFreq(team,first){const mapK=mkey(DS.map||''),cnt={};let n=0;
+  for(const d of drAll()){const onMap=mkey(d.map||'')===mapK;for(const side of ['b','r']){const bans=(d.bans&&d.bans[side])||[];if(!bans.some(Boolean))continue;
+    const t=side==='b'?d.blue:d.red;let w=1;if(team)w*=t===team?1:.25;if(onMap)w*=4;
+    if(drUnk(d))w*=.15;else w*=(((d.coin==='blue')===(side==='b'))===first)?1:.05;
+    if(onMap&&(!team||t===team))n++;for(const b of bans)if(b){const k=mkey(b);cnt[k]=(cnt[k]||0)+w}}}
+  return {cnt,n,mx:Math.max(1e-9,...Object.values(cnt))}}
+function dsBotBans(){const opp=DS.opp,botFirst=DS.d.coin==='red',F=dsBanFreq(opp,botFirst);
+  const L=dsScores('ban',opp,DS.me,[],[],{picks:Array(6).fill(''),bans:{b:[],r:[]},gb:{b:[],r:[]},coin:DS.d.coin});
+  const sMax=Math.max(...L.map(x=>x.score),.01),sc=L.map(x=>{const f=F.cnt[mkey(x.name)]||0;return {name:x.name,score:.7*f/F.mx+.3*(x.score/sMax),f}}).sort((a,b)=>b.score-a.score);
   const out=[],pool=sc.slice();while(out.length<3&&pool.length){const c=dsChoose(pool);out.push(c);pool.splice(pool.indexOf(c),1)}
-  return out.map(c=>({name:c.name,why:c.f?(opp?`in their saved drafts${nD.n?' ('+nD.n+')':''}, often banned${DS.map?' on this map / with this coin':''}`:'one of the most banned in all the saved drafts (this map counts more)'):(opp?'one of your strongest picks here':'strong in the meta on this map')}))}
+  const ord=botFirst?'with the 1st pick':'without the 1st pick';
+  return out.map(c=>({name:c.name,why:c.f>.5?(opp?`what ${esc(wbName(opp))} bans ${ord}${DS.map?' (this map counts more)':''}`:`one of the most banned ${ord} in the saved drafts${DS.map?' (this map counts more)':''}`):(opp?'one of your strongest picks here':'strong in the meta on this map')}))}
 function dsBotPick(){const opp=DS.opp,mine=dsSide('bot'),theirs=dsSide('me'),L=dsScores('pick',opp,DS.me,mine,theirs);
-  const MM=sgMeta(DS.map,'a'),MA=sgMeta('','a'),T=opp?sgTeam(opp,'a'):{own:{}},use=k=>{if(!opp)return ((MM[k]||{}).n||0)+.3*((MA[k]||{}).n||0);const e=T.own[k];if(!e)return 0;return (DS.map?((e.m[DS.map]||{}).n||0):0)+.3*e.n};const mx=Math.max(1,...L.map(x=>use(mkey(x.name))));
+  const MM=sgMeta(DS.map,'p'),MA=sgMeta('','p'),T=opp?sgTeam(opp,'p'):{own:{}},use=k=>{if(!opp)return ((MM[k]||{}).n||0)+.3*((MA[k]||{}).n||0);const e=T.own[k];if(!e)return 0;return (DS.map?((e.m[DS.map]||{}).n||0):0)+.3*e.n};const mx=Math.max(1,...L.map(x=>use(mkey(x.name))));
   const sc=L.map(x=>({name:x.name,score:.55*x.score+.45*use(mkey(x.name))/mx,u:use(mkey(x.name)),info:x.info})).sort((a,b)=>b.score-a.score);
-  const c=dsChoose(sc);if(!c)return null;if(!opp){const q=MM[mkey(c.name)]||{n:0};return {name:c.name,why:q.n?`picked in ${q.n} sets on this map by all the teams (${Math.round(100*q.w/q.n)}% won)`:'good with its picks / against yours'}}
-  const e=(T.own[mkey(c.name)]||{}),q=DS.map?(e.m||{})[DS.map]:e;
-  return {name:c.name,why:q&&q.n?`${wbName(opp)} played it in ${q.n} sets${DS.map?' on this map':''} (${Math.round(100*q.w/q.n)}% won)${e.n&&DS.map?', '+e.n+' in total':''}`:'good against your picks / with their picks'}}
+  const c=dsChoose(sc);if(!c)return null;const q=dsCnt(c.name,opp,DS.map),qt=opp&&DS.map?dsCnt(c.name,opp,''):null,pr=` (${q.w}/${q.n} won)`;
+  if(!opp)return {name:c.name,why:q.n?`picked in ${q.n} ${q.n===1?'set':'sets'} on this map by the teams in the period${pr}`:'good with its picks / against yours'};
+  return {name:c.name,why:q.n?`${esc(wbName(opp))} played it in ${q.n} ${q.n===1?'set':'sets'}${DS.map?' on this map':''} in the period${pr}${qt&&qt.n?', '+qt.n+' on all maps':''}`:'good against your picks / with their picks'}}
+// real number of sets (each set counted once) in the selected period with this brawler; team='' -> any listed team
+function dsCnt(name,team,map){const k=mkey(name),T=new Set(M.D.off);let n=0,w=0;
+  for(const m of noSh(ds).matches){if(m.s||(map&&m.m!==map))continue;
+    const A=(!team?T.has(m.a):m.a===team)&&(m.ba||[]).some(b=>mkey(b)===k),B=(!team?T.has(m.b):m.b===team)&&(m.bb||[]).some(b=>mkey(b)===k);
+    if(!A&&!B)continue;n++;if(A&&!B)w+=m.y===1?1:0;else if(B&&!A)w+=m.y===0?1:0}
+  return {n,w}}
 function dsStart(){if(!DS.map||(DS.opp&&DS.opp===DS.me))return;dsSave();const meFirst=DS.first==='me'||(DS.first==='rand'&&Math.random()<.5);
   DS.d={picks:Array(6).fill(''),bans:{b:['','',''],r:['','','']},gb:{b:[],r:[]},coin:meFirst?'blue':'red',map:DS.map};DS.phase='bans';DS.myBans=[];DS.log=[`Coin: ${meFirst?'you have the 1st pick':'the bot has the 1st pick'}.`];DS.hist=[];drRender()}
 function dsBotMove(){const nx=dsNext();if(!nx||nx.who!=='bot'){DS.busy=false;if(!nx)DS.phase='done';drRender();return}
@@ -4514,7 +4534,8 @@ function simHTML(){const teams=dsTeams(),maps=dsMaps();
   const used=drUsedMap(d),q=DS.q.trim().toLowerCase();
   const grid=drNames().filter(n=>!q||n.toLowerCase().includes(q)).map(n=>{const u=used[mkey(n)],mb=DS.phase==='bans'&&DS.myBans.includes(n);return `<button type="button" class="dz-br${u&&!mb?' used':''}${mb?' mb':''}" data-dsb="${esc(n)}" title="${esc(n)}">${bimg(n,'dz-gi')}<small>${esc(n)}</small></button>`}).join('');
   let sug='';const myTurn=DS.phase==='bans'||(DS.phase==='picks'&&nx&&nx.who==='me'&&!DS.busy);
-  if(DS.sug&&myTurn){const L=DS.phase==='bans'?dsScores('ban',DS.me,DS.opp,[],[]):dsScores('pick',DS.me,DS.opp,dsSide('me'),dsSide('bot'));
+  if(DS.sug&&myTurn){const L=DS.phase==='bans'?(()=>{const F=dsBanFreq(DS.me,DS.d.coin==='blue'),B=dsScores('ban',DS.me,DS.opp,[],[]),sMax=Math.max(...B.map(x=>x.score),.01);
+      return B.map(x=>{const f=F.cnt[mkey(x.name)]||0;return {name:x.name,score:.5*x.score/sMax+.5*f/F.mx,info:[['Banned '+(DS.d.coin==='blue'?'with':'without')+' 1st pick',Math.round(100*f/F.mx)+'%']].concat((x.info||[]).slice(0,1))}}).sort((a,b)=>b.score-a.score)})():dsScores('pick',DS.me,DS.opp,dsSide('me'),dsSide('bot'));
     const top=L.filter(x=>!DS.myBans.includes(x.name)).slice(0,5),mx=top.length?top[0].score:1;
     sug=`<div class="dz-sug"><div class="dz-h">${DS.phase==='bans'?'SUGGESTED BANS':'SUGGESTED PICKS'}</div>${top.map((x,i)=>`<button type="button" class="dz-sg" data-dsb="${esc(x.name)}">${bimg(x.name,'dz-si')}<div class="dz-st"><b>${i+1}. ${esc(x.name)}</b><span class="dz-sb"><i style="width:${Math.round(100*x.score/mx)}%"></i></span><small>${(x.info||[]).slice(0,2).map(c=>esc(c[0])+' '+esc(c[1])).join(' · ')}</small></div></button>`).join('')}</div>`}
   return `<section class="panel">${drSubHTML()}
