@@ -8,6 +8,41 @@
 
 /* PAGINA API: todo sale de la hoja API PARTIDAS */
 window.API_SHEET_ID="1GCtGBZN25X8Smw7nftKooS-uM-afwLIA3P6OPB9YNnk";
+
+/* ACCESS: the page asks for a username that must be in the USUARIOS tab of the sheet (column A, header in A1).
+   It only keeps out people who just have the link: it is not real security (the code and the sheet link are public). */
+(function(){
+  var KEY='tvt:user',TAB='USUARIOS',H=document.documentElement;H.classList.add('gated');
+  var st=document.createElement('style');st.textContent='html.gated body>*:not(#gate){visibility:hidden!important}html.gated body{overflow:hidden!important}'+
+    '#gate{position:fixed;inset:0;z-index:99999;background:radial-gradient(circle at 50% 30%,#1d1730,#0b0a10 70%);display:flex;align-items:center;justify-content:center;font-family:Inter,system-ui,sans-serif;color:#e5e3f0}'+
+    '#gate .gbox{width:min(360px,90vw);background:#121118;border:1px solid #2a2838;border-radius:16px;padding:28px 24px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.6)}'+
+    '#gate h1{margin:0 0 4px;font-size:20px;letter-spacing:.08em}#gate p{margin:0 0 18px;color:#8e8ab0;font-size:13px}'+
+    '#gate input{width:100%;box-sizing:border-box;padding:11px 12px;border-radius:10px;border:1px solid #3a3650;background:#0d0c12;color:#fff;font-size:15px;outline:none}#gate input:focus{border-color:#a855f7}'+
+    '#gate button{margin-top:12px;width:100%;padding:11px;border:0;border-radius:10px;background:#a855f7;color:#fff;font-weight:700;font-size:14px;cursor:pointer}#gate button:disabled{opacity:.5;cursor:default}'+
+    '#gate .gerr{min-height:18px;margin-top:10px;font-size:12.5px;color:#f87171}#gate .gwait{color:#8e8ab0;font-size:13px}';
+  document.head.appendChild(st);
+  var get=function(){try{return localStorage.getItem(KEY)||''}catch(e){return ''}},set=function(v){try{if(v)localStorage.setItem(KEY,v);else localStorage.removeItem(KEY)}catch(e){}};
+  var norm=function(x){return String(x||'').trim().toLowerCase()};
+  function csv(t){var rows=[],r=[],f='',q=false;for(var i=0;i<t.length;i++){var c=t[i];if(q){if(c==='"'){if(t[i+1]==='"'){f+='"';i++}else q=false}else f+=c}else if(c==='"')q=true;else if(c===','){r.push(f);f=''}else if(c==='\n'||c==='\r'){if(c==='\r'&&t[i+1]==='\n')i++;r.push(f);rows.push(r);r=[];f=''}else f+=c}if(f!==''||r.length){r.push(f);rows.push(r)}return rows}
+  var list=fetch('https://docs.google.com/spreadsheets/d/'+window.API_SHEET_ID+'/gviz/tq?tqx=out:csv&sheet='+encodeURIComponent(TAB)+'&range=A1:A1000&headers=0',{cache:'no-store'})
+    .then(function(r){return r.text()}).then(function(t){if(/^\s*</.test(t))throw 0;var R=csv(t);if(!R.length||!/^(usuarios?|users?|username)$/i.test(String(R[0][0]||'').trim()))throw 0;
+      var S={};R.slice(1).forEach(function(x){var n=norm(x[0]);if(n)S[n]=String(x[0]).trim()});return S});
+  function open_(name){set(name);H.classList.remove('gated');var g=document.getElementById('gate');if(g)g.remove();window.__USER=name;
+    var put=function(){var host=document.querySelector('header.hero .herotext');if(!host){setTimeout(put,500);return}if(document.getElementById('userBadge'))return;var u=document.createElement('div');u.id='userBadge';
+      u.style.cssText='margin-top:6px;font-size:12px;color:#9a97ad';u.innerHTML='👤 '+name.replace(/</g,'&lt;')+' · <a href="#" style="color:#c4b5fd">log out</a>';u.querySelector('a').onclick=function(e){e.preventDefault();window.uxLogout()};host.appendChild(u)};put()}
+  function show(){var g=document.createElement('div');g.id='gate';
+    g.innerHTML='<form class="gbox" autocomplete="off"><h1>ANALYSIS SUGUS</h1><p>Enter your username to continue</p><input type="text" name="u" placeholder="Username" spellcheck="false" autocapitalize="off"><button type="submit">Enter</button><div class="gerr"></div></form>';
+    document.body.appendChild(g);var f=g.querySelector('form'),inp=f.querySelector('input'),err=f.querySelector('.gerr'),btn=f.querySelector('button');
+    var saved=get();
+    if(saved){f.innerHTML='<h1>ANALYSIS SUGUS</h1><p class="gwait">Checking access…</p>'}
+    list.then(function(S){if(saved&&S[norm(saved)]){open_(S[norm(saved)]);return}
+        if(saved){set('');location.reload();return}
+        setTimeout(function(){inp.focus()},50);
+        f.onsubmit=function(e){e.preventDefault();var n=norm(inp.value);if(!n)return;if(S[n])open_(S[n]);else{err.textContent='Access denied: this username is not on the list.';inp.select()}}},
+      function(){f.innerHTML='<h1>ANALYSIS SUGUS</h1><p>The access list could not be read.</p><div class="gerr">Ask the admin to check the USUARIOS tab of the sheet.</div>'})}
+  if(document.body)show();else document.addEventListener('DOMContentLoaded',show);
+  window.uxLogout=function(){set('');location.reload()};
+})();
 (function(){
   /* cache y filtros aparte de la pagina normal (mismo dominio) */
   var D=/^tvt:(ds|h|src|from|to|type|drafts|drlocal)$/;
