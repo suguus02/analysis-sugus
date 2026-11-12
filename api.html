@@ -2452,10 +2452,9 @@ function typesHTML(sub,subject,team,cls,wrl,mapCols,active){
     const br=(own?x.mine:x.theirs).filter(Boolean);
     if(br.length===3){const k=br.map(typeOf).sort(tSort).join(' + ');const e=tc[k]||(tc[k]={n:0,w:0});e.n++;e.w+=x.win}}
   const list=Object.entries(tc).map(([k,e])=>({k,n:e.n,w:e.w})).sort((a,b)=>b.n-a.n||b.w-a.w||(a.k<b.k?-1:1)).slice(0,25);
-  const rows=list.map((x,i)=>`<tr><td class="rk">${i+1}</td><td class="tcs">${x.k.split(' + ').map(tChip).join('<span class="pl">+</span>')}</td><td class="num">${x.n}</td><td class="num">${x.w}</td><td class="num">${Math.round(x.w/x.n*100)}%</td></tr>`).join('');
-  return `<h3 class="sec-h" style="margin-top:22px">Full-team type combinations</h3>
-    
-    <div class="tablewrap"><table class="rank typet" style="min-width:480px"><thead><tr><th class="rk"></th><th>Types</th><th class="num">Picks</th><th class="num">Wins</th><th class="num">Win rate<small class="wrl">${wrl}</small></th></tr></thead><tbody>${rows||'<tr><td colspan="5" class="msg">No data</td></tr>'}</tbody></table></div>`;
+  const rows=list.map((x,i)=>`<tr><td class="rk">${i+1}</td><td class="tcs">${x.k.split(' + ').map(tChip).join('<span class="pl">+</span>')}</td><td class="num">${x.n}</td><td class="num">${x.w}</td><td class="num heat" style="${wrHeat(x.w/x.n)}">${Math.round(x.w/x.n*100)}%${wrBar(x.w/x.n)}</td></tr>`).join('');
+  return `<section class="u-panel u-types"><header><span class="u-hd">Full-team type combinations</span><small>top 25 · 3 brawlers of the same set</small></header>
+    <div class="tablewrap"><table class="rank typet" style="min-width:480px"><thead><tr><th class="rk"></th><th>Types</th><th class="num">Picks</th><th class="num">Wins</th><th class="num">Win rate<small class="wrl">${wrl}</small></th></tr></thead><tbody>${rows||'<tr><td colspan="5" class="msg">No data</td></tr>'}</tbody></table></div></section>`;
 }
 function npHTML(items,side){
   const pl=new Set();for(const x of items){if(x.s)continue;for(const b of (side==='own'?x.mine:x.theirs))if(b)pl.add(mkey(b))}
@@ -2548,7 +2547,7 @@ function luApplyPool(items){
   LUREG2.P=new Set(list.filter(e=>e.reg).map(e=>e.k));
   const html=list.length?luCardsHTML('P',order.map(t=>({team:t,es:byT[t],idx:e=>LUK.P.indexOf(e.k)})),sel,all,nsel,list.length,true):'';
   const out=sel?items.filter(x=>{const k=keyOf(x);return !k||sel.has(k)}):items;
-  return {items:out,html,act:!all};
+  return {items:out,html,act:!all,pool:{order,byT,sel,all,n:list.length,nsel}};
 }
 document.addEventListener('click',e=>{
   const t=e.target.closest&&e.target.closest('[data-lut]');
@@ -2823,9 +2822,13 @@ function tsPair(){const A=ddBuild(sel.a,'a','A',false),B=ddBuild(sel.b,'b','B',f
     +DD.map(D=>`<section class="u-panel"><header><span class="u-hd">${logo(D.team,'l20')} ${esc(D.team)}</span><small>${esc(D.logTitle.replace(/^Comps · /,''))}</small></header><div class="u-cf"><div class="u-cfg2">${D.selects('Our brawlers','Their brawlers')}</div><div class="u-cfg2">${D.tsel('Our types','Their types')}</div><div class="u-cfb"><span class="u-cfs">${D.summary}</span></div></div>${compRows(D.log,D.team)}</section>`).join('');
   else body=`<div class="u-blk uxdr">${draftsTab()}</div>`;
   return `<div class="u-ts">${hero}${sub}${body}<p class="foot">Picks and wins count sets (single games and draws excluded). Win rate = wins / picks. With few sets the percentages swing a lot.</p></div>`}
+function luHeroPool(D){const P=D.LU&&D.LU.pool;if(!P||!P.n)return '';const on=e=>!P.sel||P.sel.has(e.k),reg=LUREG2.P||new Set(),regOn=!!P.sel&&reg.size>0&&LUK.P.every(k=>reg.has(k)===P.sel.has(k));
+  const grp=P.order.map(t=>{const es=P.byT[t],open=LUOPEN.has('P|'+t+'|hero'),show=open?es:es.slice(0,4);return `<div class="u-lugrp"><span class="u-lugt" title="${esc(t)}">${logo(t,'l20')}<b>${esc(t)}</b></span><div class="u-luc">${show.map(e=>luChip(Object.assign({},e,{k:e.nm}),t,'P',LUK.P.indexOf(e.k),on(e))).join('')}${es.length>4?`<button type="button" class="u-lumore" data-luhero="${esc('P|'+t)}">${open?'show less ▴':'+'+(es.length-4)+' more ▾'}</button>`:''}</div></div>`}).join('');
+  return `<div class="u-lus"><span class="u-lul">Lineups</span><span class="u-lubs"><button type="button" data-fk="P" data-luset="all" class="${P.all?'on':''}">Everything</button><button type="button" data-fk="P" data-luset="reg" class="${regOn?'on':''}"${reg.size?'':' disabled'}>Only official</button></span>
+    <div class="u-lugrps">${grp}</div><small class="u-lus2">${P.nsel} of ${P.n} lineups selected · click a lineup to tick / untick it · pick-ups in <span class="lpk">yellow</span></small></div>`}
 function tsPool(pt,label,cls,D,o){const C=tsAgg(D.items0),{pc,col,bar,top,row,none}=tsU;
   const logos=pt.map(t=>`<span title="${esc(t)}">${logo(t,'l28')}</span>`).join('');
-  const hero=`<section class="u-hero"><div class="u-plogos">${logos}</div><div class="u-ht"><h1>${esc(label)} together</h1><p>${plural(C.N,'set')} in the period${D.luAct?' · lineup filter on':''} · each team counts its own sets</p></div>${tsTiles(C)}<div class="u-lus u-lusp">${D.lu}</div></section>`;
+  const hero=`<section class="u-hero"><div class="u-plogos">${logos}</div><div class="u-ht"><h1>${esc(label)} together</h1><p>${plural(C.N,'set')} in the period${D.luAct?' · lineup filter on':''} · each team counts its own sets</p></div>${tsTiles(C)}${luHeroPool(D)}</section>`;
   const [k,sub]=tsSub([['overview','Overview'],['brawlers','Brawlers'],['bans','Bans'],['players','Players'],['comps','Comps'],['drafts','Drafts']]);
   const bnSum=(own,trio)=>{const S={T:{},F:{},Lc:{},ns:0,ndr:0,nf:0,nl:0,tot:0,mf:mapsFilter()};for(const t of pt){const r=bnCalc(t,{items0:(D.items0||[]).filter(x=>x.team===t)},own,trio);for(const q of ['T','F','Lc'])for(const b in r[q])S[q][b]=(S[q][b]||0)+r[q][b];for(const q of ['ns','ndr','nf','nl','tot'])S[q]+=r[q]}return S};
   let body='';
@@ -4319,9 +4322,9 @@ function groupTab(){
   const ptab=(obj,lab)=>{const top=Object.entries(obj).sort((a,b)=>b[1].n-a[1].n||b[1].w-a[1].w).slice(0,20);
     return `<table class="gt-t"><thead><tr><th class="gt-c">#</th><th class="gt-c">${lab}</th><th class="gt-c">Picks</th><th class="gt-c">Pick rate</th><th class="gt-c">Wins</th><th class="gt-c">Win rate</th></tr></thead><tbody>${top.map(([k,e],i)=>`<tr><td class="gt-c">${i+1}</td><td class="gt-c gt-l"><span class="gt-br">${k.split(' + ').length===2?duoH(k.split(' + ')):k.split(' + ').map(b=>`${bimg(b,'bi')}<span>${esc(b)}</span>`).join('<i>+</i>')}</span></td><td class="gt-c">${e.n}</td><td class="gt-c">${pc(e.n,NS)}</td><td class="gt-c">${e.w}</td><td class="gt-c gt-big" style="${gtHeat(e.w/e.n,e.n)}">${pc(e.w,e.n)}</td></tr>`).join('')}</tbody></table>`};
   const maps=[...MAP18].map(k=>{const nm=Object.keys(mp).find(m=>mkey(m)===k)||[...PICKMAPS].find(m=>mkey(m)===k)||k;return [nm,mp[nm]||0]}).sort((a,b)=>b[1]-a[1]);
-  const mapsH=`<table class="gt-t gt-maps"><thead><tr><th class="gt-c">#</th><th class="gt-c">Map</th><th class="gt-c">Sets</th></tr></thead><tbody>${maps.map(([m,n],i)=>{const c=MODE_COL[mkey(modeOfMap(m))]||'#6d6a85';return `<tr style="--mc:${c}"><td class="gt-c">${i+1}</td><td class="gt-c gt-l"><span class="gt-tn">${mimg(m,'gt-mi')}<b>${esc(m)}</b></span></td><td class="gt-c gt-big">${n}</td></tr>`}).join('')}</tbody></table>`;
+  const mapsH=`<table class="gt-t gt-maps"><thead><tr><th class="gt-c">#</th><th class="gt-c">Map</th><th class="gt-c">Sets</th></tr></thead><tbody>${maps.map(([m,n],i)=>{const c=MODE_COL[mkey(modeOfMap(m))]||'#6d6a85';return `<tr style="--mc:${c}"><td class="gt-c">${i+1}</td><td class="gt-c gt-l"><span class="gt-tn">${mimg(m,'gt-mi')}${IMGS['mode'+mkey(modeOfMap(m))]?`<img class="gt-mo" src="${IMGS['mode'+mkey(modeOfMap(m))]}" alt="" title="${esc(modeOfMap(m))}">`:''}<b>${esc(m)}</b></span></td><td class="gt-c gt-big">${n}</td></tr>`}).join('')}</tbody></table>`;
   const pmH=sec('Picks and maps of the selected teams together',`<div class="gt-pm"><div><p class="msg gt-st">Top 20 picks · ${NS} team-sets</p><div class="gt-scroll">${ptab(pk,'Brawler')}</div></div><div><p class="msg gt-st">Top 20 duos (same team)</p><div class="gt-scroll">${ptab(du,'Duo')}</div></div><div><p class="msg gt-st">Maps · most played first</p><div class="gt-scroll">${mapsH}</div></div></div>`,
-    'Picks: sets of the selected teams where the brawler (or the duo) was used, each team counted on its own. Pick rate = % of those sets. Maps: sets played on each of the 18 rotation maps, coloured by mode.');
+    'Picks: sets of the selected teams where the brawler (or the duo) was used, each team counted on its own. Pick rate = % of those sets. Maps: sets played on each of the 18 rotation maps, with the icon of their mode.');
   return `<div class="gt">${h2h}${matches}${regH}${weekH}${pmH}</div>`}
 // ===== Tier List: meta score of every brawler from the drafts of the chosen teams
 const TL={teams:null,map:'',since:'patch',from:'',to:'',open:null};
@@ -5084,6 +5087,12 @@ function drCoinEstHTML(d){const E=drCoinEst(d);if(!E)return '';
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-coinset]');if(!b||!DR.cur)return;const d=DR.cur,op=drPos(d.coin),bl=op[0].map(n=>d.picks[n-1]),rd=op[1].map(n=>d.picks[n-1]);
   d.coin=b.dataset.coinset;d.su='';d.po='O';const np=drPos(d.coin);d.picks=['','','','','',''];np[0].forEach((n,i)=>d.picks[n-1]=bl[i]||'');np[1].forEach((n,i)=>d.picks[n-1]=rd[i]||'');
   DR.msg='Coin set, with “Pick order unknown” ticked: every brawler stays with its team and the draft counts for everything by coin, but not for Pick 1 / Pick 6. If you know the real order, put the picks in order and untick it. Then press Save draft.';DR.bad=false;drRender()});
+// long lists of drafts: 20 at a time, newest first, 'show more' adds 20
+const DRPG={};
+function drPage(list,k,f){const L=list.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.saved||'').localeCompare(String(a.saved||'')));
+  const sig=L.length+'|'+(L[0]&&L[0].id);let P=DRPG[k];if(!P||P.sig!==sig)P=DRPG[k]={sig,n:20};
+  const more=L.length-P.n;return L.slice(0,P.n).map(f).join('')+(more>0?`<div class="dr-more"><button type="button" class="btn" data-drmore="${k}">Show ${Math.min(20,more)} more</button><span class="msg">${P.n} of ${L.length} drafts shown</span><button type="button" class="btn quiet" data-drmore="${k}" data-all="1">Show all</button></div>`:'')}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-drmore]');if(!b)return;const P=DRPG[b.dataset.drmore];if(!P)return;P.n=b.dataset.all?1e9:P.n+20;const y=window.scrollY;if(b.dataset.drmore==='main'&&typeof drRender==='function')drRender();else renderDetail();window.scrollTo(0,y)});
 const drInPer=d=>{if(!FULL||!FULL.matches||!FULL.matches.length)return true;const rg=rangeOf(FULL);return d.date>=rg.from&&d.date<=rg.to};
 function drListHTML(){
   const all=drAll(),teams=[...new Set(all.flatMap(d=>[d.blue,d.red]))].filter(Boolean).sort(),maps=[...new Set(all.map(d=>d.map))].filter(Boolean).sort();
@@ -5097,7 +5106,7 @@ function drListHTML(){
   return `<section class="panel"><h2>Saved drafts</h2>
    <div class="dr-filters"><label class="dr-field"><span class="lbl">Team</span><input class="dr-input" id="drFTeam" list="drFTeamL" autocomplete="off" placeholder="All teams · type a name and press Enter" value="${esc(DR.fTeam)}" style="min-width:260px"><datalist id="drFTeamL">${teams.map(x=>`<option value="${esc(x)}">`).join('')}</datalist></label>${DR.fTeam?'<button type="button" class="btn quiet" data-drfteamclear="1">All teams</button>':''}${mapBoxHTML(DR.fMap,'data-drmapopen="f" data-x',"Map")}${DR.fMap?'<button type="button" class="btn quiet" data-drmappick="" data-drk="f">All maps</button>':''}${perSeg}${ordSeg}<span class="msg">${plural(list.length,'draft')}${perOn&&all.length>base.length&&!DR.fTeam&&!DR.fMap?' of '+all.length+' (the rest are outside these dates)':''}${DR.fOrder&&DR.fTeam?' · side unknown drafts are left out':''}${DR.fTeamErr?' · '+esc(DR.fTeamErr):''}</span></div>
    ${DR.err&&!all.length?`<p class="dr-msg" style="margin-top:10px">${esc(DR.err)}</p>`:''}
-   <div class="dr-list">${list.length?list.map(d=>drCard(d,DR.fTeam,true)).join(''):`<p class="msg">${!DR.loaded?'Loading drafts…':all.length&&perOn?'No saved drafts between these dates. Change the dates in the calendar at the top, or press “All dates”.':'No drafts yet. Fill the form above and press Save draft.'}</p>`}</div>${drOrderTable(DR.fTeam,base)}</section>`}
+   <div class="dr-list">${list.length?drPage(list,'main',d=>drCard(d,DR.fTeam,true)):`<p class="msg">${!DR.loaded?'Loading drafts…':all.length&&perOn?'No saved drafts between these dates. Change the dates in the calendar at the top, or press “All dates”.':'No drafts yet. Fill the form above and press Save draft.'}</p>`}</div>${drOrderTable(DR.fTeam,base)}</section>`}
 // what a team (or, with no team selected, every team) bans and picks when it has the 1st pick (blue coin) and when it has the last pick (red coin)
 function drOrderTable(team,list){
   const known=list.filter(d=>!drUnk(d)),unk=list.length-known.length;
@@ -5527,7 +5536,7 @@ function cardChart(days){
     <div class="tc-leg"><span><i style="background:${CARD_RED}"></i>Sets played per day (left axis)</span><span><i class="dsh"></i>Win rate per day (right axis)</span></div>`}
 function cardTbl(head,rows,empty,w){ // compact table in the style of the rest of the page; head = [label, numeric?][]
   return `<div class="tablewrap" style="margin-top:2px"><table class="rank tiny">${w?`<colgroup><col style="width:26px">${w.map(x=>`<col style="width:${x}">`).join('')}</colgroup>`:''}<thead><tr><th class="rk"></th>${head.map(([h,num])=>`<th${num?' class="num"':''}>${h}</th>`).join('')}</tr></thead><tbody>${rows.length?rows.join(''):`<tr><td colspan="${head.length+1}" class="msg">${empty||'No data'}</td></tr>`}</tbody></table></div>`}
-const bd=(p)=>`background:transparent;border:2px solid ${p>.5?'#3fbf72':p<.5?'#ef5a70':'#f0a53a'};color:#fff`;
+const bd=(p)=>wrSoft(p);
 const wlc=(w,l)=>w>l?'win':w<l?'lose':'draw';
 const hx=(p,n)=>wrSoft(p,n);
 
@@ -6934,7 +6943,7 @@ function draftsTab(){
   const me=d=>T.includes(d.blue)&&(scope!=='pair'||d.blue===T[0])?'blue':'red',had=d=>drUnk(d)?'':d.coin===me(d)?'f':'l';
   const lc=['f','l'].includes(DR.lCoin)?DR.lCoin:'',shown=list.filter(d=>!lc||had(d)===lc),cnt=k=>list.filter(d=>had(d)===k).length,who=scope==='pair'?T[0]:T.length===1?T[0]:'the selected teams';
   const lbar=`<div class="dr-lcoin"><span class="lbl">Drafts</span><span class="seg2"><button type="button" data-drlc="" aria-pressed="${!lc}">All ${list.length}</button><button type="button" data-drlc="f" aria-pressed="${lc==='f'}" title="${esc(who)} had the 1st pick"><img class="coinm" src="${COIN.blue}" alt=""> 1st ${cnt('f')}</button><button type="button" data-drlc="l" aria-pressed="${lc==='l'}" title="${esc(who)} had the last pick"><img class="coinm" src="${COIN.red}" alt=""> Last ${cnt('l')}</button></span>${lc?`<span class="msg">Only the list changes; drafts with the side unknown are only in “All”.</span>`:''}</div>`;
-  return `<div style="margin-top:14px">${fil}${tabs}${lbar}<div class="dr-list" style="margin-top:0">${shown.map(d=>drCard(d,focus,false,true)).join('')||'<p class="msg">No drafts with that coin.</p>'}</div></div>`}
+  return `<div style="margin-top:14px">${fil}${tabs}${lbar}<div class="dr-list" style="margin-top:0">${drPage(shown,'ts',d=>drCard(d,focus,false,true))||'<p class="msg">No drafts with that coin.</p>'}</div></div>`}
 
 $('sheetGo').addEventListener('click',()=>{if(!busy){syncSheet(false);drLoad()}});
 $('sheetAll').addEventListener('click',()=>{if(!busy){syncSheet(true);drLoad()}});
@@ -7794,3 +7803,132 @@ body{padding-top:64px!important}@media (min-width:1200px){.sbar{top:64px!importa
 .u-grid6 .u-bnr{grid-template-columns:16px 32px minmax(0,1fr) 40px!important}.u-grid6 .u-wr span{display:none}.u-grid6 .u-panel header{white-space:nowrap}.u-grid6 .u-panel header .u-hd{min-width:0;overflow:hidden;text-overflow:ellipsis}</style>
 <style>.dr-card2 .dr-ce{grid-column:1/-1!important;grid-row:auto!important;flex-direction:row!important;justify-content:flex-start;width:auto;border-top:1px solid #24222f;margin-top:4px}.dr-ce button{white-space:nowrap}</style>
 <style>.cas-seg{border-color:#2a2838!important;border-radius:999px!important;padding:2px;gap:2px}.cas-seg button{border-radius:999px!important}.cas-seg button[aria-pressed="true"]{background:#a855f7!important}</style>
+<style id="rev108">
+/* one accent colour: purple */
+.wrap,:root{--accent:#a855f7!important}
+/* Card / Scouting / Report */
+.tc-sec>.lbl{border:0!important;background:none!important;color:#a78bfa!important;padding:0 0 4px!important;font-size:11.5px!important;letter-spacing:.1em!important;align-self:flex-start!important;text-align:left!important}
+.tc-kpis>div{background:#121118!important;border:1px solid #24222f!important;border-radius:14px!important;padding:12px 14px!important}
+.tc-kpis>div.win b{color:#4ade80}.tc-kpis>div.lose b{color:#f87171}.tc-kpis>div.draw b{color:#facc15}
+.tc-mr,.tc-md,.tc-rv,.tc-pl,.tc-dr,.tc-b,.tc-mp{background:#121118!important;border:1px solid #24222f!important;border-radius:12px!important}
+.tc-mr{padding:8px 10px!important}.tc-mr img.th{width:30px!important;height:42px!important;border-radius:6px}
+.tc-mr span,.tc-md span,.tc-b .heat,.tc-rv span{border:0!important;background:transparent!important}
+.tcard,.tc-card{background:#0f0e15!important;border-color:#2b2540!important}
+.sc-col{border:1px solid #24222f!important;background:#121118!important;border-radius:16px!important;padding:14px 16px!important;position:relative;overflow:hidden}
+.sc-col:before{content:'';position:absolute;left:0;right:0;top:0;height:3px;background:#5a5a72}.sc-col.t:before{background:#f87171}.sc-col.w:before{background:#4ade80}.sc-col.p:before{background:#facc15}
+.sc-v{border:0!important;padding:0!important}
+.uxidx{top:64px!important;z-index:50!important;background:rgba(18,17,24,.96)!important;border-color:#2b2540!important;border-radius:14px!important;backdrop-filter:blur(6px)}
+.uxidx button{border-radius:999px!important}
+.rp-claude{border-color:#3b2a52!important;background:linear-gradient(180deg,rgba(168,85,247,.10),#121118)!important}
+.rp-sec,.rp-box{background:#121118!important;border-color:#24222f!important}
+/* types and non played brawlers */
+.u-types{margin-top:16px}.u-types .tablewrap{border:0!important;border-radius:0!important}
+.npbox{background:#121118!important;border:1px solid #24222f!important;border-radius:16px!important;padding:12px 16px!important;margin-top:16px!important}
+.npbox .lbl{color:#a78bfa!important;font-size:11.5px!important;letter-spacing:.1em}.npbox .npx{color:#f87171}
+.nprow{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.nprow img{width:36px!important;height:36px!important;border-radius:8px;opacity:.75}
+/* results maps */
+.gt-maps tr td{background:transparent!important}.gt-mo{width:18px;height:18px;margin-right:2px;flex:none}.gt-maps .gt-tn{display:flex;align-items:center;gap:8px}
+/* drafts: show more */
+.dr-more{display:flex;align-items:center;justify-content:center;gap:12px;padding:16px 0}
+/* lineups of several teams */
+.u-lugrps{flex-basis:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:10px}
+.u-lugrp{background:#0d0c12;border:1px solid #24222f;border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.u-lugt{display:flex;align-items:center;gap:8px;font-size:13px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.u-lugrp .u-luc .luc{max-width:100%}
+</style><style>.u-lugrps{align-items:start}.u-luc{align-items:flex-start}.u-luc .luc{align-self:flex-start}</style>
+<style>table.rank td.heat{text-align:right!important}table.typet td.heat{width:110px}</style>
+<style id="mobile">@media (max-width:1199px){
+.sbar header.hero{padding:0!important;margin:0!important;height:auto!important;min-height:0!important;max-height:none!important;flex:none}
+.sbar .herotext{padding:16px!important}
+.sbar header.hero h1{font-size:19px!important;line-height:1.2!important;margin:0!important;letter-spacing:.12em!important;white-space:nowrap}
+.sbar .uxgames{display:flex!important;flex:1 1 100%!important;min-width:0}
+.sbar .uxgames .seg2{display:flex;flex:1;min-width:0}
+.sbar .uxgames .seg2 button{flex:1;min-width:0;padding-left:6px!important;padding-right:6px!important}
+.sbar .uxref{flex:none}
+.sbar .uxgames>i{display:none}
+.sbar .uxgames{padding:3px!important}
+.sbar .uxgames .seg2 button{font-size:12.5px!important}
+.sbar #uxGamesHost{display:flex;flex:1;min-width:0}
+.sbar #uxGamesHost .seg2{display:flex!important;flex:1;width:100%;margin:0!important}
+.sbar #uxGamesHost .seg2 button{flex:1 1 0;min-width:0;white-space:nowrap}
+.sbar .heroinfo{display:block;font-size:11px}
+.sbar>.panel{padding:14px!important;margin:0!important}
+.sbar .uxbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.sbar .uxper{flex:1 1 100%}
+.sbar .uxgames{flex:1 1 auto}
+.sbar .uxcal{max-width:100%;overflow:auto}
+.sbar .scmaps{display:flex!important;flex-direction:column!important;gap:16px!important}
+.sbar .scm-l,.sbar .scm-r{width:100%!important;min-width:0!important;max-width:none!important}
+.sbar .sc-hint,.sbar .scm-r>.toolrow .msg{display:none}
+.sbar .grpbar{display:flex;flex-wrap:wrap;gap:6px}
+.sbar .uxchips{display:flex!important;flex-direction:column!important;gap:3px!important}
+.sbar .uxchip{display:flex!important;align-items:center;gap:10px;width:100%!important;height:auto!important;padding:6px 8px!important;border-radius:10px!important;justify-content:flex-start!important;text-align:left}
+.sbar .uxchip.on{background:rgba(168,85,247,.16)!important;box-shadow:inset 0 0 0 1px rgba(168,85,247,.55)!important}
+.sbar .uxn{display:block;font-size:12.5px;font-weight:600;color:#cfcce0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sbar .uxchip.on .uxn{color:#fff}
+.sbar .grp-act{display:flex;gap:6px;margin-top:4px}
+.sbar .mcols{display:flex!important;flex-direction:column!important;gap:4px!important;grid-template-columns:none!important}
+.sbar .mcol{display:grid!important;grid-template-columns:26px minmax(0,1fr);gap:4px;border:0!important;border-top:1px solid #1d1b27!important;border-radius:0!important;padding:6px 0 0!important;background:none!important;box-shadow:none!important;min-width:0}
+.sbar .mexp{display:flex;align-items:center;justify-content:center;background:none;border:0;color:#8e8ab0;font-size:13px;cursor:pointer;transition:transform .15s}
+.sbar .mcol.sbo .mexp{transform:rotate(90deg);color:#c4b5fd}
+.sbar .mhd{min-width:0;justify-content:flex-start!important;padding:6px 8px!important}
+.sbar .mpk{display:none!important}
+.sbar .mcol.sbo .mpk{display:block!important;grid-column:1/-1;height:46px!important;min-height:0!important;background-size:cover!important;background-position:center!important;border-radius:9px!important;margin:0 0 0 26px!important;width:calc(100% - 26px)!important;position:relative;overflow:hidden}
+.sbar .mpk .mc-cp{display:none!important}
+.sbar .mpk .mc-in{position:absolute!important;inset:0;display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:space-between;padding:0 10px!important;gap:8px}
+.sbar .mpk .mc-n{display:flex;align-items:center;gap:6px;min-width:0}
+.sbar .mpk .mc-n b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12.5px}
+.sbar .mpk .mico{display:none}
+.sbar .mpk .mc-row{display:flex;align-items:baseline;gap:6px;margin:0!important}
+.sbar .mpk .mc-row small{font-size:10.5px}
+.sbar .mpk.pr .mc-pr{display:none!important}
+.sbar .scmaps .scm-r,.sbar .scmaps.v .scm-r{zoom:1!important;border-top:1px solid #24222f;padding-top:10px}
+.sbar .mcols>.mcol{width:100%!important;align-self:stretch}
+.sbar .mhd{flex-direction:row!important;align-items:center!important;gap:8px!important;border:0!important;width:100%}
+.sbar .mhd .mico{width:20px;height:20px;flex:none}
+.sbar .mhd b{font-size:13px;white-space:nowrap}
+.sbar .mhd>span{margin-left:auto;font-size:11.5px;white-space:nowrap}
+.sbar .mhd.on{background:rgba(168,85,247,.14)!important;border-radius:8px!important}
+.sbar .mpk .mc-n{flex:1}
+.sbar .mpk .mc-n b{text-transform:none;font-size:12.5px}
+.sbar .mpk .mc-w{font-size:15px!important}
+.sbar .mpk.on{border-color:#a855f7!important}
+.sbar .herotext{display:flex!important;flex-direction:column!important;align-items:center;gap:6px}
+.sbar .heroinfo{position:static!important;display:block!important;transform:none!important;margin:0!important;font-size:10.5px!important;line-height:1.35;text-align:center;max-width:100%;color:#8e8ab0}
+.sbar .heroinfo *{position:static!important}
+.sbar .uxchips{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:4px!important;width:100%}
+.sbar .uxchip{min-width:0!important;box-sizing:border-box!important;overflow:hidden}
+.sbar .uxpick{min-width:0;overflow:hidden}
+.sbar .uxchip{padding:5px 6px!important;gap:6px}
+.sbar .uxchip img{width:20px!important;height:20px!important}
+.sbar .uxn{font-size:11px}
+.sbar .grp-act{grid-column:1/-1}
+.sbar .uxbar{display:grid!important;grid-template-columns:auto 1fr;gap:8px!important}
+.sbar .uxper{grid-column:1/-1;order:1}
+.sbar .uxgames{grid-column:1/-1;order:2}
+.sbar .uxsp{display:none}
+.sbar .uxref{order:3;width:40px!important;height:40px!important;border-radius:10px!important;background:rgba(168,85,247,.18)!important;border:1px solid #a855f7!important;color:#fff!important}
+.sbar .uxref:hover{background:#a855f7!important}
+.sbar .uxshare{order:4;width:100%}
+ .sbar{display:flex;flex-direction:column;gap:14px;margin-bottom:16px}
+ .sbmain{display:flex;flex-direction:column;gap:16px;min-width:0}
+}
+@media (max-width:700px){
+ .wrap{padding-left:8px!important;padding-right:8px!important}
+ .sbmain>section.panel,#detailpanel{padding:10px!important}
+ .u-hero{padding:14px!important}.u-hlogo{width:52px!important;height:52px!important}.u-ht h1{font-size:22px!important}
+ .u-tiles,.u-tiles.sm{grid-template-columns:1fr!important}
+ .u-row,.u-r6{grid-template-columns:16px auto minmax(0,1fr) 36px 36px 56px!important;gap:8px!important;padding:0 10px!important}
+ .u-allmaps{grid-template-columns:1fr!important}
+ .u-bans{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+ .u-cf .fgroup{flex-direction:column!important;align-items:stretch!important}.u-cf .frow{flex-wrap:wrap}.u-cf .bpick{flex:1 1 30%}
+ .u-sub button{padding:7px 12px!important;font-size:12px!important}
+ .u-crow{grid-template-columns:56px minmax(0,1fr)!important;gap:8px!important;padding:10px!important}
+ .u-crow .u-cmi{display:none}.u-crow .u-cside,.u-crow .u-cvs,.u-crow .u-copp{grid-column:1/-1;justify-content:center}
+ .u-cb{width:52px}.u-cb small{max-width:52px}
+ #detail .mx-tbl,#detail table{max-width:100%}
+ .mx-wrap,.mx-list,.gt-scroll{overflow-x:auto}
+ .u-grid6,.u-grid3,.u-grid2,.u-pgrid{grid-template-columns:1fr!important}.u-g6h{grid-column:auto!important}
+ #sheetbar{justify-content:flex-start!important}
+}
+</style><style>@media (max-width:700px){.u-cf .fgroup>*{max-width:100%;min-width:0}.u-cf .fgroup>div{display:flex;flex-wrap:wrap;gap:6px;width:100%}.u-cf .fgroup details,.u-cf .fgroup select{flex:1 1 100%}}</style>
