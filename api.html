@@ -94,7 +94,7 @@ window.API_SHEET_ID="1GCtGBZN25X8Smw7nftKooS-uM-afwLIA3P6OPB9YNnk";
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2064%2064%27%3E%3Crect%20width%3D%2764%27%20height%3D%2764%27%20rx%3D%2714%27%20fill%3D%27%23161525%27/%3E%3Ctext%20x%3D%2732%27%20y%3D%2744%27%20font-family%3D%27Arial%20Black%2CArial%2Csans-serif%27%20font-weight%3D%27900%27%20font-size%3D%2732%27%20text-anchor%3D%27middle%27%20fill%3D%27%23ffc83d%27%3EAS%3C/text%3E%3Crect%20x%3D%2710%27%20y%3D%2750%27%20width%3D%2744%27%20height%3D%274%27%20rx%3D%272%27%20fill%3D%27%23ffc83d%27/%3E%3C/svg%3E">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: single working column */
 :root{
@@ -2688,9 +2688,15 @@ document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest
 function luHero(team,D){const LU=D.LU;if(!LU||!LU.list||!LU.list.length)return '';const L=LU.list,sel=LU.sel,on=e=>!sel||sel.has(e.k),fk=LU.key||'';
   const open=LUOPEN.has(fk+'|hero'),show=open?L:L.slice(0,6),reg=LUREG2[fk]||new Set(),regOn=!!sel&&reg.size>0&&L.every(e=>reg.has(e.k)===sel.has(e.k));
   const nsel=L.filter(on).length;
-  return `<div class="u-lus"><span class="u-lul">Lineups</span><span class="u-lubs"><button type="button" data-fk="${fk}" data-luset="all" class="${LU.all?'on':''}">Everything</button><button type="button" data-fk="${fk}" data-luset="reg" class="${regOn?'on':''}"${reg.size?'':' disabled'}>Only official</button></span>
-    <div class="u-luc">${show.map(e=>luChip(e,team,fk,L.indexOf(e),on(e))).join('')}${L.length>6?`<button type="button" class="u-lumore" data-luhero="${esc(fk)}">${open?'show less ▴':'+'+(L.length-6)+' more ▾'}</button>`:''}</div>
-    <small class="u-lus2">${nsel} of ${L.length} lineups selected · click a lineup to tick / untick it · pick-ups in <span class="lpk">yellow</span></small></div>`}
+  return luDD(fk||team,LU.all?`All lineups (${L.length})`:regOn?`Only official (${nsel})`:`${nsel} of ${L.length} lineups`,fk,LU.all,regOn,reg.size,`<div class="u-ddl">${L.map(e=>luChip(e,team,fk,L.indexOf(e),on(e))).join('')}</div>`)}
+// lineups as a drop-down list (stays open while you tick lineups)
+const LUDD=new Set();
+function luDD(k,label,fk,all,regOn,nreg,body){const op=LUDD.has(k);
+  return `<div class="u-lus"><div class="u-dd${op?' open':''}" data-luddw="${esc(k)}"><button type="button" class="u-ddb" data-ludd="${esc(k)}"><span class="u-lul">Lineups</span><b>${esc(label)}</b><i>▾</i></button>
+    ${op?`<div class="u-ddp"><div class="u-ddh"><span class="u-lubs"><button type="button" data-fk="${fk}" data-luset="all" class="${all?'on':''}">Everything</button><button type="button" data-fk="${fk}" data-luset="reg" class="${regOn?'on':''}"${nreg?'':' disabled'}>Only official</button></span><small>click a lineup to tick / untick it · pick-ups in <span class="lpk">yellow</span></small></div>${body}</div>`:''}</div></div>`}
+document.addEventListener('click',e=>{const t=e.target;if(!t.closest)return;const b=t.closest('[data-ludd]');
+  if(b){const k=b.dataset.ludd;if(LUDD.has(k))LUDD.delete(k);else LUDD.add(k);renderDetail();return}
+  if(LUDD.size&&!t.closest('.u-dd')&&document.contains(t)){LUDD.clear();renderDetail()}});
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-luhero]');if(!b)return;const k=b.dataset.luhero+'|hero';if(LUOPEN.has(k))LUOPEN.delete(k);else LUOPEN.add(k);renderDetail()});
 // comps: one row per set (result, map, bans + picks of each side, coins, rival); click = open the set
 function compRows(items,team0){if(!items||!items.length)return '<p class="msg u-none">No sets match the filters</p>';
@@ -2824,8 +2830,8 @@ function tsPair(){const A=ddBuild(sel.a,'a','A',false),B=ddBuild(sel.b,'b','B',f
   return `<div class="u-ts">${hero}${sub}${body}<p class="foot">Picks and wins count sets (single games and draws excluded). Win rate = wins / picks. With few sets the percentages swing a lot.</p></div>`}
 function luHeroPool(D){const P=D.LU&&D.LU.pool;if(!P||!P.n)return '';const on=e=>!P.sel||P.sel.has(e.k),reg=LUREG2.P||new Set(),regOn=!!P.sel&&reg.size>0&&LUK.P.every(k=>reg.has(k)===P.sel.has(k));
   const grp=P.order.map(t=>{const es=P.byT[t],open=LUOPEN.has('P|'+t+'|hero'),show=open?es:es.slice(0,4);return `<div class="u-lugrp"><span class="u-lugt" title="${esc(t)}">${logo(t,'l20')}<b>${esc(t)}</b></span><div class="u-luc">${show.map(e=>luChip(Object.assign({},e,{k:e.nm}),t,'P',LUK.P.indexOf(e.k),on(e))).join('')}${es.length>4?`<button type="button" class="u-lumore" data-luhero="${esc('P|'+t)}">${open?'show less ▴':'+'+(es.length-4)+' more ▾'}</button>`:''}</div></div>`}).join('');
-  return `<div class="u-lus"><span class="u-lul">Lineups</span><span class="u-lubs"><button type="button" data-fk="P" data-luset="all" class="${P.all?'on':''}">Everything</button><button type="button" data-fk="P" data-luset="reg" class="${regOn?'on':''}"${reg.size?'':' disabled'}>Only official</button></span>
-    <div class="u-lugrps">${grp}</div><small class="u-lus2">${P.nsel} of ${P.n} lineups selected · click a lineup to tick / untick it · pick-ups in <span class="lpk">yellow</span></small></div>`}
+  const body=P.order.map(t=>`<div class="u-ddg"><span class="u-lugt">${logo(t,'l20')}<b>${esc(t)}</b></span>${P.byT[t].map(e=>luChip(Object.assign({},e,{k:e.nm}),t,'P',LUK.P.indexOf(e.k),on(e))).join('')}</div>`).join('');
+  return luDD('P',P.all?`All lineups (${P.n})`:regOn?`Only official (${P.nsel})`:`${P.nsel} of ${P.n} lineups`,'P',P.all,regOn,reg.size,`<div class="u-ddl">${body}</div>`)}
 function tsPool(pt,label,cls,D,o){const C=tsAgg(D.items0),{pc,col,bar,top,row,none}=tsU;
   const logos=pt.map(t=>`<span title="${esc(t)}">${logo(t,'l28')}</span>`).join('');
   const hero=`<section class="u-hero"><div class="u-plogos">${logos}</div><div class="u-ht"><h1>${esc(label)} together</h1><p>${plural(C.N,'set')} in the period${D.luAct?' · lineup filter on':''} · each team counts its own sets</p></div>${tsTiles(C)}${luHeroPool(D)}</section>`;
@@ -7952,3 +7958,22 @@ body{padding-top:64px!important}@media (min-width:1200px){.sbar{top:64px!importa
 <style>table.rank td.heat{padding-right:16px!important;vertical-align:middle!important;line-height:1!important;white-space:nowrap}
 .wrb{margin:8px 0 0 auto!important;width:52px!important}</style>
 <style>table.rank td.heat{padding-left:10px!important;font-size:14.5px!important}.wrb{margin-top:9px!important}</style>
+<style id="rev111">
+:root{--display:'Inter','Segoe UI',system-ui,sans-serif!important;--body:'Inter','Segoe UI',system-ui,sans-serif!important;--mono:'Inter','Segoe UI',system-ui,sans-serif!important}
+body{font-family:var(--body)!important;font-feature-settings:'tnum' 1,'cv11' 1}
+.u-lus{position:relative}
+.u-dd{position:relative;display:inline-block}
+.u-ddb{display:flex;align-items:center;gap:10px;background:#0d0c12;border:1px solid #2a2838;border-radius:12px;padding:9px 14px;color:#fff;cursor:pointer;font:600 13px inherit}
+.u-ddb:hover,.u-dd.open .u-ddb{border-color:#a855f7}.u-ddb i{font-style:normal;color:#a78bfa;transition:transform .15s}.u-dd.open .u-ddb i{transform:rotate(180deg)}
+.u-ddp{position:absolute;left:0;top:calc(100% + 6px);z-index:60;width:min(560px,90vw);max-height:420px;overflow:auto;background:#15131d;border:1px solid #3b2a52;border-radius:14px;box-shadow:0 18px 40px rgba(0,0,0,.55);padding:10px;scrollbar-width:thin;scrollbar-color:#3b2a52 transparent}
+.u-ddh{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:2px 2px 10px;border-bottom:1px solid #24222f;margin-bottom:8px}.u-ddh small{font-size:11px;color:#8e8ab0}
+.u-ddl{display:flex;flex-direction:column;gap:4px}
+.u-ddl .luc{display:grid!important;grid-template-columns:18px minmax(0,1fr) auto;align-items:center;gap:10px;width:100%;max-width:none!important;background:transparent!important;border:1px solid transparent!important;border-radius:10px!important;padding:8px 10px!important;opacity:.6;color:#cfcce0;cursor:pointer;text-align:left}
+.u-ddl .luc:before{content:'';width:16px;height:16px;border-radius:5px;border:1.5px solid #4a4660;box-sizing:border-box}
+.u-ddl .luc.on{opacity:1;background:rgba(168,85,247,.10)!important}.u-ddl .luc.on:before{background:#a855f7 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.5l2.5 2.5L12 5.5' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E") center/12px no-repeat;border-color:#a855f7}
+.u-ddl .luc:hover{opacity:1;background:#1d1b27!important}
+.u-ddl .lucn{display:flex;flex-wrap:wrap;gap:0 6px;font-weight:600;font-size:12.5px;color:#fff}.u-ddl .lucn span+span:before{content:'·';margin-right:6px;color:#6e6a85}.u-ddl .lucn .lpk{color:#facc15}
+.u-ddl .lucf{display:flex;gap:10px;font-size:11.5px;color:#8e8ab0;white-space:nowrap}.u-ddl .lucf b{font-weight:500}.u-ddl .lucf i{font-style:normal;background:transparent!important;font-weight:800}.u-ddl .luoff{display:none}
+.u-ddg{display:flex;flex-direction:column;gap:2px;padding:6px 0;border-bottom:1px solid #1d1b27}.u-ddg:last-child{border:0}.u-ddg .u-lugt{padding:2px 4px 4px}
+.u-hero{overflow:visible!important}
+</style><style>.u-ddl .luc{flex:none!important;min-width:0!important;height:auto!important;box-shadow:none!important;border-color:transparent!important}.u-ddl .lucn{flex-direction:row!important;line-height:1.3}</style>
