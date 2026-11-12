@@ -27,7 +27,7 @@ window.API_SHEET_ID="1GCtGBZN25X8Smw7nftKooS-uM-afwLIA3P6OPB9YNnk";
   var list=fetch('https://docs.google.com/spreadsheets/d/'+window.API_SHEET_ID+'/gviz/tq?tqx=out:csv&sheet='+encodeURIComponent(TAB)+'&range=A1:A1000&headers=0',{cache:'no-store'})
     .then(function(r){return r.text()}).then(function(t){if(/^\s*</.test(t))throw 0;var R=csv(t);if(!R.length||!/^(usuarios?|users?|username)$/i.test(String(R[0][0]||'').trim()))throw 0;
       var S={};R.slice(1).forEach(function(x){var n=norm(x[0]);if(n)S[n]=String(x[0]).trim()});return S});
-  function open_(name){set(name);H.classList.remove('gated');var g=document.getElementById('gate');if(g)g.remove();window.__USER=name;
+  function open_(name){set(name);H.classList.remove('gated');var g=document.getElementById('gate');if(g)g.remove();window.__USER=name;try{track(name)}catch(e){}
     var put=function(){var host=document.querySelector('header.hero .herotext');if(!host){setTimeout(put,500);return}if(document.getElementById('userBadge'))return;var u=document.createElement('div');u.id='userBadge';
       u.style.cssText='margin-top:6px;font-size:12px;color:#9a97ad';u.innerHTML='👤 '+name.replace(/</g,'&lt;')+' · <a href="#" style="color:#c4b5fd">log out</a>';u.querySelector('a').onclick=function(e){e.preventDefault();window.uxLogout()};host.appendChild(u)};put()}
   function show(){var g=document.createElement('div');g.id='gate';
@@ -42,6 +42,30 @@ window.API_SHEET_ID="1GCtGBZN25X8Smw7nftKooS-uM-afwLIA3P6OPB9YNnk";
       function(){f.innerHTML='<h1>ANALYSIS SUGUS</h1><p>The access list could not be read.</p><div class="gerr">Ask the admin to check the USUARIOS tab of the sheet.</div>'})}
   if(document.body)show();else document.addEventListener('DOMContentLoaded',show);
   window.uxLogout=function(){set('');location.reload()};
+  // ---- visits: who uses the page, when, for how long and which tabs/teams (ACCESOS tab of the sheet)
+  function track(name){
+    var dev=/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)?'Móvil':'Ordenador';
+    var S=null,lastAct=Date.now(),lastSent='',hiddenAt=0;
+    var newVisit=function(){S={sid:Date.now().toString(36)+Math.random().toString(36).slice(2,8),start:new Date().toISOString(),mins:0,tabs:[],teams:[]};lastSent=''};
+    newVisit();
+    var LBL={stats:'Team stats',match:'Match Selector',card:'Card',scout:'Scouting',report:'Report',group:'Results',tier:'Tier List',caster:'Caster'},
+        VIEW={draft:'Draft',suggest:'Draft Suggestion',pred:'Team Predictor',bal:'Balance',check:'Data check',worlds:'Worlds bracket'};
+    var add=function(L,x){if(x&&L.indexOf(x)<0)L.push(x)};
+    var look=function(){try{if(!window.__uxState)return;var x=window.__uxState(),v=x.view,t=x.tab;
+        add(S.tabs,v==='stats'?(LBL[t]||t):(VIEW[v]||v));add(S.teams,x.team)}catch(e){}};
+    var send=function(beacon){try{
+        var c=window.__uxCfg?window.__uxCfg():null;if(!c||!c.url)return;
+        var body={token:c.token,action:'visit',user:name,sid:S.sid,start:S.start,mins:S.mins,tabs:S.tabs.join(', '),teams:S.teams.join(', '),device:dev},k=JSON.stringify([body.mins,body.tabs,body.teams]);
+        if(k===lastSent)return;lastSent=k;var js=JSON.stringify(body);
+        if(beacon&&navigator.sendBeacon)navigator.sendBeacon(c.url,new Blob([js],{type:'text/plain;charset=utf-8'}));
+        else fetch(c.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:js}).catch(function(){})}catch(e){}};
+    ['pointerdown','keydown','wheel','touchstart','scroll'].forEach(function(ev){addEventListener(ev,function(){lastAct=Date.now()},{passive:true,capture:true})});
+    // every 15 s: note the tab; a minute counts as used if the page is visible and was touched in the last 2 minutes
+    var ticks=0;setInterval(function(){if(document.hidden)return;look();ticks++;if(ticks%4===0&&Date.now()-lastAct<120000)S.mins++;if(ticks%8===0)send(false)},15000);
+    document.addEventListener('visibilitychange',function(){if(document.hidden){hiddenAt=Date.now();send(true)}else{if(hiddenAt&&Date.now()-hiddenAt>30*60000){newVisit();setTimeout(function(){look();send(false)},4000)}hiddenAt=0;lastAct=Date.now()}});
+    addEventListener('pagehide',function(){send(true)});
+    setTimeout(function(){look();send(false)},5000)}
+  window.__track=track;
 })();
 (function(){
   /* cache y filtros aparte de la pagina normal (mismo dominio) */
@@ -1335,6 +1359,30 @@ td.pkd{font-family:var(--mono,monospace);font-size:12px;color:#cfcce0}
 .cd-team{background:#0d0c12;border:1px solid #22202e;border-radius:12px;padding:6px 12px}
 .cd-team .cd-bs{border:0;background:none;padding:5px 0;border-radius:0}.cd-team .cd-bs+.cd-bs{border-top:1px dashed #22202e}
 .cd-team .cd-bs+.cd-bs .cd-bt b,.cd-team .cd-bs+.cd-bs .cd-bt img{visibility:hidden;height:0;margin:0;display:block}
+
+.tl-wrap{margin-top:14px;display:flex;flex-direction:column;gap:10px}
+.tl-ctl{display:flex;flex-direction:column;gap:8px;margin-bottom:6px}
+.tl-teams{display:flex;flex-wrap:wrap;align-items:center;gap:6px}.tl-teams .lbl{margin-right:4px}
+.tl-tm{background:#15141c;border:1px solid #2a2838;border-radius:9px;padding:4px;cursor:pointer;opacity:.45}.tl-tm.on,.tl-tm.all{opacity:1}.tl-tm.on{border-color:#a855f7;box-shadow:0 0 0 1px #a855f7}
+.tl-opts{display:flex;flex-wrap:wrap;gap:12px;align-items:center}.tl-opts select{margin-left:6px}
+.tl-src{font-size:11.5px;margin:0}
+.tl-row{display:grid;grid-template-columns:96px 1fr;border:1px solid #2a2838;border-radius:12px;overflow:hidden;background:linear-gradient(90deg,rgba(255,255,255,.02),transparent)}
+.tl-lab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border-right:1px solid #2a2838;padding:10px 4px}
+.tl-k{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;font:800 18px Inter,sans-serif;border:2px solid}
+.tl-lab small{font-size:10.5px;color:#8e8ab0}
+.tl-s .tl-k{color:#facc15;border-color:#facc15;background:rgba(250,204,21,.12)}.tl-s{border-color:rgba(250,204,21,.35)}
+.tl-a .tl-k{color:#4ade80;border-color:#4ade80;background:rgba(74,222,128,.12)}.tl-a{border-color:rgba(74,222,128,.3)}
+.tl-b .tl-k{color:#e5e3f0;border-color:#9a97ad;background:rgba(255,255,255,.06)}
+.tl-c .tl-k{color:#f87171;border-color:#f87171;background:rgba(248,113,113,.1)}.tl-n .tl-k{color:#6e6a85;border-color:#3a3650}
+.tl-g{display:flex;flex-wrap:wrap;gap:6px;padding:8px}
+.tl-t{width:66px;display:flex;flex-direction:column;align-items:center;gap:2px;background:#15141c;border:1px solid #2a2838;border-radius:9px;padding:5px 3px 4px;cursor:default}
+.tl-t .tl-i{width:52px!important;height:52px!important;border-radius:7px}.tl-t b{font-size:10.5px;max-width:62px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl-sc{font:800 13px var(--mono,monospace);color:#9a97ad}.tl-sc.s{color:#facc15}.tl-sc.a{color:#4ade80}.tl-sc.b{color:#e5e3f0}.tl-sc.c{color:#f87171}
+.tl-sc i{font-style:normal;font-size:9px;margin-left:2px}.tl-up{color:#4ade80}.tl-dn{color:#f87171}
+.tl-t.few{opacity:.5}
+@media(max-width:700px){.tl-row{grid-template-columns:64px 1fr}.tl-t{width:56px}.tl-t .tl-i{width:44px!important;height:44px!important}}
+.tl-dates{display:inline-flex;gap:10px;align-items:center;flex-wrap:wrap}.tl-dates label{font-size:12px;color:#8e8ab0;display:flex;align-items:center;gap:6px}
+.tl-dates input[type=date]{background:#0d0c12;border:1px solid #3a3650;border-radius:8px;color:#fff;padding:6px 8px;font:inherit;font-size:13px;color-scheme:dark}
 </style>
 
 <div class="wrap">
@@ -1415,6 +1463,7 @@ td.pkd{font-family:var(--mono,monospace);font-size:12px;color:#cfcce0}
       <button type="button" class="tabbtn" role="tab" data-tab="scout" aria-selected="false">Scouting</button>
       <button type="button" class="tabbtn" role="tab" data-tab="report" aria-selected="false">Report</button>
       <button type="button" class="tabbtn" role="tab" data-tab="group" aria-selected="false">Results</button>
+      <button type="button" class="tabbtn" role="tab" data-tab="tier" aria-selected="false">Tier List</button>
     </div>
     <div id="detail"></div>
   </section>
@@ -3845,7 +3894,7 @@ function uxShare(){const q=new URLSearchParams();q.set('v',view);if(view==='stat
   if(flt2.from)q.set('f',flt2.from);if(flt2.to)q.set('to',flt2.to);q.set('ty',flt2.type||'all');
   const url=location.origin+location.pathname+'#'+q.toString();
   const what=[{stats:'Team Stats',draft:'Draft',suggest:'Draft',pred:'Team Predictor',bal:'Balance',check:'Data check'}[view]||view];
-  if(view==='stats'){what.push({stats:'Team stats',match:'Match Selector',drafts:'Drafts',card:'Card',scout:'Scouting',group:'Results'}[tab]||tab);try{what.push(tab==='scout'?(SC.rival||curOne())+(SC.us?' vs '+SC.us:''):curOne())}catch(e){}}
+  if(view==='stats'){what.push({stats:'Team stats',match:'Match Selector',drafts:'Drafts',card:'Card',scout:'Scouting',group:'Results',tier:'Tier List'}[tab]||tab);try{what.push(tab==='scout'?(SC.rival||curOne())+(SC.us?' vs '+SC.us:''):curOne())}catch(e){}}
   if(view==='pred')what.push((sel.a||'')+' vs '+(sel.b||''));
   const done=()=>uxToast('Link copied: it opens '+what.join(' · ')+' · '+(RC.from?fmtDate(RC.from)+' – '+fmtDate(RC.to):''));
   if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(url).then(done,()=>{window.prompt('Copy this link:',url)});else window.prompt('Copy this link:',url)}
@@ -4010,12 +4059,63 @@ function groupTab(){
   const pmH=sec('Picks and maps of the selected teams together',`<div class="gt-pm"><div><p class="msg gt-st">Top 20 picks · ${NS} team-sets</p><div class="gt-scroll">${ptab(pk,'Brawler')}</div></div><div><p class="msg gt-st">Top 20 duos (same team)</p><div class="gt-scroll">${ptab(du,'Duo')}</div></div><div><p class="msg gt-st">Maps · most played first</p><div class="gt-scroll">${mapsH}</div></div></div>`,
     'Picks: sets of the selected teams where the brawler (or the duo) was used, each team counted on its own. Pick rate = % of those sets. Maps: sets played on each of the 18 rotation maps, coloured by mode.');
   return `<div class="gt">${h2h}${matches}${regH}${weekH}${pmH}</div>`}
+// ===== Tier List: meta score of every brawler from the drafts of the chosen teams
+const TL={teams:null,map:'',since:'patch',from:'',to:'',open:null};
+try{const x=JSON.parse(store.get('tvt:tier')||'null');if(x){TL.teams=x.teams||null;TL.map=x.map||'';TL.since=x.since||'patch';TL.from=x.from||'';TL.to=x.to||''}}catch(e){}
+const tlSave=()=>store.set('tvt:tier',JSON.stringify({teams:TL.teams,map:TL.map,since:TL.since,from:TL.from,to:TL.to}));
+const TL_W={pres:.5,wr:.3,prio:.2};
+function tlCalc(){const off=M.D.off,T=new Set(TL.teams&&TL.teams.length?TL.teams:off);
+  const cus=TL.since==='custom',ty=flt2.type||'all',okTy=m=>ty==='all'||(ty==='tournament'?m.ty==='tournament':m.ty!=='tournament');
+  const SRC=cus?((FULL&&FULL.matches)||[]).filter(m=>m.d&&(!TL.from||m.d>=TL.from)&&(!TL.to||m.d<=TL.to)&&okTy(m)):ds.matches;
+  const dates=SRC.map(m=>m.d).filter(Boolean).sort(),last=dates[dates.length-1]||'',patch=drPatchOf(last)||'';
+  const from=TL.since==='patch'&&patch?patch:'',L=Date.parse(last);
+  const R=wbRatings().r||{},rv=[...T].map(t=>R[t]).filter(x=>x!=null).sort((a,b)=>a-b);
+  const tw=t=>{const r=R[t];if(r==null||rv.length<2)return 1;const i=rv.indexOf(r);return .75+.5*(i/(rv.length-1))};
+  const B={},get=b=>B[b]||(B[b]={b,p:0,w:0,bn:0,pr:0,prn:0,rp:0,op:0,n:0});let S=0,Sb=0,Sr=0,So=0,nSets=0;const half=last?Date.parse(last)-7*864e5:0;
+  for(const m of SRC){if(m.s)continue;if(from&&m.d<from)continue;if(TL.map&&m.m!==TL.map)continue;
+    const sides=[['a',m.a,m.ba,m.y],['b',m.b,m.bb,1-m.y]].filter(x=>T.has(x[1]));if(!sides.length)continue;nSets++;
+    const rec=Math.pow(.5,(L-Date.parse(m.d))/864e5/14),SB=setBans(m),I=setInfo(m),recent=Date.parse(m.d)>half;
+    for(const [s,t,br,y] of sides){const w=rec*tw(t);S+=w;if(recent)Sr+=w;else So+=w;
+      for(const b of br||[])if(b){const e=get(b);e.p+=w;e.n++;if(y===1)e.w+=w;else if(y===.5)e.w+=w/2;if(recent)e.rp+=w;else e.op+=w;
+        if(I.first&&!I.po){const n=I.num[mkey(b)];if(n){e.pr+=w*(n===1?1:n<=3?.7:n<=5?.4:.2);e.prn+=w}}}
+      const bl=SB[s]||[];if(bl.some(Boolean)){Sb+=w;for(const b of bl)if(b){const e=get(b);e.bn+=w}}}}
+  const list=Object.values(B);
+  for(const e of list){e.pick=S?e.p/S:0;e.ban=Sb?e.bn/Sb:0;e.pres=Math.min(1,e.pick+e.ban);e.wr=(e.w+10*.5*2)/(e.p+20);e.prio=e.prn?e.pr/e.prn:.5;
+    e.trend=Sr>0&&So>0?(e.rp/Sr)-(e.op/So):0}
+  const mx=Math.max(.0001,...list.map(e=>e.pres));
+  for(const e of list){const wrN=Math.max(0,Math.min(1,(e.wr-.4)/.2));e.score=10*(TL_W.pres*Math.sqrt(e.pres/mx)+TL_W.wr*wrN+TL_W.prio*e.prio);e.few=e.n<5}
+  return {list:list.sort((a,b)=>b.score-a.score),S,Sb,nSets,from,patch,teams:[...T]}}
+function tierTab(){const C=tlCalc(),off=M.D.off,sel=new Set(TL.teams&&TL.teams.length?TL.teams:off),all=!(TL.teams&&TL.teams.length);
+  const maps=[...new Set(((TL.since==='custom'&&FULL&&FULL.matches)||ds.matches).map(m=>m.m).filter(Boolean))].sort();
+  const chips=off.map(t=>`<button type="button" class="tl-tm${sel.has(t)&&!all?' on':''}${all?' all':''}" data-tlt="${esc(t)}" title="${esc(t)}">${logo(t,'l28')}</button>`).join('');
+  const pc=x=>Math.round(100*x)+'%';
+  const tile=e=>{const sc=e.score.toFixed(1),cl=e.score>8?'s':e.score>6?'a':e.score>4?'b':'c',tr=e.trend>.05?'<i class="tl-up">▲</i>':e.trend<-.05?'<i class="tl-dn">▼</i>':'';
+    return `<div class="tl-t${e.few?' few':''}" title="${esc(e.b)} · meta score ${sc}\nPresence ${pc(e.pres)} (picked ${pc(e.pick)} + banned ${pc(e.ban)} of the drafts)\nWin rate ${pc(e.wr)} (adjusted, ${e.n} sets)\nPick priority ${e.prn?pc(e.prio):'unknown (no pick order set)'}${e.trend?'\nLast 7 days: '+(e.trend>0?'+':'')+Math.round(100*e.trend)+' pts of pick rate':''}${e.few?'\nFew sets: take it with care':''}">${bimg(e.b,'tl-i')}<b>${esc(e.b)}</b><span class="tl-sc ${cl}">${sc}${tr}</span></div>`};
+  const tiers=[['S','> 8',e=>e.score>8],['A','6.1 – 8',e=>e.score>6&&e.score<=8],['B','4.1 – 6',e=>e.score>4&&e.score<=6],['C','≤ 4',e=>e.score<=4]];
+  const seen=new Set(C.list.map(e=>mkey(e.b))),unseen=drNames().filter(n=>!seen.has(mkey(n)));
+  const rows=tiers.map(([k,rg,f])=>{const L=C.list.filter(f);return `<div class="tl-row tl-${k.toLowerCase()}"><div class="tl-lab"><span class="tl-k">${k}</span><small>${rg}</small><small>${L.length} brawlers</small></div><div class="tl-g">${L.map(tile).join('')||'<span class="msg">—</span>'}</div></div>`}).join('');
+  return `<div class="tl-wrap"><div class="tl-ctl">
+    <div class="tl-teams"><span class="lbl">Teams</span><button type="button" class="chip" data-tlall aria-pressed="${all}">All teams</button>${chips}</div>
+    <div class="tl-opts"><label class="lbl">Map <select data-tlmap><option value="">All maps</option>${maps.map(m=>`<option${m===TL.map?' selected':''}>${esc(m)}</option>`).join('')}</select></label>
+      <span class="seg2"><button type="button" data-tlsince="patch" aria-pressed="${TL.since==='patch'}">Since the last balance${C.patch?' ('+fmtDate(C.patch)+')':''}</button><button type="button" data-tlsince="period" aria-pressed="${TL.since==='period'}">Whole selected period</button><button type="button" data-tlsince="custom" aria-pressed="${TL.since==='custom'}">📅 Choose dates</button></span>
+      ${TL.since==='custom'?(()=>{const b=FULL&&FULL.matches&&FULL.matches.length?rangeOf(FULL):{mn:'',mx:''};return `<span class="tl-dates"><label>From <input type="date" data-tlfrom value="${esc(TL.from||'')}" min="${b.mn}" max="${b.mx}"></label><label>To <input type="date" data-tlto value="${esc(TL.to||'')}" min="${b.mn}" max="${b.mx}"></label>${TL.from||TL.to?'<button type="button" class="chip" data-tlclr>Clear</button>':''}</span>`})():''}</div>
+    <p class="msg tl-src">${plural(C.nSets,'set')} of ${all?'all the teams':plural(C.teams.length,'team')}${TL.map?' on '+esc(TL.map):''}${TL.since==='custom'?' · '+(TL.from?fmtDate(TL.from):'start')+' – '+(TL.to?fmtDate(TL.to):'today'):''} · meta score = presence (pick + ban rate) 50% + adjusted win rate 30% + pick priority 20% · recent sets and stronger teams weigh more · hover a brawler for the details · ▲▼ = pick rate of the last 7 days vs before · faded = fewer than 5 sets</p></div>
+    ${rows}${unseen.length?`<div class="tl-row tl-n"><div class="tl-lab"><span class="tl-k">–</span><small>not picked</small><small>${unseen.length} brawlers</small></div><div class="tl-g">${unseen.map(n=>`<div class="tl-t few">${bimg(n,'tl-i')}<b>${esc(n)}</b><span class="tl-sc">–</span></div>`).join('')}</div></div>`:''}</div>`}
+document.addEventListener('click',e=>{const t=e.target;if(!t.closest||tab!=='tier')return;
+  const a=t.closest('[data-tlall]');if(a){TL.teams=null;tlSave();renderDetail();return}
+  const b=t.closest('[data-tlt]');if(b){const x=b.dataset.tlt;let L=TL.teams&&TL.teams.length?TL.teams.slice():[];const i=L.indexOf(x);if(i>=0)L.splice(i,1);else L.push(x);TL.teams=L.length?L:null;tlSave();renderDetail();return}
+  const s=t.closest('[data-tlsince]');if(s){TL.since=s.dataset.tlsince;tlSave();renderDetail();return}
+  if(t.closest('[data-tlclr]')){TL.from='';TL.to='';tlSave();renderDetail()}});
+document.addEventListener('change',e=>{const t=e.target;if(!t.closest)return;const s=t.closest('[data-tlmap]');if(s){TL.map=s.value;tlSave();renderDetail();return}
+  if(t.matches('[data-tlfrom]')){TL.from=t.value;tlSave();renderDetail();return}if(t.matches('[data-tlto]')){TL.to=t.value;tlSave();renderDetail()}});
+// for the visit log (the access script outside reads where the user is)
+window.__uxState=()=>{let tm='';try{if(view==='stats'){if(tab==='report')tm=RP.team;else if(tab==='stats'||tab==='card'||tab==='scout'){if(scope==='one')tm=curOne();else if(poolTeams&&poolTeams.length)tm=poolTeams.slice(0,4).join(' + ')}}}catch(e){}return {view,tab,team:tm||''}};
 function renderDetail(){
   uxApplyHash();if(tab==='scout')uxSyncScout();
   document.querySelectorAll('.tabbtn').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===tab?'true':'false'));
-  $('statsscope').innerHTML=(tab==='scout'||tab==='report'||tab==='match'||tab==='caster')?'':scopeWithMaps();$('statsscope').hidden=view!=='stats'||tab==='scout'||tab==='report'||tab==='match'||tab==='caster';tselPaint();
-  const nd=tab!=='drafts'&&tab!=='scout'&&tab!=='report'&&tab!=='match'&&tab!=='caster'&&((scope==='one'&&!M.D.off.includes(curOne()))||(scope==='pool'&&poolTeams&&!poolTeams.some(t=>M.D.off.includes(t))));
-  $('detail').innerHTML=nd?'<div class="nodata">NO DATA</div>':tab==='stats'?statsTab():tab==='players'?playersTab():tab==='drafts'?draftsTab():tab==='card'?cardTab():tab==='scout'?scoutHTML():tab==='report'?reportHTML():tab==='group'?groupTab():tab==='caster'?casterTab():datesTab();
+  $('statsscope').innerHTML=(tab==='scout'||tab==='report'||tab==='match'||tab==='caster'||tab==='tier')?'':scopeWithMaps();$('statsscope').hidden=view!=='stats'||tab==='scout'||tab==='report'||tab==='match'||tab==='caster'||tab==='tier';tselPaint();
+  const nd=tab!=='drafts'&&tab!=='scout'&&tab!=='report'&&tab!=='match'&&tab!=='caster'&&tab!=='tier'&&((scope==='one'&&!M.D.off.includes(curOne()))||(scope==='pool'&&poolTeams&&!poolTeams.some(t=>M.D.off.includes(t))));
+  $('detail').innerHTML=nd?'<div class="nodata">NO DATA</div>':tab==='stats'?statsTab():tab==='players'?playersTab():tab==='drafts'?draftsTab():tab==='card'?cardTab():tab==='scout'?scoutHTML():tab==='report'?reportHTML():tab==='group'?groupTab():tab==='caster'?casterTab():tab==='tier'?tierTab():datesTab();
   applyView();decorateTiles();tselPaint();if(tab==='caster')requestAnimationFrame(casFit);uxPost();
 }
 $('statsscope').addEventListener('click',e=>{
@@ -4216,7 +4316,7 @@ const GV={
   async count(){const q=encodeURIComponent('select count(A)');
     const rows=await gviz('sheet='+encodeURIComponent(SHEET.tab)+'&headers=1&tq='+q);return +(rows[1]&&rows[1][0])||0},
   // CONFIG tab: a row with 'PERMANENT ROWS' in column A and the number of the last permanent sheet row in column B
-  async config(){const rows=await gviz('sheet=CONFIG&range=A1:B20&headers=0');for(const r of rows){if(/perm/i.test(r[0]||'')){const n=parseInt(String(r[1]||'').replace(/[^\d]/g,''));if(n>1)return n}}return 0},
+  async config(){const rows=await gviz('sheet=CONFIG&range=A1:B20&headers=0');this._ver='';for(const r of rows)if(/data version/i.test(r[0]||''))this._ver=String(r[1]||'').trim();for(const r of rows){if(/perm/i.test(r[0]||'')){const n=parseInt(String(r[1]||'').replace(/[^\d]/g,''));if(n>1)return n}}return 0},
   async picks(){let rows=await gviz('sheet='+encodeURIComponent(SHEET.picks)+'&range=B2:AD400&headers=0');
     while(rows.length&&(rows[0].every(x=>x==='')||(rows[0][0]==='B'&&rows[0][1]==='C')))rows.shift();return rows}
 };
@@ -4320,13 +4420,15 @@ async function syncSheet(full){
   try{
     const mcp=await getMcp();
     setStatus('Connecting to Google Sheets…',false,3);
-    let PM=0;try{PM=await GV.config()}catch(e){}if(!PM)PM=PERM_ROWS;
+    let PM=0;try{PM=await GV.config()}catch(e){}if(!PM)PM=PERM_ROWS;const DV=GV._ver||'';
     const cr=await mcp.callTool(SHEET.server,'get_values',{spreadsheetId:SHEET.id,range:`'${SHEET.tab}'!A2:A`},{cache:false});
     const cnt=((cr&&cr.payload&&cr.payload.values)||[]).length||1;
     // automatic refreshes keep the rows already downloaded and only read what is new (everything after the permanent row given in the CONFIG tab is read again); Refresh Whole Document reads everything
     let base=[],from=2;const cache=full?null:await idbGet('raw');
     let note='whole document (no saved copy in this browser yet, so the next refreshes will be quicker)';if(full)note='whole document';
-    if(cache&&Array.isArray(cache.rows)&&cache.rows.length>100){
+    // old rows were changed in the sheet (days recalculated, bans added…): the saved copy is not valid any more
+    if(cache&&DV&&cache.ver!==DV)note='whole document (old rows were updated in the sheet)';
+    if(cache&&Array.isArray(cache.rows)&&cache.rows.length>100&&(!DV||cache.ver===DV)){
       const perm=PM;
       const keep=Math.min(perm-1,cache.rows.length);
       // the last permanent row of the sheet must still be the one stored: if it is not, rows were added or deleted in the permanent part
@@ -4345,14 +4447,14 @@ async function syncSheet(full){
     nds.missing=pk?pk.missing:[];nds.picksSig=pk?PSIG(pk):SIG(official);if(pk){nds.pickTags=pk.tags;nds.pickPlayers=pk.players;nds.selected=pk.selected;nds.teamMeta=pk.meta}
     if(pk&&pk.types.length>20){nds.btypes=pk.types;BTYPE=setTypes(pk.types)}
     if(nds.matches.length<1)throw new Error('only '+nds.matches.length+' valid sets found in the sheet');
-    nds.perm=PM;nds.tailSig=rowsSig(raw.slice(volStart(raw.length,PM)));
+    nds.perm=PM;nds.dver=DV;nds.tailSig=rowsSig(raw.slice(volStart(raw.length,PM)));
     nds.source='Google Sheets';nds.syncedAt=Date.now();nds.sheetRows=raw.length;nds.syncNote=note+' · '+num(rd.length)+' rows read';
     await idbSet('sheet',{ds:nds});
     store.set('tvt:src','sheet');store.del('tvt:ds');
     sheetBusy=false;sheetBtns(false);lastCheck=Date.now();
     setStatus('Building the page…',false,92);await new Promise(r=>setTimeout(r,20));
     build(nds,true);
-    idbSet('raw',{rows:raw});
+    idbSet('raw',{rows:raw,ver:DV});
     return;
   }catch(e){setStatus(sheetMsg(e),true)}
   sheetBusy=false;sheetBtns(false);
@@ -4378,6 +4480,7 @@ async function sheetCheck(){
     if(n>1){ // same number of rows: was something edited after the permanent rows?
       let pm=0;try{pm=await GV.config()}catch(e){}if(!pm)pm=PERM_ROWS;
       if(FULL.perm&&pm!==FULL.perm){autoSync();return} // the CONFIG row number was changed
+      if(GV._ver&&GV._ver!==(FULL.dver||'')){autoSync();return} // old rows were updated in the sheet
       const a=volStart(n,pm)+2,vr=await readSheet(mcp,()=>{},a); // same read as "Refresh games"
       const sg=rowsSig(vr);
       if(!FULL.tailSig||!FULL.perm){FULL.perm=pm;FULL.tailSig=sg} // data saved by an older version of the page: this is the starting point
@@ -4402,7 +4505,7 @@ function updateSheetInfo(){
 // ===== Drafts =====
 const DR_HEAD=['Id','Date','Mode','Map','Coin','Blue','Red','BlueBan1','BlueBan2','BlueBan3','RedBan1','RedBan2','RedBan3','Pick1','Pick2','Pick3','Pick4','Pick5','Pick6','BlueGlobal1','BlueGlobal2','RedGlobal1','RedGlobal2','Winner','Notes','Saved'];
 const DRAFT_API={url:'https://script.google.com/macros/s/AKfycbwDBOrumF2pEIsbS3IhyuQ71k1nl-znai4E7C1jVcpR5zQk_ke5ZtlAZEeepn-86D4lDA/exec',token:'SUGUS'}; // filled in once the Apps Script web app is deployed
-const drCfg=()=>({url:DRAFT_API.url||store.get('tvt:drurl')||'',token:DRAFT_API.token||store.get('tvt:drtok')||''});
+const drCfg=()=>({url:DRAFT_API.url||store.get('tvt:drurl')||'',token:DRAFT_API.token||store.get('tvt:drtok')||''});window.__uxCfg=drCfg;
 const DR={fPer:store.get('tvt:drper')||'',fOrder:'',list:[],local:[],loaded:false,err:'',cur:null,pop:null,confirm:null,fTeam:'',fMap:'',sMap:'',sCoin:'',eMode:'team',bComb:'trios',gComb:'single',link:null,busy:false,msg:'',bad:false};
 try{DR.list=JSON.parse(store.get('tvt:drafts')||'[]')}catch(e){}
 try{DR.local=JSON.parse(store.get('tvt:drlocal')||'[]')}catch(e){}
@@ -6516,7 +6619,7 @@ body{padding-bottom:50px}
 <script>
 (function(){
   // [label, main section, Team Stats tab]
-  const T=[['Team Stats','stats','stats'],['Match Selector','stats','match'],['Card','stats','card'],['Scouting','stats','scout'],['Results','stats','group'],null,
+  const T=[['Team Stats','stats','stats'],['Match Selector','stats','match'],['Card','stats','card'],['Scouting','stats','scout'],['Results','stats','group'],['Tier List','stats','tier'],null,
            ['Draft','draft'],['Team Predictor','pred'],['Balance','bal'],['Data check','check'],['Worlds bracket','worlds']];
   const bar=document.getElementById('sheetbar');if(!bar)return;
   bar.innerHTML=T.map((t,i)=>t?`<button type="button" class="sb-t${t[2]&&t[2]!=='stats'?' sb-sub':''}" data-sb="${i}">${t[0]}</button>`:'<span class="sb-sep"></span>').join('');
