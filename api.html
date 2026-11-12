@@ -3046,6 +3046,7 @@ function mxModal(e){if(!e)return;const L=e.sets,nm=g=>sheetName(g,(ds.names||{})
     <div class="gm-ft"><button type="button" class="btn" data-gmclose>Close</button></div></div>`;
   ov.classList.add('on')}
 // all matches (sets vs the same rival) on a day; listed team on the left (the chosen team when there is one)
+const MX_GAP=90;
 function mxMatches(d,team){const T=new Set(allTeams()),G={},nm=g=>sheetName(g,(ds.names||{})[g])||g;
   for(const m of ds.matches){if(m.s||m.d!==d)continue;const ia=T.has(m.a),ib=T.has(m.b);if(!ia&&!ib)continue;
     if(team&&m.a!==team&&m.b!==team)continue;
@@ -3053,10 +3054,14 @@ function mxMatches(d,team){const T=new Set(allTeams()),G={},nm=g=>sheetName(g,(d
     const k=A+'|'+(bl?B:'?'+B),e=G[k]||(G[k]={a:A,b:bl?B:'',bp:new Set(),sets:[],w:0,l:0});
     e.sets.push({m,L});const y=L?m.y:1-m.y;if(y===1)e.w++;else if(y===0)e.l++;
     if(!bl)for(const g of ((L?m.tb:m.ta)||[]))if(g)e.bp.add(nm(g))}
+  // the same two teams can play more than one scrim in a day: a gap of more than MX_GAP minutes between two sets starts a new match
+  const GG=[];for(const e of Object.values(G)){e.sets.sort((p,q)=>p.m.t-q.m.t);let cur=null,end=-1;
+    for(const x of e.sets){if(!cur||x.m.t-end>MX_GAP*60){cur={a:e.a,b:e.b,bp:e.bp,sets:[],w:0,l:0};GG.push(cur)}
+      cur.sets.push(x);const y=x.L?x.m.y:1-x.m.y;if(y===1)cur.w++;else if(y===0)cur.l++;end=Math.max(end,x.m.last||x.m.t)}}
   // the team that won the match always on the left
   // a draw: alphabetical order from left to right (A–Z); a rival that is not on the list stays on the right
-  for(const e of Object.values(G))if(e.l>e.w||(e.l===e.w&&e.a&&e.b&&e.b.localeCompare(e.a)<0)){e.ap=e.bp;e.bp=new Set();const a=e.a;e.a=e.b;e.b=a;const w=e.w;e.w=e.l;e.l=w;for(const x of e.sets)x.L=!x.L}
-  return Object.values(G).map(e=>{e.sets.sort((p,q)=>p.m.t-q.m.t);e.t0=e.sets[0].m.t;e.t1=Math.max(...e.sets.map(x=>x.m.last||x.m.t));return e}).sort((p,q)=>p.t0-q.t0)}
+  for(const e of GG)if(e.l>e.w||(e.l===e.w&&e.a&&e.b&&e.b.localeCompare(e.a)<0)){e.ap=e.bp;e.bp=new Set();const a=e.a;e.a=e.b;e.b=a;const w=e.w;e.w=e.l;e.l=w;for(const x of e.sets)x.L=!x.L}
+  return GG.map(e=>{e.sets.sort((p,q)=>p.m.t-q.m.t);e.t0=e.sets[0].m.t;e.t1=Math.max(...e.sets.map(x=>x.m.last||x.m.t));return e}).sort((p,q)=>p.t0-q.t0)}
 function datesTab(){
   const IX=msIndex(),dates=Object.keys(IX).sort().reverse().map(d=>({d,n:Object.keys(IX[d]).length,rivals:0}));
   if(!dates.length)return '<p class="msg" style="margin-top:12px">There are no sets in the data for this period.</p>';
