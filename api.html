@@ -1383,6 +1383,31 @@ td.pkd{font-family:var(--mono,monospace);font-size:12px;color:#cfcce0}
 @media(max-width:700px){.tl-row{grid-template-columns:64px 1fr}.tl-t{width:56px}.tl-t .tl-i{width:44px!important;height:44px!important}}
 .tl-dates{display:inline-flex;gap:10px;align-items:center;flex-wrap:wrap}.tl-dates label{font-size:12px;color:#8e8ab0;display:flex;align-items:center;gap:6px}
 .tl-dates input[type=date]{background:#0d0c12;border:1px solid #3a3650;border-radius:8px;color:#fff;padding:6px 8px;font:inherit;font-size:13px;color-scheme:dark}
+
+.tl-t[data-tlb]{cursor:pointer}.tl-t[data-tlb]:hover{border-color:#a855f7}
+.gm.tlm{width:min(1240px,96vw);max-height:95vh}
+.tld-body{overflow:auto;padding:6px 20px 16px}
+.tld-top{display:flex;align-items:center;gap:16px;margin-bottom:12px}.tld-img{width:84px!important;height:84px!important;border-radius:12px}
+.tld-nm{display:flex;align-items:center;gap:14px}.tld-nm h2{margin:0;font-size:28px}
+.tld-ks{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:18px}
+.tld-k{background:#121118;border:1px solid #2a2838;border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:3px}
+.tld-k small{font-size:11.5px;color:#9a97ad}.tld-k b{font:800 20px var(--mono,monospace);color:#4ade80}.tld-k i{font-style:normal;font-size:10.5px;color:#8e8ab0}
+.tld-h{font-size:12px;letter-spacing:.06em;color:#c4b5fd;text-transform:uppercase;font-weight:700;margin:2px 0 6px}.tld-h.big{color:#4ade80;font-size:14px}.tld-h small{text-transform:none;letter-spacing:0;color:#8e8ab0;font-weight:500}
+.tld-svg{width:100%;height:220px;display:block;margin-bottom:16px}
+.tld-g{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.tld-c{background:#0d0c12;border:1px solid #22202e;border-radius:12px;padding:10px}
+.tld-c table{width:100%}.tld-sm{display:block;font-size:10px;color:#8e8ab0;font-weight:500}
+.tld-mi{width:18px;height:18px;vertical-align:-4px;margin-right:6px}
+.tld-po{display:flex;align-items:flex-end;justify-content:space-around;height:110px;padding-top:6px}.tld-po div{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px}
+.tld-po span{width:22px;background:#a855f7;border-radius:4px 4px 0 0;display:block}.tld-po small{color:#9a97ad;font-size:10px}
+@media(max-width:900px){.tld-ks{grid-template-columns:repeat(2,1fr)}.tld-g{grid-template-columns:1fr}}
+.tld-c .rank td:not(.heat){background:transparent!important;color:#e5e3f0!important}.tld-c .rank td{padding:5px 6px;border-radius:0}
+.tld-c .rank td.num{font-family:var(--mono,monospace);white-space:nowrap}.tld-c .rank td.heat{border-radius:6px;font-weight:700}.tld-c .rank tr+tr td{border-top:1px solid #1d1b27}
+.tld-c .rank td.ic b{font-size:12.5px}
+.tld-c .rank td.tld-pl{position:relative;overflow:hidden;padding-left:10px}
+.tld-bg{position:absolute;right:-6px;top:50%;transform:translateY(-50%);opacity:.18;pointer-events:none;display:flex}
+.tld-bg img{width:46px!important;height:46px!important;object-fit:contain}
+.tld-pl b,.tld-pl small{position:relative}
 </style>
 
 <div class="wrap">
@@ -3016,7 +3041,7 @@ function mxModal(e){if(!e)return;const L=e.sets,nm=g=>sheetName(g,(ds.names||{})
   const rvN=e.b||[...e.bp].slice(0,3).join(' / ')||'Rival';
   let ov=document.getElementById('gmOv');if(!ov){ov=document.createElement('div');ov.id='gmOv';document.body.appendChild(ov)}
   ov.innerHTML=`<div class="gm cdw" role="dialog" aria-label="Scrim"><div class="gm-top"><span class="gm-date">${fmtDate(dateSel)} · ${mxHM(e.t0)}–${mxHM(e.t1)}</span><button type="button" class="gm-close" data-gmclose aria-label="Close">✕</button></div>
-    <div class="gm-hd"><span class="gm-t">${logo(e.a,'gm-lg')}<b>${esc(e.a)}</b></span><span class="gm-sc"><b class="${e.w>e.l?'w':''}">${e.w}</b> – <b class="${e.l>e.w?'w':''}">${e.l}</b></span><span class="gm-t r"><b>${esc(rvN)}</b>${e.b?logo(e.b,'gm-lg'):''}</span></div>
+    <div class="gm-hd"><span class="gm-t">${e.a?logo(e.a,'gm-lg')+`<b>${esc(e.a)}</b>`:`<b>${esc([...(e.ap||[])].slice(0,3).join(' / ')||'Rival')}</b>`}</span><span class="gm-sc"><b class="${e.w>e.l?'w':''}">${e.w}</b> – <b class="${e.l>e.w?'w':''}">${e.l}</b></span><span class="gm-t r"><b>${esc(rvN)}</b>${e.b?logo(e.b,'gm-lg'):''}</span></div>
     ${cdBody(L.map(x=>({m:x.m,L:x.L})))}
     <div class="gm-ft"><button type="button" class="btn" data-gmclose>Close</button></div></div>`;
   ov.classList.add('on')}
@@ -3028,6 +3053,9 @@ function mxMatches(d,team){const T=new Set(allTeams()),G={},nm=g=>sheetName(g,(d
     const k=A+'|'+(bl?B:'?'+B),e=G[k]||(G[k]={a:A,b:bl?B:'',bp:new Set(),sets:[],w:0,l:0});
     e.sets.push({m,L});const y=L?m.y:1-m.y;if(y===1)e.w++;else if(y===0)e.l++;
     if(!bl)for(const g of ((L?m.tb:m.ta)||[]))if(g)e.bp.add(nm(g))}
+  // the team that won the match always on the left
+  // a draw: alphabetical order from left to right (A–Z); a rival that is not on the list stays on the right
+  for(const e of Object.values(G))if(e.l>e.w||(e.l===e.w&&e.a&&e.b&&e.b.localeCompare(e.a)<0)){e.ap=e.bp;e.bp=new Set();const a=e.a;e.a=e.b;e.b=a;const w=e.w;e.w=e.l;e.l=w;for(const x of e.sets)x.L=!x.L}
   return Object.values(G).map(e=>{e.sets.sort((p,q)=>p.m.t-q.m.t);e.t0=e.sets[0].m.t;e.t1=Math.max(...e.sets.map(x=>x.m.last||x.m.t));return e}).sort((p,q)=>p.t0-q.t0)}
 function datesTab(){
   const IX=msIndex(),dates=Object.keys(IX).sort().reverse().map(d=>({d,n:Object.keys(IX[d]).length,rivals:0}));
@@ -3040,7 +3068,7 @@ function datesTab(){
   const tn=e=>e.b?`${logo(e.b,'l28')}<b>${esc(e.b)}</b>`:`<span class="mx-pp">${esc([...e.bp].slice(0,3).join(' · ')||'Rival')}</span>`;
   const rows=L.map((e,i)=>{const op=false;
     const modes=[...new Set(e.sets.map(x=>modeOfMap(x.m.m)))].map(md=>{const mi=IMGS['mode'+mkey(md)];return mi?`<img class="mx-mm" src="${mi}" title="${esc(md)}" alt="">`:''}).join('');
-    return `<tr class="mx-tr${op?' on':''}" data-mxo="${i}"><td class="mx-time">${mxHM(e.t0)}–${mxHM(e.t1)}</td><td class="mx-ta">${logo(e.a,'l28')}<b>${esc(e.a)}</b></td>
+    return `<tr class="mx-tr${op?' on':''}" data-mxo="${i}"><td class="mx-time">${mxHM(e.t0)}–${mxHM(e.t1)}</td><td class="mx-ta">${e.a?`${logo(e.a,'l28')}<b>${esc(e.a)}</b>`:`<span class="mx-pp">${esc([...(e.ap||[])].slice(0,3).join(' · ')||'Rival')}</span>`}</td>
       <td class="mx-sc"><b class="${e.w>e.l?'w':e.w<e.l?'l':''}">${e.w}</b>–<b class="${e.l>e.w?'w':e.l<e.w?'l':''}">${e.l}</b></td><td class="mx-tb">${tn(e)}</td><td class="num">${e.sets.length}</td><td class="mx-mds">${modes}</td><td class="mx-cc">↗</td></tr>
 `}).join('');
   return `<div class="mpickrow msrow" style="margin-top:14px"><div class="dbox msdate"><button type="button" class="dbtn${calOpen?' open':''}" data-calopen="1" aria-expanded="${calOpen}"><span class="dl">Date</span><b>${fmtDate(dateSel)}</b><small>${plural(dayT.length,'team')} played</small><span class="dcar">▾</span></button>${calOpen?`<div class="calpop">${calendarHTML(played,dates)}</div>`:''}</div>
@@ -4064,33 +4092,102 @@ const TL={teams:null,map:'',since:'patch',from:'',to:'',open:null};
 try{const x=JSON.parse(store.get('tvt:tier')||'null');if(x){TL.teams=x.teams||null;TL.map=x.map||'';TL.since=x.since||'patch';TL.from=x.from||'';TL.to=x.to||''}}catch(e){}
 const tlSave=()=>store.set('tvt:tier',JSON.stringify({teams:TL.teams,map:TL.map,since:TL.since,from:TL.from,to:TL.to}));
 const TL_W={pres:.5,wr:.3,prio:.2};
-function tlCalc(){const off=M.D.off,T=new Set(TL.teams&&TL.teams.length?TL.teams:off);
-  const cus=TL.since==='custom',ty=flt2.type||'all',okTy=m=>ty==='all'||(ty==='tournament'?m.ty==='tournament':m.ty!=='tournament');
-  const SRC=cus?((FULL&&FULL.matches)||[]).filter(m=>m.d&&(!TL.from||m.d>=TL.from)&&(!TL.to||m.d<=TL.to)&&okTy(m)):ds.matches;
-  const dates=SRC.map(m=>m.d).filter(Boolean).sort(),last=dates[dates.length-1]||'',patch=drPatchOf(last)||'';
-  const from=TL.since==='patch'&&patch?patch:'',L=Date.parse(last);
-  const R=wbRatings().r||{},rv=[...T].map(t=>R[t]).filter(x=>x!=null).sort((a,b)=>a-b);
-  const tw=t=>{const r=R[t];if(r==null||rv.length<2)return 1;const i=rv.indexOf(r);return .75+.5*(i/(rv.length-1))};
-  const B={},get=b=>B[b]||(B[b]={b,p:0,w:0,bn:0,pr:0,prn:0,rp:0,op:0,n:0});let S=0,Sb=0,Sr=0,So=0,nSets=0;const half=last?Date.parse(last)-7*864e5:0;
-  for(const m of SRC){if(m.s)continue;if(from&&m.d<from)continue;if(TL.map&&m.m!==TL.map)continue;
+function tlSrc(){const ty=flt2.type||'all',okTy=m=>ty==='all'||(ty==='tournament'?m.ty==='tournament':m.ty!=='tournament');
+  return TL.since==='custom'?((FULL&&FULL.matches)||[]).filter(m=>m.d&&(!TL.from||m.d>=TL.from)&&(!TL.to||m.d<=TL.to)&&okTy(m)):ds.matches}
+function tlTW(T){const R=wbRatings().r||{},rv=[...T].map(t=>R[t]).filter(x=>x!=null).sort((a,b)=>a-b);
+  return t=>{const r=R[t];if(r==null||rv.length<2)return 1;const i=rv.indexOf(r);return .75+.5*(i/(rv.length-1))}}
+// bans and pick order of a set, cached (the same sets are scored many times for the history)
+let _tpW=new WeakMap(),_tpV=-1;
+function tlPM(m){if(_tpV!==DRV){_tpW=new WeakMap();_tpV=DRV}let v=_tpW.get(m);if(!v){const I=setInfo(m);v={SB:setBans(m),num:I.first&&!I.po?I.num:null};_tpW.set(m,v)}return v}
+// meta score of every brawler over a list of sets (only the sides of the teams in T)
+function tlCore(SRC,T,from,last,tw){const L=Date.parse(last);
+  const B={},get=b=>B[b]||(B[b]={b,p:0,w:0,bn:0,pr:0,prn:0,rp:0,op:0,n:0,nw:0});let S=0,Sb=0,Sr=0,So=0,nSets=0;const half=last?L-7*864e5:0;
+  for(const m of SRC){if(m.s)continue;if(from&&m.d<from)continue;if(last&&m.d>last)continue;if(TL.map&&m.m!==TL.map)continue;
     const sides=[['a',m.a,m.ba,m.y],['b',m.b,m.bb,1-m.y]].filter(x=>T.has(x[1]));if(!sides.length)continue;nSets++;
-    const rec=Math.pow(.5,(L-Date.parse(m.d))/864e5/14),SB=setBans(m),I=setInfo(m),recent=Date.parse(m.d)>half;
+    const md=Date.parse(m.d),rec=Math.pow(.5,(L-md)/864e5/14),PM_=tlPM(m),SB=PM_.SB,recent=md>half;
     for(const [s,t,br,y] of sides){const w=rec*tw(t);S+=w;if(recent)Sr+=w;else So+=w;
-      for(const b of br||[])if(b){const e=get(b);e.p+=w;e.n++;if(y===1)e.w+=w;else if(y===.5)e.w+=w/2;if(recent)e.rp+=w;else e.op+=w;
-        if(I.first&&!I.po){const n=I.num[mkey(b)];if(n){e.pr+=w*(n===1?1:n<=3?.7:n<=5?.4:.2);e.prn+=w}}}
+      for(const b of br||[])if(b){const e=get(b);e.p+=w;e.n++;if(y===1){e.w+=w;e.nw++}else if(y===.5)e.w+=w/2;if(recent)e.rp+=w;else e.op+=w;
+        if(PM_.num){const n=PM_.num[mkey(b)];if(n){e.pr+=w*(n===1?1:n<=3?.7:n<=5?.4:.2);e.prn+=w}}}
       const bl=SB[s]||[];if(bl.some(Boolean)){Sb+=w;for(const b of bl)if(b){const e=get(b);e.bn+=w}}}}
   const list=Object.values(B);
-  for(const e of list){e.pick=S?e.p/S:0;e.ban=Sb?e.bn/Sb:0;e.pres=Math.min(1,e.pick+e.ban);e.wr=(e.w+10*.5*2)/(e.p+20);e.prio=e.prn?e.pr/e.prn:.5;
+  for(const e of list){e.pick=S?e.p/S:0;e.ban=Sb?e.bn/Sb:0;e.pres=Math.min(1,e.pick+e.ban);e.wr=(e.w+10)/(e.p+20);e.prio=e.prn?e.pr/e.prn:.5;
     e.trend=Sr>0&&So>0?(e.rp/Sr)-(e.op/So):0}
   const mx=Math.max(.0001,...list.map(e=>e.pres));
   for(const e of list){const wrN=Math.max(0,Math.min(1,(e.wr-.4)/.2));e.score=10*(TL_W.pres*Math.sqrt(e.pres/mx)+TL_W.wr*wrN+TL_W.prio*e.prio);e.few=e.n<5}
-  return {list:list.sort((a,b)=>b.score-a.score),S,Sb,nSets,from,patch,teams:[...T]}}
-function tierTab(){const C=tlCalc(),off=M.D.off,sel=new Set(TL.teams&&TL.teams.length?TL.teams:off),all=!(TL.teams&&TL.teams.length);
+  return {list:list.sort((a,b)=>b.score-a.score),S,Sb,nSets}}
+function tlCalc(){const off=M.D.off,T=new Set(TL.teams&&TL.teams.length?TL.teams:off),SRC=tlSrc();
+  const dates=SRC.map(m=>m.d).filter(Boolean).sort(),last=dates[dates.length-1]||'',patch=drPatchOf(last)||'';
+  const from=TL.since==='patch'&&patch?patch:'';const C=tlCore(SRC,T,from,last,tlTW(T));
+  return Object.assign(C,{from,patch,last,teams:[...T],T,SRC})}
+// ---- one brawler: rank history and its tables
+let TLC=null;
+function tlHist(b,C){const T=C.T,tw=tlTW(T),ty=flt2.type||'all',okTy=m=>ty==='all'||(ty==='tournament'?m.ty==='tournament':m.ty!=='tournament');
+  const all=((FULL&&FULL.matches)||[]).filter(m=>!m.s&&m.d&&okTy(m)&&(!TL.map||m.m===TL.map)&&(T.has(m.a)||T.has(m.b)));
+  const end=C.last||todayISO(),out=[],k=mkey(b);
+  const first=addDays(end,-42),pool=all.filter(m=>m.d>=first&&m.d<=end);
+  for(let i=29;i>=0;i--){const d=addDays(end,-i),from=addDays(d,-13),sub=pool.filter(m=>m.d>=from&&m.d<=d);if(!sub.length){out.push({d,r:null});continue}
+    const L=tlCore(sub,T,'',d,tw).list,r=L.findIndex(e=>mkey(e.b)===k);out.push({d,r:r>=0?r+1:null,n:L.length})}
+  return out}
+function tlDetail(b){const C=TLC||tlCalc(),k=mkey(b),T=C.T,nm=g=>sheetName(g,(ds.names||{})[g])||g;
+  const e=C.list.find(x=>mkey(x.b)===k)||{b,score:0,pick:0,ban:0,n:0,nw:0,wr:.5},rank=C.list.findIndex(x=>mkey(x.b)===k)+1;
+  const P={},TM={},TS={},DU={},EN={},MP={},PO={},BN={};let n=0;const inc=(o,key,y,extra)=>{const x=o[key]||(o[key]={k:key,n:0,w:0});x.n++;if(y===1)x.w++;else if(y===.5)x.w+=.5;if(extra)Object.assign(x,extra);return x};
+  for(const m of C.SRC){if(m.s)continue;if(C.from&&m.d<C.from)continue;if(TL.map&&m.m!==TL.map)continue;
+    const sides=[['a',m.a,m.ba,m.ta,m.bb,m.y],['b',m.b,m.bb,m.tb,m.ba,1-m.y]];
+    for(const [s,t,br,tg,op,y] of sides){if(!T.has(t))continue;TS[t]=(TS[t]||0)+1;
+      const SB=setBans(m);if((SB[s]||[]).some(x=>mkey(x||'')===k))BN[t]=(BN[t]||0)+1;
+      const i=(br||[]).findIndex(x=>mkey(x||'')===k);if(i<0)continue;n++;
+      const g=String((tg||[])[i]||'').toUpperCase();if(g)inc(P,g,y,{name:nm(g),team:t});
+      inc(TM,t,y);inc(MP,m.m,y);
+      for(const x of br||[])if(x&&mkey(x)!==k)inc(DU,x,y);
+      for(const x of op||[])if(x)inc(EN,x,y);
+      const I=setInfo(m);if(I.first&&!I.po){const q=I.num[k];if(q)PO[q]=(PO[q]||0)+1}}}
+  const wrS=x=>x.n?Math.round(100*x.w/x.n)+'%':'–',adj=x=>(x.w+5)/(x.n+10);
+  const tbl=(title,rows,cols,empty)=>`<div class="tld-c"><div class="tld-h">${title}</div><table class="rank fit"><tbody>${rows.length?rows.map((r,i)=>`<tr><td class="rk">${i+1}</td>${cols(r)}</tr>`).join(''):`<tr><td class="msg">${empty||'Not enough sets'}</td></tr>`}</tbody></table></div>`;
+  const wrc=x=>`<td class="num">${x.n}</td><td class="num heat" style="${wrHeat(x.w/x.n)}">${wrS(x)}</td>`;
+  const br_=x=>`<td class="ic"><span class="bnc">${bimg(x.k,'bi')}<span class="bnm">${esc(x.k)}</span></span></td>`;
+  const pl=Object.values(P).sort((a,b)=>b.n-a.n||b.w-a.w).slice(0,8);
+  const tms=Object.values(TM).sort((a,b)=>b.n-a.n).slice(0,8);
+  const du=Object.values(DU).filter(x=>x.n>=3).sort((a,b)=>adj(b)-adj(a)).slice(0,8);
+  const en=Object.values(EN).filter(x=>x.n>=3),cnt=en.slice().sort((a,b)=>adj(a)-adj(b)).slice(0,8),good=en.slice().sort((a,b)=>adj(b)-adj(a)).slice(0,6);
+  const mp=Object.values(MP).filter(x=>x.n>=3),mBest=mp.slice().sort((a,b)=>adj(b)-adj(a)).slice(0,6),mWorst=mp.slice().sort((a,b)=>adj(a)-adj(b)).filter(x=>x.w/x.n<.5).slice(0,6);
+  const bn=Object.entries(BN).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const mapc=x=>{const mi=IMGS['mode'+mkey(modeOfMap(x.k))];return `<td class="ic">${mi?`<img src="${mi}" class="tld-mi" alt="">`:''}<b>${esc(x.k)}</b></td>`};
+  const teamc=x=>`<td class="ic">${logo(x.k,'l20')} <b>${esc(x.k)}</b></td>`;
+  const H=tlHist(b,C),pts=H.filter(x=>x.r),maxR=Math.max(10,...pts.map(x=>x.n||0));
+  const W=900,Hh=200,px=i=>40+i*(W-60)/29,py=r=>16+(r-1)*(Hh-36)/(maxR-1);
+  let path='';H.forEach((x,i)=>{if(!x.r)return;path+=(path?'L':'M')+px(i).toFixed(1)+' '+py(x.r).toFixed(1)});
+  const ticks=[1,Math.round(maxR/4),Math.round(maxR/2),Math.round(3*maxR/4),maxR];
+  const svg=`<svg viewBox="0 0 ${W} ${Hh+20}" class="tld-svg" preserveAspectRatio="none">${ticks.map(t=>`<line x1="40" x2="${W-20}" y1="${py(t)}" y2="${py(t)}" stroke="#22202e"/><text x="32" y="${py(t)+4}" text-anchor="end" fill="#8e8ab0" font-size="11">${t}</text>`).join('')}
+    ${path?`<path d="${path} L${px(29)} ${Hh} L${px(H.findIndex(x=>x.r))} ${Hh} Z" fill="rgba(74,222,128,.10)" stroke="none"/><path d="${path}" fill="none" stroke="#4ade80" stroke-width="2.5" stroke-linejoin="round"/>`:''}
+    ${H.map((x,i)=>x.r?`<circle cx="${px(i)}" cy="${py(x.r)}" r="3" fill="#4ade80"><title>${fmtDate(x.d)}: #${x.r}</title></circle>`:'').join('')}
+    ${[0,10,20,29].map(i=>`<text x="${px(i)}" y="${Hh+14}" text-anchor="middle" fill="#8e8ab0" font-size="11">${esc(fmtDate(H[i].d).replace(/ 20\d\d$/,''))}</text>`).join('')}</svg>`;
+  const tier=e.score>8?'S':e.score>6?'A':e.score>4?'B':'C',pc=x=>(100*x).toFixed(1)+'%';
+  const poT=Object.values(PO).reduce((a,b)=>a+b,0);
+  const card=(l,v,sub)=>`<div class="tld-k"><small>${l}</small><b>${v}</b>${sub?`<i>${sub}</i>`:''}</div>`;
+  return `<div class="gm tlm" role="dialog" aria-label="${esc(b)}"><div class="gm-top"><span class="gm-date">${TL.map?esc(TL.map)+' · ':''}${plural(C.nSets,'set')} · ${C.teams.length===M.D.off.length?'all teams':plural(C.teams.length,'team')}</span><button type="button" class="gm-close" data-gmclose aria-label="Close">✕</button></div>
+   <div class="tld-body"><div class="tld-top">${bimg(b,'tld-img')}<div class="tld-nm"><h2>${esc(b)}</h2><span class="tld-tier tl-${tier.toLowerCase()}"><span class="tl-k">${tier}</span></span></div></div>
+   <div class="tld-ks">${card('Rank',rank?'#'+rank:'–',rank?'of '+C.list.length:'')}${card('Win rate',e.n?Math.round(100*(e.nw||0)/e.n)+'%':'–',e.n?plural(e.n,'set'):'')}${card('Pick rate',pc(e.pick),'of the drafts')}${card('Ban rate',pc(e.ban),'of the drafts with bans')}${card('Meta score',e.score.toFixed(1),e.trend>.05?'▲ rising':e.trend<-.05?'▼ falling':'stable')}</div>
+   <div class="tld-h big">Meta history</div><p class="msg" style="margin:0 0 6px">Rank in the tier list over the last 30 days (each point uses the 14 days before it).</p>${svg}
+   <div class="tld-g">
+    ${tbl('Top players',pl,x=>`<td class="ic tld-pl"><span class="tld-bg">${logo(x.team,'tld-bgi')}</span><b>${esc(x.name)}</b><small class="tld-sm">${esc(x.team)}</small></td>${wrc(x)}`)}
+    ${tbl('Teams that play it',tms,x=>`${teamc(x)}<td class="num">${x.n}<small class="tld-sm">${TS[x.k]?Math.round(100*x.n/TS[x.k])+'% of its sets':''}</small></td><td class="num heat" style="${wrHeat(x.w/x.n)}">${wrS(x)}</td>`)}
+    ${tbl('Best duos',du,x=>`${br_(x)}${wrc(x)}`,'Not enough sets (3+ together)')}
+    ${tbl('Counters <small>(it loses most against)</small>',cnt,x=>`${br_(x)}${wrc(x)}`,'Not enough sets (3+ against)')}
+    ${tbl('Good matchups <small>(it beats)</small>',good,x=>`${br_(x)}${wrc(x)}`,'Not enough sets (3+ against)')}
+    ${tbl('Maps where it works',mBest,x=>`${mapc(x)}${wrc(x)}`,'Not enough sets (3+ on a map)')}
+    ${tbl('Maps where it does not',mWorst,x=>`${mapc(x)}${wrc(x)}`,'No map under 50% with 3+ sets')}
+    ${tbl('Banned most by',bn.map(([t,c])=>({k:t,c})),x=>`${teamc(x)}<td class="num">${x.c}<small class="tld-sm">${TS[x.k]?Math.round(100*x.c/TS[x.k])+'% of its sets':''}</small></td>`,'No bans of it yet')}
+    <div class="tld-c"><div class="tld-h">Pick order <small>(sets with the order set)</small></div>${poT?`<div class="tld-po">${[1,2,3,4,5,6].map(q=>{const v=PO[q]||0;return `<div><b>${q}</b><span style="height:${Math.round(70*v/poT)+2}px"></span><small>${Math.round(100*v/poT)}%</small></div>`}).join('')}</div><p class="msg" style="font-size:11px;margin:4px 0 0">${poT} picks with known order</p>`:'<p class="msg">No set with the pick order set yet.</p>'}</div>
+   </div></div><div class="gm-ft"><button type="button" class="btn" data-gmclose>Close</button></div></div>`}
+document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-tlb]');if(!t||tab!=='tier')return;
+  let ov=document.getElementById('gmOv');if(!ov){ov=document.createElement('div');ov.id='gmOv';document.body.appendChild(ov)}
+  ov.innerHTML=tlDetail(t.dataset.tlb);ov.classList.add('on')});
+function tierTab(){const C=tlCalc();TLC=C;const off=M.D.off,sel=new Set(TL.teams&&TL.teams.length?TL.teams:off),all=!(TL.teams&&TL.teams.length);
   const maps=[...new Set(((TL.since==='custom'&&FULL&&FULL.matches)||ds.matches).map(m=>m.m).filter(Boolean))].sort();
   const chips=off.map(t=>`<button type="button" class="tl-tm${sel.has(t)&&!all?' on':''}${all?' all':''}" data-tlt="${esc(t)}" title="${esc(t)}">${logo(t,'l28')}</button>`).join('');
   const pc=x=>Math.round(100*x)+'%';
   const tile=e=>{const sc=e.score.toFixed(1),cl=e.score>8?'s':e.score>6?'a':e.score>4?'b':'c',tr=e.trend>.05?'<i class="tl-up">▲</i>':e.trend<-.05?'<i class="tl-dn">▼</i>':'';
-    return `<div class="tl-t${e.few?' few':''}" title="${esc(e.b)} · meta score ${sc}\nPresence ${pc(e.pres)} (picked ${pc(e.pick)} + banned ${pc(e.ban)} of the drafts)\nWin rate ${pc(e.wr)} (adjusted, ${e.n} sets)\nPick priority ${e.prn?pc(e.prio):'unknown (no pick order set)'}${e.trend?'\nLast 7 days: '+(e.trend>0?'+':'')+Math.round(100*e.trend)+' pts of pick rate':''}${e.few?'\nFew sets: take it with care':''}">${bimg(e.b,'tl-i')}<b>${esc(e.b)}</b><span class="tl-sc ${cl}">${sc}${tr}</span></div>`};
+    return `<div class="tl-t${e.few?' few':''}" data-tlb="${esc(e.b)}" title="${esc(e.b)} · meta score ${sc}\nPresence ${pc(e.pres)} (picked ${pc(e.pick)} + banned ${pc(e.ban)} of the drafts)\nWin rate ${pc(e.wr)} (adjusted, ${e.n} sets)\nPick priority ${e.prn?pc(e.prio):'unknown (no pick order set)'}${e.trend?'\nLast 7 days: '+(e.trend>0?'+':'')+Math.round(100*e.trend)+' pts of pick rate':''}${e.few?'\nFew sets: take it with care':''}">${bimg(e.b,'tl-i')}<b>${esc(e.b)}</b><span class="tl-sc ${cl}">${sc}${tr}</span></div>`};
   const tiers=[['S','> 8',e=>e.score>8],['A','6.1 – 8',e=>e.score>6&&e.score<=8],['B','4.1 – 6',e=>e.score>4&&e.score<=6],['C','≤ 4',e=>e.score<=4]];
   const seen=new Set(C.list.map(e=>mkey(e.b))),unseen=drNames().filter(n=>!seen.has(mkey(n)));
   const rows=tiers.map(([k,rg,f])=>{const L=C.list.filter(f);return `<div class="tl-row tl-${k.toLowerCase()}"><div class="tl-lab"><span class="tl-k">${k}</span><small>${rg}</small><small>${L.length} brawlers</small></div><div class="tl-g">${L.map(tile).join('')||'<span class="msg">—</span>'}</div></div>`}).join('');
