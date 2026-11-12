@@ -3195,9 +3195,9 @@ function mxSet(m,L,open){const key=mxKey(m);MXM[key]={m,L};const nm=g=>sheetName
   const picksCol=S=>{const L_=S.b.map((n,i)=>({n,p:num(n)}));if(!E&&I.first&&!I.po)L_.sort((x,y)=>(x.p||9)-(y.p||9));
     return `<div class="bz-xc"><div class="bz-xh">Picks</div>${L_.map(x=>`<span class="bz-xp${E?' bz-pick':''}${E&&x.p?' on':''}"${E?` data-mxpk="${esc(x.n)}"`:''}>${bimg(x.n,'bz-xi')}${x.p?`<span class="bz-n">${x.p}</span>`:''}</span>`).join('')}</div>`};
   // coin prediction from the bans (same model as the Draft tab), while the 1st pick is unknown
-  const coinPred=(()=>{if(I.first||!(a.bn.some(Boolean)||b.bn.some(Boolean)))return '';let P_=null;try{P_=drCoinEst({date:m.d,bans:{b:a.bn.slice(),r:b.bn.slice()},blue:L?m.a:m.b,red:L?m.b:m.a,kind:'',su:'U',picks:Array(6).fill(''),coin:'blue'})}catch(e){}
+  let cpSide='';const coinPred=(()=>{if(I.first||!(a.bn.some(Boolean)||b.bn.some(Boolean)))return '';let P_=null;try{P_=drCoinEst({date:m.d,bans:{b:a.bn.slice(),r:b.bn.slice()},blue:L?m.a:m.b,red:L?m.b:m.a,kind:'',su:'U',picks:Array(6).fill(''),coin:'blue'})}catch(e){}
     if(!P_)return '';if(P_.few)return '<div class="bz-cp"><b>Coin prediction:</b> not enough saved drafts with the coin known yet.</div>';
-    const lft=P_.p>=.5,q=lft?P_.p:1-P_.p,sure=q>=.8?'very likely':q>=.65?'probably':'maybe (unclear)',side=lft?'left':'right',tm=(lft?(L?m.a:m.b):(L?m.b:m.a))||(lft?'The left team':'The right team');
+    const lft=P_.p>=.5;cpSide=lft?'l':'r';const q=lft?P_.p:1-P_.p,sure=q>=.8?'very likely':q>=.65?'probably':'maybe (unclear)',side=lft?'left':'right',tm=(lft?(L?m.a:m.b):(L?m.b:m.a))||(lft?'The left team':'The right team');
     const pro=P_.why.filter(w=>lft?w.v>0:w.v<0),con=P_.why.filter(w=>lft?w.v<0:w.v>0),f=L2=>L2.map(w=>`${esc(w.s==='b'?'left':'right')} banned ${esc(w.txt)}`).join(' · ');
     return `<div class="bz-cp${q<.65?' weak':''}"><div>${coinI(true,'bz-cpc')}<b>Coin prediction:</b> ${lft?'◀ ':''}<b>${esc(tm)}</b> (${side}) ${sure} had the <b>1st pick</b> · <b>${Math.round(100*q)}%</b>${lft?'':' ▶'}</div>${pro.length?`<small>Why: ${f(pro)}</small>`:''}${con.length?`<small>Against it: ${f(con)}</small>`:''}<small>From ${plural(P_.M.n,'saved draft')} with the coin known${P_.M.nP?' ('+P_.M.nP+' of this balance patch, they weigh more)':''}. Only a guess: press Left or Right had 1st to save it.</small></div>`})();
   const bmini=L_=>L_.some(Boolean)?`<span class="bz-bans" title="Bans">${L_.filter(Boolean).map(x=>`<span class="bz-b" title="${esc(x)}">${bimg(x,'mx-bni')}</span>`).join('')}</span>`:'<span class="bz-bans"></span>';
@@ -3208,10 +3208,10 @@ function mxSet(m,L,open){const key=mxKey(m);MXM[key]={m,L};const nm=g=>sheetName
   return `<div class="mx-s${open?' open':''}" data-mxk="${esc(key)}"><div class="mx-r bz-r" data-mxs>${mi?`<img class="mx-md" src="${mi}" alt="" title="${esc(md)}">`:'<span class="mx-md"></span>'}
     ${bmini(a.bn)}<span class="mx-bs">${a.b.map(n=>bimg(n,'mx-b')).join('')}</span><b class="mx-g${ya===1?' w':''}">${a.g??''}</b>${mk(ya)}
     <span class="mx-mid"><span class="bz-mn">${esc(m.m)}</span>${lf===true?'<small class="bz-1">◀ 1st</small>':lf===false?'<small class="bz-1">1st ▶</small>':''}</span>${mk(ya===.5?.5:1-ya)}<b class="mx-g${ya===0?' w':''}">${b.g??''}</b><span class="mx-bs">${b.b.map(n=>bimg(n,'mx-b')).join('')}</span>${bmini(b.bn)}<span class="mx-ch">⌄</span></div>
-    ${ctl}${coinPred}
-    <div class="mx-x bz-x">${bansCol(a)}<div class="mx-col">${head(a)}${a.b.map((n,i)=>card(n,a.tg[i],a.bn[i])).join('')}</div>
+    ${ctl}${cpSide?'':coinPred}
+    <div class="bz-wrap"><div class="bz-sp l">${cpSide==='l'?coinPred:''}</div><div class="mx-x bz-x">${bansCol(a)}<div class="mx-col">${head(a)}${a.b.map((n,i)=>card(n,a.tg[i],a.bn[i])).join('')}</div>
       <div class="mx-map">${mimg(m.m,'mx-mi')}<span class="mx-tm">${mxHM(m.t)}</span><span class="mx-mn">${esc(m.m)}${ST?`<small>${ST.games} game${ST.games>1?'s':''}${ST.dur?' · '+Math.round(ST.dur/60)+' min':''}</small>`:''}</span></div>
-      <div class="mx-col">${head(b)}${b.b.map((n,i)=>card(n,b.tg[i],b.bn[i])).join('')}</div>${bansCol(b)}</div></div>`}
+      <div class="mx-col">${head(b)}${b.b.map((n,i)=>card(n,b.tg[i],b.bn[i])).join('')}</div>${bansCol(b)}</div><div class="bz-sp r">${cpSide==='r'?coinPred:''}</div></div></div>`}
 // a set as a card (match windows): bans in the header with the pick-order coin, stats under each player; click = the big view
 const coinI=(first,cls)=>`<img class="${cls||'coinm'}" src="${first?COIN.blue:COIN.red}" alt="${first?'1st pick':'Last pick'}" title="${first?'1st pick':'Last pick'}">`;
 function mxCard(m,L,idx){const nm=g=>sheetName(g,(ds.names||{})[g])||g||'—',I=setInfo(m),ST=setStatsC(m);
@@ -4199,7 +4199,7 @@ function uxMapList(cur){return `<div class="uxmaps" data-noexport="1"><button ty
 // 4) scouting: index + sections that close
 const uxClosed=(()=>{try{return new Set(JSON.parse(store.get('tvt:uxclosed')||'[]'))}catch(e){return new Set()}})();
 const uxKey=s=>String(s).split('·')[0].trim().toUpperCase();
-function uxScout(){const card=document.querySelector('#detail .tcard');if(!card||card.querySelector('.uxidx'))return;const secs=[...card.querySelectorAll(':scope .tc-sec')].filter(s=>s.querySelector(':scope>.lbl'));if(!secs.length)return;
+function uxScout(){const card=document.querySelector('#detail .tcard');if(!card||card.querySelector('.uxidx'))return;let secs=[...card.querySelectorAll(':scope > .tc-sec.sc-block')].filter(s=>s.querySelector(':scope>.lbl'));if(!secs.length)secs=[...card.querySelectorAll(':scope .tc-sec')].filter(s=>s.querySelector(':scope>.lbl'));if(!secs.length)return;
   const lab=s=>{const t=s.querySelector(':scope>.lbl').innerText;return t.split('·').slice(0,/SAVED/i.test(t)?2:1).join('·').trim()};
   const idx=document.createElement('div');idx.className='uxidx';idx.setAttribute('data-noexport','1');
   idx.innerHTML=secs.map((s,i)=>`<button type="button" data-uxgo="${i}">${esc(lab(s))}</button>`).join('');card.prepend(idx);
@@ -4999,7 +4999,7 @@ function drPoolHTML(){const d=DR.cur,tg=drTarget(),um=drUsedMap(d,tg),q=DR.gq.to
   const label=tg?(tg.startsWith('pick')?(drOrdUnk(d)?(pickSide(d.coin,+tg.split(':')[1])==='blue'?'a blue pick':'a red pick'):'Pick '+tg.split(':')[1]):tg.startsWith('ban')?'Ban':'Global ban'):'';
   return `<div class="dr-pool"><div class="dr-poolh"><b>Brawlers</b><input class="dr-input" id="drGQ" placeholder="Search brawler" value="${esc(DR.gq)}" autocomplete="off"><div class="seg2" style="margin-top:0" role="group" aria-label="Sort brawlers"><button type="button" data-dsort="rarity" aria-pressed="${DR.sort==='rarity'}">By rarity</button><button type="button" data-dsort="az" aria-pressed="${DR.sort==='az'}">A–Z</button></div><span class="msg">${tg?'Filling: <b>'+label+'</b>. Click a slot to fill a different one.':'All six picks are done. Click a slot to change it.'}</span></div>${DR.sort==='rarity'?`<div class="dr-leg">${RAR_ORDER.map(r=>`<span><i style="background:${RAR_COL[r]}"></i>${RAR_NAME[r]}</span>`).join('')}</div>`:''}
    <div class="dr-pgrid">${drSorted().map(n=>{const st=um[mkey(n)];const hide=q&&!n.toLowerCase().includes(q);return `<button type="button" class="dr-pb${st?' used':''}" data-rar="${rarOf(n)}" data-gb="${esc(n)}" data-n="${esc(n.toLowerCase())}"${st?' disabled':''}${hide?' hidden':''}>${bimg(n,'bi lg')}<span>${esc(n)}</span>${st?`<em class="${st==='PICKED'?'':'bn'}">${st==='GLOBAL'?'BANNED':st}</em>`:''}</button>`}).join('')}</div></div>`}
-const drSubHTML=()=>`<div class="dr-sub"><div class="seg2" role="group" aria-label="Draft mode"><button type="button" data-vsub="draft" aria-pressed="${!DR.sug&&!DR.sim}">Save Draft</button><button type="button" data-vsub="suggest" aria-pressed="${DR.sug&&!DR.sim}">Draft Suggestion</button><button type="button" data-dsim="1" aria-pressed="${!!DR.sim}">Practice vs bot</button></div></div>`;
+const drSubHTML=()=>`<div class="dr-sub"><div class="seg2" role="group" aria-label="Draft mode"><button type="button" data-vsub="draft" aria-pressed="${!DR.sug&&!DR.sim}">Save Draft</button><button type="button" data-vsub="suggest" aria-pressed="${DR.sug&&!DR.sim}">Draft Suggestion</button><button type="button" data-dsim="1" aria-pressed="${!!DR.sim&&!DR.live}">Practice vs bot</button><button type="button" data-dlive="1" class="lv-tab" aria-pressed="${!!DR.live}">● Live draft</button></div></div>`;
 function drEditorHTML(){
   const d=DR.cur,pos=drPos(d.coin);
   const head=`<div class="dr-head5">${drTeamBtn('blue')}<div class="dr-gbs">${[0,1].map(i=>drGbSlot('b',i)).join('')}</div>
@@ -5155,10 +5155,85 @@ function drSettingsHTML(){const c=drCfg();
    <label class="dr-field"><span class="lbl">Web app address</span><input class="dr-input" id="drUrl" value="${esc(c.url)}" placeholder="https://script.google.com/macros/s/…/exec"></label>
    <label class="dr-field"><span class="lbl">Password (the word you put in the script)</span><input class="dr-input" id="drTok" value="${esc(c.token)}" autocomplete="off"></label>
    <div><button type="button" class="btn quiet" data-dcfg="1">Save connection</button></div><p class="note">This only changes this browser. To make it permanent for everybody, ask for the address to be built into the page.</p></div></details></section>`}
+
+// ===== LIVE DRAFT: fill bans and picks as they happen, get suggestions for the next step
+const LV={us:'',rival:'',map:'',first:'us',bans:{us:['','',''],them:['','','']},picks:['','','','','',''],hist:[],q:''};
+try{const x=JSON.parse(store.get('tvt:live')||'null');if(x)Object.assign(LV,x,{hist:[]})}catch(e){}
+const lvSave=()=>{try{store.set('tvt:live',JSON.stringify({us:LV.us,rival:LV.rival,map:LV.map,first:LV.first,bans:LV.bans,picks:LV.picks}))}catch(e){}};
+const lvK=x=>String(x||'').toUpperCase();
+const lvOrd=()=>LV.first==='us'?{us:[1,4,5],them:[2,3,6]}:{us:[2,3,6],them:[1,4,5]};
+function lvNext(){for(const s of ['us','them']){const i=LV.bans[s].indexOf('');if(i>=0)return {k:'ban',s,i}}
+  const O=lvOrd();for(let n=1;n<=6;n++)if(!LV.picks[n-1])return {k:'pick',s:O.us.includes(n)?'us':'them',n};return null}
+function lvUsed(){return new Set([...LV.bans.us,...LV.bans.them,...LV.picks].filter(Boolean).map(lvK))}
+function lvPut(b){const N=lvNext();if(!N||lvUsed().has(lvK(b)))return;if(N.k==='ban')LV.bans[N.s][N.i]=b;else LV.picks[N.n-1]=b;LV.hist.push(N);lvSave();drRender()}
+// data: every set; tournament sets weigh twice
+function lvData(){const map=LV.map,VS={},ON={},WITH={},add=(O,a,b,w,k)=>{const e=(O[a]||(O[a]={}))[b]||(O[a][b]={n:0,w:0});e.n+=k;e.w+=w*k};
+  for(const m of ds.matches){if(m.s||m.y==null)continue;const k=m.ty==='tournament'?2:1,A=(m.ba||[]).filter(Boolean).map(lvK),B=(m.bb||[]).filter(Boolean).map(lvK);
+    for(const a of A)for(const b of B){add(VS,a,b,m.y,k);add(VS,b,a,1-m.y,k)}
+    if(m.m===map){for(const a of A){const e=ON[a]||(ON[a]={n:0,w:0});e.n+=k;e.w+=m.y*k}for(const b of B){const e=ON[b]||(ON[b]={n:0,w:0});e.n+=k;e.w+=(1-m.y)*k}}
+    for(const [L,y] of [[A,m.y],[B,1-m.y]])for(const a of L)for(const b of L)if(a!==b)add(WITH,a,b,y,k)}
+  return {VS,ON,WITH}}
+function lvUse(team){const c={},w={};let T=0;for(const x of scSets(team)){const k=(x.m===LV.map?3:1)*(x.ty==='tournament'?2:1);T+=k;for(const b of x.mine||[]){if(!b)continue;const q=lvK(b);c[q]=(c[q]||0)+k;w[q]=(w[q]||0)+k*x.win}}return {c,w,T}}
+function lvRivalBans(){const o={};let T=0;for(const d of drAll()){const side=d.blue===LV.rival?'b':d.red===LV.rival?'r':'';if(!side)continue;const k=(d.map===LV.map?3:1)*(d.kind==='tournament'||d.kind==='T'?2:1);T+=k;for(const b of (d.bans||{})[side]||[])if(b){const q=lvK(b);o[q]=(o[q]||0)+k}}return {o,T}}
+function liveHTML(){
+  const T=allTeams();if(!LV.us||!T.includes(LV.us))LV.us=T.includes('TRIBE GAMING')?'TRIBE GAMING':(T[0]||'');if(!LV.rival||!T.includes(LV.rival)||LV.rival===LV.us)LV.rival=T.find(t=>t!==LV.us)||'';
+  const maps=[...new Set(ds.matches.map(m=>m.m).filter(Boolean))].sort();if(!LV.map||!maps.includes(LV.map))LV.map=maps[0]||'';
+  const N=lvNext(),used=lvUsed(),D=lvData(),sh=(e,k)=>e?(e.w+k*.5)/(e.n+k):.5,pc=x=>Math.round(100*x),col=p=>p>=.6?'#4ade80':p>=.53?'#86efac':p>.47?'#facc15':p>.4?'#fca5a5':'#f87171';
+  const O=lvOrd(),usP=O.us.map(n=>LV.picks[n-1]).filter(Boolean).map(lvK),thP=O.them.map(n=>LV.picks[n-1]).filter(Boolean).map(lvK),names=drNames().filter(n=>!used.has(n));
+  const RU=lvUse(LV.rival);
+  // our options (pick or ban)
+  const sugPick=()=>names.map(b=>{const on=D.ON[b],mS=sh(on,8),c=thP.map(t=>({t,e:(D.VS[b]||{})[t]})),cS=c.length?c.reduce((a,x)=>a+sh(x.e,10),0)/c.length:.5,w=usP.map(t=>({t,e:(D.WITH[b]||{})[t]})),wS=w.length?w.reduce((a,x)=>a+sh(x.e,10),0)/w.length:.5;
+    const W=[[.35,mS]];if(c.length)W.push([.45,cS]);if(w.length)W.push([.2,wS]);const sc=W.reduce((x,y)=>x+y[0]*y[1],0)/W.reduce((x,y)=>x+y[0],0)-((on?on.n:0)<3?.04:0);
+    const why=[];const bc=c.filter(x=>x.e&&x.e.n>=6).sort((a,b)=>sh(b.e,10)-sh(a.e,10))[0];if(bc)why.push([`vs ${bc.t} ${pc(bc.e.w/bc.e.n)}%`,bc.e.w/bc.e.n]);
+    if(on&&on.n>=6)why.push([`${LV.map} ${pc(on.w/on.n)}%`,on.w/on.n]);const bw=w.filter(x=>x.e&&x.e.n>=6).sort((a,b)=>sh(b.e,10)-sh(a.e,10))[0];if(bw)why.push([`with ${bw.t} ${pc(bw.e.w/bw.e.n)}%`,bw.e.w/bw.e.n]);
+    return {b,sc,why}}).sort((a,b)=>b.sc-a.sc).slice(0,8);
+  const sugBan=()=>{const mx=Math.max(1,...names.map(b=>RU.c[b]||0));return names.map(b=>{const u=(RU.c[b]||0)/mx,wr=RU.c[b]?RU.w[b]/RU.c[b]:.5,on=D.ON[b],mS=sh(on,8);const sc=.55*u*(.6+.8*Math.max(0,wr-.3))+.45*Math.max(0,mS-.4)*2.5;
+    const why=[];if(RU.c[b])why.push([`${LV.rival} plays it ${pc(RU.c[b]/RU.T)}% · ${pc(wr)}%`,wr]);if(on&&on.n>=4)why.push([`${LV.map} ${pc(on.w/on.n)}%`,on.w/on.n]);return {b,sc,why}}).sort((a,b)=>b.sc-a.sc).slice(0,8)};
+  // what the rival will likely do
+  const theirPick=()=>{const E=names.map(b=>{let s=(RU.c[b]||0)/(RU.T||1);const c=usP.map(t=>sh((D.VS[b]||{})[t],10));if(c.length)s*=(.6+.8*(c.reduce((a,x)=>a+x,0)/c.length));return {b,s}}).filter(x=>x.s>0).sort((a,b)=>b.s-a.s).slice(0,6);const S=E.reduce((a,x)=>a+x.s,0)||1;return E.map(x=>({b:x.b,p:x.s/S}))};
+  const theirBan=()=>{const B=lvRivalBans(),E=Object.entries(B.o).filter(([b])=>!used.has(b)).sort((a,b)=>b[1]-a[1]).slice(0,6),S=E.reduce((a,x)=>a+x[1],0)||1;return {E:E.map(([b,c])=>({b,p:c/S})),T:B.T}};
+  const ourTurn=N&&N.s==='us',isBan=N&&N.k==='ban';
+  const mine=ourTurn?(isBan?sugBan():sugPick()):sugPick();
+  const tb=isBan?theirBan():null,tp=!isBan?theirPick():null;
+  const sel=(id,v,L)=>`<select class="dr-input lv-sel" data-lvset="${id}">${L.map(x=>`<option${x===v?' selected':''}>${esc(x)}</option>`).join('')}</select>`;
+  const step=!N?'<b class="lv-done">Draft complete</b>':N.k==='ban'?`Bans · <b>${N.s==='us'?esc(LV.us):esc(LV.rival)}</b> (${3-LV.bans[N.s].filter(Boolean).length} left)`:`Pick ${N.n} · <b class="${N.s==='us'?'lv-you':''}">${N.s==='us'?'your turn':esc(LV.rival)}</b>`;
+  const slot=(n,side)=>{const b=LV.picks[n-1],cur=N&&N.k==='pick'&&N.n===n;return `<div class="lv-s${b?' f':''}${cur?' cur':''}" ${b?`data-lvclr="p${n}" title="Click to remove"`:''}>${b?bimg(b,'lv-si'):'<span class="lv-q">?</span>'}<span class="lv-n">${n}</span>${b?`<b>${esc(b)}</b>`:cur?'<b class="lv-now">picking…</b>':'<b class="lv-e">–</b>'}</div>`};
+  const bans=side=>`<div class="lv-bans">${LV.bans[side].map((b,i)=>b?`<span class="lv-b" data-lvclr="b${side}${i}" title="${esc(b)} · click to remove">${bimg(b,'lv-bi')}</span>`:`<span class="lv-b0${N&&N.k==='ban'&&N.s===side&&N.i===i?' cur':''}"></span>`).join('')}</div>`;
+  const team=(t,side)=>`<div class="lv-team ${side}"><div class="lv-th">${logo(t,'lv-lg')}<div><b>${esc(t)}</b><small>${(LV.first==='us')===(side==='us')?'1st pick':'last pick'}</small></div>${coinI((LV.first==='us')===(side==='us'),'lv-coin')}</div><small class="lv-lab">Bans</small>${bans(side)}<small class="lv-lab">Picks</small>${lvOrd()[side].map(n=>slot(n,side)).join('')}</div>`;
+  const strip=[1,2,3,4,5,6].map(n=>`<span class="lv-o ${O.us.includes(n)?'us':'th'}${LV.picks[n-1]?' d':''}${N&&N.k==='pick'&&N.n===n?' cur':''}">${n}</span>`).join('');
+  const row=(x,i,btn)=>`<div class="u-row lv-r"><span class="u-rk">${i+1}</span>${bimg(x.b,'u-ic')}<div class="u-nm"><b>${esc(x.b)}</b><span class="lv-why">${x.why.map(w=>`<i style="color:${col(w[1])}">${esc(w[0])}</i>`).join('')||'<i>few sets</i>'}</span></div><div class="lv-sc"><b>${Math.round(100*x.sc)}</b><span><i style="width:${Math.max(4,Math.min(100,(x.sc-.3)*250))}%"></i></span></div>${btn&&ourTurn?`<button type="button" class="lv-pick" data-lvput="${esc(x.b)}">${isBan?'Ban':'Pick'}</button>`:'<span></span>'}</div>`;
+  const prow=(x,i)=>`<div class="u-row lv-r2"><span class="u-rk">${i+1}</span>${bimg(x.b,'u-ic')}<div class="u-nm"><b>${esc(x.b)}</b></div><div class="u-wr"><b style="color:#c4b5fd">${pc(x.p)}%</b><span><i style="width:${pc(x.p)}%;background:#a855f7"></i></span></div>${!ourTurn&&N?`<button type="button" class="lv-pick alt" data-lvput="${esc(x.b)}">${isBan?'Ban':'Pick'}</button>`:'<span></span>'}</div>`;
+  const leftT=!N?'Draft complete':isBan?(ourTurn?'✦ Best bans for you':'✦ What you would ban'):(ourTurn?'✦ Best picks for you now':'✦ Your best picks (after their pick)');
+  const leftS=isBan?`what ${esc(LV.rival)} plays (on ${esc(LV.map)} ×3, tournament ×2) and what is strong on the map`:`${thP.length?'vs their '+thP.join(' + ')+' · ':''}on ${esc(LV.map)}${usP.length?' · with your '+usP.join(' + '):''} · tournament sets count double`;
+  const tip=(()=>{if(isBan||!tp||!tp.length||!ourTurn)return '';const c=mine.map(x=>({b:x.b,e:(D.VS[x.b]||{})[tp[0].b]})).filter(x=>x.e&&x.e.n>=4).sort((a,b)=>b.e.w/b.e.n-a.e.w/a.e.n)[0];return c?`<div class="lv-tip">Of your top picks, <b>${esc(c.b)}</b> does best against their likely <b>${esc(tp[0].b)}</b> (${pc(c.e.w/c.e.n)}% in ${Math.round(c.e.n)} sets, tournament ×2).</div>`:''})();
+  const right=isBan?`<section class="u-panel"><header><span class="u-hd">${logo(LV.rival,'l20')} They will probably ban</span><small>${tb.T?`from the saved drafts of ${esc(LV.rival)} (on ${esc(LV.map)} ×3)`:'no saved drafts of this team yet'}</small></header>${tb.E.map(prow).join('')||'<p class="msg u-none">No data</p>'}</section>`
+    :`<section class="u-panel"><header><span class="u-hd">${logo(LV.rival,'l20')} ${N&&!ourTurn?'Their pick now':'Their next pick'} · most likely</span><small>${esc(LV.rival)} on ${esc(LV.map)} ×3 · tournament ×2 · what beats your picks</small></header>${(tp||[]).map(prow).join('')||'<p class="msg u-none">No data</p>'}${tip}</section>`;
+  return drSubHTML()+`<div class="lv">
+    <div class="lv-top"><span class="lv-live">● LIVE</span><span class="lv-f"><small>Us</small>${sel('us',LV.us,T)}</span><span class="lv-f"><small>Rival</small>${sel('rival',LV.rival,T.filter(t=>t!==LV.us))}</span><span class="lv-f"><small>Map</small>${sel('map',LV.map,maps)}</span>
+      <span class="seg2"><button type="button" data-lvfirst="us" aria-pressed="${LV.first==='us'}">${coinI(true,'lv-coin')} We have 1st</button><button type="button" data-lvfirst="them" aria-pressed="${LV.first==='them'}">They have 1st ${coinI(true,'lv-coin')}</button></span>
+      <span class="lv-step">${step}</span><span class="lv-act"><button type="button" class="btn quiet" data-lvundo${LV.hist.length?'':' disabled'}>↶ Undo</button><button type="button" class="btn quiet" data-lvnew>New set</button><button type="button" class="btn" data-lvsave${LV.picks.some(Boolean)?'':' disabled'}>Save as draft</button></span></div>
+    <div class="lv-board">${team(LV.us,'us')}<div class="lv-mid">${mimg(LV.map,'lv-map')}<div class="lv-strip">${strip}</div><small>pick order</small></div>${team(LV.rival,'them')}</div>
+    ${N?`<div class="lv-grid"><section class="u-panel"><header><span class="u-hd">${leftT}</span><small>${leftS}</small></header>${mine.map((x,i)=>row(x,i,1)).join('')||'<p class="msg u-none">No data</p>'}</section>${right}</div>`:''}
+    <section class="u-panel lv-all"><header><span class="u-hd">All brawlers</span><small>click one to put it in the next slot${N?` (${N.k==='ban'?'ban of '+esc(N.s==='us'?LV.us:LV.rival):'pick '+N.n})`:''} · click a filled slot to clear it <input class="dr-input" id="lvQ" placeholder="Search…" autocomplete="off" value="${esc(LV.q)}" style="width:170px;padding:5px 10px;margin-left:8px"></small></header>
+      <div class="lv-pool">${drNames().map(n=>`<button type="button" class="lv-p${used.has(n)?' x':''}" data-lvput="${esc(n)}" data-nm="${esc(n)}" title="${esc(n)}"${used.has(n)?' disabled':''}>${bimg(n,'lv-pi')||`<span>${esc(n)}</span>`}</button>`).join('')}</div></section></div>`}
+document.addEventListener('click',e=>{const t=e.target;if(!t.closest)return;
+  const lv=t.closest('[data-dlive]');if(lv){DR.live=true;DR.sim=false;if(view!=='draft'){view='draft';store.set('tvt:view',view);applyView()}drRender();return}
+  if(!DR.live)return;
+  const p=t.closest('[data-lvput]');if(p){lvPut(p.dataset.lvput);return}
+  const f=t.closest('[data-lvfirst]');if(f){LV.first=f.dataset.lvfirst;lvSave();drRender();return}
+  const c=t.closest('[data-lvclr]');if(c){const k=c.dataset.lvclr;if(k[0]==='p')LV.picks[+k.slice(1)-1]='';else{const sd=k.slice(1,-1);LV.bans[sd][+k.slice(-1)]=''}lvSave();drRender();return}
+  if(t.closest('[data-lvundo]')){const h=LV.hist.pop();if(h){if(h.k==='ban')LV.bans[h.s][h.i]='';else LV.picks[h.n-1]=''}lvSave();drRender();return}
+  if(t.closest('[data-lvnew]')){LV.bans={us:['','',''],them:['','','']};LV.picks=['','','','','',''];LV.hist=[];lvSave();drRender();return}
+  if(t.closest('[data-lvsave]')){const d=drNew();d.map=LV.map;d.blue=LV.us;d.red=LV.rival;d.coin=LV.first==='us'?'blue':'red';d.bans={b:LV.bans.us.slice(),r:LV.bans.them.slice()};
+    d.picks=LV.picks.slice();
+    DR.cur=d;DR.live=false;DR.sim=false;DR.msg='Live draft loaded here: check it and press Save draft.';drRender();window.scrollTo(0,0);return}});
+document.addEventListener('change',e=>{const s=e.target.closest&&e.target.closest('[data-lvset]');if(!s||!DR.live)return;LV[s.dataset.lvset]=s.value;lvSave();drRender()});
+document.addEventListener('input',e=>{if(e.target.id!=='lvQ')return;LV.q=e.target.value;const q=lvK(LV.q);document.querySelectorAll('.lv-pool .lv-p').forEach(b=>{b.style.display=!q||b.dataset.nm.includes(q)?'':'none'})});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='lvQ'){const b=[...document.querySelectorAll('.lv-pool .lv-p')].find(x=>x.style.display!=='none'&&!x.disabled);if(b){LV.q='';lvPut(b.dataset.lvput)}}});
 function drRender(){const el=$('drmain');if(!el||(view!=='draft'&&view!=='suggest'))return;
   const pg=el.querySelector('.dr-pgrid'),sl=pg?pg.scrollLeft:0;
   el.className='sugm';
-  el.innerHTML=DR.sim&&view==='draft'?simHTML():DR.sug?drEditorHTML()+sgHTML():drEditorHTML()+drListHTML()+drSettingsHTML();
+  el.innerHTML=DR.live&&view==='draft'?liveHTML():DR.sim&&view==='draft'?simHTML():DR.sug?drEditorHTML()+sgHTML():drEditorHTML()+drListHTML()+drSettingsHTML();
   const pg2=el.querySelector('.dr-pgrid');if(pg2)pg2.scrollLeft=sl}
 function drPopRender(){const box=$('drpopbox');if(!box)return;const p=DR.pop;if(!p){box.innerHTML='';return}
   const d=DR.cur;let inner='',focusId='';
@@ -5181,8 +5256,8 @@ function drNextPop(){const nx=DR.active;if(nx&&drSlotOK(DR.cur,nx)&&!drGet(DR.cu
 function drClosePop(){DR.pop=null;drPopRender()}
 $('draftview').addEventListener('click',e=>{
   const t=e.target;
-  const sm=t.closest('[data-dsim]');if(sm){DR.sim=true;if(view!=='draft'){view='draft';store.set('tvt:view',view);applyView()}drRender();return}
-  const vs=t.closest('[data-vsub]');if(vs){DR.sim=false;view=vs.dataset.vsub;store.set('tvt:drsub',view);store.set('tvt:view',view);applyView();return}
+  const sm=t.closest('[data-dsim]');if(sm){DR.sim=true;DR.live=false;if(view!=='draft'){view='draft';store.set('tvt:view',view);applyView()}drRender();return}
+  const vs=t.closest('[data-vsub]');if(vs){DR.sim=false;DR.live=false;view=vs.dataset.vsub;store.set('tvt:drsub',view);store.set('tvt:view',view);applyView();return}
   if(t.closest('[data-pclose]')||(t.dataset&&t.dataset.ov)){drClosePop();return}
   const sc=t.closest('[data-sclear]');if(sc){drSet(DR.cur,sc.dataset.sclear,'');DR.active='';if(DR.pop)DR.pop=null;drPopRender();drRender();return}
   const pc=t.closest('[data-pclear]');if(pc){drSet(DR.cur,DR.pop.slot,'');drClosePop();drRender();return}
@@ -5658,6 +5733,50 @@ function showCardImg(blob,name){
 // ---- Scouting report (new tab in Team stats)
 const SC={rival:'',us:'',map:'',side:''};
 const pcs=p=>`<span class="${p>=.55?'pc-g':p>=.45?'pc-o':'pc-r'}">${Math.round(p*100)}%</span>`;
+// ===== scouting insights: what the rival practises now, what it hides, players and their brawlers
+const SIF=new Set();
+document.addEventListener('toggle',e=>{const d=e.target;if(!d||!d.dataset||!d.dataset.sif)return;if(d.open)SIF.add(d.dataset.sif);else SIF.delete(d.dataset.sif)},true);
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-scts]');if(!b)return;setSelTeams([b.dataset.scts]);TSS='players';try{store.set('tvt:tss','players')}catch(x){}const t=document.querySelector('#sheetbar [data-sb="0"]');if(t)t.click();window.scrollTo(0,0)});
+const pc=(w,n)=>n?Math.round(100*w/n):0,col=p=>p>=60?'#4ade80':p>=53?'#86efac':p>47?'#facc15':p>40?'#fca5a5':'#f87171';
+const bar=(w,n)=>{const p=pc(w,n);return `<div class="u-wr"><b style="color:${col(p)}">${p}%</b><span><i style="width:${p}%;background:${col(p)}"></i></span></div>`};
+const DAY=864e5;
+function scInsights(R){
+  const S=scSets(R),fr=S.filter(x=>x.ty!=='tournament'),to=S.filter(x=>x.ty==='tournament');
+  const last=S.map(x=>x.d).sort().pop()||'',L=Date.parse(last);
+  const rec=fr.filter(x=>L-Date.parse(x.d)<7*DAY),bef=fr.filter(x=>{const a=L-Date.parse(x.d);return a>=7*DAY&&a<35*DAY});
+  const cnt=(arr,duo)=>{const o={};for(const x of arr){const b=(x.mine||[]).filter(Boolean);const ks=duo?[]:b;if(duo){const s=b.slice().sort();for(let i=0;i<s.length;i++)for(let j=i+1;j<s.length;j++)ks.push(s[i]+'|'+s[j])}for(const k of new Set(ks)){const e=o[k]||(o[k]={n:0,w:0});e.n++;e.w+=x.win}}return o};
+  const rise=(duo)=>{const A=cnt(rec,duo),B=cnt(bef,duo);return Object.keys(A).map(k=>{const a=A[k],b=B[k]||{n:0,w:0};return {k,a,b,ra:a.n/rec.length,rb:bef.length?b.n/bef.length:0}}).filter(e=>e.a.n>=3&&e.ra-e.rb>=.06).sort((x,y)=>(y.ra-y.rb)-(x.ra-x.rb)).slice(0,6)};
+  const drop=()=>{const A=cnt(rec),B=cnt(bef);return Object.keys(B).map(k=>{const b=B[k],a=A[k]||{n:0,w:0};return {k,a,b,ra:rec.length?a.n/rec.length:0,rb:b.n/bef.length}}).filter(e=>e.b.n>=4&&e.rb-e.ra>=.08).sort((x,y)=>(y.rb-y.ra)-(x.rb-x.ra)).slice(0,4)};
+  const ic=k=>k.includes('|')?`<span class="u-duo">${k.split('|').map(b=>bimg(b,'u-ic')).join('')}</span>`:bimg(k,'u-ic');
+  const nmk=k=>k.includes('|')?`<span class="u-dn">${k.split('|').map(esc).join('<br>')}</span>`:esc(k);
+  const rr=(e,i,up)=>`<div class="u-row si-row"><span class="u-rk">${i+1}</span>${ic(e.k)}<div class="u-nm"><b>${nmk(e.k)}</b><small class="u-rec">${up&&!e.b.n?'<em class="si-new">NEW</em>':''}before ${Math.round(100*e.rb)}% of sets → now ${Math.round(100*e.ra)}%</small></div><span class="si-d ${up?'up':'dn'}">${up?'▲':'▼'} ${Math.abs(Math.round(100*(e.ra-e.rb)))}<small>pts</small></span>${bar(e.a.w,e.a.n)}</div>`;
+  const R1=rise(false),R2=rise(true),D1=drop();
+  const mp=(()=>{const A={},B={};rec.forEach(x=>A[x.m]=(A[x.m]||0)+1);bef.forEach(x=>B[x.m]=(B[x.m]||0)+1);return Object.keys(A).map(m=>({m,a:A[m],ra:A[m]/rec.length,rb:bef.length?(B[m]||0)/bef.length:0})).filter(e=>e.a>=3&&e.ra-e.rb>=.05).sort((x,y)=>(y.ra-y.rb)-(x.ra-x.rb)).slice(0,4)})();
+  const none='<p class="msg u-none">Nothing new stands out</p>';
+  const s1=`<section class="si-sec"><p class="si-p">${esc(R)} in scrims · last 7 days (${plural(rec.length,'set')}, up to ${fmtDate(last)}) vs the 4 weeks before (${plural(bef.length,'set')}) · what they started to play more</p>
+   ${rec.length<5?'<p class="msg u-none">Fewer than 5 scrim sets in the last 7 days: not enough to tell.</p>':`<div class="u-grid3">
+    <section class="u-panel"><header>Brawlers going up</header>${R1.map((e,i)=>rr(e,i,1)).join('')||none}</section>
+    <section class="u-panel"><header>New duos</header>${R2.map((e,i)=>rr(e,i,1)).join('')||none}</section>
+    <section class="u-panel"><header>Maps practised more <small>and brawlers dropped</small></header>${mp.map(e=>`<div class="u-row si-row si-m">${mimg(e.m,'si-mi')}<div class="u-nm"><b>${esc(e.m)}</b><small class="u-rec">before ${Math.round(100*e.rb)}% → now ${Math.round(100*e.ra)}% of sets</small></div><span class="si-d up">▲ ${Math.round(100*(e.ra-e.rb))}<small>pts</small></span></div>`).join('')||none}
+      ${D1.length?`<div class="si-sub">Played less now</div>${D1.map((e,i)=>rr(e,i,0)).join('')}`:''}</section></div>`}</section>`;
+  // idea 2
+  const F=cnt(fr),T=cnt(to),nf=fr.length,nt=to.length;
+  const hid=Object.keys(F).map(k=>({k,f:F[k],t:T[k]||{n:0,w:0},rf:F[k].n/nf,rt:nt?(T[k]?T[k].n:0)/nt:0})).filter(e=>e.f.n>=6&&e.rf>=.08&&e.rt<=e.rf/3).sort((a,b)=>b.rf-a.rf).slice(0,6);
+  const com=Object.keys(T).map(k=>({k,t:T[k],f:F[k]||{n:0,w:0},rt:T[k].n/nt,rf:nf?(F[k]?F[k].n:0)/nf:0})).filter(e=>e.t.n>=3&&e.rt>=e.rf*1.8).sort((a,b)=>b.rt-a.rt).slice(0,6);
+  const hr=(e,i,a,b,w,n)=>`<div class="u-row si-row si-h2"><span class="u-rk">${i+1}</span>${bimg(e.k,'u-ic')}<div class="u-nm"><b>${esc(e.k)}</b><small class="u-rec">${w}</small></div><span class="si-pair"><b>${a}</b><small>scrims</small></span><span class="si-pair"><b>${b}</b><small>tournament</small></span>${bar(n.w,n.n)}</div>`;
+  const s2=`<section class="si-sec"><p class="si-p">${esc(R)}: scrims (${plural(nf,'set')}) vs tournament (${plural(nt,'set')}) in the period · % = share of the sets where they picked it</p>
+   ${nt<5?`<p class="msg u-none">Only ${plural(nt,'tournament set')}: not enough to compare yet. With 5 or more it starts to show.</p>`:`<div class="u-grid2">
+    <section class="u-panel"><header>Practised a lot, never shown <small>win rate in scrims</small></header>${hid.map((e,i)=>hr(e,i,Math.round(100*e.rf)+'%',Math.round(100*e.rt)+'%',`${e.f.n} scrim sets · ${e.t.n} in tournament`,e.f)).join('')||none}</section>
+    <section class="u-panel"><header>Saved for tournament <small>win rate in tournament</small></header>${com.map((e,i)=>hr(e,i,Math.round(100*e.rf)+'%',Math.round(100*e.rt)+'%',`${e.t.n} tournament sets · ${e.f.n} in scrims`,e.t)).join('')||none}</section></div>`}</section>`;
+  // idea 5
+  const PS=teamPlayers(R,Engine.playersFor(ds,R,null));
+  const card=p=>{const Lb=(p.list||[]).slice(),sc=x=>x.n*((x.w+2)/(x.n+4));const tgt=Lb.filter(x=>x.n>=5).sort((a,b)=>sc(b)-sc(a))[0],weak=Lb.filter(x=>x.n>=4&&x.w/x.n<.42).sort((a,b)=>a.w/a.n-b.w/b.n)[0];
+    return `<section class="u-panel u-pc"><div class="u-ph">${logo(R,'u-phl')}<div><h3>${esc(p.name)}</h3><small>${plural(p.n,'set')} · <span style="color:${col(pc(p.w,p.n))}">${pc(p.w,p.n)}% win rate</span></small></div></div>
+      <div class="si-tags">${tgt?`<div class="si-tg si-bn">${bimg(tgt.b,'si-ti')}<div><small>Ban target</small><b>${esc(tgt.b)}</b><i>${tgt.n} sets · ${pc(tgt.w,tgt.n)}%</i></div></div>`:''}${weak?`<div class="si-tg si-wk">${bimg(weak.b,'si-ti')}<div><small>Weak on</small><b>${esc(weak.b)}</b><i>${weak.n} sets · ${pc(weak.w,weak.n)}%</i></div></div>`:''}</div>
+      ${Lb.slice(0,6).map((x,i)=>`<div class="u-row u-r6"><span class="u-rk">${i+1}</span>${bimg(x.b,'u-ic')}<div class="u-nm"><b>${esc(x.b)}</b></div><span class="u-n">${x.n}<small>sets</small></span><span class="u-n">${x.w}<small>wins</small></span>${bar(x.w,x.n)}</div>`).join('')}</section>`};
+  const s5=`<section class="si-sec"><div class="si-ph"><p class="si-p">Who plays what, and how well · <b style="color:#f87171">ban target</b> = the brawler that player plays the most and wins with · <b style="color:#facc15">weak on</b> = a brawler they lose with (4+ sets)</p><button type="button" class="btn quiet" data-scts="${esc(R)}" data-noexport="1">See all in Team Stats →</button></div>
+    <div class="u-pgrid" style="grid-template-columns:repeat(${Math.min(4,PS.length)||1},minmax(0,1fr))">${PS.map(card).join('')}</div></section>`;
+  return {s1,s2,s5}}
 function scInit(){
   const T=allTeams();
   if(!SC.us||!T.includes(SC.us))SC.us=T.includes('TRIBE GAMING')?'TRIBE GAMING':(T[0]||'');
@@ -5915,7 +6034,7 @@ function scoutHTML(){
     const pc=x=>Math.round(x*100)+'%',lead=[['meta bans',ST.pm],['target bans against the rival',ST.pt],['bans of its own picks',ST.po]].sort((a,b)=>b[1]-a[1])[0];
     return `<div class="sc-sty">Ban style · <b>mostly ${lead[0]}</b> · meta ${pc(ST.pm)} · target ${pc(ST.pt)} · own picks ${pc(ST.po)} <span>(from ${dn} over all patches)</span></div>`};
   const scDrafts=t=>{const L=drAll().filter(d=>(d.blue===t||d.red===t)&&drInPer(d)&&(!mapOn||balMapOK(d.map,{map:SC.map})));
-    return L.length?`<div class="tc-sec" style="margin-top:14px"><div class="lbl" style="align-self:stretch;display:block;text-align:center;color:${tcol(t)}">Saved drafts · ${esc(t)} · ${plural(L.length,'draft')}${mapOn?' on '+esc(SC.map):''}</div><div style="overflow-x:auto"><div class="dr-list" style="margin-top:0">${L.slice(0,10).map(d=>drCard(d,t,false)).join('')}</div></div>${L.length>10?`<p class="msg" style="margin:4px 0 0">Showing the latest 10 of ${L.length}. All of them are in the Drafts tab.</p>`:''}</div>`:''};
+    return L.length?`<details class="si-fold"${SIF.has(t)?' open':''} data-sif="${esc(t)}"><summary>${logo(t,'l20')} Saved drafts · ${esc(t)} · ${plural(L.length,'draft')}${mapOn?' on '+esc(SC.map):''}<span>show</span></summary><div class="tc-sec" style="margin-top:10px"><div style="overflow-x:auto"><div class="dr-list" style="margin-top:0">${L.slice(0,10).map(d=>drCard(d,t,false)).join('')}</div></div>${L.length>10?`<p class="msg" style="margin:4px 0 0">Showing the latest 10 of ${L.length}. All of them are in the Drafts tab.</p>`:''}</div></details>`:''};
   const liftBox=ST=>{const L=ST&&ST.L;if(!L||!L.n)return `<div class="sc-bs"><p class="sc-sty" style="padding:0">Meta or the rival? Not enough drafts against rivals with games in the data yet (tournament drafts, and scrim drafts from 3 Nov 2026).</p></div>`;
     const x=L.lift,few=L.n<15,v=few?'Few drafts yet':x>=1.6?'Targets the rival':x>=1.25?'Sometimes targets the rival':'Bans meta / map, not the rival',vc=few?'var(--muted)':x>=1.6?'#57d98a':x>=1.25?'#e8c15a':'#9aa3c7';
     const seg=[['meta','#6b6fd6','meta / strong on the map'],['both','#b07ad6','meta and the rival plays it'],['rival','#3fbf72','only the rival plays it'],['other','#4a4760','other']].filter(s=>L.cat[s[0]]);
@@ -5939,6 +6058,7 @@ function scoutHTML(){
       <div class="fxrow">${chips||'<span class="msg">None yet.</span>'}<input type="text" class="dr-input" id="fxName" list="fxList" placeholder="Brawler name" autocomplete="off" style="max-width:180px"><datalist id="fxList">${opts}</datalist><select class="dr-input" id="fxSide" style="max-width:230px"><option value="last">When having the last pick</option><option value="first">When having the 1st pick</option><option value="both">With any pick</option></select><button type="button" class="btn quiet" data-fxadd="1">Add</button></div>
       ${det.length?`<div class="msg" style="margin:6px 0 0;font-size:11.5px">Seen in all saved drafts (every team, both sides): ${det.slice(0,6).map(x=>`<b>${esc(x.b)}</b> is banned almost only with the ${x.s} pick (${x.n} of ${x.T} bans)`).join(' · ')}. These already weigh in the prediction automatically.</div>`:''}</div>`})();
   const matchupH=(EXR.first||EXR.last||EXU.first||EXU.last||pT||EXERR.length||balWait)?sec('Matchup'+(useMap?' · '+esc(SC.map):''),`${exErrH}${fixH}${pT?`<div class="sc-mg" style="grid-template-columns:minmax(0,1fr)">${pT}</div>`:''}<div class="sc-teams" style="margin-top:12px">${exTab(EXR,R)}${hasM?exTab(EXU,U):''}</div>${scDrafts(R)}${hasM?scDrafts(U):''}<p class="msg" style="font-size:11.5px;margin:8px 0 0">Blue coin = the team has the 1st pick, red coin = the last pick. Ban scores are an estimate (0-100) from the team's own ban habit in saved drafts with that pick order, what the rival plays and the current meta; Habit = the team's saved drafts on any map with that pick order, plus the ones with side unknown (they could be either); with a map chosen, the drafts on that map weigh 4 times more. The more drafts, the more the habit weighs (it never fully disappears with a single draft). * = fewer than 3 drafts for that pick order, so all its drafts are used. With the 1st pick the habit and the rival's picks weigh more; with the last pick the strength of the brawler in the meta weighs more. That strength is mostly how often all teams ban it (bans and global bans in the saved drafts of this patch, 65%) plus how often it is picked (35%); it needs 10+ drafts in the patch, otherwise only picks count. Hover a row to see why a brawler is there. The ban style line comes from all the team's drafts (side unknown included) across every patch: a team that mostly bans the meta gets more weight on meta strength, one that makes target bans gets more weight on the rival's picks, and one that bans what it plays itself is penalised less for banning its own brawlers. It needs 8+ drafts. Key picks = most used and winning${useMap?' on this map':''}.</p>${mapFbH}`):'';
+  const SI=scInsights(R);
   return ctl+`<article class="tcard" id="tc-scout" style="--rc:${tcol(R)}">
     <header class="tc-head"><div class="tc-id">${logo(R,'l44')}<div><h3 style="color:${tcol(R)}">${esc(R)}</h3><small>Scouting report${hasM?' · prepared for '+esc(U):''} · ${esc([reg,tour].filter(Boolean).join(' · '))}${reg||tour?' · ':''}${esc(filterLabel())} · ${esc(periodLabel())}</small></div></div>
       <button type="button" class="btn quiet" data-cardx="scout" data-cardn="scouting-${esc(R)}" data-noexport="1">Download image</button></header>
@@ -5949,12 +6069,13 @@ function scoutHTML(){
       <div class="sc-col w"><h4>Weaknesses</h4><ul>${weak.join('')||'<li class="msg">Nothing stands out yet.</li>'}</ul></div>
       <div class="sc-col p"><h4>Game plan</h4><ul>${plan.join('')||'<li class="msg">Not enough data.</li>'}</ul></div>
     </div>
+    ${sec('Practising now',SI.s1)}
+    ${sec('What they hide',SI.s2)}
     ${matchupH}
     ${gbSectionHTML(R,U,hasM,sec)}
     ${sec('Maps',`<div class="tc-cols2" style="grid-template-columns:minmax(0,2.2fr) minmax(0,1fr)"><div>${mapTbl}</div><div class="tc-mds">${modes}</div></div><p class="msg" style="font-size:11.5px;margin:4px 0 0">Win rates are from each team's own sets. “Model: us” is the model's chance that ${esc(U)} wins that map against ${esc(R)}. “They pick” is an estimate of how likely ${esc(R)} is to pick it (it uses how often they play the map and how they do on it, mixed with the maps they really picked when the saved drafts record “Map picked by”: “· N real” shows how many).</p>`)}
-    ${sec('Draft',`<div class="tc-cols3"><div>${bt('Most used brawlers · top 10',used)}</div><div>${bt('Weakest picks · top 10 (6+ picks)',lowp)}</div><div>${bt('Brawlers that beat them · top 10 (6+ faced)',faced,'Faced')}</div></div>
-      <div class="tc-sec"><div class="lbl">Brawler types together · top 6</div>${cardTbl([['Type composition'],['Sets',1],['Wins',1],['WR',1]],tcl,'',['auto','52px','52px','66px'])}</div>`)}
-    ${sec('Players',`<div class="tc-pls">${pls||'<p class="msg">–</p>'}</div>`)}
+    ${sec('How to beat them',`<div class="tc-cols2"><div>${bt('Weakest picks · top 10 (6+ picks)',lowp)}</div><div>${bt('Brawlers that beat them · top 10 (6+ faced)',faced,'Faced')}</div></div>`)}
+    ${sec('Players',SI.s5)}
     ${hasM?sec('Against us',h2h+`<div class="lbl" style="margin:10px 0 4px;text-align:center">Common opponents</div>`+common):''}
     <p class="foot" style="margin:0;font-size:11px;color:var(--muted)">Auto-generated from the sets in this page (${esc(periodLabel())}, ${esc(filterLabel())}). Brackets [n] are the number of sets; the less data, the less reliable.</p>
   </article>`;
@@ -7977,3 +8098,76 @@ body{font-family:var(--body)!important;font-feature-settings:'tnum' 1,'cv11' 1}
 .u-ddg{display:flex;flex-direction:column;gap:2px;padding:6px 0;border-bottom:1px solid #1d1b27}.u-ddg:last-child{border:0}.u-ddg .u-lugt{padding:2px 4px 4px}
 .u-hero{overflow:visible!important}
 </style><style>.u-ddl .luc{flex:none!important;min-width:0!important;height:auto!important;box-shadow:none!important;border-color:transparent!important}.u-ddl .lucn{flex-direction:row!important;line-height:1.3}</style>
+<style id="rev112">
+.si-sec{display:flex;flex-direction:column;gap:12px;margin:22px 0 4px}
+.si-h{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;border-bottom:1px solid #24222f;padding-bottom:10px}
+.si-h h3{margin:0;font-size:19px;color:#fff;letter-spacing:.02em}.si-h p{margin:4px 0 0;font-size:12.5px;color:#8e8ab0}
+.si-row{height:auto!important;min-height:62px;padding-top:8px!important;padding-bottom:8px!important}.si-new{margin:0 6px 0 0!important}.si-row .u-rec{white-space:normal!important;line-height:1.3}
+.si-tags>.si-tg{display:flex!important;min-width:0}.si-tg>div{display:block!important;position:static!important;min-width:0;flex:1}.si-tg>img{flex:none;position:static!important}
+.si-row{grid-template-columns:18px auto minmax(0,1fr) 58px 64px!important}.si-m{grid-template-columns:34px minmax(0,1fr) 58px!important}
+.si-h2{grid-template-columns:18px auto minmax(0,1fr) 56px 66px 64px!important}
+.si-d{text-align:right;font-weight:800;font-size:14px}.si-d small{display:block;font-size:10px;color:#6e6a85;font-weight:500}.si-d.up{color:#4ade80}.si-d.dn{color:#f87171}
+.si-new{font-style:normal;font-size:9.5px;background:#facc15;color:#000;border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:2px}
+.si-mi{width:32px!important;height:44px!important;object-fit:cover;border-radius:6px}
+.si-sub{padding:10px 16px 4px;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:#f87171;font-weight:700;border-top:1px solid #24222f}
+.si-pair{text-align:right}.si-pair b{font-size:14px;color:#fff}.si-pair small{display:block;font-size:10px;color:#6e6a85}
+.si-tags{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 14px;border-bottom:1px solid #24222f}
+.si-tg{display:flex;align-items:center;gap:10px;border-radius:12px;padding:8px 10px;background:#0d0c12;border:1px solid #24222f}.si-tg.si-bn{border-color:rgba(248,113,113,.5);background:rgba(248,113,113,.07)}.si-tg.si-wk{border-color:rgba(250,204,21,.4);background:rgba(250,204,21,.05)}
+.si-ti{width:40px!important;height:40px!important;border-radius:8px}.si-tg small{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.08em;font-weight:700}.si-tg.si-bn small{color:#f87171}.si-tg.si-wk small{color:#facc15}.si-tg b{display:block;font-size:13.5px;color:#fff}.si-tg i{font-style:normal;font-size:11px;color:#8e8ab0}
+
+.si-sec{margin:0!important;width:100%}.si-p{margin:0;font-size:12.5px;color:#8e8ab0;text-align:center}
+.si-ph{display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap}
+.si-fold{margin-top:12px;background:#121118;border:1px solid #24222f;border-radius:12px;padding:12px 16px}
+.si-fold>summary{cursor:pointer;color:#c4b5fd;font-weight:600;font-size:13.5px;display:flex;align-items:center;gap:8px;list-style:none}.si-fold>summary::-webkit-details-marker{display:none}
+.si-fold>summary:before{content:'▸';color:#a78bfa;transition:transform .15s}.si-fold[open]>summary:before{transform:rotate(90deg)}
+.si-fold>summary span{margin-left:auto;font-size:11.5px;color:#8e8ab0;font-weight:500}.si-fold[open]>summary span{display:none}
+/* older scouting blocks in the dark style */
+.sc-tm{background:#121118!important;border:1px solid #24222f!important;border-radius:16px!important}
+.sc-th{background:linear-gradient(90deg,rgba(168,85,247,.14),transparent)!important;border-bottom:1px solid #24222f!important}
+.gb-team,.gbt,.gb-col{background:#121118!important;border-color:#24222f!important;border-radius:16px!important}
+.sc-fix,.sc-bs,.gb-maps{background:#121118!important;border-color:#24222f!important;border-radius:14px!important}
+.sc-mr{background:#121118!important;border:1px solid #1d1b27;border-radius:10px}
+.tc-mds>div{background:#121118!important;border-color:#24222f!important}
+</style><style>.si-tg,.si-tg>div{text-align:left!important}</style>
+<style id="rev113">
+.bz-wrap{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:18px;align-items:center}
+.bz-wrap>.bz-x{margin:0!important}
+.bz-sp{min-width:0;display:flex}.bz-sp.l{justify-content:flex-end}.bz-sp.r{justify-content:flex-start}
+.bz-sp .bz-cp{margin:0!important;max-width:340px;width:100%;text-align:left;display:flex;flex-direction:column;gap:8px;background:rgba(168,85,247,.08)!important;border:1px solid rgba(168,85,247,.4)!important;border-radius:14px!important;padding:14px!important}
+.bz-sp .bz-cp>div{font-size:13.5px;line-height:1.4}.bz-sp .bz-cp small{display:block;font-size:11.5px;line-height:1.45;color:#9a97ad}
+.bz-sp .bz-cpc{width:22px!important;height:22px!important;vertical-align:-6px;margin-right:4px}
+@media (max-width:1400px){.bz-wrap{grid-template-columns:minmax(0,1fr)}.bz-sp:empty{display:none}.bz-sp{justify-content:center!important}}
+</style><style id="live">.lv{display:flex;flex-direction:column;gap:16px}
+.lv-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#121118;border:1px solid #2b2540;border-radius:16px;padding:12px 16px}
+.lv-live{color:#f87171;font-weight:800;letter-spacing:.1em;font-size:12px}.lv-chip{display:flex;align-items:center;gap:8px;background:#0d0c12;border:1px solid #2a2838;border-radius:999px;padding:6px 14px;font-weight:600;font-size:13px;color:#fff}
+.lv-cm{width:18px!important;height:24px!important;object-fit:cover;border-radius:3px}.lv-coin{width:20px!important;height:20px!important}
+.lv-step{margin-left:auto;font-size:14px;color:#cfcce0}.lv-step b{color:#facc15}.lv-act{display:flex;gap:6px}
+.lv-board{display:grid;grid-template-columns:1fr 260px 1fr;gap:16px;align-items:stretch}
+.lv-team{background:#121118;border:1px solid #24222f;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.lv-team.us{border-color:rgba(96,165,250,.45);background:linear-gradient(180deg,rgba(96,165,250,.08),#121118 40%)}.lv-team.them{border-color:rgba(248,113,113,.45);background:linear-gradient(180deg,rgba(248,113,113,.08),#121118 40%)}
+.lv-th{display:flex;align-items:center;gap:10px}.lv-th b{display:block;font-size:17px;color:#fff}.lv-th small{color:#8e8ab0;font-size:12px}.lv-th .lv-coin{margin-left:auto}.lv-lg{width:40px!important;height:40px!important;object-fit:contain}
+.lv-lab{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:#a78bfa;font-weight:700;margin-top:4px}
+.lv-bans{display:flex;gap:8px}.lv-b{position:relative;width:46px;height:46px;border-radius:10px;overflow:hidden;border:1px solid #f8717166}.lv-b:after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent 46%,#f87171 47%,#f87171 53%,transparent 54%);opacity:.9}.lv-bi{width:100%!important;height:100%!important;filter:grayscale(.6)}
+.lv-s{display:flex;align-items:center;gap:12px;background:#0d0c12;border:1px solid #24222f;border-radius:12px;padding:8px 10px;min-height:64px;position:relative}
+.lv-s.cur{border:1.5px dashed #facc15;background:rgba(250,204,21,.05)}.lv-si{width:52px!important;height:52px!important;border-radius:10px}.lv-q{width:52px;height:52px;border-radius:10px;background:#1d1b27;display:flex;align-items:center;justify-content:center;color:#4a4660;font-size:22px;font-weight:800}
+.lv-n{position:absolute;left:4px;top:4px;font-size:10px;font-weight:800;background:#000a;color:#fff;border-radius:4px;padding:0 4px}.lv-s b{font-size:15px;color:#fff}.lv-now{color:#facc15!important}.lv-e{color:#4a4660!important}
+.lv-mid{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#121118;border:1px solid #24222f;border-radius:16px;padding:14px}
+.lv-map{width:150px!important;height:210px!important;object-fit:cover;border-radius:12px}.lv-mid small{color:#6e6a85;font-size:11px}
+.lv-strip{display:flex;gap:6px}.lv-o{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#fff;opacity:.35}.lv-o.us{background:#3b82f6}.lv-o.th{background:#ef4444}.lv-o.d{opacity:.7}.lv-o.cur{opacity:1;box-shadow:0 0 0 2px #facc15}
+.lv-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:16px}
+.lv-r{grid-template-columns:18px auto minmax(0,1fr) 90px 64px!important;height:68px!important}.lv-r2{grid-template-columns:18px auto minmax(0,1fr) 80px!important}
+.lv-why{display:flex;gap:10px;flex-wrap:wrap;margin-top:2px}.lv-why i{font-style:normal;font-size:11.5px;font-weight:700}
+.lv-sc{text-align:right}.lv-sc b{font-size:18px;color:#fff}.lv-sc span{display:block;height:4px;background:#24222f;border-radius:3px;overflow:hidden;margin-top:5px}.lv-sc span i{display:block;height:100%;background:linear-gradient(90deg,#a855f7,#ec4899)}
+.lv-pick{background:#a855f7;border:0;color:#fff;font-weight:700;border-radius:999px;padding:7px 0;cursor:pointer}
+.lv-tip{margin:10px 16px 14px;padding:10px 12px;border-radius:10px;background:rgba(168,85,247,.10);border:1px solid rgba(168,85,247,.35);font-size:12.5px;color:#cfcce0}
+.lv-pool{display:flex;flex-wrap:wrap;gap:6px;padding:14px}.lv-pi{width:42px!important;height:42px!important;border-radius:8px}.lv-p.x{opacity:.18;filter:grayscale(1)}
+.lv-tab[aria-pressed="false"]{color:#f87171!important}
+.lv-f{display:flex;align-items:center;gap:6px}.lv-f small{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:#a78bfa;font-weight:700}.lv-sel{padding:6px 10px!important;max-width:220px}
+.lv-you{color:#facc15}.lv-done{color:#4ade80}
+.lv-b0{width:46px;height:46px;border-radius:10px;border:1px dashed #3b2a52;background:#0d0c12}.lv-b0.cur{border:1.5px dashed #facc15;background:rgba(250,204,21,.06)}
+.lv-b,.lv-s.f{cursor:pointer}.lv-b:hover,.lv-s.f:hover{outline:1px solid #f87171}
+.lv-r2{grid-template-columns:18px auto minmax(0,1fr) 80px 64px!important}
+.lv-pick.alt{background:transparent;border:1px solid #a855f7;color:#c4b5fd}
+.lv-p{background:none;border:0;padding:0;cursor:pointer;border-radius:8px}.lv-p:hover:not(:disabled){outline:2px solid #a855f7}.lv-p:disabled{cursor:default}.lv-p span{display:inline-block;font-size:10px;padding:4px;color:#cfcce0;width:42px;overflow:hidden}
+.lv-top .seg2 button{display:inline-flex;align-items:center;gap:6px}
+</style><style>.lv-top .lv-act{margin-left:0}.lv-top{row-gap:10px}</style>
