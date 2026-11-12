@@ -1421,6 +1421,23 @@ td.pkd{font-family:var(--mono,monospace);font-size:12px;color:#cfcce0}
 .tld-c .rank td.tlp{background:none!important;font:800 15px var(--mono,monospace)}
 .tld-chart{position:relative}.tld-tip{position:absolute;background:#15141c;border:1px solid #3a3650;border-radius:10px;padding:8px 12px;display:flex;flex-direction:column;gap:2px;font-size:13px;color:#cfcce0;pointer-events:none;min-width:150px;box-shadow:0 6px 20px rgba(0,0,0,.5)}.tld-tip b{color:#fff}
 @media(max-width:900px){.tld-g.g2{grid-template-columns:1fr}}
+
+.tld-svg{width:100%;height:auto!important}
+.tld-sc{max-height:430px;overflow-y:auto;overflow-x:hidden;padding-right:4px;scrollbar-width:thin;scrollbar-color:#4b4860 transparent}
+.tld-sc::-webkit-scrollbar{width:8px}.tld-sc::-webkit-scrollbar-thumb{background:#4b4860;border-radius:6px}
+.tld-cnt{float:right;color:#8e8ab0;font-weight:600;letter-spacing:0}
+.tld-c .rank td.tld-pl{min-width:190px}
+.tld-bg{left:50%!important;right:auto!important;transform:translate(-50%,-50%)!important;opacity:.16!important}
+.tld-bg img{width:52px!important;height:52px!important}
+.tld-mapc{display:flex;align-items:center;gap:12px}
+.tld-mapi img{width:46px!important;height:62px!important;object-fit:cover;border-radius:7px;display:block;border:1px solid #2a2838}
+.tld-mapn{display:flex;flex-direction:column;gap:2px}.tld-mapn b{font-size:15px}
+.tld-g.g2 .tld-sc{max-height:560px}
+
+.tl-c .tl-k{color:#60a5fa;border-color:#60a5fa;background:rgba(96,165,250,.12)}.tl-c{border-color:rgba(96,165,250,.28)}
+.tl-d .tl-k{color:#fb923c;border-color:#fb923c;background:rgba(251,146,60,.12)}.tl-d{border-color:rgba(251,146,60,.28)}
+.tl-e .tl-k{color:#f87171;border-color:#f87171;background:rgba(248,113,113,.12)}.tl-e{border-color:rgba(248,113,113,.28)}
+.tl-sc.c{color:#60a5fa}.tl-sc.d{color:#fb923c}.tl-sc.e{color:#f87171}
 </style>
 
 <div class="wrap">
@@ -4110,6 +4127,9 @@ const TL={teams:null,map:'',since:'patch',from:'',to:'',open:null};
 try{const x=JSON.parse(store.get('tvt:tier')||'null');if(x){TL.teams=x.teams||null;TL.map=x.map||'';TL.since=x.since||'patch';TL.from=x.from||'';TL.to=x.to||''}}catch(e){}
 const tlSave=()=>store.set('tvt:tier',JSON.stringify({teams:TL.teams,map:TL.map,since:TL.since,from:TL.from,to:TL.to}));
 const TL_W={pres:.5,wr:.3,prio:.2};
+// tiers by meta score (fixed cuts, so a letter always means the same)
+const TL_TIERS=[['S',8,'8 or more'],['A',6.5,'6.5 – 7.9'],['B',5,'5 – 6.4'],['C',4,'4 – 4.9'],['D',3,'3 – 3.9'],['E',-1,'under 3']];
+const tlTier=sc=>{const v=Math.round(sc*10)/10;for(const [k,lo] of TL_TIERS)if(v>=lo)return k;return 'E'};
 function tlSrc(){const ty=flt2.type||'all',okTy=m=>ty==='all'||(ty==='tournament'?m.ty==='tournament':m.ty!=='tournament');
   return TL.since==='custom'?((FULL&&FULL.matches)||[]).filter(m=>m.d&&(!TL.from||m.d>=TL.from)&&(!TL.to||m.d<=TL.to)&&okTy(m)):ds.matches}
 function tlTW(T){const R=wbRatings().r||{},rv=[...T].map(t=>R[t]).filter(x=>x!=null).sort((a,b)=>a-b);
@@ -4160,28 +4180,28 @@ function tlDetail(b){const C=TLC||tlCalc(),k=mkey(b),T=C.T,nm=g=>sheetName(g,(ds
       for(const x of op||[])if(x)inc(EN,x,y);
       const I=setInfo(m);if(I.first&&!I.po){const q=I.num[k];if(q)PO[q]=(PO[q]||0)+1}}}
   const wrS=x=>x.n?Math.round(100*x.w/x.n)+'%':'–',adj=x=>(x.w+5)/(x.n+10);
-  const tbl=(title,rows,cols,empty)=>`<div class="tld-c"><div class="tld-h">${title}</div><table class="rank fit"><tbody>${rows.length?rows.map((r,i)=>`<tr><td class="rk">${i+1}</td>${cols(r)}</tr>`).join(''):`<tr><td class="msg">${empty||'Not enough sets'}</td></tr>`}</tbody></table></div>`;
+  const tbl=(title,rows,cols,empty)=>`<div class="tld-c"><div class="tld-h">${title}<small class="tld-cnt">${rows.length?rows.length:''}</small></div><div class="tld-sc"><table class="rank fit"><tbody>${rows.length?rows.map((r,i)=>`<tr><td class="rk">${i+1}</td>${cols(r)}</tr>`).join(''):`<tr><td class="msg">${empty||'Not enough sets'}</td></tr>`}</tbody></table></div></div>`;
   const wrCol=p=>p>=.6?'#4ade80':p>=.53?'#86efac':p>.47?'#facc15':p>.4?'#fca5a5':'#f87171';
   const wrc=x=>`<td class="num">${x.n}</td><td class="num tlp" style="color:${wrCol(x.w/x.n)}">${wrS(x)}</td>`;
   const br_=x=>`<td class="ic"><span class="bnc">${bimg(x.k,'bi')}<span class="bnm">${esc(x.k)}</span></span></td>`;
-  const pl=Object.values(P).sort((a,b)=>b.n-a.n||b.w-a.w).slice(0,8);
-  const tms=Object.values(TM).sort((a,b)=>b.n-a.n).slice(0,8);
-  const du=Object.values(DU).filter(x=>x.n>=3).sort((a,b)=>adj(b)-adj(a)).slice(0,8);
-  const en=Object.values(EN).filter(x=>x.n>=3),cnt=en.slice().sort((a,b)=>adj(a)-adj(b)).slice(0,8),good=en.slice().sort((a,b)=>adj(b)-adj(a)).slice(0,6);
-  const mp=Object.values(MP).filter(x=>x.n>=3),mBest=mp.slice().sort((a,b)=>adj(b)-adj(a)).slice(0,6),mWorst=mp.slice().sort((a,b)=>adj(a)-adj(b)).filter(x=>x.w/x.n<.5).slice(0,6);
-  const bn=Object.entries(BN).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  const mapc=x=>{const mi=IMGS['mode'+mkey(modeOfMap(x.k))];return `<td class="ic">${mi?`<img src="${mi}" class="tld-mi" alt="">`:''}<b>${esc(x.k)}</b></td>`};
+  const pl=Object.values(P).sort((a,b)=>b.n-a.n||b.w-a.w);
+  const tms=Object.values(TM).sort((a,b)=>b.n-a.n);
+  const du=Object.values(DU).filter(x=>x.n>=3).sort((a,b)=>adj(b)-adj(a));
+  const en=Object.values(EN).filter(x=>x.n>=3),cnt=en.filter(x=>x.w/x.n<.5).sort((a,b)=>adj(a)-adj(b)),good=en.filter(x=>x.w/x.n>=.5).sort((a,b)=>adj(b)-adj(a));
+  const mp=Object.values(MP).filter(x=>x.n>=3),mBest=mp.filter(x=>x.w/x.n>=.5).sort((a,b)=>adj(b)-adj(a)),mWorst=mp.filter(x=>x.w/x.n<.5).sort((a,b)=>adj(a)-adj(b));
+  const bn=Object.entries(BN).sort((a,b)=>b[1]-a[1]);
+  const mapc=x=>{const mi=IMGS['mode'+mkey(modeOfMap(x.k))];return `<td class="ic tld-mapc"><span class="tld-mapi">${mimg(x.k,'')}</span><span class="tld-mapn"><b>${mi?`<img src="${mi}" class="tld-mi" alt="">`:''}${esc(x.k)}</b><small class="tld-sm">${esc(modeOfMap(x.k)||'')}</small></span></td>`};
   const teamc=x=>`<td class="ic">${logo(x.k,'l20')} <b>${esc(x.k)}</b></td>`;
   const H=tlHist(b,C),pts=H.filter(x=>x.r),maxR=Math.max(10,...pts.map(x=>x.n||0));
-  const W=900,Hh=200,px=i=>40+i*(W-60)/29,py=r=>16+(r-1)*(Hh-36)/(maxR-1);
+  const W=1500,Hh=280,px=i=>70+i*(W-100)/29,py=r=>16+(r-1)*(Hh-36)/(maxR-1);
   let path='';H.forEach((x,i)=>{if(!x.r)return;path+=(path?'L':'M')+px(i).toFixed(1)+' '+py(x.r).toFixed(1)});
   const ticks=[1,Math.round(maxR/4),Math.round(maxR/2),Math.round(3*maxR/4),maxR];
   const hd=H.map((x,i)=>({x:px(i),y:x.r?py(x.r):null,d:fmtDate(x.d),r:x.r,sc:x.sc==null?null:+x.sc.toFixed(1)}));
-  const svg=`<div class="tld-chart" data-tlh='${esc(JSON.stringify(hd))}' data-w="${W}" data-h="${Hh+20}"><svg viewBox="0 0 ${W} ${Hh+20}" class="tld-svg" preserveAspectRatio="none">${ticks.map(t=>`<line x1="40" x2="${W-20}" y1="${py(t)}" y2="${py(t)}" stroke="#22202e"/><text x="32" y="${py(t)+4}" text-anchor="end" fill="#8e8ab0" font-size="11">${t}</text>`).join('')}
-    ${path?`<path d="${path} L${px(29)} ${Hh} L${px(H.findIndex(x=>x.r))} ${Hh} Z" fill="rgba(74,222,128,.10)" stroke="none"/><path d="${path}" fill="none" stroke="#4ade80" stroke-width="2.5" stroke-linejoin="round"/>`:''}
-    ${H.map((x,i)=>x.r?`<circle cx="${px(i)}" cy="${py(x.r)}" r="3" fill="#4ade80"></circle>`:'').join('')}
-    ${[0,10,20,29].map(i=>`<text x="${px(i)}" y="${Hh+14}" text-anchor="middle" fill="#8e8ab0" font-size="11">${esc(fmtDate(H[i].d).replace(/ 20\d\d$/,''))}</text>`).join('')}<line class="tld-vl" x1="0" x2="0" y1="10" y2="${Hh}" stroke="#c4b5fd" stroke-dasharray="3 3" opacity="0"/><circle class="tld-dot" r="6" fill="#4ade80" stroke="#0b0a10" stroke-width="2" opacity="0"/></svg><div class="tld-tip" hidden></div></div>`;
-  const tier=e.score>8?'S':e.score>6?'A':e.score>4?'B':'C',pc=x=>(100*x).toFixed(1)+'%';
+  const svg=`<div class="tld-chart" data-tlh='${esc(JSON.stringify(hd))}' data-w="${W}" data-h="${Hh+30}"><svg viewBox="0 0 ${W} ${Hh+30}" class="tld-svg" preserveAspectRatio="xMidYMid meet">${ticks.map(t=>`<line x1="60" x2="${W-20}" y1="${py(t)}" y2="${py(t)}" stroke="#22202e"/><text x="48" y="${py(t)+4}" text-anchor="end" fill="#8e8ab0" font-size="20">${t}</text>`).join('')}
+    ${path?`<path d="${path} L${px(29)} ${Hh} L${px(H.findIndex(x=>x.r))} ${Hh} Z" fill="rgba(74,222,128,.10)" stroke="none"/><path d="${path}" fill="none" stroke="#4ade80" stroke-width="4" stroke-linejoin="round"/>`:''}
+    ${H.map((x,i)=>x.r?`<circle cx="${px(i)}" cy="${py(x.r)}" r="5" fill="#4ade80"></circle>`:'').join('')}
+    ${[0,10,20,29].map(i=>`<text x="${px(i)}" y="${Hh+22}" text-anchor="middle" fill="#8e8ab0" font-size="20">${esc(fmtDate(H[i].d).replace(/ 20\d\d$/,''))}</text>`).join('')}<line class="tld-vl" x1="0" x2="0" y1="10" y2="${Hh}" stroke="#c4b5fd" stroke-dasharray="3 3" opacity="0"/><circle class="tld-dot" r="9" fill="#4ade80" stroke="#0b0a10" stroke-width="2" opacity="0"/></svg><div class="tld-tip" hidden></div></div>`;
+  const tier=tlTier(e.score),pc=x=>(100*x).toFixed(1)+'%';
   const poT=Object.values(PO).reduce((a,b)=>a+b,0);
   const card=(l,v,sub)=>`<div class="tld-k"><small>${l}</small><b>${v}</b>${sub?`<i>${sub}</i>`:''}</div>`;
   return `<div class="gm tlm" role="dialog" aria-label="${esc(b)}"><div class="gm-top"><span class="gm-date">${TL.map?esc(TL.map)+' · ':''}${plural(C.nSets,'set')} · ${C.teams.length===M.D.off.length?'all teams':plural(C.teams.length,'team')}</span><button type="button" class="gm-close" data-gmclose aria-label="Close">✕</button></div>
@@ -4213,9 +4233,9 @@ function tierTab(){const C=tlCalc();TLC=C;const off=M.D.off,sel=new Set(TL.teams
   const maps=[...new Set(((TL.since==='custom'&&FULL&&FULL.matches)||ds.matches).map(m=>m.m).filter(Boolean))].sort();
   const chips=off.map(t=>`<button type="button" class="tl-tm${sel.has(t)&&!all?' on':''}${all?' all':''}" data-tlt="${esc(t)}" title="${esc(t)}">${logo(t,'l28')}</button>`).join('');
   const pc=x=>Math.round(100*x)+'%';
-  const tile=e=>{const sc=e.score.toFixed(1),cl=e.score>8?'s':e.score>6?'a':e.score>4?'b':'c',tr=e.trend>.05?'<i class="tl-up">▲</i>':e.trend<-.05?'<i class="tl-dn">▼</i>':'';
+  const tile=e=>{const sc=e.score.toFixed(1),cl=tlTier(e.score).toLowerCase(),tr=e.trend>.05?'<i class="tl-up">▲</i>':e.trend<-.05?'<i class="tl-dn">▼</i>':'';
     return `<div class="tl-t${e.few?' few':''}" data-tlb="${esc(e.b)}" title="${esc(e.b)} · meta score ${sc}\nPresence ${pc(e.pres)} (picked ${pc(e.pick)} + banned ${pc(e.ban)} of the drafts)\nWin rate ${pc(e.wr)} (adjusted, ${e.n} sets)\nPick priority ${e.prn?pc(e.prio):'unknown (no pick order set)'}${e.trend?'\nLast 7 days: '+(e.trend>0?'+':'')+Math.round(100*e.trend)+' pts of pick rate':''}${e.few?'\nFew sets: take it with care':''}">${bimg(e.b,'tl-i')}<b>${esc(e.b)}</b><span class="tl-sc ${cl}">${sc}${tr}</span></div>`};
-  const tiers=[['S','> 8',e=>e.score>8],['A','6.1 – 8',e=>e.score>6&&e.score<=8],['B','4.1 – 6',e=>e.score>4&&e.score<=6],['C','≤ 4',e=>e.score<=4]];
+  const tiers=TL_TIERS.map(([k,lo,rg])=>[k,rg,e=>tlTier(e.score)===k]);
   const seen=new Set(C.list.map(e=>mkey(e.b))),unseen=drNames().filter(n=>!seen.has(mkey(n)));
   const rows=tiers.map(([k,rg,f])=>{const L=C.list.filter(f);return `<div class="tl-row tl-${k.toLowerCase()}"><div class="tl-lab"><span class="tl-k">${k}</span><small>${rg}</small><small>${L.length} brawlers</small></div><div class="tl-g">${L.map(tile).join('')||'<span class="msg">—</span>'}</div></div>`}).join('');
   return `<div class="tl-wrap"><div class="tl-ctl">
