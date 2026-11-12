@@ -90,7 +90,7 @@ window.API_SHEET_ID="1GCtGBZN25X8Smw7nftKooS-uM-afwLIA3P6OPB9YNnk";
   try{var H=window.__UXH;if(H){if(H.f!=null)localStorage.setItem('tvt:from',H.f);if(H.to!=null)localStorage.setItem('tvt:to',H.to);if(H.ty)localStorage.setItem('tvt:type',H.ty)}}catch(e){}
   document.addEventListener('DOMContentLoaded',function(){pinta();setInterval(pinta,120000)});
 })();
-</script><meta charset="utf-8"><meta name="viewport" content="width=980"><title>ANALYSIS SUGUS · API</title>
+</script><meta charset="utf-8"><meta name="viewport" content="width=1600, user-scalable=yes"><title>ANALYSIS SUGUS · API</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2064%2064%27%3E%3Crect%20width%3D%2764%27%20height%3D%2764%27%20rx%3D%2714%27%20fill%3D%27%23161525%27/%3E%3Ctext%20x%3D%2732%27%20y%3D%2744%27%20font-family%3D%27Arial%20Black%2CArial%2Csans-serif%27%20font-weight%3D%27900%27%20font-size%3D%2732%27%20text-anchor%3D%27middle%27%20fill%3D%27%23ffc83d%27%3EAS%3C/text%3E%3Crect%20x%3D%2710%27%20y%3D%2750%27%20width%3D%2744%27%20height%3D%274%27%20rx%3D%272%27%20fill%3D%27%23ffc83d%27/%3E%3C/svg%3E">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -7932,3 +7932,20 @@ body{padding-top:64px!important}@media (min-width:1200px){.sbar{top:64px!importa
  #sheetbar{justify-content:flex-start!important}
 }
 </style><style>@media (max-width:700px){.u-cf .fgroup>*{max-width:100%;min-width:0}.u-cf .fgroup>div{display:flex;flex-wrap:wrap;gap:6px;width:100%}.u-cf .fgroup details,.u-cf .fgroup select{flex:1 1 100%}}</style>
+<script>
+// ===== hand cursor: click and drag anywhere empty to move around the page (hold Alt to select text instead)
+(function(){if(!matchMedia('(pointer:fine)').matches)return;
+  const NO='a,button,input,select,textarea,label,summary,details[open] .bpop,option,[contenteditable],[data-slk],[data-cdi],[data-sm],[data-smode],[role=tab],[draggable=true],.gt-clk,.mx-tr,canvas,svg,.uxcal,.dr-picker,.tld-chart';
+  let d=null,moved=false;
+  const scr=el=>{const L=[];for(let e=el;e&&e!==document.body&&e!==document.documentElement;e=e.parentElement){const s=getComputedStyle(e);if((/(auto|scroll)/.test(s.overflowY)&&e.scrollHeight>e.clientHeight+2)||(/(auto|scroll)/.test(s.overflowX)&&e.scrollWidth>e.clientWidth+2))L.push(e)}return L};
+  document.addEventListener('mousedown',e=>{if(e.button!==0||e.altKey||e.target.closest(NO))return;const sel=getSelection();if(sel&&sel.toString())sel.removeAllRanges();
+    d={x:e.clientX,y:e.clientY,L:scr(e.target)};moved=false},true);
+  document.addEventListener('mousemove',e=>{if(!d)return;let dx=e.clientX-d.x,dy=e.clientY-d.y;if(!moved&&Math.abs(dx)+Math.abs(dy)<5)return;
+    if(!moved){moved=true;document.documentElement.classList.add('grabbing')}e.preventDefault();d.x=e.clientX;d.y=e.clientY;
+    for(const el of d.L){const ty=el.scrollTop,tx=el.scrollLeft;el.scrollTop-=dy;el.scrollLeft-=dx;dy+=el.scrollTop-ty;dx+=el.scrollLeft-tx}
+    if(dx||dy)window.scrollBy(-dx,-dy)},true);
+  const end=()=>{if(!d)return;d=null;document.documentElement.classList.remove('grabbing');if(moved){const k=e=>{e.stopPropagation();e.preventDefault()};document.addEventListener('click',k,{capture:true,once:true});setTimeout(()=>document.removeEventListener('click',k,true),50)}};
+  document.addEventListener('mouseup',end,true);window.addEventListener('blur',end);
+  const st=document.createElement('style');st.textContent=`html{cursor:grab}html.grabbing,html.grabbing *{cursor:grabbing!important;user-select:none!important}
+  a,button,input,select,textarea,label,summary,[data-slk],[data-cdi],[data-sm],[role=tab],.gt-clk,.mx-tr,.u-crow{cursor:pointer}input[type=text],textarea,[contenteditable]{cursor:text}`;document.head.appendChild(st)})();
+</script>
