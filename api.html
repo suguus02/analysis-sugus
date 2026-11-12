@@ -2633,6 +2633,7 @@ function bansHTML(team,cls,D,ui,pre){const own=bnSubj==='own',trio=bnKind==='tri
   if(ui){const pc=(c,n)=>n?Math.round(100*c/n):0;
     const panel=(title,o,n)=>{const rows=Object.entries(o).sort((a,b)=>b[1]-a[1]||(a[0]<b[0]?-1:1));
       return `<section class="u-panel"><header><span class="u-hd">${title}</span><small>${plural(n,'set')}</small></header><div class="u-scroll">${rows.map(([b,c],i)=>`<div class="u-row u-bnr${trio?' tri':''}"><span class="u-rk">${i+1}</span>${trio?`<span class="u-btri" title="${esc(b)}">${b.split(' + ').map(x=>`<span class="bz-b u-bi">${bimg(x,'mx-bni')}</span>`).join('')}</span>`:`<span class="bz-b u-bi">${bimg(b,'mx-bni')}</span>`}<div class="u-nm">${trio?'':`<b>${esc(b)}</b>`}<small class="u-rec">${c} ${trio?(c===1?'time':'times'):(c===1?'ban':'bans')}</small></div><div class="u-wr"><b style="color:#f87171">${pc(c,n)}%</b><span><i style="width:${pc(c,n)}%;background:#f87171"></i></span></div></div>`).join('')||'<p class="msg u-none">No bans</p>'}</div></section>`};
+    if(ui===3)return panel('Total',T,tot)+panel(`${coinI(true,'u-coin')}With 1st pick`,F,nf)+panel(`${coinI(false,'u-coin')}With last pick`,Lc,nl);
     if(ui===2)return `<div class="u-grid3">${panel('Total',T,tot)}${panel(`${coinI(true,'u-coin')}With 1st pick`,F,nf)}${panel(`${coinI(false,'u-coin')}With last pick`,Lc,nl)}</div>`;
     return `<div class="u-tg"><div class="seg2" role="group" aria-label="Whose bans"><button type="button" data-bnsubj="own" aria-pressed="${own}">${esc(team)}'s bans</button><button type="button" data-bnsubj="ag" aria-pressed="${!own}">Bans against ${esc(team)}</button></div><div class="seg2" role="group" aria-label="Single bans or trios"><button type="button" data-bnkind="one" aria-pressed="${!trio}">Each ban</button><button type="button" data-bnkind="trio" aria-pressed="${trio}">Trios of bans</button></div>
       <span class="u-note">${plural(ns,'set')} with bans from the API${ndr?' + '+plural(ndr,'saved draft'):''}${mf?' on '+plural(mf.length,'map'):''} · % = share of the sets of each column</span></div>
@@ -2704,7 +2705,7 @@ function compRows(items,team0){if(!items||!items.length)return '<p class="msg u-
     return `<div class="u-crow${x.s?' solo':''}" data-slk="${x.i}" data-slt="${esc(team)}" title="Click to open the set">
       <div class="u-cres ${r[0]}">${r[1]}<small>${esc(x.sc||'')}</small></div>${mimg(x.map,'u-cmi')}<div class="u-cmeta">${team0?'':`<span class="u-cteam">${logo(team,'l20')}${esc(team)}</span>`}<b>${esc(x.map)}</b><small>${fmtDate(x.d)}${x.s?' · single game':''}${x.ty==='tournament'?' · <i class="u-tt">Tournament</i>':''}</small></div>
       <div class="u-cside l"><span class="u-cbn">${bz(side(x,true))}</span><span class="u-cbr">${br(x.mine,x.myNames,x.myTags)}</span></div><div class="u-cvs">${c||'vs'}</div><div class="u-cside r"><span class="u-cbr">${br(x.theirs,x.opNames,x.opTags)}</span><span class="u-cbn">${bz(side(x,false))}</span></div>
-      <div class="u-copp">${op&&(M.D.off.includes(op)||IMGS[mkey(op)])?logo(op,'u-lg'):''}<b title="${esc(x.opp||'')}">${esc(op||x.opp||'')}</b></div></div>`}).join('')}</div>`}
+      <div class="u-copp">${logo(op||x.opp||'?','u-lg')}<b title="${esc(x.opp||'')}">${esc(op||x.opp||'')}</b></div></div>`}).join('')}</div>`}
 function tsOne(team,cls,D,o){
   const its=(D.items0||[]).filter(x=>!x.s&&x.win!==.5),MI={};for(const m of ds.matches)MI[m.i]=m;
   const pc=(w,n)=>n?Math.round(100*w/n):0,col=p=>p>=60?'#4ade80':p>=53?'#86efac':p>47?'#facc15':p>40?'#fca5a5':'#f87171';
@@ -2719,7 +2720,7 @@ function tsOne(team,cls,D,o){
     if(bl.some(Boolean)){nb++;bl.forEach(b=>b&&inc(BN,b,null))}}
   const N=its.length,L=N-W,mp=Object.values(MP).filter(e=>e.n>=3).sort((a,b)=>b.w/b.n-a.w/a.n||b.n-a.n),fav=top(B)[0];
   const tile=(l,v,sub,c)=>`<div class="u-tile"><small>${l}</small><b${c?` style="color:${c}"`:''}>${v}</b><i>${sub}</i></div>`;
-  const tiles=`<div class="u-tiles">${tile('Sets',`${W}W · ${L}L`,N?pc(W,N)+'% win rate':'no sets',N?col(pc(W,N)):'')}${tile('Games',`${gw}W · ${gl}L`,gw+gl?pc(gw,gw+gl)+'% win rate':'–',gw+gl?col(pc(gw,gw+gl)):'')}${tile('Most picked',fav?`${bimg(fav.k,'u-ti')}<span>${esc(fav.k)}</span>`:'–',fav?plural(fav.n,'set')+' · '+pc(fav.w,fav.n)+'%':'')}${tile('Best map',mp.length?esc(mp[0].k):'–',mp.length?pc(mp[0].w,mp[0].n)+'% · '+plural(mp[0].n,'set'):'3+ sets needed',mp.length?'#4ade80':'')}${tile('Worst map',mp.length>1?esc(mp[mp.length-1].k):'–',mp.length>1?pc(mp[mp.length-1].w,mp[mp.length-1].n)+'% · '+plural(mp[mp.length-1].n,'set'):'3+ sets needed',mp.length>1?'#f87171':'')}</div>`;
+  const tiles=tsTiles({N,W,L,gw,gl,mp,fav});
   const reg=REGION[team]||'';
   const hero=`<section class="u-hero">${logo(team,'u-hlogo')}<div class="u-ht"><h1>${esc(team)}</h1><p>${reg?esc(reg)+' · ':''}${plural(N,'set')} in the period${D.luAct?' · lineup filter on':''}</p></div>${tiles}${luHero(team,D)}</section>`;
   const sub=`<div class="u-sub" role="tablist">${TSS_L.map(([k,l])=>`<button type="button" role="tab" data-tss="${k}" class="${TSS===k?'on':''}" aria-selected="${TSS===k}">${l}</button>`).join('')}</div>`;
@@ -2729,7 +2730,7 @@ function tsOne(team,cls,D,o){
   if(TSS==='overview'){
     const br=top(B).slice(0,8).map((e,i)=>row(i+1,bimg(e.k,'u-ic'),esc(e.k),rec(e.w,e.n),e.n,'sets',bar(e.w,e.n),e.w)).join('')||none;
     const du=top(DU).slice(0,8).map((e,i)=>{const [a,b]=e.k.split('|');return row(i+1,`<span class="u-duo">${bimg(a,'u-ic')}${bimg(b,'u-ic')}</span>`,`<span class="u-dn">${esc(a)}<br>${esc(b)}</span>`,rec(e.w,e.n),e.n,'sets',bar(e.w,e.n),e.w)}).join('')||none;
-    const op=top(OP).filter(e=>e.k&&e.k!=='?').slice(0,8).map((e,i)=>row(i+1,M.D.off.includes(e.k)||IMGS[mkey(e.k)]?logo(e.k,'u-lg'):'<span class="u-lg0">?</span>',esc(e.k),rec(e.w,e.n),e.n,'sets',bar(e.w,e.n),e.w)).join('')||none;
+    const op=top(OP).filter(e=>e.k&&e.k!=='?').slice(0,8).map((e,i)=>row(i+1,logo(e.k,'u-lg'),esc(e.k),rec(e.w,e.n),e.n,'sets',bar(e.w,e.n),e.w)).join('')||none;
     const modes=MODELIST.map(([md])=>md).filter(md=>Object.values(MP).some(e=>modeOfMap(e.k)===md));
     const other=Object.values(MP).filter(e=>!modeOfMap(e.k));
     const mcol=(md,L)=>{const mi=IMGS['mode'+mkey(md)],tw=L.reduce((a,e)=>a+e.w,0),tn=L.reduce((a,e)=>a+e.n,0);
@@ -2772,12 +2773,14 @@ function tsAgg(items){const its=(items||[]).filter(x=>!x.s&&x.win!==.5),{inc,top
     inc(OP,x.opTeam||x.opp||'?',x.win);if(x.map)inc(MP,x.map,x.win);if(x.team)inc(TM,x.team,x.win)}
   const N=its.length,mp=Object.values(MP).filter(e=>e.n>=3).sort((a,b)=>b.w/b.n-a.w/a.n||b.n-a.n);
   return {N,W,L:N-W,gw,gl,B,DU,OP,MP,TM,mp,fav:top(B)[0]}}
-function tsTiles(C,small){const {pc,col,tile}=tsU,{N,W,L,gw,gl,mp,fav}=C;
-  return `<div class="u-tiles${small?' sm':''}">${tile('Sets',`${W}W · ${L}L`,N?pc(W,N)+'% win rate':'no sets',N?col(pc(W,N)):'')}${tile('Games',`${gw}W · ${gl}L`,gw+gl?pc(gw,gw+gl)+'% win rate':'–',gw+gl?col(pc(gw,gw+gl)):'')}${tile('Most picked',fav?`${bimg(fav.k,'u-ti')}<span>${esc(fav.k)}</span>`:'–',fav?plural(fav.n,'set')+' · '+pc(fav.w,fav.n)+'%':'')}${tile('Best map',mp.length?esc(mp[0].k):'–',mp.length?pc(mp[0].w,mp[0].n)+'% · '+plural(mp[0].n,'set'):'3+ sets needed',mp.length?'#4ade80':'')}${tile('Worst map',mp.length>1?esc(mp[mp.length-1].k):'–',mp.length>1?pc(mp[mp.length-1].w,mp[mp.length-1].n)+'% · '+plural(mp[mp.length-1].n,'set'):'3+ sets needed',mp.length>1?'#f87171':'')}</div>`}
+function tsTiles(C,small){const {pc,col}=tsU,{N,W,L,gw,gl,mp,fav}=C;
+  const t=(lab,val,sub,c,media)=>`<div class="u-tile${media?' med':''}">${media||''}<div class="u-tt"><small>${lab}</small><b${c?` style="color:${c}"`:''}>${val}</b><i>${sub}</i></div></div>`;
+  const mapT=(lab,e,c)=>{if(!e)return t(lab,'–','3+ sets needed');const md=modeOfMap(e.k),mi=IMGS['mode'+mkey(md)];return t(lab,`${mi?`<img class="u-tmi" src="${mi}" alt="" title="${esc(md)}">`:''}<span>${esc(e.k)}</span>`,`${pc(e.w,e.n)}% · ${plural(e.n,'set')}`,c,`<span class="u-tmed map">${mimg(e.k,'u-tmimg')}</span>`)};
+  return `<div class="u-tiles${small?' sm':''}">${t('Sets',`${W}W · ${L}L`,N?pc(W,N)+'% win rate':'no sets',N?col(pc(W,N)):'')}${t('Games',`${gw}W · ${gl}L`,gw+gl?pc(gw,gw+gl)+'% win rate':'–',gw+gl?col(pc(gw,gw+gl)):'')}${fav?t('Most picked',`<span>${esc(fav.k)}</span>`,`${plural(fav.n,'set')} · <em style="color:${col(pc(fav.w,fav.n))}">${pc(fav.w,fav.n)}%</em>`,'',`<span class="u-tmed">${bimg(fav.k,'u-tbimg')}</span>`):t('Most picked','–','')}${mapT('Best map',mp[0],'#4ade80')}${mapT('Worst map',mp.length>1?mp[mp.length-1]:null,'#f87171')}</div>`}
 function tsSub(L){const k=L.some(x=>x[0]===TSS)?TSS:'overview';return [k,`<div class="u-sub" role="tablist">${L.map(([a,l])=>`<button type="button" role="tab" data-tss="${a}" class="${k===a?'on':''}" aria-selected="${k===a}">${l}</button>`).join('')}</div>`]}
 function tsBrRows(C,hl,n){const {row,bar,top,none}=tsU;return top(C.B).slice(0,n||8).map((e,i)=>row(i+1,`<span class="${hl&&hl.has(e.k)?'hlb':''}">${bimg(e.k,'u-ic')}</span>`,esc(e.k),e.n,e.w,bar(e.w,e.n))).join('')||none}
 function tsDuoRows(C,n){const {row,bar,top,none}=tsU;return top(C.DU).slice(0,n||8).map((e,i)=>{const [a,b]=e.k.split('|');return row(i+1,`<span class="u-duo">${bimg(a,'u-ic')}${bimg(b,'u-ic')}</span>`,`<span class="u-dn">${esc(a)}<br>${esc(b)}</span>`,e.n,e.w,bar(e.w,e.n))}).join('')||none}
-function tsOppRows(C,n){const {row,bar,top,none}=tsU;return top(C.OP).filter(e=>e.k&&e.k!=='?').slice(0,n||8).map((e,i)=>row(i+1,M.D.off.includes(e.k)||IMGS[mkey(e.k)]?logo(e.k,'u-lg'):'<span class="u-lg0">?</span>',esc(e.k),e.n,e.w,bar(e.w,e.n))).join('')||none}
+function tsOppRows(C,n){const {row,bar,top,none}=tsU;return top(C.OP).filter(e=>e.k&&e.k!=='?').slice(0,n||8).map((e,i)=>row(i+1,logo(e.k,'u-lg'),esc(e.k),e.n,e.w,bar(e.w,e.n))).join('')||none}
 // all maps by mode; one win rate per team (1, 2 or the pooled one)
 function tsMaps(Cs,names){const {pc,col}=tsU,maps=new Set();Cs.forEach(C=>Object.keys(C.MP).forEach(m=>maps.add(m)));if(!maps.size)return tsU.none;
   const modes=MODELIST.map(([md])=>md).filter(md=>[...maps].some(m=>modeOfMap(m)===md)),other=[...maps].filter(m=>!modeOfMap(m));if(other.length)modes.push('Other');
@@ -2814,7 +2817,7 @@ function tsPair(){const A=ddBuild(sel.a,'a','A',false),B=ddBuild(sel.b,'b','B',f
       <div class="u-grid2">${DD.map(D=>`<div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0">${logo(D.team,'l20')} ${ckOf(D)==='duos'?'Duos':'Full combo'} · ${D.combos.length}</div>${ckS(D)}</div><div class="scroll pds">${rankTable(D.combos,D.cls,ckOf(D)==='duos'?'Duo':'Full Combo',[],'',0)}</div></div>`).join('')}</div>
       <div class="u-grid2">${DD.map(D=>`<div>${D.np}</div>`).join('')}</div>
       <div class="u-grid2">${DD.map(D=>`<div>${D.types}</div>`).join('')}</div>`}
-  else if(k==='bans')body=bnToggles('Bans of each team','Bans against each team')+DD.map(D=>tsHead(D.team)+bansHTML(D.team,D.cls,D,2)).join('');
+  else if(k==='bans')body=bnToggles('Bans of each team','Bans against each team')+`<div class="u-grid6">${DD.map(D=>`<div class="u-g6h">${tsHead(D.team)}</div>`).join('')}${DD.map(D=>bansHTML(D.team,D.cls,D,3)).join('')}</div>`;
   else if(k==='players')body=DD.map(D=>tsHead(D.team)+plCards(D.team,D.key)).join('');
   else if(k==='comps')body=`<div class="u-tg">${resSeg()}${A.nSingles+B.nSingles||!showSingles?`<label class="chk"><input type="checkbox" data-sgl="1"${showSingles?' checked':''}> Show single games (${A.nSingles+B.nSingles})</label>`:''}</div>`
     +DD.map(D=>`<section class="u-panel"><header><span class="u-hd">${logo(D.team,'l20')} ${esc(D.team)}</span><small>${esc(D.logTitle.replace(/^Comps · /,''))}</small></header><div class="u-cf"><div class="u-cfg2">${D.selects('Our brawlers','Their brawlers')}</div><div class="u-cfg2">${D.tsel('Our types','Their types')}</div><div class="u-cfb"><span class="u-cfs">${D.summary}</span></div></div>${compRows(D.log,D.team)}</section>`).join('');
@@ -5016,7 +5019,7 @@ function drEditorHTML(){
 function drTI(n,kind,badge){
   if(!n)return `<div class="dr-ti${kind==='gb'?' gbi':''}"><span class="dr-t2"><span class="dr-tx">${badge||'–'}</span></span><small>&nbsp;</small></div>`;
   return `<div class="dr-ti${kind==='gb'?' gbi':''}"><span class="dr-t2 ${kind||''}">${drImg(n,'bi')}${kind==='ban'||kind==='gb'?'<u class="dr-no"></u>':''}${badge?`<i>${badge}</i>`:''}</span><small>${esc(n)}</small></div>`}
-function drCard(d,focus,actions){
+function drCard(d,focus,actions,coinEd){
   let res='';if(focus&&d.winner){const side=d.blue===focus?'blue':d.red===focus?'red':'';if(side)res=d.winner===side?'win':'lose'}
   const pill=res?`<span class="pill ${res}">${res==='win'?'WIN':'LOSS'}</span>`:'';
   const ic=d.map?modeIcon(d.map):'',pos=drPos(d.coin);
@@ -5036,7 +5039,18 @@ function drCard(d,focus,actions){
   return `<article class="dr-card2"><div class="dr-info"><span class="mdate">${d.date?fmtDate(d.date):'–'}</span><span class="dr-cm">${ic}${d.map?mimg(d.map,'th'):''}${esc(d.map||'')}</span>${pill}${d.kind?`<span class="dr-badge kind">${esc(drKindLbl(d))}</span>${d.dc?'':'<span class="dr-badge">date not confirmed</span>'}`:''}${d.mp?(d.mp==='-'?'<span class="dr-badge">decider map</span>':`<span class="dr-badge">map picked by ${esc(d.mp)}</span>`):''}${d._local?'<span class="dr-badge">this browser only</span>':''}${act}</div>
    <div class="dr-strip"><div class="dr-sr dr-srn">${nameSide(LS)}${drUnk(d)?'<span class="dr-unk mid">side unknown</span>':d.po?'<span class="dr-unk mid" title="The coin is known, the real order of the picks is not">pick order unknown</span>':''}${nameSide(RS)}</div>
     <div class="dr-sr"><div class="dr-items">${bans(sk(LS))}<span class="dr-gap"></span>${picksL(LS)}</div><div class="dr-items" style="justify-content:flex-end">${picksR(RS)}<span class="dr-gap"></span>${bans(sk(RS))}</div></div></div>
-   ${d.notes?`<p class="dr-notes">${esc(d.notes)}</p>`:''}</article>`}
+   ${coinEd?drCoinEd(d):''}${d.notes?`<p class="dr-notes">${esc(d.notes)}</p>`:''}</article>`}
+// ===== saved drafts (Team Stats): set which team had the 1st pick
+const DRCE={};
+function drCoinEd(d){const u=drUnk(d),m=DRCE[d.id]||'',nm=t=>esc(t||'?');
+  return `<div class="dr-ce"><span>1st pick</span><button type="button" data-dce="${esc(d.id)}|blue" class="${!u&&d.coin==='blue'?'on':''}">${hasImg(d.blue)?logo(d.blue,'l20'):''}${nm(d.blue)}</button><button type="button" data-dce="${esc(d.id)}|red" class="${!u&&d.coin==='red'?'on':''}">${hasImg(d.red)?logo(d.red,'l20'):''}${nm(d.red)}</button>${u?'<em>side unknown</em>':''}${m?`<small>${esc(m)}</small>`:''}</div>`}
+document.addEventListener('click',async e=>{const b=e.target.closest&&e.target.closest('[data-dce]');if(!b)return;const [id,coin]=b.dataset.dce.split('|');const o=drAll().find(x=>String(x.id)===id);if(!o)return;
+  if(!drUnk(o)&&o.coin===coin)return;
+  const d=drClone(o),op=drPos(d.coin),bl=op[0].map(n=>d.picks[n-1]),rd=op[1].map(n=>d.picks[n-1]);
+  d.coin=coin;d.su='';d.po='O';const np=drPos(d.coin);d.picks=['','','','','',''];np[0].forEach((n,i)=>d.picks[n-1]=bl[i]||'');np[1].forEach((n,i)=>d.picks[n-1]=rd[i]||'');
+  DRCE[id]='Saving…';renderDetail();
+  try{const w=await drPersist(d);DRCE[id]=w==='local'?'Saved in this browser only':'Saved'}catch(x){DRCE[id]='Could not save: '+(x&&x.message||x)}
+  renderDetail();setTimeout(()=>{delete DRCE[id]},5000)});
 // ===== coin estimate from the bans (side unknown drafts) =====
 const drPatchOf=dt=>{const ds=((typeof BAL!=='undefined'&&BAL&&BAL.days)||[]).map(x=>x.d).filter(x=>x&&x<=dt).sort();return ds.length?ds[ds.length-1]:''};
 let _ceK='',_ceM={};
@@ -6920,7 +6934,7 @@ function draftsTab(){
   const me=d=>T.includes(d.blue)&&(scope!=='pair'||d.blue===T[0])?'blue':'red',had=d=>drUnk(d)?'':d.coin===me(d)?'f':'l';
   const lc=['f','l'].includes(DR.lCoin)?DR.lCoin:'',shown=list.filter(d=>!lc||had(d)===lc),cnt=k=>list.filter(d=>had(d)===k).length,who=scope==='pair'?T[0]:T.length===1?T[0]:'the selected teams';
   const lbar=`<div class="dr-lcoin"><span class="lbl">Drafts</span><span class="seg2"><button type="button" data-drlc="" aria-pressed="${!lc}">All ${list.length}</button><button type="button" data-drlc="f" aria-pressed="${lc==='f'}" title="${esc(who)} had the 1st pick"><img class="coinm" src="${COIN.blue}" alt=""> 1st ${cnt('f')}</button><button type="button" data-drlc="l" aria-pressed="${lc==='l'}" title="${esc(who)} had the last pick"><img class="coinm" src="${COIN.red}" alt=""> Last ${cnt('l')}</button></span>${lc?`<span class="msg">Only the list changes; drafts with the side unknown are only in “All”.</span>`:''}</div>`;
-  return `<div style="margin-top:14px">${fil}${tabs}${lbar}<div class="dr-list" style="margin-top:0">${shown.map(d=>drCard(d,focus,false)).join('')||'<p class="msg">No drafts with that coin.</p>'}</div></div>`}
+  return `<div style="margin-top:14px">${fil}${tabs}${lbar}<div class="dr-list" style="margin-top:0">${shown.map(d=>drCard(d,focus,false,true)).join('')||'<p class="msg">No drafts with that coin.</p>'}</div></div>`}
 
 $('sheetGo').addEventListener('click',()=>{if(!busy){syncSheet(false);drLoad()}});
 $('sheetAll').addEventListener('click',()=>{if(!busy){syncSheet(true);drLoad()}});
@@ -7735,3 +7749,48 @@ table.rank td.heat{line-height:1.1}
 .u-ts .u-tg .u-note{flex:1;min-width:200px}
 @media (max-width:1100px){.u-grid2{grid-template-columns:1fr}.u-hero2{grid-template-columns:1fr!important}.u-vs{display:none}}
 </style><style>.u-grid2 .u-bans{grid-template-columns:repeat(4,minmax(0,1fr))}.u-panel header img.l20{margin-right:0}.u-hd img{flex:none}</style>
+<style id="rev107">
+/* top bar: centred pills */
+#sheetbar{justify-content:safe center!important;gap:4px!important;height:54px!important;align-items:center!important}
+#sheetbar .sb-t{height:38px!important;border:0!important;border-radius:999px!important;padding:0 16px!important;color:#a9a6bf!important;font-weight:600!important}
+#sheetbar .sb-t:hover{background:rgba(168,85,247,.10)!important;color:#fff!important}
+#sheetbar .sb-t.on{background:linear-gradient(135deg,#a855f7,#7c3aed)!important;color:#fff!important;box-shadow:0 4px 14px rgba(168,85,247,.35)!important}
+#sheetbar .sb-sep{height:22px;margin:0 10px!important}
+body{padding-top:64px!important}@media (min-width:1200px){.sbar{top:64px!important;max-height:calc(100vh - 76px)!important}}
+/* side panel: status under the title, refresh next to share */
+.sbar #apiBadge{position:static!important;transform:none!important;max-width:none!important;justify-content:center!important;margin:2px 0 0!important;left:auto!important;top:auto!important}
+@media (min-width:1200px){
+ .sbar .uxbar{display:grid!important;grid-template-columns:auto 1fr;gap:8px!important}
+ .sbar .uxper{grid-column:1/-1;order:1}.sbar .uxgames{grid-column:1/-1;order:2}.sbar .uxsp{display:none}
+ .sbar .uxref{order:3;width:40px!important;height:40px!important;border-radius:10px!important;background:rgba(168,85,247,.18)!important;border:1px solid #a855f7!important;color:#fff!important}
+ .sbar .uxref:hover{background:#a855f7!important}
+ .sbar .uxshare{order:4;width:100%}
+}
+/* hero tiles: picture on the side */
+.u-tile{flex-direction:row!important;align-items:center;gap:12px!important;min-height:76px;box-sizing:border-box}
+.u-tt{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+.u-tmed{flex:none;display:flex}.u-tbimg{width:52px!important;height:52px!important;border-radius:10px}
+.u-tmed.map .u-tmimg{width:40px!important;height:56px!important;object-fit:cover;border-radius:7px}
+.u-tmi{width:18px;height:18px;flex:none}.u-tile b em{font-style:normal}.u-tile i em{font-style:normal;font-weight:800}
+.u-tiles.sm .u-tile{min-height:68px;gap:8px!important}.u-tiles.sm .u-tbimg{width:38px!important;height:38px!important}.u-tiles.sm .u-tmed.map .u-tmimg{width:30px!important;height:42px!important}
+/* tables as tall as the rest; headers aligned */
+.u-ts table.rank tbody tr{height:62px}
+.pdcol .pdhead{justify-content:space-between!important;align-items:center!important}
+.pdcol .pdhead .ttl{display:flex;align-items:center;gap:8px;text-align:left!important;margin-right:auto!important}
+.pdcol .pdhead .seg2,.pdcol .pdhead .chk{margin:0!important}
+/* bans of 2 teams: 6 tables in a row */
+.u-grid6{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+.u-g6h{grid-column:span 3}
+.u-grid6 .u-bnr{grid-template-columns:18px 34px minmax(0,1fr) 54px!important;gap:8px!important;padding:0 10px!important}.u-grid6 .u-bi{width:34px;height:34px}.u-grid6 .u-wr span{width:46px}
+.u-grid6 .u-panel header{padding:12px!important;font-size:11.5px!important}
+@media (max-width:1300px){.u-grid6{grid-template-columns:repeat(3,minmax(0,1fr))}.u-g6h{grid-column:1/-1}}
+/* change the 1st pick of a saved draft */
+.dr-ce{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 12px 10px;border-top:1px solid #24222f;font-size:12px;color:#8e8ab0}
+.dr-ce>span{text-transform:uppercase;letter-spacing:.08em;font-size:10.5px;font-weight:700;color:#a78bfa;margin-right:4px}
+.dr-ce button{display:inline-flex;align-items:center;gap:6px;background:#0d0c12;border:1px solid #2a2838;border-radius:999px;color:#cfcce0;padding:4px 12px;font:600 12px inherit;cursor:pointer}
+.dr-ce button:hover{border-color:#a855f7}.dr-ce button.on{background:#a855f7;border-color:#a855f7;color:#fff}.dr-ce em{font-style:normal;color:#facc15}
+</style><style>.dr-top{background:#121118!important;border:1px solid #24222f!important;border-radius:16px!important}.dr-top table.rank{width:100%!important}.dr-top .tablewrap{width:100%}</style>
+<style>.u-tiles.sm{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))!important}.u-tiles.sm .u-tile b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.u-tiles.sm .u-tile i{white-space:nowrap}
+.u-grid6 .u-bnr{grid-template-columns:16px 32px minmax(0,1fr) 40px!important}.u-grid6 .u-wr span{display:none}.u-grid6 .u-panel header{white-space:nowrap}.u-grid6 .u-panel header .u-hd{min-width:0;overflow:hidden;text-overflow:ellipsis}</style>
+<style>.dr-card2 .dr-ce{grid-column:1/-1!important;grid-row:auto!important;flex-direction:row!important;justify-content:flex-start;width:auto;border-top:1px solid #24222f;margin-top:4px}.dr-ce button{white-space:nowrap}</style>
+<style>.cas-seg{border-color:#2a2838!important;border-radius:999px!important;padding:2px;gap:2px}.cas-seg button{border-radius:999px!important}.cas-seg button[aria-pressed="true"]{background:#a855f7!important}</style>
