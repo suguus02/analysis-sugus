@@ -1401,13 +1401,26 @@ td.pkd{font-family:var(--mono,monospace);font-size:12px;color:#cfcce0}
 .tld-po{display:flex;align-items:flex-end;justify-content:space-around;height:110px;padding-top:6px}.tld-po div{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px}
 .tld-po span{width:22px;background:#a855f7;border-radius:4px 4px 0 0;display:block}.tld-po small{color:#9a97ad;font-size:10px}
 @media(max-width:900px){.tld-ks{grid-template-columns:repeat(2,1fr)}.tld-g{grid-template-columns:1fr}}
-.tld-c .rank td:not(.heat){background:transparent!important;color:#e5e3f0!important}.tld-c .rank td{padding:5px 6px;border-radius:0}
+.tld-c .rank td:not(.heat):not(.tlp){background:transparent!important;color:#e5e3f0!important}.tld-c table.rank{width:100%!important;max-width:none!important}.tld-c .rank td{padding:5px 6px;border-radius:0}
 .tld-c .rank td.num{font-family:var(--mono,monospace);white-space:nowrap}.tld-c .rank td.heat{border-radius:6px;font-weight:700}.tld-c .rank tr+tr td{border-top:1px solid #1d1b27}
 .tld-c .rank td.ic b{font-size:12.5px}
 .tld-c .rank td.tld-pl{position:relative;overflow:hidden;padding-left:10px}
 .tld-bg{position:absolute;right:-6px;top:50%;transform:translateY(-50%);opacity:.18;pointer-events:none;display:flex}
 .tld-bg img{width:46px!important;height:46px!important;object-fit:contain}
 .tld-pl b,.tld-pl small{position:relative}
+
+/* pop-up windows: bigger */
+.gm.tlm,.gm.cdw{width:min(1700px,98vw);max-height:96vh}
+.gm.tlm{font-size:15px}
+.tld-body{padding:10px 26px 20px}.tld-img{width:110px!important;height:110px!important}.tld-nm h2{font-size:36px}
+.tld-k{padding:14px 16px}.tld-k small{font-size:13px}.tld-k b{font-size:28px}.tld-k i{font-size:12px}
+.tld-h{font-size:14px}.tld-h.big{font-size:17px}.tld-svg{height:280px}
+.tld-g{gap:18px;margin-bottom:18px}.tld-g.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.tld-c{padding:14px}.tld-c .rank td{padding:8px 8px;font-size:14px}.tld-c .rank td.ic b{font-size:14.5px}.tld-sm{font-size:11.5px}
+.tld-c .bi{width:30px!important;height:30px!important}.tld-mi{width:22px;height:22px}
+.tld-c .rank td.tlp{background:none!important;font:800 15px var(--mono,monospace)}
+.tld-chart{position:relative}.tld-tip{position:absolute;background:#15141c;border:1px solid #3a3650;border-radius:10px;padding:8px 12px;display:flex;flex-direction:column;gap:2px;font-size:13px;color:#cfcce0;pointer-events:none;min-width:150px;box-shadow:0 6px 20px rgba(0,0,0,.5)}.tld-tip b{color:#fff}
+@media(max-width:900px){.tld-g.g2{grid-template-columns:1fr}}
 </style>
 
 <div class="wrap">
@@ -4131,7 +4144,7 @@ function tlHist(b,C){const T=C.T,tw=tlTW(T),ty=flt2.type||'all',okTy=m=>ty==='al
   const end=C.last||todayISO(),out=[],k=mkey(b);
   const first=addDays(end,-42),pool=all.filter(m=>m.d>=first&&m.d<=end);
   for(let i=29;i>=0;i--){const d=addDays(end,-i),from=addDays(d,-13),sub=pool.filter(m=>m.d>=from&&m.d<=d);if(!sub.length){out.push({d,r:null});continue}
-    const L=tlCore(sub,T,'',d,tw).list,r=L.findIndex(e=>mkey(e.b)===k);out.push({d,r:r>=0?r+1:null,n:L.length})}
+    const L=tlCore(sub,T,'',d,tw).list,r=L.findIndex(e=>mkey(e.b)===k);out.push({d,r:r>=0?r+1:null,n:L.length,sc:r>=0?L[r].score:null})}
   return out}
 function tlDetail(b){const C=TLC||tlCalc(),k=mkey(b),T=C.T,nm=g=>sheetName(g,(ds.names||{})[g])||g;
   const e=C.list.find(x=>mkey(x.b)===k)||{b,score:0,pick:0,ban:0,n:0,nw:0,wr:.5},rank=C.list.findIndex(x=>mkey(x.b)===k)+1;
@@ -4148,7 +4161,8 @@ function tlDetail(b){const C=TLC||tlCalc(),k=mkey(b),T=C.T,nm=g=>sheetName(g,(ds
       const I=setInfo(m);if(I.first&&!I.po){const q=I.num[k];if(q)PO[q]=(PO[q]||0)+1}}}
   const wrS=x=>x.n?Math.round(100*x.w/x.n)+'%':'–',adj=x=>(x.w+5)/(x.n+10);
   const tbl=(title,rows,cols,empty)=>`<div class="tld-c"><div class="tld-h">${title}</div><table class="rank fit"><tbody>${rows.length?rows.map((r,i)=>`<tr><td class="rk">${i+1}</td>${cols(r)}</tr>`).join(''):`<tr><td class="msg">${empty||'Not enough sets'}</td></tr>`}</tbody></table></div>`;
-  const wrc=x=>`<td class="num">${x.n}</td><td class="num heat" style="${wrHeat(x.w/x.n)}">${wrS(x)}</td>`;
+  const wrCol=p=>p>=.6?'#4ade80':p>=.53?'#86efac':p>.47?'#facc15':p>.4?'#fca5a5':'#f87171';
+  const wrc=x=>`<td class="num">${x.n}</td><td class="num tlp" style="color:${wrCol(x.w/x.n)}">${wrS(x)}</td>`;
   const br_=x=>`<td class="ic"><span class="bnc">${bimg(x.k,'bi')}<span class="bnm">${esc(x.k)}</span></span></td>`;
   const pl=Object.values(P).sort((a,b)=>b.n-a.n||b.w-a.w).slice(0,8);
   const tms=Object.values(TM).sort((a,b)=>b.n-a.n).slice(0,8);
@@ -4162,28 +4176,36 @@ function tlDetail(b){const C=TLC||tlCalc(),k=mkey(b),T=C.T,nm=g=>sheetName(g,(ds
   const W=900,Hh=200,px=i=>40+i*(W-60)/29,py=r=>16+(r-1)*(Hh-36)/(maxR-1);
   let path='';H.forEach((x,i)=>{if(!x.r)return;path+=(path?'L':'M')+px(i).toFixed(1)+' '+py(x.r).toFixed(1)});
   const ticks=[1,Math.round(maxR/4),Math.round(maxR/2),Math.round(3*maxR/4),maxR];
-  const svg=`<svg viewBox="0 0 ${W} ${Hh+20}" class="tld-svg" preserveAspectRatio="none">${ticks.map(t=>`<line x1="40" x2="${W-20}" y1="${py(t)}" y2="${py(t)}" stroke="#22202e"/><text x="32" y="${py(t)+4}" text-anchor="end" fill="#8e8ab0" font-size="11">${t}</text>`).join('')}
+  const hd=H.map((x,i)=>({x:px(i),y:x.r?py(x.r):null,d:fmtDate(x.d),r:x.r,sc:x.sc==null?null:+x.sc.toFixed(1)}));
+  const svg=`<div class="tld-chart" data-tlh='${esc(JSON.stringify(hd))}' data-w="${W}" data-h="${Hh+20}"><svg viewBox="0 0 ${W} ${Hh+20}" class="tld-svg" preserveAspectRatio="none">${ticks.map(t=>`<line x1="40" x2="${W-20}" y1="${py(t)}" y2="${py(t)}" stroke="#22202e"/><text x="32" y="${py(t)+4}" text-anchor="end" fill="#8e8ab0" font-size="11">${t}</text>`).join('')}
     ${path?`<path d="${path} L${px(29)} ${Hh} L${px(H.findIndex(x=>x.r))} ${Hh} Z" fill="rgba(74,222,128,.10)" stroke="none"/><path d="${path}" fill="none" stroke="#4ade80" stroke-width="2.5" stroke-linejoin="round"/>`:''}
-    ${H.map((x,i)=>x.r?`<circle cx="${px(i)}" cy="${py(x.r)}" r="3" fill="#4ade80"><title>${fmtDate(x.d)}: #${x.r}</title></circle>`:'').join('')}
-    ${[0,10,20,29].map(i=>`<text x="${px(i)}" y="${Hh+14}" text-anchor="middle" fill="#8e8ab0" font-size="11">${esc(fmtDate(H[i].d).replace(/ 20\d\d$/,''))}</text>`).join('')}</svg>`;
+    ${H.map((x,i)=>x.r?`<circle cx="${px(i)}" cy="${py(x.r)}" r="3" fill="#4ade80"></circle>`:'').join('')}
+    ${[0,10,20,29].map(i=>`<text x="${px(i)}" y="${Hh+14}" text-anchor="middle" fill="#8e8ab0" font-size="11">${esc(fmtDate(H[i].d).replace(/ 20\d\d$/,''))}</text>`).join('')}<line class="tld-vl" x1="0" x2="0" y1="10" y2="${Hh}" stroke="#c4b5fd" stroke-dasharray="3 3" opacity="0"/><circle class="tld-dot" r="6" fill="#4ade80" stroke="#0b0a10" stroke-width="2" opacity="0"/></svg><div class="tld-tip" hidden></div></div>`;
   const tier=e.score>8?'S':e.score>6?'A':e.score>4?'B':'C',pc=x=>(100*x).toFixed(1)+'%';
   const poT=Object.values(PO).reduce((a,b)=>a+b,0);
   const card=(l,v,sub)=>`<div class="tld-k"><small>${l}</small><b>${v}</b>${sub?`<i>${sub}</i>`:''}</div>`;
   return `<div class="gm tlm" role="dialog" aria-label="${esc(b)}"><div class="gm-top"><span class="gm-date">${TL.map?esc(TL.map)+' · ':''}${plural(C.nSets,'set')} · ${C.teams.length===M.D.off.length?'all teams':plural(C.teams.length,'team')}</span><button type="button" class="gm-close" data-gmclose aria-label="Close">✕</button></div>
    <div class="tld-body"><div class="tld-top">${bimg(b,'tld-img')}<div class="tld-nm"><h2>${esc(b)}</h2><span class="tld-tier tl-${tier.toLowerCase()}"><span class="tl-k">${tier}</span></span></div></div>
    <div class="tld-ks">${card('Rank',rank?'#'+rank:'–',rank?'of '+C.list.length:'')}${card('Win rate',e.n?Math.round(100*(e.nw||0)/e.n)+'%':'–',e.n?plural(e.n,'set'):'')}${card('Pick rate',pc(e.pick),'of the drafts')}${card('Ban rate',pc(e.ban),'of the drafts with bans')}${card('Meta score',e.score.toFixed(1),e.trend>.05?'▲ rising':e.trend<-.05?'▼ falling':'stable')}</div>
-   <div class="tld-h big">Meta history</div><p class="msg" style="margin:0 0 6px">Rank in the tier list over the last 30 days (each point uses the 14 days before it).</p>${svg}
+   <div class="tld-h big">Meta history</div><p class="msg" style="margin:0 0 6px">Rank in the tier list over the last 30 days (each point uses the 14 days before it) · move along the line to see the day and the meta score.</p>${svg}
    <div class="tld-g">
-    ${tbl('Top players',pl,x=>`<td class="ic tld-pl"><span class="tld-bg">${logo(x.team,'tld-bgi')}</span><b>${esc(x.name)}</b><small class="tld-sm">${esc(x.team)}</small></td>${wrc(x)}`)}
-    ${tbl('Teams that play it',tms,x=>`${teamc(x)}<td class="num">${x.n}<small class="tld-sm">${TS[x.k]?Math.round(100*x.n/TS[x.k])+'% of its sets':''}</small></td><td class="num heat" style="${wrHeat(x.w/x.n)}">${wrS(x)}</td>`)}
-    ${tbl('Best duos',du,x=>`${br_(x)}${wrc(x)}`,'Not enough sets (3+ together)')}
     ${tbl('Counters <small>(it loses most against)</small>',cnt,x=>`${br_(x)}${wrc(x)}`,'Not enough sets (3+ against)')}
     ${tbl('Good matchups <small>(it beats)</small>',good,x=>`${br_(x)}${wrc(x)}`,'Not enough sets (3+ against)')}
+    ${tbl('Best duos',du,x=>`${br_(x)}${wrc(x)}`,'Not enough sets (3+ together)')}
+    ${tbl('Top players',pl,x=>`<td class="ic tld-pl"><span class="tld-bg">${logo(x.team,'tld-bgi')}</span><b>${esc(x.name)}</b><small class="tld-sm">${esc(x.team)}</small></td>${wrc(x)}`)}
+    ${tbl('Teams that play it',tms,x=>`${teamc(x)}<td class="num">${x.n}<small class="tld-sm">${TS[x.k]?Math.round(100*x.n/TS[x.k])+'% of its sets':''}</small></td><td class="num tlp" style="color:${wrCol(x.w/x.n)}">${wrS(x)}</td>`)}
+    ${tbl('Banned most by',bn.map(([t,c])=>({k:t,c})),x=>`${teamc(x)}<td class="num">${x.c}<small class="tld-sm">${TS[x.k]?Math.round(100*x.c/TS[x.k])+'% of its sets':''}</small></td>`,'No bans of it yet')}
+   </div>
+   <div class="tld-g g2">
     ${tbl('Maps where it works',mBest,x=>`${mapc(x)}${wrc(x)}`,'Not enough sets (3+ on a map)')}
     ${tbl('Maps where it does not',mWorst,x=>`${mapc(x)}${wrc(x)}`,'No map under 50% with 3+ sets')}
-    ${tbl('Banned most by',bn.map(([t,c])=>({k:t,c})),x=>`${teamc(x)}<td class="num">${x.c}<small class="tld-sm">${TS[x.k]?Math.round(100*x.c/TS[x.k])+'% of its sets':''}</small></td>`,'No bans of it yet')}
-    <div class="tld-c"><div class="tld-h">Pick order <small>(sets with the order set)</small></div>${poT?`<div class="tld-po">${[1,2,3,4,5,6].map(q=>{const v=PO[q]||0;return `<div><b>${q}</b><span style="height:${Math.round(70*v/poT)+2}px"></span><small>${Math.round(100*v/poT)}%</small></div>`}).join('')}</div><p class="msg" style="font-size:11px;margin:4px 0 0">${poT} picks with known order</p>`:'<p class="msg">No set with the pick order set yet.</p>'}</div>
    </div></div><div class="gm-ft"><button type="button" class="btn" data-gmclose>Close</button></div></div>`}
+document.addEventListener('mousemove',e=>{const c=e.target.closest&&e.target.closest('.tld-chart');if(!c)return;const H=JSON.parse(c.dataset.tlh),r=c.getBoundingClientRect(),W=+c.dataset.w,Hh=+c.dataset.h,X=(e.clientX-r.left)*W/r.width;
+  let best=null;for(const p of H)if(p.y!=null&&(!best||Math.abs(p.x-X)<Math.abs(best.x-X)))best=p;const vl=c.querySelector('.tld-vl'),dt=c.querySelector('.tld-dot'),tp=c.querySelector('.tld-tip');if(!best)return;
+  vl.setAttribute('x1',best.x);vl.setAttribute('x2',best.x);vl.setAttribute('opacity','1');dt.setAttribute('cx',best.x);dt.setAttribute('cy',best.y);dt.setAttribute('opacity','1');
+  tp.hidden=false;tp.innerHTML=`<b>${best.d}</b><span>Meta score <b>${best.sc!=null?best.sc.toFixed(1):'–'}</b></span><span>Rank <b>#${best.r}</b></span>`;
+  const lx=best.x*r.width/W,ly=best.y*r.height/Hh;tp.style.left=Math.min(r.width-170,Math.max(0,lx+12))+'px';tp.style.top=Math.max(0,ly-60)+'px'});
+document.addEventListener('mouseout',e=>{const c=e.target.closest&&e.target.closest('.tld-chart');if(!c||c.contains(e.relatedTarget))return;c.querySelector('.tld-tip').hidden=true;c.querySelector('.tld-vl').setAttribute('opacity','0');c.querySelector('.tld-dot').setAttribute('opacity','0')});
 document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-tlb]');if(!t||tab!=='tier')return;
   let ov=document.getElementById('gmOv');if(!ov){ov=document.createElement('div');ov.id='gmOv';document.body.appendChild(ov)}
   ov.innerHTML=tlDetail(t.dataset.tlb);ov.classList.add('on')});
