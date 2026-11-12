@@ -2404,12 +2404,13 @@ function mapsFilter(){return statMaps.length?statMaps.slice():null}
 function filterLabel(){return !statMaps.length?'all maps':statMaps.length===1?statMaps[0]:plural(statMaps.length,'selected map')}
 const allTeams=()=>SELECTED?[...new Set([...SELECTED,...M.D.off.filter(t=>SELECTED.includes(t))])]:[...new Set([...LCQ,...WORLDS,...M.D.off])];
 function curOne(){const off=M.D.off;if(!oneTeam||!allTeams().includes(oneTeam))oneTeam=off.includes(sel.a)?sel.a:off[0];return oneTeam}
-function rankTable(arr,cls,kind,mapCols,wrl,slim){
-  const kic=k=>String(k).split(' + ').length===2?duoH(String(k).split(' + ')):String(k).split(' + ').map(n=>`<span class="bnc">${bimg(n,'bi')||''}<span class="bnm">${esc(n)}</span></span>`).join('<span class="pl">+</span>');
+const wrBar=p=>{p=Math.max(0,Math.min(1,+p||0));const c=p>=.6?'#4ade80':p>=.53?'#86efac':p>.47?'#facc15':p>.4?'#fca5a5':'#f87171';return `<span class="wrb"><i style="width:${Math.round(100*p)}%;background:${c}"></i></span>`};
+function rankTable(arr,cls,kind,mapCols,wrl,slim,hl){
+  const kic=k=>String(k).split(' + ').length===2?duoH(String(k).split(' + ')):String(k).split(' + ').map(n=>`<span class="bnc${hl&&hl.has(n)?' hlb':''}"${hl&&hl.has(n)?' title="Played by both teams"':''}>${bimg(n,'bi')||''}<span class="bnm">${esc(n)}</span></span>`).join('<span class="pl">+</span>');
   const cols=mapCols||[];
   const mx=Math.max(1,...arr.flatMap(x=>x.maps.map(m=>m[1])));
   const cell=(x,m)=>{const e=x.maps.find(z=>z[0]===m);const n=e?e[1]:0;return n?`<td class="num mc" style="background:rgba(104,102,150,${(0.12+0.68*n/mx).toFixed(2)})">${n}</td>`:'<td class="num mc zero">·</td>'};
-  const rows=arr.length?arr.map((x,i)=>`<tr><td class="rk">${i+1}</td><td class="ic" title="${esc(x.k)}">${kic(x.k)}</td><td class="num">${x.n}</td>${slim?'':`<td class="num">${x.w}</td>`}<td class="num heat" style="${wrHeat(x.wr)}">${Math.round(x.wr*100)}%</td>${cols.map(m=>cell(x,m)).join('')}</tr>`).join(''):`<tr><td colspan="${5+cols.length}" class="msg">No data</td></tr>`;
+  const rows=arr.length?arr.map((x,i)=>`<tr><td class="rk">${i+1}</td><td class="ic" title="${esc(x.k)}">${kic(x.k)}</td><td class="num">${x.n}</td>${slim?'':`<td class="num">${x.w}</td>`}<td class="num heat" style="${wrHeat(x.wr)}">${Math.round(x.wr*100)}%${wrBar(x.wr)}</td>${cols.map(m=>cell(x,m)).join('')}</tr>`).join(''):`<tr><td colspan="${5+cols.length}" class="msg">No data</td></tr>`;
   const mh=cols.map(m=>`<th class="num mh" title="${esc(m)}">${mimg(m,'mth')}<span>${esc(m)}</span></th>`).join('');
   return `<table class="rank fit" style="min-width:${300+cols.length*58}px"><thead><tr><th class="rk"></th><th>${kind}</th><th class="num">Picks</th>${slim?'':'<th class="num">Wins</th>'}<th class="num">${slim?'WR':'Win rate'}${wrl?`<small class="wrl">${wrl}</small>`:''}</th>${mh}</tr></thead><tbody>${rows}</tbody></table>`;
 }
@@ -2556,6 +2557,7 @@ document.addEventListener('click',e=>{
   const r=e.target.closest&&e.target.closest('[data-lureg]');
   if(r){const keys=LUK.P||[],b=document.querySelectorAll('.lubp .lui');const reg=new Set();b.forEach(x=>{if(!x.querySelector('.lupk'))reg.add(keys[+x.dataset.lu])});
     const cur=LUS.P;const same=cur&&keys.every(k=>reg.has(k)===cur.has(k));LUS.P=same?null:(reg.size?reg:null);renderDetail()}});
+const CKX={};
 function ddBuild(team,cls,key,pool){
   const F=FK(key),flt=F.flt,tfs=F.tfs;
   let items;
@@ -2587,8 +2589,9 @@ function ddBuild(team,cls,key,pool){
       <div class="bpop tlist"><button type="button" class="topt"${fk} data-tv="${side}:"><span>Any</span></button>${o.map(e=>`<button type="button" class="topt${cur.k===e.k?' on':''}"${fk} data-tv="${side}:${esc(e.k)}"><span>${chips(e.k)}</span><span class="tsm">${Math.round(e.w/e.m*100)}% [${e.m}]</span></button>`).join('')||'<span class="msg" style="padding:6px">No sets</span>'}</div></details></div>`};
   // the brawler tables keep the brawlers that are being filtered (so their win rate can be seen)
   const CS=Engine.comboStats(sub,subject,0,[]);
-  let combos=comboKind==='duos'?CS.duos:CS.trios;
-  if(onlyRepeat)combos=combos.filter(x=>x.n>1);
+  const CKo=CKX[key]||{},ckK=CKo.k||comboKind,ckR=CKo.r!=null?CKo.r:onlyRepeat;
+  let combos=ckK==='duos'?CS.duos:CS.trios;
+  if(ckR)combos=combos.filter(x=>x.n>1);
   const selects=(side,label)=>`<div class="fgroup" style="${fcol(side)}"><div class="lbl ftl">${label}</div><div class="frow">${[0,1,2].map(k=>{const cur=flt[side][k];return `<details class="bpick"><summary>${cur?(bimg(cur,'bi')||'')+'<span>'+esc(cur)+'</span>':'<span class="any">Any brawler</span>'}</summary><div class="bpop"><input type="text" class="dr-input bsearch" placeholder="Type a brawler and press Enter" autocomplete="off" spellcheck="false" aria-label="Search brawler"><button type="button" class="bopt"${fk} data-fv="${side}:${k}:"><span>Any</span></button>${fa[side][k].map(([b,n])=>`<button type="button" class="bopt${cur===b?' on':''}"${fk} data-fv="${side}:${k}:${esc(b)}" title="${esc(b)} (${n})">${bimg(b,'bi')||''}<span>${esc(b)}</span><small>${n}</small></button>`).join('')}</div></details>`}).join('')}</div></div>`;
   const own=subject==='own';
   const wlHTML=(()=>{let sw=0,sl=0,gw=0,gl=0;for(const x of sub){if(x.s)continue;if(x.win===1)sw++;else if(x.win===0)sl++;const m=String(x.sc||'').match(/(\d+)\D+(\d+)/);if(m){gw+=+m[1];gl+=+m[2]}}
@@ -2626,10 +2629,11 @@ function bnCalc(team,D,own,trio){const mf=mapsFilter(),mset=mf?new Set(mf):null;
     const me=d.blue===team?'b':'r',L=(d.bans&&d.bans[own?me:(me==='b'?'r':'b')])||[];if(!L.some(Boolean))continue;
     const first=drUnk(d)?null:d.coin===(me==='b'?'blue':'red');ndr++;if(first===true)nf++;else if(first===false)nl++;put(L,first)}
   return {T,F,Lc,ns,ndr,nf,nl,tot:ns+ndr,mf}}
-function bansHTML(team,cls,D,ui){const own=bnSubj==='own',trio=bnKind==='trio',{T,F,Lc,ns,ndr,nf,nl,tot,mf}=bnCalc(team,D,own,trio);
+function bansHTML(team,cls,D,ui,pre){const own=bnSubj==='own',trio=bnKind==='trio',{T,F,Lc,ns,ndr,nf,nl,tot,mf}=pre||bnCalc(team,D,own,trio);
   if(ui){const pc=(c,n)=>n?Math.round(100*c/n):0;
     const panel=(title,o,n)=>{const rows=Object.entries(o).sort((a,b)=>b[1]-a[1]||(a[0]<b[0]?-1:1));
       return `<section class="u-panel"><header><span class="u-hd">${title}</span><small>${plural(n,'set')}</small></header><div class="u-scroll">${rows.map(([b,c],i)=>`<div class="u-row u-bnr${trio?' tri':''}"><span class="u-rk">${i+1}</span>${trio?`<span class="u-btri" title="${esc(b)}">${b.split(' + ').map(x=>`<span class="bz-b u-bi">${bimg(x,'mx-bni')}</span>`).join('')}</span>`:`<span class="bz-b u-bi">${bimg(b,'mx-bni')}</span>`}<div class="u-nm">${trio?'':`<b>${esc(b)}</b>`}<small class="u-rec">${c} ${trio?(c===1?'time':'times'):(c===1?'ban':'bans')}</small></div><div class="u-wr"><b style="color:#f87171">${pc(c,n)}%</b><span><i style="width:${pc(c,n)}%;background:#f87171"></i></span></div></div>`).join('')||'<p class="msg u-none">No bans</p>'}</div></section>`};
+    if(ui===2)return `<div class="u-grid3">${panel('Total',T,tot)}${panel(`${coinI(true,'u-coin')}With 1st pick`,F,nf)}${panel(`${coinI(false,'u-coin')}With last pick`,Lc,nl)}</div>`;
     return `<div class="u-tg"><div class="seg2" role="group" aria-label="Whose bans"><button type="button" data-bnsubj="own" aria-pressed="${own}">${esc(team)}'s bans</button><button type="button" data-bnsubj="ag" aria-pressed="${!own}">Bans against ${esc(team)}</button></div><div class="seg2" role="group" aria-label="Single bans or trios"><button type="button" data-bnkind="one" aria-pressed="${!trio}">Each ban</button><button type="button" data-bnkind="trio" aria-pressed="${trio}">Trios of bans</button></div>
       <span class="u-note">${plural(ns,'set')} with bans from the API${ndr?' + '+plural(ndr,'saved draft'):''}${mf?' on '+plural(mf.length,'map'):''} · % = share of the sets of each column</span></div>
       <div class="u-grid3">${panel('Total',T,tot)}${panel(`${coinI(true,'u-coin')}With 1st pick`,F,nf)}${panel(`${coinI(false,'u-coin')}With last pick`,Lc,nl)}</div>`}
@@ -2641,7 +2645,7 @@ function bansHTML(team,cls,D,ui){const own=bnSubj==='own',trio=bnKind==='trio',{
     <div class="pdgrid p3">${col('Total',T,tot)}${col(`${coinI(true)} With 1st pick`,F,nf)}${col(`${coinI(false)} With last pick`,Lc,nl)}</div></div>`}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-bnsubj]');if(b){bnSubj=b.dataset.bnsubj;store.set('tvt:bnsubj',bnSubj);renderDetail();return}const k=e.target.closest&&e.target.closest('[data-bnkind]');if(k){bnKind=k.dataset.bnkind;store.set('tvt:bnkind',bnKind);renderDetail()}});
 function deepDive(){
-  if(scope==='pair')return pairDeep();
+  if(scope==='pair')return tsPair();
   const pool=scope==='pool',one=scope==='one',pt=pool?(poolTeams||(poolTeams=visTeams())).filter(x=>M.D.off.includes(x)):[];
   const team=pool?(pt.length===M.D.off.length?'All teams':plural(pt.length,'team')):one?curOne():focus==='A'?sel.a:sel.b,cls=pool||one||focus==='A'?'a':'b';
   const D=ddBuild(team,cls,'',pool),{CS,combos,active,log,nSingles}=D;
@@ -2650,6 +2654,7 @@ function deepDive(){
   const desc=own?`Brawlers picked by <b>${esc(team)}</b>. <b>Win rate</b> = how often ${esc(team)} won the sets in which it picked the brawler.`:`Brawlers that the <b>rivals</b> picked when playing against <b>${esc(team)}</b>. <b>Win rate</b> is still the one of ${esc(team)} (its results in the sets where the rival used that brawler), not the rival's: a low number means the brawler is hard for ${esc(team)}, and the rival's own win rate with it is 100% minus that.`;
   const subjSeg=`<div class="seg2" role="group" aria-label="Which side"><button type="button" data-subj="own" aria-pressed="${subject==='own'}">${pool?'Brawlers of '+esc(team):esc(team)+'\'s brawlers'}</button><button type="button" data-subj="enemy" aria-pressed="${subject==='enemy'}">Brawlers used against ${esc(team)}</button></div>`;
   if(!pool)return tsOne(team,cls,D,{subjSeg,desc,own,teamSeg,one});
+  return tsPool(pt,team,cls,D,{subjSeg,desc,own});
   return `<h3 class="sec-h">${pool?'Pooled team stats':'Team deep dive'}</h3>
     ${pool?'':one?'<div style="margin:2px 0 12px;display:flex;justify-content:center">'+tstrip(team,';min-width:260px')+'</div>':'<div class="segs" style="justify-content:center">'+teamSeg+'</div>'}
     ${pool?D.wlHTML+D.lu+poolTableHTML(pt,D.items0):`<div class="wlrow">${D.wlHTML}${D.lu}</div>`}
@@ -2669,7 +2674,7 @@ function deepDive(){
     ${D.summary}
     </div>
     <div class="toolrow" style="justify-content:center"><div class="ttl" style="margin:0">${D.logTitle}</div>${resSeg()}${nSingles||!showSingles?`<label class="chk"><input type="checkbox" data-sgl="1"${showSingles?' checked':''}> Show single games (${nSingles})</label>`:''}</div>
-    ${D.logHTML}
+    <section class="u-panel">${compRows(D.log,null)}</section>
     ${playersTab(true)}
     ${D.types}
     <p class="foot" style="margin-top:10px">Picks and wins count sets (single games and draws excluded). Win rate = wins / picks. Each filter box only offers options that still appear in the sets matching the other boxes. With few sets the percentages swing a lot.</p>
@@ -2688,15 +2693,16 @@ function luHero(team,D){const LU=D.LU;if(!LU||!LU.list||!LU.list.length)return '
     <small class="u-lus2">${nsel} of ${L.length} lineups selected · click a lineup to tick / untick it · pick-ups in <span class="lpk">yellow</span></small></div>`}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-luhero]');if(!b)return;const k=b.dataset.luhero+'|hero';if(LUOPEN.has(k))LUOPEN.delete(k);else LUOPEN.add(k);renderDetail()});
 // comps: one row per set (result, map, bans + picks of each side, coins, rival); click = open the set
-function compRows(items,team){if(!items||!items.length)return '<p class="msg u-none">No sets match the filters</p>';
+function compRows(items,team0){if(!items||!items.length)return '<p class="msg u-none">No sets match the filters</p>';
   const bz=L=>(L||[]).filter(Boolean).map(b=>`<span class="bz-b u-sb" title="Ban: ${esc(b)}">${bimg(b,'mx-bni')}</span>`).join('');
   const nm=(n,g)=>esc(sheetName(g,n)||n||g||'');
-  const br=(L,N,T)=>[0,1,2].map(k=>L[k]?`<span class="u-cb" title="${esc(L[k])}${N&&(N[k]||T&&T[k])?' · '+nm(N[k],T&&T[k]):''}">${bimg(L[k],'u-ic')}</span>`:'<span class="u-cb u-cb0"></span>').join('');
+  const br=(L,N,T)=>[0,1,2].map(k=>{const p=N&&(N[k]||T&&T[k])?nm(N[k],T&&T[k]):'';return L[k]?`<span class="u-cb" title="${esc(L[k])}${p?' · '+p:''}">${bimg(L[k],'u-ic')}<small>${p||'&nbsp;'}</small></span>`:'<span class="u-cb"><span class="u-cb0"></span><small>&nbsp;</small></span>'}).join('');
+  let team=team0;
   const side=(x,mine)=>{if((mine?x.myBans:x.opBans)&&(mine?x.myBans:x.opBans).some(Boolean))return mine?x.myBans:x.opBans;const m=mOfI(x.i);if(!m)return null;const B=setBans(m);if(!B.src)return null;const mineA=m.a===team||(m.b!==team&&brKey(m.ba)===brKey(x.mine));return (mineA===mine)?B.a:B.b};
   const coin=x=>{const m=mOfI(x.i);if(!m)return '';const I=setInfo(m);if(!I.first)return '';const mineA=m.a===team||(m.b!==team&&brKey(m.ba)===brKey(x.mine));const f=(I.first==='a')===mineA;return coinI(f,'u-coin')+coinI(!f,'u-coin')};
-  return `<div class="u-crows">${items.map(x=>{const r=x.win===1?['w','WIN']:x.win===0?['l','LOSS']:['d','DRAW'],c=coin(x),op=x.opTeam||'';
+  return `<div class="u-crows">${items.map(x=>{team=team0||x.team||x.myTeam||'';const r=x.win===1?['w','WIN']:x.win===0?['l','LOSS']:['d','DRAW'],c=coin(x),op=x.opTeam||'';
     return `<div class="u-crow${x.s?' solo':''}" data-slk="${x.i}" data-slt="${esc(team)}" title="Click to open the set">
-      <div class="u-cres ${r[0]}">${r[1]}<small>${esc(x.sc||'')}</small></div>${mimg(x.map,'u-cmi')}<div class="u-cmeta"><b>${esc(x.map)}</b><small>${fmtDate(x.d)}${x.s?' · single game':''}${x.ty==='tournament'?' · <i class="u-tt">Tournament</i>':''}</small></div>
+      <div class="u-cres ${r[0]}">${r[1]}<small>${esc(x.sc||'')}</small></div>${mimg(x.map,'u-cmi')}<div class="u-cmeta">${team0?'':`<span class="u-cteam">${logo(team,'l20')}${esc(team)}</span>`}<b>${esc(x.map)}</b><small>${fmtDate(x.d)}${x.s?' · single game':''}${x.ty==='tournament'?' · <i class="u-tt">Tournament</i>':''}</small></div>
       <div class="u-cside l"><span class="u-cbn">${bz(side(x,true))}</span><span class="u-cbr">${br(x.mine,x.myNames,x.myTags)}</span></div><div class="u-cvs">${c||'vs'}</div><div class="u-cside r"><span class="u-cbr">${br(x.theirs,x.opNames,x.opTags)}</span><span class="u-cbn">${bz(side(x,false))}</span></div>
       <div class="u-copp">${op&&(M.D.off.includes(op)||IMGS[mkey(op)])?logo(op,'u-lg'):''}<b title="${esc(x.opp||'')}">${esc(op||x.opp||'')}</b></div></div>`}).join('')}</div>`}
 function tsOne(team,cls,D,o){
@@ -2717,13 +2723,13 @@ function tsOne(team,cls,D,o){
   const reg=REGION[team]||'';
   const hero=`<section class="u-hero">${logo(team,'u-hlogo')}<div class="u-ht"><h1>${esc(team)}</h1><p>${reg?esc(reg)+' · ':''}${plural(N,'set')} in the period${D.luAct?' · lineup filter on':''}</p></div>${tiles}${luHero(team,D)}</section>`;
   const sub=`<div class="u-sub" role="tablist">${TSS_L.map(([k,l])=>`<button type="button" role="tab" data-tss="${k}" class="${TSS===k?'on':''}" aria-selected="${TSS===k}">${l}</button>`).join('')}</div>`;
-  const row=(i,ic,name,r,n,unit,b)=>`<div class="u-row"><span class="u-rk">${i}</span>${ic}<div class="u-nm"><b>${name}</b>${r}</div><span class="u-n">${n}<small>${unit}</small></span>${b}</div>`;
+  const row=(i,ic,name,r,n,unit,b,w)=>`<div class="u-row u-r6"><span class="u-rk">${i}</span>${ic}<div class="u-nm"><b>${name}</b></div><span class="u-n">${n}<small>${unit}</small></span><span class="u-n u-nw">${w}<small>wins</small></span>${b}</div>`;
   const none='<p class="msg u-none">No sets</p>';
   let body='';
   if(TSS==='overview'){
-    const br=top(B).slice(0,8).map((e,i)=>row(i+1,bimg(e.k,'u-ic'),esc(e.k),rec(e.w,e.n),e.n,'sets',bar(e.w,e.n))).join('')||none;
-    const du=top(DU).slice(0,8).map((e,i)=>{const [a,b]=e.k.split('|');return row(i+1,`<span class="u-duo">${bimg(a,'u-ic')}${bimg(b,'u-ic')}</span>`,`<span class="u-dn">${esc(a)}<br>${esc(b)}</span>`,rec(e.w,e.n),e.n,'sets',bar(e.w,e.n))}).join('')||none;
-    const op=top(OP).filter(e=>e.k&&e.k!=='?').slice(0,8).map((e,i)=>row(i+1,M.D.off.includes(e.k)||IMGS[mkey(e.k)]?logo(e.k,'u-lg'):'<span class="u-lg0">?</span>',esc(e.k),rec(e.w,e.n),e.n,'sets',bar(e.w,e.n))).join('')||none;
+    const br=top(B).slice(0,8).map((e,i)=>row(i+1,bimg(e.k,'u-ic'),esc(e.k),rec(e.w,e.n),e.n,'sets',bar(e.w,e.n),e.w)).join('')||none;
+    const du=top(DU).slice(0,8).map((e,i)=>{const [a,b]=e.k.split('|');return row(i+1,`<span class="u-duo">${bimg(a,'u-ic')}${bimg(b,'u-ic')}</span>`,`<span class="u-dn">${esc(a)}<br>${esc(b)}</span>`,rec(e.w,e.n),e.n,'sets',bar(e.w,e.n),e.w)}).join('')||none;
+    const op=top(OP).filter(e=>e.k&&e.k!=='?').slice(0,8).map((e,i)=>row(i+1,M.D.off.includes(e.k)||IMGS[mkey(e.k)]?logo(e.k,'u-lg'):'<span class="u-lg0">?</span>',esc(e.k),rec(e.w,e.n),e.n,'sets',bar(e.w,e.n),e.w)).join('')||none;
     const modes=MODELIST.map(([md])=>md).filter(md=>Object.values(MP).some(e=>modeOfMap(e.k)===md));
     const other=Object.values(MP).filter(e=>!modeOfMap(e.k));
     const mcol=(md,L)=>{const mi=IMGS['mode'+mkey(md)],tw=L.reduce((a,e)=>a+e.w,0),tn=L.reduce((a,e)=>a+e.n,0);
@@ -2753,26 +2759,117 @@ function tsOne(team,cls,D,o){
   else body=`<div class="u-blk uxdr">${draftsTab()}</div>`;
   return `${o.one?'':'<div class="segs" style="justify-content:center">'+o.teamSeg+'</div>'}<div class="u-ts">${hero}${sub}${body}
     <p class="foot" style="margin-top:4px">Picks and wins count sets (single games and draws excluded). Win rate = wins / picks. With few sets the percentages swing a lot.</p></div>`}
+// ===== Team Stats with 2 teams (compare) and with several teams together: same look as one team
+const tsU={pc:(w,n)=>n?Math.round(100*w/n):0,col:p=>p>=60?'#4ade80':p>=53?'#86efac':p>47?'#facc15':p>40?'#fca5a5':'#f87171'};
+tsU.bar=(w,n)=>{const p=tsU.pc(w,n),c=tsU.col(p);return `<div class="u-wr"><b style="color:${c}">${p}%</b><span><i style="width:${p}%;background:${c}"></i></span></div>`};
+tsU.inc=(O,k,y)=>{const e=O[k]||(O[k]={k,n:0,w:0});e.n++;if(y===1)e.w++;return e};tsU.top=O=>Object.values(O).sort((a,b)=>b.n-a.n||b.w-a.w);
+tsU.row=(i,ic,name,n,w,b)=>`<div class="u-row u-r6"><span class="u-rk">${i}</span>${ic}<div class="u-nm"><b>${name}</b></div><span class="u-n">${n}<small>sets</small></span><span class="u-n u-nw">${w}<small>wins</small></span>${b}</div>`;
+tsU.none='<p class="msg u-none">No sets</p>';
+tsU.tile=(l,v,sub,c)=>`<div class="u-tile"><small>${l}</small><b${c?` style="color:${c}"`:''}>${v}</b><i>${sub}</i></div>`;
+function tsAgg(items){const its=(items||[]).filter(x=>!x.s&&x.win!==.5),{inc,top}=tsU;let W=0,gw=0,gl=0;const B={},DU={},OP={},MP={},TM={};
+  for(const x of its){if(x.win===1)W++;const g=String(x.sc||'').split('-').map(Number);if(g.length===2&&!isNaN(g[0])&&!isNaN(g[1])){gw+=g[0];gl+=g[1]}
+    const me=(x.mine||[]).filter(Boolean);me.forEach(b=>inc(B,b,x.win));const so=me.slice().sort();for(let i=0;i<so.length;i++)for(let j=i+1;j<so.length;j++)inc(DU,so[i]+'|'+so[j],x.win);
+    inc(OP,x.opTeam||x.opp||'?',x.win);if(x.map)inc(MP,x.map,x.win);if(x.team)inc(TM,x.team,x.win)}
+  const N=its.length,mp=Object.values(MP).filter(e=>e.n>=3).sort((a,b)=>b.w/b.n-a.w/a.n||b.n-a.n);
+  return {N,W,L:N-W,gw,gl,B,DU,OP,MP,TM,mp,fav:top(B)[0]}}
+function tsTiles(C,small){const {pc,col,tile}=tsU,{N,W,L,gw,gl,mp,fav}=C;
+  return `<div class="u-tiles${small?' sm':''}">${tile('Sets',`${W}W · ${L}L`,N?pc(W,N)+'% win rate':'no sets',N?col(pc(W,N)):'')}${tile('Games',`${gw}W · ${gl}L`,gw+gl?pc(gw,gw+gl)+'% win rate':'–',gw+gl?col(pc(gw,gw+gl)):'')}${tile('Most picked',fav?`${bimg(fav.k,'u-ti')}<span>${esc(fav.k)}</span>`:'–',fav?plural(fav.n,'set')+' · '+pc(fav.w,fav.n)+'%':'')}${tile('Best map',mp.length?esc(mp[0].k):'–',mp.length?pc(mp[0].w,mp[0].n)+'% · '+plural(mp[0].n,'set'):'3+ sets needed',mp.length?'#4ade80':'')}${tile('Worst map',mp.length>1?esc(mp[mp.length-1].k):'–',mp.length>1?pc(mp[mp.length-1].w,mp[mp.length-1].n)+'% · '+plural(mp[mp.length-1].n,'set'):'3+ sets needed',mp.length>1?'#f87171':'')}</div>`}
+function tsSub(L){const k=L.some(x=>x[0]===TSS)?TSS:'overview';return [k,`<div class="u-sub" role="tablist">${L.map(([a,l])=>`<button type="button" role="tab" data-tss="${a}" class="${k===a?'on':''}" aria-selected="${k===a}">${l}</button>`).join('')}</div>`]}
+function tsBrRows(C,hl,n){const {row,bar,top,none}=tsU;return top(C.B).slice(0,n||8).map((e,i)=>row(i+1,`<span class="${hl&&hl.has(e.k)?'hlb':''}">${bimg(e.k,'u-ic')}</span>`,esc(e.k),e.n,e.w,bar(e.w,e.n))).join('')||none}
+function tsDuoRows(C,n){const {row,bar,top,none}=tsU;return top(C.DU).slice(0,n||8).map((e,i)=>{const [a,b]=e.k.split('|');return row(i+1,`<span class="u-duo">${bimg(a,'u-ic')}${bimg(b,'u-ic')}</span>`,`<span class="u-dn">${esc(a)}<br>${esc(b)}</span>`,e.n,e.w,bar(e.w,e.n))}).join('')||none}
+function tsOppRows(C,n){const {row,bar,top,none}=tsU;return top(C.OP).filter(e=>e.k&&e.k!=='?').slice(0,n||8).map((e,i)=>row(i+1,M.D.off.includes(e.k)||IMGS[mkey(e.k)]?logo(e.k,'u-lg'):'<span class="u-lg0">?</span>',esc(e.k),e.n,e.w,bar(e.w,e.n))).join('')||none}
+// all maps by mode; one win rate per team (1, 2 or the pooled one)
+function tsMaps(Cs,names){const {pc,col}=tsU,maps=new Set();Cs.forEach(C=>Object.keys(C.MP).forEach(m=>maps.add(m)));if(!maps.size)return tsU.none;
+  const modes=MODELIST.map(([md])=>md).filter(md=>[...maps].some(m=>modeOfMap(m)===md)),other=[...maps].filter(m=>!modeOfMap(m));if(other.length)modes.push('Other');
+  const two=Cs.length>1,wr=(C,m)=>{const e=C.MP[m];return e?`<span style="color:${col(pc(e.w,e.n))}" title="${esc(names[Cs.indexOf(C)]||'')} · ${e.w}W ${e.n-e.w}L">${pc(e.w,e.n)}%</span>`:'<span class="u-na">–</span>'};
+  const cols=modes.map(md=>{const ms=[...maps].filter(m=>md==='Other'?!modeOfMap(m):modeOfMap(m)===md),mi=IMGS['mode'+mkey(md)];
+    const sum=C=>ms.reduce((a,m)=>{const e=C.MP[m];if(e){a.w+=e.w;a.n+=e.n}return a},{w:0,n:0});
+    const key=m=>Cs.reduce((a,C)=>{const e=C.MP[m];return a+(e?e.w/e.n:0)},0);
+    return `<div class="u-mcol"><div class="u-mch${two?' two':''}">${mi?`<img src="${mi}" alt="">`:'<span></span>'}<b>${esc(md)}</b>${Cs.map(C=>{const a=sum(C);return a.n?`<span style="color:${col(pc(a.w,a.n))}">${pc(a.w,a.n)}%</span>`:'<span class="u-na">–</span>'}).join('')}</div>
+      ${ms.sort((a,b)=>key(b)-key(a)).map(m=>{const n=Cs.map(C=>C.MP[m]?C.MP[m].n:0);return `<div class="u-mc${two?' two':''}">${mimg(m,'u-mci')}<div><b>${esc(m)}</b><small>${two?n.map(x=>x+' sets').join(' · '):plural(n[0],'set')+' · '+(Cs[0].MP[m]?Cs[0].MP[m].w+'W '+(n[0]-Cs[0].MP[m].w)+'L':'')}</small></div>${Cs.map(C=>wr(C,m)).join('')}</div>`}).join('')}</div>`}).join('');
+  return `${two?`<div class="u-mleg">${names.map((t,i)=>`<span>${logo(t,'l20')}${esc(t)}</span>`).join('<i>vs</i>')}</div>`:''}<div class="u-allmaps" style="grid-template-columns:repeat(${two?Math.min(3,modes.length):modes.length},minmax(0,1fr))">${cols}</div>`}
+function tsBanTiles(T,tot){const E=Object.entries(T).sort((a,b)=>b[1]-a[1]).slice(0,8);return E.length?`<div class="u-bans">${E.map(([k,n])=>`<div class="u-bn"><span class="bz-b">${bimg(k,'mx-bni')}</span><b>${esc(k)}</b><small>${n}× · ${tsU.pc(n,tot)}%</small></div>`).join('')}</div>`:'<p class="msg u-none">No bans known for these sets</p>'}
+const bnToggles=(l1,l2)=>{const own=bnSubj==='own',trio=bnKind==='trio';return `<div class="u-tg"><div class="seg2" role="group" aria-label="Whose bans"><button type="button" data-bnsubj="own" aria-pressed="${own}">${l1}</button><button type="button" data-bnsubj="ag" aria-pressed="${!own}">${l2}</button></div><div class="seg2" role="group" aria-label="Single bans or trios"><button type="button" data-bnkind="one" aria-pressed="${!trio}">Each ban</button><button type="button" data-bnkind="trio" aria-pressed="${trio}">Trios of bans</button></div><span class="u-note">bans from the API and from saved drafts · % = share of the sets of each column</span></div>`};
+const tsHead=(t,extra)=>`<div class="u-thd">${logo(t,'l28')}<b>${esc(t)}</b>${extra||''}</div>`;
+function tsPair(){const A=ddBuild(sel.a,'a','A',false),B=ddBuild(sel.b,'b','B',false),own=subject==='own',DD=[A,B];
+  const CA=tsAgg(A.items0),CB=tsAgg(B.items0),CC=[CA,CB],names=[A.team,B.team];
+  const both=new Set(Object.keys(CA.B).filter(k=>CB.B[k]));
+  const half=(D,C)=>`<div class="u-half">${tsHead(D.team,`<small>${REGION[D.team]?esc(REGION[D.team])+' · ':''}${plural(C.N,'set')}${D.luAct?' · lineup filter on':''}</small>`)}${tsTiles(C,1)}${luHero(D.team,D)}</div>`;
+  const hero=`<section class="u-hero u-hero2">${half(A,CA)}<div class="u-vs">VS</div>${half(B,CB)}</section>`;
+  const [k,sub]=tsSub([['overview','Overview'],['brawlers','Brawlers'],['bans','Bans'],['players','Players'],['comps','Comps'],['drafts','Drafts']]);
+  let body='';
+  if(k==='overview'){
+    const two=f=>`<div class="u-grid2">${DD.map((D,i)=>f(D,CC[i])).join('')}</div>`;
+    body=two((D,C)=>`<section class="u-panel"><header><span class="u-hd">${logo(D.team,'l20')} Most picked · ${esc(D.team)}</span> <button type="button" class="u-lnk" data-tss="brawlers">See all →</button></header>${tsBrRows(C,both)}</section>`)
+      +`<p class="u-note" style="margin:-6px 0 0"><span class="hlb-k">Gold frame</span> = brawler picked by both teams</p>`
+      +two((D,C)=>`<section class="u-panel"><header><span class="u-hd">${logo(D.team,'l20')} Best duos · ${esc(D.team)}</span></header>${tsDuoRows(C,6)}</section>`)
+      +`<section class="u-panel"><header>All maps <small>by mode · win rate of each team · pick maps in the side panel to filter the page</small></header>${tsMaps(CC,names)}</section>`
+      +two((D,C)=>{const BC=bnCalc(D.team,D,true,false);return `<section class="u-panel"><header><span class="u-hd">${logo(D.team,'l20')} Most banned by ${esc(D.team)}</span></header>${tsBanTiles(BC.T,BC.tot)}</section>`})}
+  else if(k==='brawlers'){const subjSeg=`<div class="seg2" role="group" aria-label="Which side"><button type="button" data-subj="own" aria-pressed="${own}">Brawlers of each team</button><button type="button" data-subj="enemy" aria-pressed="${!own}">Brawlers used against each team</button></div>`;
+    const kA=new Set(A.CS.picks.map(x=>x.k)),hb=new Set(B.CS.picks.map(x=>x.k).filter(q=>kA.has(q)));
+    const ckS=D=>{const o=CKX[D.key]||{},q=o.k||comboKind,r=o.r!=null?o.r:onlyRepeat;return `<div class="seg2" role="group" aria-label="Combo size"><button type="button" data-ck="duos" data-ckk="${D.key}" aria-pressed="${q==='duos'}">Duos</button><button type="button" data-ck="trios" data-ckk="${D.key}" aria-pressed="${q==='trios'}">Full Combo</button></div><label class="chk"><input type="checkbox" data-rep="1" data-ckk="${D.key}"${r?' checked':''}> Only repeated</label>`};
+    const ckOf=D=>((CKX[D.key]||{}).k||comboKind);
+    body=`<div class="u-tg">${subjSeg}<span class="u-note">Win rate is always the one of the team of each column · <span class="hlb-k">gold frame</span> = picked by both teams</span></div>
+      <div class="u-grid2">${DD.map(D=>`<div class="u-tcol">${tsHead(D.team)}<div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0">${own?'Brawlers':'Used against'}${D.active?' (filtered)':''} · ${D.CS.picks.length}</div></div><div class="scroll pds">${rankTable(D.CS.picks,D.cls,'Brawler',[],'',0,hb)}</div></div></div>`).join('')}</div>
+      <div class="u-grid2">${DD.map(D=>`<div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0">${logo(D.team,'l20')} ${ckOf(D)==='duos'?'Duos':'Full combo'} · ${D.combos.length}</div>${ckS(D)}</div><div class="scroll pds">${rankTable(D.combos,D.cls,ckOf(D)==='duos'?'Duo':'Full Combo',[],'',0)}</div></div>`).join('')}</div>
+      <div class="u-grid2">${DD.map(D=>`<div>${D.np}</div>`).join('')}</div>
+      <div class="u-grid2">${DD.map(D=>`<div>${D.types}</div>`).join('')}</div>`}
+  else if(k==='bans')body=bnToggles('Bans of each team','Bans against each team')+DD.map(D=>tsHead(D.team)+bansHTML(D.team,D.cls,D,2)).join('');
+  else if(k==='players')body=DD.map(D=>tsHead(D.team)+plCards(D.team,D.key)).join('');
+  else if(k==='comps')body=`<div class="u-tg">${resSeg()}${A.nSingles+B.nSingles||!showSingles?`<label class="chk"><input type="checkbox" data-sgl="1"${showSingles?' checked':''}> Show single games (${A.nSingles+B.nSingles})</label>`:''}</div>`
+    +DD.map(D=>`<section class="u-panel"><header><span class="u-hd">${logo(D.team,'l20')} ${esc(D.team)}</span><small>${esc(D.logTitle.replace(/^Comps · /,''))}</small></header><div class="u-cf"><div class="u-cfg2">${D.selects('Our brawlers','Their brawlers')}</div><div class="u-cfg2">${D.tsel('Our types','Their types')}</div><div class="u-cfb"><span class="u-cfs">${D.summary}</span></div></div>${compRows(D.log,D.team)}</section>`).join('');
+  else body=`<div class="u-blk uxdr">${draftsTab()}</div>`;
+  return `<div class="u-ts">${hero}${sub}${body}<p class="foot">Picks and wins count sets (single games and draws excluded). Win rate = wins / picks. With few sets the percentages swing a lot.</p></div>`}
+function tsPool(pt,label,cls,D,o){const C=tsAgg(D.items0),{pc,col,bar,top,row,none}=tsU;
+  const logos=pt.map(t=>`<span title="${esc(t)}">${logo(t,'l28')}</span>`).join('');
+  const hero=`<section class="u-hero"><div class="u-plogos">${logos}</div><div class="u-ht"><h1>${esc(label)} together</h1><p>${plural(C.N,'set')} in the period${D.luAct?' · lineup filter on':''} · each team counts its own sets</p></div>${tsTiles(C)}<div class="u-lus u-lusp">${D.lu}</div></section>`;
+  const [k,sub]=tsSub([['overview','Overview'],['brawlers','Brawlers'],['bans','Bans'],['players','Players'],['comps','Comps'],['drafts','Drafts']]);
+  const bnSum=(own,trio)=>{const S={T:{},F:{},Lc:{},ns:0,ndr:0,nf:0,nl:0,tot:0,mf:mapsFilter()};for(const t of pt){const r=bnCalc(t,{items0:(D.items0||[]).filter(x=>x.team===t)},own,trio);for(const q of ['T','F','Lc'])for(const b in r[q])S[q][b]=(S[q][b]||0)+r[q][b];for(const q of ['ns','ndr','nf','nl','tot'])S[q]+=r[q]}return S};
+  let body='';
+  if(k==='overview'){
+    const tm=top(C.TM).sort((a,b)=>b.w/b.n-a.w/a.n).map((e,i)=>row(i+1,logo(e.k,'u-lg'),esc(e.k),e.n,e.w,bar(e.w,e.n))).join('')||none;
+    const BS=bnSum(true,false);
+    body=`<div class="u-grid3"><section class="u-panel"><header>Most picked brawlers <button type="button" class="u-lnk" data-tss="brawlers">See all ${Object.keys(C.B).length} →</button></header>${tsBrRows(C)}</section>
+      <section class="u-panel"><header>Best duos <button type="button" class="u-lnk" data-tss="brawlers">See all →</button></header>${tsDuoRows(C)}</section>
+      <section class="u-panel"><header>Teams <small>win rate in the period</small></header>${tm}</section></div>
+      <section class="u-panel"><header>All maps <small>by mode · the selected teams together · pick maps in the side panel to filter the page</small></header>${tsMaps([C],[label])}</section>
+      <section class="u-panel"><header>Most banned by the selected teams <button type="button" class="u-lnk" data-tss="bans">See all in Bans →</button></header>${tsBanTiles(BS.T,BS.tot)}</section>`}
+  else if(k==='brawlers')body=`<div class="u-tg">${o.subjSeg}<span class="u-note">${o.desc}</span></div>
+    <div class="pdgrid" style="grid-template-columns:1fr 1fr"><div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0" title="${D.what}">${o.own?'Brawlers':'Brawlers used against'}${D.active?' (filtered)':''} · ${D.CS.picks.length}</div></div>
+      <div class="scroll pickscroll pds">${rankTable(D.CS.picks,cls,'Brawler',[],D.wrl)}</div></div>
+    <div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0" title="${D.what2}">${o.own?'Combos':'Combos used against'} · ${D.combos.length} ${comboKind==='duos'?'duos':'full'}</div>
+      <div class="seg2" role="group" aria-label="Combo size"><button type="button" data-ck="duos" aria-pressed="${comboKind==='duos'}">Duos</button><button type="button" data-ck="trios" aria-pressed="${comboKind==='trios'}">Full Combo</button></div>
+      <label class="chk"><input type="checkbox" data-rep="1"${onlyRepeat?' checked':''}> Only repeated</label></div>
+      <div class="scroll pds">${rankTable(D.combos,cls,comboKind==='duos'?'Duo':'Full Combo',[],D.wrl)}</div></div></div>${D.np}${D.types}`;
+  else if(k==='bans')body=bnToggles('Bans of the selected teams','Bans against them')+bansHTML(label,cls,D,2,bnSum(bnSubj==='own',bnKind==='trio'));
+  else if(k==='players')body=pt.map(t=>tsHead(t)+plCards(t,'pl:'+t)).join('');
+  else if(k==='comps')body=`<section class="u-panel"><header><span class="u-hd">Comps</span><small>${esc(D.logTitle.replace(/^Comps · /,''))}</small></header>
+    <div class="u-cf"><div class="u-cfg2">${D.selects('Their brawlers'.replace('Their','Our'),'Their brawlers')}</div><div class="u-cfg2">${D.tsel('Our types','Their types')}</div>
+      <div class="u-cfb">${resSeg()}${D.nSingles||!showSingles?`<label class="chk"><input type="checkbox" data-sgl="1"${showSingles?' checked':''}> Show single games (${D.nSingles})</label>`:''}<span class="u-cfs">${D.summary}</span></div></div>${compRows(D.log,null)}</section>`;
+  else body=`<div class="u-blk uxdr">${draftsTab()}</div>`;
+  return `<div class="u-ts">${hero}${sub}${body}<p class="foot">Picks and wins count sets (single games and draws excluded). Win rate = wins / picks. With few sets the percentages swing a lot.</p></div>`}
 const resSeg=()=>`<div class="seg2" role="group" aria-label="Result">${[['all','All results'],['win','Wins only'],['loss','Losses only']].map(([v,l])=>`<button type="button" data-cres="${v}" aria-pressed="${comboRes===v}">${l}</button>`).join('')}</div>`;
 // compare 2 teams: both teams side by side, each with its own filters
 function pairDeep(){
   const A=ddBuild(sel.a,'a','A',false),B=ddBuild(sel.b,'b','B',false),own=subject==='own';
   const nSingles=A.nSingles+B.nSingles;
   const subjSeg=`<div class="seg2" role="group" aria-label="Which side"><button type="button" data-subj="own" aria-pressed="${own}">Brawlers of each team</button><button type="button" data-subj="enemy" aria-pressed="${!own}">Brawlers used against each team</button></div>`;
+  const kA=new Set(A.CS.picks.map(x=>x.k)),both=new Set(B.CS.picks.map(x=>x.k).filter(k=>kA.has(k)));
+  const ckS=D=>{const o=CKX[D.key]||{},k=o.k||comboKind,r=o.r!=null?o.r:onlyRepeat;return `<div class="seg2" role="group" aria-label="Combo size"><button type="button" data-ck="duos" data-ckk="${D.key}" aria-pressed="${k==='duos'}">Duos</button><button type="button" data-ck="trios" data-ckk="${D.key}" aria-pressed="${k==='trios'}">Full Combo</button></div><label class="chk" title="Only combos used more than once"><input type="checkbox" data-rep="1" data-ckk="${D.key}"${r?' checked':''}> Only repeated</label>`};
   const col=(D,kind)=>kind==='p'
-    ?`<div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0" title="${D.what}">${own?'Brawlers':'Used against'}${D.active?' (filtered)':''} · ${D.CS.picks.length}</div></div><div class="scroll pds">${rankTable(D.CS.picks,D.cls,'Brawler',[],'',1)}</div></div>`
-    :`<div class="pdcol dc"><div class="toolrow pdhead"><div class="ttl" style="margin:0" title="${D.what2}">${comboKind==='duos'?'Duos':'Full combo'} · ${D.combos.length}</div></div><div class="scroll pds">${rankTable(D.combos,D.cls,comboKind==='duos'?'Duo':'Full Combo',[],'',1)}</div></div>`;
+    ?`<div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0" title="${D.what}">${own?'Brawlers':'Used against'}${D.active?' (filtered)':''} · ${D.CS.picks.length}</div></div><div class="scroll pds">${rankTable(D.CS.picks,D.cls,'Brawler',[],'',1,both)}</div></div>`
+    :`<div class="pdcol dc"><div class="toolrow pdhead"><div class="ttl" style="margin:0" title="${D.what2}">${((CKX[D.key]||{}).k||comboKind)==='duos'?'Duos':'Full combo'} · ${D.combos.length}</div>${ckS(D)}</div><div class="scroll pds">${rankTable(D.combos,D.cls,((CKX[D.key]||{}).k||comboKind)==='duos'?'Duo':'Full Combo',[],'',1)}</div></div>`;
   const two=(f)=>`<div class="pair2">${f(A)}${f(B)}</div>`;
   return `<h3 class="sec-h">Team deep dive</h3>
     <h3 class="sec-h dvh">Picks</h3>
-    <div class="toolrow">${subjSeg}<div class="seg2" role="group" aria-label="Combo size"><button type="button" data-ck="duos" aria-pressed="${comboKind==='duos'}">Duos</button><button type="button" data-ck="trios" aria-pressed="${comboKind==='trios'}">Full Combo</button></div><label class="chk" title="Only combos used more than once"><input type="checkbox" data-rep="1"${onlyRepeat?' checked':''}> Only repeated</label></div>
-    <p class="msg" style="margin:0 0 10px">Win rate is always the one of the team in each column${own?'':' (its results in the sets where the rival used that brawler)'}. Each team has its own filters below.</p>
+    <div class="toolrow">${subjSeg}</div>
+    <p class="msg" style="margin:0 0 10px">Win rate is always the one of the team in each column${own?'':' (its results in the sets where the rival used that brawler)'}. <span class="hlb-k">Gold frame</span> = brawler picked by both teams. Each team has its own filters.</p>
     <div class="pdgrid p4">${tstrip(sel.a,';grid-column:span 2')}${tstrip(sel.b,';grid-column:span 2')}<div style="grid-column:span 2">${A.wlHTML}${A.lu}</div><div style="grid-column:span 2">${B.wlHTML}${B.lu}</div>${col(A,'p')}${col(A,'c')}${col(B,'p')}${col(B,'c')}</div>
     ${two(D=>`<div>${D.np}</div>`)}
     <h3 class="sec-h dvh">Comp</h3>
     <div class="pair2 fwrap" style="margin-top:6px">${[A,B].map(D=>`<div class="pfilt">${tstrip(D.team)}<div class="fbar">${D.selects('Filter: '+esc(D.team)+' brawlers','Filter: enemy brawlers')}</div><div class="fbar" style="margin-top:0">${D.tsel('Filter: '+esc(D.team)+' types','Filter: enemy types')}</div>${D.summary}</div>`).join('')}</div>
     <div class="toolrow" style="justify-content:center;margin-top:14px"><div class="ttl" style="margin:0">Comps</div>${resSeg()}${nSingles||!showSingles?`<label class="chk"><input type="checkbox" data-sgl="1"${showSingles?' checked':''}> Show single games (${nSingles})</label>`:''}</div>
-    ${[A,B].map(D=>`<div class="plog">${tstrip(D.team)}<p class="msg" style="margin:6px 0 0;text-align:center">${D.logTitle}</p>${D.logHTML}</div>`).join('')}
+    ${[A,B].map(D=>`<section class="u-panel plog"><header><span class="u-hd">${logo(D.team,'l20')} ${esc(D.team)}</span><small>${esc(D.logTitle.replace(/^Comps · /,''))}</small></header>${compRows(D.log,D.team)}</section>`).join('')}
     ${playersTab(true)}<div class="pair2" style="margin-top:6px">${[A,B].map(D=>`<div>${tstrip(D.team)}${D.types}</div>`).join('')}</div>
     <p class="foot" style="margin-top:10px">Picks and wins count sets (single games and draws excluded). Win rate = wins / picks. Each filter box only offers options that still appear in the sets matching the other boxes. With few sets the percentages swing a lot.</p>
     <h3 class="sec-h">Saved drafts</h3><div class="uxdr">${draftsTab()}</div>`;
@@ -2859,7 +2956,7 @@ function statMapsHTML(){
     return `<div class="mcol${sbo?' sbo':''}"${mcs(mode)}><button type="button" class="mexp" data-mexp="${esc(mode)}" title="Show / hide the maps of ${esc(mode)}">▸</button><button type="button" class="mhd${whole?' on':''}" aria-pressed="${whole}" data-smode="${esc(ms.join('|'))}" title="${whole?'Clear':'Select'} the whole ${esc(mode)} mode">${ic}<b>${esc(mode)}</b><span>${whole?'✓ ':''}${agg}</span></button>${ms.map(m=>card(m,mode)).join('')}</div>`}).join('');
   return `<div class="toolrow" style="margin-bottom:0"><div class="lbl">Maps</div><button type="button" class="chip" data-sm="" aria-pressed="${!statMaps.length}">All maps</button><span class="msg" style="font-size:12px;margin-left:auto;text-align:right">modes and maps sorted by ${pair?'the average win rate of both teams':"this team's win rate"}, best first · pick single maps, or click a mode name to take all its maps</span></div><div class="mcols">${grp}</div>`;
 }
-function picksTab(){return (scope==='pair'?compareHTML():'')+deepDive()}
+function picksTab(){return deepDive()}
 const PLAYER_NAMES={};
 let _pnMap=null,_pnSrc=null;
 function sheetName(tag,fb){ // name as written in the Picks sheet for this tag, else the in-game name
@@ -2899,14 +2996,14 @@ function plGameStats(team,tags,maps,keep){const T=new Set((tags||[]).map(t=>Stri
   return {tot,B}}
 const kdS=e=>e&&e.g?(e.d?(e.k/e.d).toFixed(2):e.k+'/0'):'–';
 function plStatsLine(S){const t=S.tot;if(!t.g)return '';return `<div class="pst" title="From ${t.g} games with stats (new sets from the API)"><span><small>K/D</small><b>${kdS(t)}</b></span><span><small>Kills/game</small><b>${(t.k/t.g).toFixed(1)}</b></span><span><small>Damage/game</small><b>${fmtK(t.dm/t.g)}</b></span>${t.h/t.g>=1000?`<span><small>Heal/game</small><b>${fmtK(t.h/t.g)}</b></span>`:''}<span><small>Star player</small><b>${Math.round(100*t.st/t.g)}%</b></span><span><small>Games</small><b>${t.g}</b></span></div>`}
-function plCards(team){
-  const mf=mapsFilter(),its=Engine.setList(ds,DB,team,mf),LU=luApply(team,its,'',false),keep=new Set(LU.items.map(x=>x.i));
+function plCards(team,key){key=key||'';
+  const mf=mapsFilter(),its=Engine.setList(ds,DB,team,mf),LU=luApply(team,its,key,!!key),keep=new Set(LU.items.map(x=>x.i));
   const P=Engine.playersFor(Object.assign({},ds,{matches:ds.matches.filter(m=>keep.has(m.i))}),team,mf);
   const PS=(LU.act?topPlayers(team,P):teamPlayers(team,P));if(!PS.length)return '<p class="msg u-none">No player tags for this team in the Picks sheet.</p>';
   const pc=(w,n)=>n?Math.round(100*w/n):0,col=p=>p>=60?'#4ade80':p>=53?'#86efac':p>47?'#facc15':p>40?'#fca5a5':'#f87171';
   const cards=PS.map(p=>{const GS=plGameStats(team,p.tags,mf,keep),t=GS.tot,hs=t.g>0,L=p.list||[];
     const st=hs?`<div class="u-pst"><div><small>K/D</small><b>${kdS(t)}</b></div><div><small>Dmg / game</small><b>${fmtK(t.dm/t.g)}</b></div><div><small>Star player</small><b>${Math.round(100*t.st/t.g)}%</b></div><div><small>Games</small><b>${t.g}</b></div></div>`:`<div class="u-pst u-pst0">Game stats (K/D, damage…) appear for the new sets read from the API</div>`;
-    const rows=L.map((x,i)=>{const e=GS.B[x.b];return `<div class="u-row"><span class="u-rk">${i+1}</span>${bimg(x.b,'u-ic')}<div class="u-nm"><b>${esc(x.b)}</b><small class="u-rec">${x.w}W · ${x.n-x.w}L${e&&e.g?` · K/D ${kdS(e)} · ${fmtK(e.dm/e.g)} dmg`:''}</small></div><span class="u-n">${x.n}<small>sets</small></span><div class="u-wr"><b style="color:${col(pc(x.w,x.n))}">${pc(x.w,x.n)}%</b><span><i style="width:${pc(x.w,x.n)}%;background:${col(pc(x.w,x.n))}"></i></span></div></div>`}).join('');
+    const rows=L.map((x,i)=>{const e=GS.B[x.b];return `<div class="u-row"><span class="u-rk">${i+1}</span>${bimg(x.b,'u-ic')}<div class="u-nm"><b>${esc(x.b)}</b>${e&&e.g?`<small class="u-rec">K/D ${kdS(e)} · ${fmtK(e.dm/e.g)} dmg</small>`:''}</div><span class="u-n">${x.n}<small>sets</small></span><span class="u-n">${x.w}<small>wins</small></span><div class="u-wr"><b style="color:${col(pc(x.w,x.n))}">${pc(x.w,x.n)}%</b><span><i style="width:${pc(x.w,x.n)}%;background:${col(pc(x.w,x.n))}"></i></span></div></div>`}).join('');
     const RT=regTags(team),sub=!!RT&&!(p.tags||[]).some(g=>RT.has(g));
     return `<section class="u-panel u-pc"><div class="u-ph">${logo(team,'u-phl')}<div><h3>${esc(p.name)}${sub?' <em>sub</em>':''}</h3><small>${p.n?`${plural(p.n,'set')} · <span style="color:${col(pc(p.w,p.n))}">${pc(p.w,p.n)}% win rate</span> · ${plural(L.length,'brawler')}`:'no sets'}</small></div></div>${st}<div class="u-scroll u-pbr">${rows||'<p class="msg u-none">No sets</p>'}</div></section>`}).join('');
   return `${LU.act?'<p class="u-note" style="margin:0 0 10px">Lineup filter on: the 3 players who played the most sets in the selected lineups.</p>':''}<div class="u-pgrid" style="grid-template-columns:repeat(${Math.min(4,PS.length)},minmax(0,1fr))">${cards}</div>`}
@@ -4044,7 +4141,7 @@ document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest
 (function(){const ft=$('fType'),host=$('uxGamesHost');if(ft&&host)host.appendChild(ft);
   const cal=$('uxCal'),pg=$('rcal')&&$('rcal').closest('.pgrp');if(cal){const x=document.createElement('button');x.type='button';x.id='uxCalX';x.title='Close';x.textContent='✕';cal.appendChild(x)}if(pg&&cal)cal.appendChild(pg);
   const all=$('sheetAll');if(all&&cal){const w=document.createElement('div');w.className='uxcalx';w.appendChild(all);cal.appendChild(w)}})();
-function uxPerLabel(){const t=$('uxPerT');if(!t)return;t.textContent=RC.from&&RC.to?fmtDate(RC.from)+' – '+fmtDate(RC.to):'–'}
+function uxPerLabel(){const t=$('uxPerT');if(!t)return;if(!(RC.from&&RC.to)){t.textContent='–';return}const y1=String(RC.from).slice(0,4),y2=String(RC.to).slice(0,4),dm=d=>fmtDate(d).replace(/ \d{4}$/,'');t.innerHTML=`<small class="uxy">${y1===y2?y1:y1+' – '+y2}</small>${esc(dm(RC.from))} – ${esc(dm(RC.to))}`}
 function uxCal(open){const c=$('uxCal'),b=$('uxPer');if(!c)return;c.hidden=!open;b.setAttribute('aria-expanded',open?'true':'false');if(open){const r=b.getBoundingClientRect(),pr=b.closest('.panel').getBoundingClientRect();c.style.left=(r.left-pr.left)+'px'}}
 document.addEventListener('click',e=>{const t=e.target;
   if(t.closest&&t.closest('#uxPer')){uxCal($('uxCal').hidden);return}
@@ -4383,7 +4480,7 @@ $('detailpanel').addEventListener('click',e=>{
   const sm=e.target.closest('[data-sm]');if(sm){const m=sm.dataset.sm;if(!m)statMaps=[];else{const i=statMaps.indexOf(m);if(i>=0)statMaps.splice(i,1);else statMaps.push(m)}renderDetail();return}
   const smo=e.target.closest('[data-smode]');if(smo){const ms=smo.dataset.smode.split('|');if(ms.every(m=>statMaps.includes(m)))statMaps=statMaps.filter(m=>!ms.includes(m));else ms.forEach(m=>{if(!statMaps.includes(m))statMaps.push(m)});renderDetail();return}
   const cres=e.target.closest('[data-cres]');if(cres){comboRes=cres.dataset.cres;renderDetail();return}
-  const ck=e.target.closest('[data-ck]');if(ck){comboKind=ck.dataset.ck;renderDetail();return}
+  const ck=e.target.closest('[data-ck]');if(ck){if(ck.dataset.ckk){const o=CKX[ck.dataset.ckk]||(CKX[ck.dataset.ckk]={});o.k=ck.dataset.ck}else comboKind=ck.dataset.ck;renderDetail();return}
   const fv=e.target.closest('[data-fv]');if(fv){const [side,k,...r]=fv.dataset.fv.split(':');FK(fv.dataset.fk||'').flt[side][+k]=r.join(':');renderDetail();return}
   const tz=e.target.closest('[data-tsz]');if(tz){const [side,n]=tz.dataset.tsz.split(':'),T=FK(tz.dataset.fk||'').tfs;if(T[side].n!==+n){T[side].n=+n;T[side].k=''}renderDetail();return}
   const tv=e.target.closest('[data-tv]');if(tv){const j=tv.dataset.tv.indexOf(':');FK(tv.dataset.fk||'').tfs[tv.dataset.tv.slice(0,j)].k=tv.dataset.tv.slice(j+1);renderDetail();return}
@@ -4410,7 +4507,7 @@ $('detailpanel').addEventListener('click',e=>{
 $('detailpanel').addEventListener('change',e=>{
   const t=e.target;
   if(t.dataset&&t.dataset.flt){const [side,k]=t.dataset.flt.split(':');flt[side][+k]=t.value;renderDetail();return}
-  if(t.dataset&&t.dataset.rep){onlyRepeat=t.checked;renderDetail()}
+  if(t.dataset&&t.dataset.rep){if(t.dataset.ckk){const o=CKX[t.dataset.ckk]||(CKX[t.dataset.ckk]={});o.r=t.checked}else onlyRepeat=t.checked;renderDetail()}
   if(t.dataset&&t.dataset.sgl){showSingles=t.checked;renderDetail()}
   if(t.dataset&&t.dataset.dsf){if(t.dataset.dsf==='map')DR.sMap=t.value;else DR.sCoin=t.value;renderDetail()}
 });
@@ -7569,4 +7666,72 @@ document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest
   .sbar .mpk .mc-n{flex:1}.sbar .mpk .mc-n b{text-transform:none;font-size:12.5px}.sbar .mpk .mc-w{font-size:15px!important}
   .sbar .mpk.on{border-color:#a855f7!important}
 }
-</style>
+</style><style id="rev105">
+/* whole width, section bar on top and always visible */
+.wrap{max-width:100%!important;padding-left:16px!important;padding-right:16px!important;box-sizing:border-box}
+#sheetbar{top:0!important;bottom:auto!important;height:48px!important;background:rgba(14,13,20,.92)!important;backdrop-filter:blur(8px);border-top:0!important;border-bottom:1px solid #2b2540!important;box-shadow:0 4px 18px rgba(0,0,0,.35)!important;padding:0 16px!important}
+#sheetbar .sb-t{border-top:0!important;border-bottom:3px solid transparent!important;font-size:13.5px!important}
+#sheetbar .sb-t.on{background:rgba(168,85,247,.16)!important;border-bottom-color:#a855f7!important;color:#fff!important}
+body{padding-bottom:0!important;padding-top:58px!important}#apiBadge{bottom:12px!important}
+#detailpanel>.tabs{display:none!important}
+@media (min-width:1200px){.sbar{top:58px!important;max-height:calc(100vh - 70px)!important}}
+.uxy{display:block;font-size:10.5px;letter-spacing:.12em;color:#a78bfa;font-weight:700}
+/* side panel: info under the title, teams in 2 columns, no region legend */
+.scm-l .reglegend{display:none!important}
+@media (min-width:1200px){
+ .sbar .herotext{display:flex!important;flex-direction:column!important;align-items:center;gap:6px}.sbar .heroinfo{position:static!important;display:block!important;transform:none!important;margin:0!important;font-size:10.5px!important;line-height:1.35;text-align:center;max-width:100%;color:#8e8ab0}
+ .sbar .heroinfo *{position:static!important}
+ .sbar .uxchips{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:4px!important;width:100%}
+ .sbar .uxchip{min-width:0!important;box-sizing:border-box!important;overflow:hidden}.sbar .uxpick{min-width:0;overflow:hidden}
+ .sbar .uxchip{padding:5px 6px!important;gap:6px}.sbar .uxchip img{width:20px!important;height:20px!important}.sbar .uxn{font-size:11px}
+ .sbar .grp-act{grid-column:1/-1}
+}
+/* every table: dark, tall rows, no grey */
+table.rank,table.ltbl,.tablewrap table,#detail table{background:#121118!important;border-collapse:collapse!important}
+table.rank td,table.rank th,#detail table td,#detail table th{background:transparent!important;border-color:#1d1b27!important}
+table.rank tbody tr,#detail table tbody tr{border-bottom:1px solid #1d1b27!important;background:transparent!important}
+table.rank tbody tr:hover td,#detail table tbody tr:hover td{background:#17161f!important}
+table.rank td{padding-top:14px!important;padding-bottom:14px!important;color:#e5e3f0}
+table.rank thead th,#detail table thead th{background:#15131d!important;color:#a78bfa!important;font-size:10.5px!important;letter-spacing:.08em;border-bottom:1px solid #24222f!important}
+table.rank .rk{color:#6e6a85!important}
+table.rank .bi,table.rank img.bi{width:36px!important;height:36px!important;border-radius:8px}
+table.rank .bnc img,table.rank .duo img,table.rank td.ic img{width:34px!important;height:34px!important;border-radius:7px}table.rank .bnc{display:inline-flex;align-items:center;gap:10px}
+table.rank .bnm{font-weight:700;font-size:13.5px;color:#fff}
+table.rank td.heat{line-height:1.1}
+.wrb{display:block;width:56px;height:4px;background:#24222f;border-radius:3px;overflow:hidden;margin:5px 0 0 auto}.wrb i{display:block;height:100%;border-radius:3px}
+.pdcol,.bnblock .pdcol{background:#121118!important;border:1px solid #24222f!important;border-radius:16px!important;overflow:hidden;padding:0!important}
+.pdcol .pdhead{padding:12px 14px!important;margin:0!important;border-bottom:1px solid #24222f;background:linear-gradient(90deg,rgba(168,85,247,.10),transparent);flex-wrap:wrap;gap:8px}
+.pdcol .pdhead .ttl{border:0!important;background:none!important;padding:0!important;color:#e5e3f0!important;font-size:12.5px!important;letter-spacing:.08em}
+.pdcol .scroll{border:0!important;border-radius:0!important;background:transparent!important}
+.hlb .bi,.hlb img{outline:2px solid #facc15;outline-offset:1px;border-radius:7px}.hlb-k{color:#facc15;font-weight:700}
+.uxtabs{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-start!important}
+.uxtabs button{padding:9px 18px!important;border-radius:999px!important;font-weight:600!important;font-size:13px!important;color:#9a97ad!important;border:1px solid #2a2838!important;background:#121118!important}
+.uxtabs button[aria-pressed="true"]{background:#a855f7!important;border-color:#a855f7!important;color:#fff!important}
+.lubs button[aria-pressed="true"]{background:#a855f7!important;border-color:#a855f7!important;color:#fff!important}
+/* overview rows with a wins column */
+.u-r6{grid-template-columns:18px auto minmax(0,1fr) 44px 44px 64px!important}
+.u-pbr .u-row{grid-template-columns:22px auto minmax(0,1fr) 40px 40px 60px!important}
+/* comps: player names under the brawlers */
+.u-crow{min-height:86px!important;grid-template-columns:62px 36px 160px minmax(0,1fr) 54px minmax(0,1fr) 170px!important}
+.u-cb{display:flex;flex-direction:column;align-items:center;gap:3px;width:64px}.u-cb small{font-size:10px;color:#9a97ad;max-width:64px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
+.u-cb .u-cb0{width:40px;height:40px;border-radius:8px;background:#1d1b27;display:block}
+.u-cbr{gap:2px!important}.u-cbn{align-self:flex-start;margin-top:8px}
+.u-cteam{display:flex;align-items:center;gap:5px;font-size:10.5px;color:#a78bfa;font-weight:700;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plog{margin-top:14px}
+</style><style id="rev106">
+.u-grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.u-hero2{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)!important;align-items:start!important}
+.u-half{display:flex;flex-direction:column;gap:12px;min-width:0}.u-vs{align-self:center;font-weight:800;color:#6e6a85;font-size:18px;letter-spacing:.1em}
+.u-tiles.sm{grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}.u-tiles.sm .u-tile{padding:8px 9px}.u-tiles.sm .u-tile b{font-size:14px}.u-tiles.sm .u-tile small{font-size:9.5px}.u-tiles.sm .u-tile i{font-size:10.5px}
+.u-thd{display:flex;align-items:center;gap:10px;margin:6px 0 2px;font-size:17px;color:#fff}.u-thd small{font-size:12px;color:#8e8ab0;font-weight:400;margin-left:4px}
+.u-half .u-thd{font-size:22px;margin:0}
+.u-tcol{display:flex;flex-direction:column;gap:10px;min-width:0}
+.u-plogos{display:flex;gap:6px;flex-wrap:wrap;max-width:220px}
+.u-lusp{display:block}
+.u-panel header img.l20{width:20px;height:20px;margin-right:6px;vertical-align:-4px}
+.u-mch.two{grid-template-columns:22px minmax(0,1fr) auto auto!important}.u-mch.two small{display:none}
+.u-mc.two{grid-template-columns:34px minmax(0,1fr) auto auto!important}.u-mc>span{font:800 13px var(--mono,monospace)}.u-na{color:#4a475c}
+.u-mleg{display:flex;gap:10px;align-items:center;padding:10px 16px 0;font-size:12.5px;color:#cfcce0}.u-mleg span{display:flex;align-items:center;gap:6px}.u-mleg i{font-style:normal;color:#6e6a85}
+.u-ts .u-tg .u-note{flex:1;min-width:200px}
+@media (max-width:1100px){.u-grid2{grid-template-columns:1fr}.u-hero2{grid-template-columns:1fr!important}.u-vs{display:none}}
+</style><style>.u-grid2 .u-bans{grid-template-columns:repeat(4,minmax(0,1fr))}.u-panel header img.l20{margin-right:0}.u-hd img{flex:none}</style>
