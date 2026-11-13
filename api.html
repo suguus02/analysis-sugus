@@ -2403,7 +2403,7 @@ function teamLabel(r,cls,size){ // named rival (with logo) or 3 players stacked
 function mapsFilter(){return statMaps.length?statMaps.slice():null}
 function filterLabel(){return !statMaps.length?'all maps':statMaps.length===1?statMaps[0]:plural(statMaps.length,'selected map')}
 const allTeams=()=>SELECTED?[...new Set([...SELECTED,...M.D.off.filter(t=>SELECTED.includes(t))])]:[...new Set([...LCQ,...WORLDS,...M.D.off])];
-function curOne(){const off=M.D.off;if(!oneTeam||!allTeams().includes(oneTeam))oneTeam=off.includes(sel.a)?sel.a:off[0];return oneTeam}
+function curOne(){const off=M.D.off;if(!curOne.r){curOne.r=1;try{const L=JSON.parse(store.get('tvt:selT')||'null');if(L&&L.length&&!(window.__UXH&&window.__UXH.one)){const ok=L.filter(t=>allTeams().includes(t));if(ok.length)setSelTeams(ok)}}catch(e){}}if(!oneTeam||!allTeams().includes(oneTeam))oneTeam=off.includes(sel.a)?sel.a:off[0];return oneTeam}
 const wrBar=p=>{p=Math.max(0,Math.min(1,+p||0));const c=p>=.6?'#4ade80':p>=.53?'#86efac':p>.47?'#facc15':p>.4?'#fca5a5':'#f87171';return `<span class="wrb"><i style="width:${Math.round(100*p)}%;background:${c}"></i></span>`};
 function rankTable(arr,cls,kind,mapCols,wrl,slim,hl){
   const kic=k=>String(k).split(' + ').length===2?duoH(String(k).split(' + ')):String(k).split(' + ').map(n=>`<span class="bnc${hl&&hl.has(n)?' hlb':''}"${hl&&hl.has(n)?' title="Played by both teams"':''}>${bimg(n,'bi')||''}<span class="bnm">${esc(n)}</span></span>`).join('<span class="pl">+</span>');
@@ -2781,7 +2781,7 @@ function tsAgg(items){const its=(items||[]).filter(x=>!x.s&&x.win!==.5),{inc,top
 function tsTiles(C,small){const {pc,col}=tsU,{N,W,L,gw,gl,mp,fav}=C;
   const t=(lab,val,sub,c,media)=>`<div class="u-tile${media?' med':''}">${media||''}<div class="u-tt"><small>${lab}</small><b${c?` style="color:${c}"`:''}>${val}</b><i>${sub}</i></div></div>`;
   const mapT=(lab,e,c)=>{if(!e)return t(lab,'–','3+ sets needed');const md=modeOfMap(e.k),mi=IMGS['mode'+mkey(md)];return t(lab,`${mi?`<img class="u-tmi" src="${mi}" alt="" title="${esc(md)}">`:''}<span>${esc(e.k)}</span>`,`${pc(e.w,e.n)}% · ${plural(e.n,'set')}`,c,`<span class="u-tmed map">${mimg(e.k,'u-tmimg')}</span>`)};
-  return `<div class="u-tiles${small?' sm':''}">${t('Sets',`${W}W · ${L}L`,N?pc(W,N)+'% win rate':'no sets',N?col(pc(W,N)):'')}${t('Games',`${gw}W · ${gl}L`,gw+gl?pc(gw,gw+gl)+'% win rate':'–',gw+gl?col(pc(gw,gw+gl)):'')}${fav?t('Most picked',`<span>${esc(fav.k)}</span>`,`${plural(fav.n,'set')} · <em style="color:${col(pc(fav.w,fav.n))}">${pc(fav.w,fav.n)}%</em>`,'',`<span class="u-tmed">${bimg(fav.k,'u-tbimg')}</span>`):t('Most picked','–','')}${mapT('Best map',mp[0],'#4ade80')}${mapT('Worst map',mp.length>1?mp[mp.length-1]:null,'#f87171')}</div>`}
+  return `<div class="u-tiles${small?' sm':''}">${t('Sets · win rate',N?pc(W,N)+'%':'–',`${W}W · ${L}L`,N?col(pc(W,N)):'')}${t('Games · win rate',gw+gl?pc(gw,gw+gl)+'%':'–',`${gw}W · ${gl}L`,gw+gl?col(pc(gw,gw+gl)):'')}${fav?t('Most picked',`<span>${esc(fav.k)}</span>`,`${plural(fav.n,'set')} · <em style="color:${col(pc(fav.w,fav.n))}">${pc(fav.w,fav.n)}%</em>`,'',`<span class="u-tmed">${bimg(fav.k,'u-tbimg')}</span>`):t('Most picked','–','')}${mapT('Best map',mp[0],'#4ade80')}${mapT('Worst map',mp.length>1?mp[mp.length-1]:null,'#f87171')}</div>`}
 function tsSub(L){const k=L.some(x=>x[0]===TSS)?TSS:'overview';return [k,`<div class="u-sub" role="tablist">${L.map(([a,l])=>`<button type="button" role="tab" data-tss="${a}" class="${k===a?'on':''}" aria-selected="${k===a}">${l}</button>`).join('')}</div>`]}
 function tsBrRows(C,hl,n){const {row,bar,top,none}=tsU;return top(C.B).slice(0,n||8).map((e,i)=>row(i+1,`<span class="${hl&&hl.has(e.k)?'hlb':''}">${bimg(e.k,'u-ic')}</span>`,esc(e.k),e.n,e.w,bar(e.w,e.n))).join('')||none}
 function tsDuoRows(C,n){const {row,bar,top,none}=tsU;return top(C.DU).slice(0,n||8).map((e,i)=>{const [a,b]=e.k.split('|');return row(i+1,`<span class="u-duo">${bimg(a,'u-ic')}${bimg(b,'u-ic')}</span>`,`<span class="u-dn">${esc(a)}<br>${esc(b)}</span>`,e.n,e.w,bar(e.w,e.n))}).join('')||none}
@@ -2913,7 +2913,7 @@ function tselPaint(){
   });
 }
 function selTeams(){return scope==='one'?[curOne()].filter(Boolean):scope==='pair'?[sel.a,sel.b].filter(Boolean):((poolTeams||(poolTeams=visTeams())).filter(x=>allTeams().includes(x)))}
-function setSelTeams(L){L=[...new Set(L.filter(Boolean))];
+function setSelTeams(L){L=[...new Set(L.filter(Boolean))];store.set('tvt:selT',JSON.stringify(L));
   if(L.length===1){scope='one';oneTeam=L[0]}
   else if(L.length===2){scope='pair';sel.a=L[0];sel.b=L[1];focus='A'}
   else{scope='pool';poolTeams=L}}
@@ -2926,7 +2926,7 @@ function scopeHTML(){
   const colOf=t=>scope==='pair'&&t===sel.b?'#e5484d':'#3d6ff0';
   const chips=grpChips('stsel',`Teams · ${what}`,S,'#3d6ff0',t=>{const L=selTeams(),i=L.indexOf(t);if(i>=0)L.splice(i,1);else L.push(t);setSelTeams(L);rs_()},
     {colOf,tail:`<span class="grp-act"><button type="button" class="btn quiet" data-grpall="1">All of ${GRP.v==='*'?'them':esc(GRP.v)}</button><button type="button" class="btn quiet" data-grpnone="1"${S.length?'':' disabled'}>Clear</button></span>`});
-  return `<div class="shd"><div class="lbl">What do you want to look at?</div>${leg}</div><p class="msg sc-hint">Click a team to select it · click another one to compare them (3 or more = several teams together) · click a selected team to remove it</p>${grpBarHTML()}${chips}${scope==='pool'&&S.length>2?'<p class="msg" style="margin:8px 0 0">Every set is counted from the side of each selected team, so a set between two selected teams appears once for each of them.</p>':''}`;
+  return `<div class="shd"><div class="lbl">What do you want to look at?</div>${leg}</div><p class="msg sc-hint">Click a team to select it · click another one to compare them (3 or more = several teams together) · click a selected team to remove it</p>${grpBarHTML()}${chips}`;
 }
 function statMapsHTML(){
   const byKey={};PICKMAPS.forEach(m=>byKey[mkey(m)]=m);
@@ -3013,6 +3013,7 @@ function plCards(team,key){key=key||'';
   const P=Engine.playersFor(Object.assign({},ds,{matches:ds.matches.filter(m=>keep.has(m.i))}),team,mf);
   const PS=(LU.act?topPlayers(team,P):teamPlayers(team,P));if(!PS.length)return '<p class="msg u-none">No player tags for this team in the Picks sheet.</p>';
   const pc=(w,n)=>n?Math.round(100*w/n):0,col=p=>p>=60?'#4ade80':p>=53?'#86efac':p>47?'#facc15':p>40?'#fca5a5':'#f87171';
+  const kdv=p=>{const t=plGameStats(team,p.tags,mf,keep).tot;return t&&t.g?(t.d?t.k/t.d:t.k):-1};PS.sort((a,b)=>kdv(b)-kdv(a));
   const cards=PS.map(p=>{const GS=plGameStats(team,p.tags,mf,keep),t=GS.tot,hs=t.g>0,L=p.list||[];
     const st=hs?`<div class="u-pst"><div><small>K/D</small><b>${kdS(t)}</b></div><div><small>Dmg / game</small><b>${fmtK(t.dm/t.g)}</b></div><div><small>Star player</small><b>${Math.round(100*t.st/t.g)}%</b></div><div><small>Games</small><b>${t.g}</b></div></div>`:`<div class="u-pst u-pst0">Game stats (K/D, damage…) appear for the new sets read from the API</div>`;
     const rows=L.map((x,i)=>{const e=GS.B[x.b];return `<div class="u-row"><span class="u-rk">${i+1}</span>${bimg(x.b,'u-ic')}<div class="u-nm"><b>${esc(x.b)}</b>${e&&e.g?`<small class="u-rec">K/D ${kdS(e)} · ${fmtK(e.dm/e.g)} dmg</small>`:''}</div><span class="u-n">${x.n}<small>sets</small></span><span class="u-n">${x.w}<small>wins</small></span><div class="u-wr"><b style="color:${col(pc(x.w,x.n))}">${pc(x.w,x.n)}%</b><span><i style="width:${pc(x.w,x.n)}%;background:${col(pc(x.w,x.n))}"></i></span></div></div>`}).join('');
@@ -3622,6 +3623,11 @@ expbans:(L,T)=>`<p><b>What it shows.</b> An <i>estimate</i> of which brawlers ea
 <p><b>Labels.</b> 65+ Very likely, 40+ Likely, below that Possible. Nothing here is a fact: it is a ranking of candidates.</p>`
 };
 const balTitleInfo=(key,L,T)=>BALINFO[key]?BALINFO[key](L,T):'';
+const BALF=new Set((store.get('tvt:balf')||'').split('|').filter(Boolean));
+function balFold(el){el.querySelectorAll('.bal-sech').forEach(h=>{if(h.dataset.fw)return;h.dataset.fw=1;const key=(h.querySelector('[data-bali]')||{}).dataset;const k=key?key.bali:h.textContent.slice(0,30);
+  const box=document.createElement('div');box.className='bal-fbody';let n=h.nextSibling;while(n&&!(n.nodeType===1&&(n.classList.contains('bal-sech')||n.classList.contains('bal-foot')))){const nx=n.nextSibling;box.appendChild(n);n=nx}
+  h.after(box);const b=document.createElement('button');b.type='button';b.className='bal-fold';b.dataset.balfold=k;b.title='Minimise / show this section';h.insertBefore(b,h.firstChild);
+  const set=()=>{const c=BALF.has(k);box.hidden=c;b.textContent=c?'▸':'▾';h.classList.toggle('folded',c)};set();b.onclick=()=>{if(BALF.has(k))BALF.delete(k);else BALF.add(k);store.set('tvt:balf',[...BALF].join('|'));set()}})}
 function bsec(key,title,style){const open=balInfoOpen.has(key);return `<div class="bal-sech"><h3 class="sec-h"${style||''}>${title}</h3><button type="button" class="bal-i" data-bali="${key}" aria-expanded="${open}" aria-label="About this section" title="About this section">i</button><div class="bal-info"${open?'':' hidden'}>${balTitleInfo(key,balMode==='league',esc(balTeam||'the team'))}</div></div>`}
 const balPct=x=>Math.round(x*100)+'%';
 const balPP=x=>{const v=Math.round(x*100);return `<span class="${v>0?'pc-g':v<0?'pc-r':'bal-z'}">${v>0?'+':''}${v} pp</span>`};
@@ -3880,8 +3886,8 @@ function renderBal(){
     ${stratH}
     ${bsec('patches',`Patches`,'')}<div class="bal-pts">${pts}</div>
     ${detailH}${scrH}${moversH}${reactH}${expH}${bansH}
-    <p class="foot" style="margin-top:10px">Net change = sum of the % size of each change (capped at ±60 each; unsized changes count ±8; Buffies and new brawlers count 0). Dates marked ~ are approximate. Small samples swing a lot: always read the number of sets. Pick/win rates only include sets in the data (single games and draws excluded).</p></section>`;
-  tselPaint();
+    <p class="foot bal-foot" style="margin-top:10px">Net change = sum of the % size of each change (capped at ±60 each; unsized changes count ±8; Buffies and new brawlers count 0). Dates marked ~ are approximate. Small samples swing a lot: always read the number of sets. Pick/win rates only include sets in the data (single games and draws excluded).</p></section>`;
+  tselPaint();try{balFold(el)}catch(e){}
 }
 // map picker (like the team picker): every map of the data, grouped by mode
 function balMapOpen(){
@@ -4181,7 +4187,7 @@ function grpTeams(){const {T,f,vs}=grpVals();if(GRP.v!=='*'&&!vs.includes(GRP.v)
 function grpBarHTML(){const {vs}=grpVals(),n=grpTeams().length;
   return `<div class="grpbar" data-noexport="1"><label>Teams by</label><span class="cas-seg">${[['tour','Tournament'],['reg','Region']].map(([v,l])=>`<button type="button" data-grpby="${v}" aria-pressed="${GRP.by===v}">${l}</button>`).join('')}</span><span class="cas-opt">${[...vs,'*'].map(v=>`<button type="button" data-grpv="${esc(v)}" aria-pressed="${v===GRP.v}">${GRP.by==='reg'&&REGC[v]?`<i class="grp-rd" style="background:${REGC[v]}"></i>`:''}${v==='*'?'All':esc(v)}</button>`).join('')}</span><small>${n} teams</small></div>`}
 function grpChips(key,label,cur,col,fn,o){o=o||{};cur=(cur||[]).filter(Boolean);TPCB[key]={fn,cur:cur[0]||'',none:'',excl:o.excl||[]};
-  const ok=t=>!(o.excl||[]).includes(t)&&(!o.only||o.only.includes(t)),T=grpTeams().filter(ok),extra=cur.filter(t=>!T.includes(t)&&ok(t));
+  const ok=t=>!(o.excl||[]).includes(t)&&(!o.only||o.only.includes(t)),T=grpTeams().filter(ok).sort((a,b)=>a.localeCompare(b)),extra=cur.filter(t=>!T.includes(t)&&ok(t));
   return `<div class="uxpick grpk"><label>${label}</label><div class="uxchips">${[...T,...extra].map(t=>`<button type="button" class="uxchip${cur.includes(t)?' on':''}${extra.includes(t)?' out':''}" style="--c:${o.colOf?o.colOf(t):col}" data-uxchip="${esc(key)}" data-t="${esc(t)}" title="${esc(t)}${extra.includes(t)?' · not in this group':''}">${logo(t,'l26')}<span class="uxn">${esc(t)}</span></button>`).join('')}${o.tail||''}</div></div>`}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-drper]');if(!b)return;DR.fPer=b.dataset.drper;try{store.set('tvt:drper',DR.fPer)}catch(_){}if(view==='draft')drRender();else renderDetail()});
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-grpby],[data-grpv],[data-grpall],[data-grpnone]');if(!b)return;
@@ -4272,7 +4278,7 @@ function groupTab(){
     for(const r of inB){TT[r].n++;TT[r].w+=1-m.y;for(const c of inA)if(c!==r){HH[r][c].n++;HH[r][c].w+=1-m.y}}}
   let h2h='';
   if(T.length>=2){
-    const TO=T.slice().sort((a,b)=>TT[b].n-TT[a].n);
+    const wr_=t=>TT[t].n?TT[t].w/TT[t].n:-1,TO=T.slice().sort((a,b)=>wr_(b)-wr_(a)||TT[b].n-TT[a].n);
     const pc0=(w,n)=>n?Math.round(100*w/n)+'%':'–',ros=t=>gtRoster(t).map(esc).join('<br>');
     const rows=TO.map(r=>{const tt=TT[r];
       return `<tr><td class="hh-tot"><small>Sets: ${tt.n}</small><b style="color:${tt.n?(tt.w/tt.n>=.55?'#7ee2a0':tt.w/tt.n<.45?'#ff8a80':'#ffc861'):'inherit'}">WR: ${pc0(tt.w,tt.n)}</b></td><td class="hh-who"><span>${ros(r)||esc(r)}</span>${logo(r,'l28')}</td>${TO.map(c=>{
@@ -4291,12 +4297,14 @@ function groupTab(){
     const tw=L.reduce((a,e)=>a+e.w,0),tl=L.reduce((a,e)=>a+e.l,0),opT=e=>e.op&&(M.D.off.includes(e.op)||REGION[e.op])?e.op:'';
     let _dp=null,_dk=0;const rowsH=L.map(e=>{const res=e.w>e.l?'w':e.w<e.l?'l':'d',o=opT(e);if(e.d!==_dp){_dp=e.d;_dk++}
       const gi=GTM.push({t,e,o})-1;
-      return `<tr class="${_dk%2===0?'gt-alt':''} gt-clk" data-gtm="${gi}" title="Click to see this scrim set by set"><td class="gt-c gt-d">${fmtDate(e.d).replace(/ \d{4}$/,'')}</td><td class="gt-c gt-pl">${pl(top3(e.my),t)}</td><td class="gt-c gt-pl">${pl(top3(e.rv),o)}</td><td class="gt-c gt-res ${res}">${e.w}-${e.l}</td></tr>`}).join('');
-    return `<div class="gt-col"><div class="gt-hd" style="--tc:${tcolL(t)}">${logo(t,'l28')}<b>${esc(t)}</b><small>${L.length} ${L.length===1?'match':'matches'} · ${tw}-${tl} · ${pc(tw,tw+tl)}</small></div>
-      <table class="gt-tb"><colgroup><col style="width:58px"><col style="width:120px"><col><col style="width:58px"></colgroup><thead><tr><th class="gt-c">Date</th><th class="gt-c" colspan="2">VS</th><th class="gt-c">Result</th></tr></thead><tbody>${rowsH||'<tr><td colspan="4" class="msg gt-c">No sets in this period.</td></tr>'}</tbody></table></div>`}).join('');
-  const matches=sec('Matches by team',`<div class="gt-scroll gt-mt"><div class="gt-cols">${cols}</div></div>`,'One column per team, newest first. Click a match to see it set by set. A match = every set against the same rival on the same day; Result = sets won - sets lost. Players in <i style="opacity:.65;text-decoration:underline dotted">dotted italics</i> are pick-ups (not on that team\'s roster). Scroll sideways and down inside the box.');
+      const rn=o||top3(e.rv).map(nmOf).join(' / ')||'Rival';
+      return `<div class="mb1-r gt-clk" data-gtm="${gi}" title="Click to see this match set by set"><span class="mb1-d">${fmtDate(e.d).replace(/ \d{4}$/,'')}<small>${mxHM(e.t)}</small></span><span class="mb1-res ${res}"><b>${e.w}-${e.l}</b><small>${res==='w'?'WIN':res==='l'?'LOSS':'DRAW'}</small></span>
+        <span class="mb1-op">${logo(o||'?','u-lg')}<span><b>${esc(rn)}</b><small>${pl(top3(e.rv),o)}</small></span></span><span class="mb1-my"><small>${pl(top3(e.my),t)}</small></span><span class="mb1-go">›</span></div>`}).join('');
+    const wp=tw+tl?tw/(tw+tl):0;
+    return `<section class="u-panel"><header><span class="u-hd">${logo(t,'l20')} ${esc(t)}</span><small>${L.length} ${L.length===1?'match':'matches'} · ${tw}-${tl} sets · <b style="color:${wp>=.53?'#4ade80':wp>.47?'#facc15':'#f87171'}">${pc(tw,tw+tl)}</b></small></header><div class="mb1-sc">${rowsH||'<p class="msg u-none">No sets in this period.</p>'}</div></section>`}).join('');
+  const matches=sec('Matches by team',`<div class="mb1">${cols}</div>`,'One column per team, newest first. Click a match to see it set by set. A match = every set against the same rival on the same day; Result = sets won - sets lost. Players in <i style="opacity:.65;text-decoration:underline dotted">dotted italics</i> are pick-ups (not on that team\'s roster). Scroll sideways and down inside the box.');
   // 3) regions
-  const RG=t=>REGION[t]||'',regs=[...new Set(T.map(RG).filter(Boolean))],allR=['North America','South America','EMEA','APAC','China'].filter(r=>Object.values(REGION).includes(r));
+  const RG=t=>REGION[t]||'',regs0=[...new Set(T.map(RG).filter(Boolean))],allR=['North America','South America','EMEA','APAC','China'].filter(r=>Object.values(REGION).includes(r)),regs=allR.filter(r=>regs0.includes(r)).concat(regs0.filter(r=>!allR.includes(r)));
   let regH='';
   if(regs.length){
     const pc1=(w,n)=>n?Math.round(100*w/n)+'%':'–';
@@ -4326,10 +4334,10 @@ function groupTab(){
     for(let i=0;i<br.length;i++)for(let j=i+1;j<br.length;j++){const k=[br[i],br[j]].sort().join(' + '),e=du[k]||(du[k]={n:0,w:0});e.n++;e.w+=x.win}
     mp[x.m.m]=(mp[x.m.m]||0)+1}
   const ptab=(obj,lab)=>{const top=Object.entries(obj).sort((a,b)=>b[1].n-a[1].n||b[1].w-a[1].w).slice(0,20);
-    return `<table class="gt-t"><thead><tr><th class="gt-c">#</th><th class="gt-c">${lab}</th><th class="gt-c">Picks</th><th class="gt-c">Pick rate</th><th class="gt-c">Wins</th><th class="gt-c">Win rate</th></tr></thead><tbody>${top.map(([k,e],i)=>`<tr><td class="gt-c">${i+1}</td><td class="gt-c gt-l"><span class="gt-br">${k.split(' + ').length===2?duoH(k.split(' + ')):k.split(' + ').map(b=>`${bimg(b,'bi')}<span>${esc(b)}</span>`).join('<i>+</i>')}</span></td><td class="gt-c">${e.n}</td><td class="gt-c">${pc(e.n,NS)}</td><td class="gt-c">${e.w}</td><td class="gt-c gt-big" style="${gtHeat(e.w/e.n,e.n)}">${pc(e.w,e.n)}</td></tr>`).join('')}</tbody></table>`};
+    return `<table class="rank"><thead><tr><th class="rk"></th><th>${lab}</th><th class="num">Picks</th><th class="num">Pick rate</th><th class="num">Wins</th><th class="num">Win rate</th></tr></thead><tbody>${top.map(([k,e],i)=>`<tr><td class="rk">${i+1}</td><td>${k.split(' + ').length===2?duoH(k.split(' + ')):`<span class="bnc">${bimg(k,'bi')}<span class="bnm">${esc(k)}</span></span>`}</td><td class="num">${e.n}</td><td class="num">${pc(e.n,NS)}</td><td class="num">${e.w}</td><td class="num heat" style="${wrHeat(e.w/e.n)}">${Math.round(100*e.w/e.n)}%${wrBar(e.w/e.n)}</td></tr>`).join('')}</tbody></table>`};
   const maps=[...MAP18].map(k=>{const nm=Object.keys(mp).find(m=>mkey(m)===k)||[...PICKMAPS].find(m=>mkey(m)===k)||k;return [nm,mp[nm]||0]}).sort((a,b)=>b[1]-a[1]);
-  const mapsH=`<table class="gt-t gt-maps"><thead><tr><th class="gt-c">#</th><th class="gt-c">Map</th><th class="gt-c">Sets</th></tr></thead><tbody>${maps.map(([m,n],i)=>{const c=MODE_COL[mkey(modeOfMap(m))]||'#6d6a85';return `<tr style="--mc:${c}"><td class="gt-c">${i+1}</td><td class="gt-c gt-l"><span class="gt-tn">${mimg(m,'gt-mi')}${IMGS['mode'+mkey(modeOfMap(m))]?`<img class="gt-mo" src="${IMGS['mode'+mkey(modeOfMap(m))]}" alt="" title="${esc(modeOfMap(m))}">`:''}<b>${esc(m)}</b></span></td><td class="gt-c gt-big">${n}</td></tr>`}).join('')}</tbody></table>`;
-  const pmH=sec('Picks and maps of the selected teams together',`<div class="gt-pm"><div><p class="msg gt-st">Top 20 picks · ${NS} team-sets</p><div class="gt-scroll">${ptab(pk,'Brawler')}</div></div><div><p class="msg gt-st">Top 20 duos (same team)</p><div class="gt-scroll">${ptab(du,'Duo')}</div></div><div><p class="msg gt-st">Maps · most played first</p><div class="gt-scroll">${mapsH}</div></div></div>`,
+  const mapsH=`<table class="rank gt-maps"><thead><tr><th class="rk"></th><th>Map</th><th class="num">Sets</th></tr></thead><tbody>${maps.map(([m,n],i)=>{return `<tr><td class="rk">${i+1}</td><td><span class="gt-tn">${mimg(m,'gt-mi')}${IMGS['mode'+mkey(modeOfMap(m))]?`<img class="gt-mo" src="${IMGS['mode'+mkey(modeOfMap(m))]}" alt="" title="${esc(modeOfMap(m))}">`:''}<b>${esc(m)}</b></span></td><td class="num">${n}</td></tr>`}).join('')}</tbody></table>`;
+  const pmH=sec('Picks and maps of the selected teams together',`<div class="gt-pm">${[['Top 20 picks · '+NS+' team-sets',ptab(pk,'Brawler')],['Top 20 duos (same team)',ptab(du,'Duo')],['Maps · most played first',mapsH]].map(([h,t])=>`<div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0">${h}</div></div><div class="scroll pds">${t}</div></div>`).join('')}</div>`,
     'Picks: sets of the selected teams where the brawler (or the duo) was used, each team counted on its own. Pick rate = % of those sets. Maps: sets played on each of the 18 rotation maps, with the icon of their mode.');
   return `<div class="gt">${h2h}${matches}${regH}${weekH}${pmH}</div>`}
 // ===== Tier List: meta score of every brawler from the drafts of the chosen teams
@@ -4475,7 +4483,7 @@ function renderDetail(){
 $('statsscope').addEventListener('click',e=>{
   const rs=()=>{clrF();renderDetail()};
   const sc=e.target.closest('[data-scope]');if(sc){scope=sc.dataset.scope;rs();return}
-  const on=e.target.closest('[data-one]');if(on){oneTeam=on.dataset.one;rs();return}
+  const on=e.target.closest('[data-one]');if(on){oneTeam=on.dataset.one;store.set('tvt:selT',JSON.stringify([oneTeam]));rs();return}
   const ptb=e.target.closest('[data-pt]');if(ptb){const x=ptb.dataset.pt,i=poolTeams.indexOf(x);if(i>=0)poolTeams.splice(i,1);else poolTeams.push(x);rs();return}
   if(e.target.closest('[data-pall]')){poolTeams=visTeams();rs();return}
   if(e.target.closest('[data-pnone]')){poolTeams=[];rs()}
@@ -5766,6 +5774,9 @@ document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest
 const pc=(w,n)=>n?Math.round(100*w/n):0,col=p=>p>=60?'#4ade80':p>=53?'#86efac':p>47?'#facc15':p>40?'#fca5a5':'#f87171';
 const bar=(w,n)=>{const p=pc(w,n);return `<div class="u-wr"><b style="color:${col(p)}">${p}%</b><span><i style="width:${p}%;background:${col(p)}"></i></span></div>`};
 const DAY=864e5;
+function scIco(h){const BN=new Set(drNames()),MP=new Set([...ds.matches.map(m=>m.m),...(PICKMAPS||[])].filter(Boolean).map(mkey)),TM=allTeams(),MD=MODELIST.map(x=>x[0]);
+  const one=t=>{const k=t.trim(),u=k.toUpperCase();if(BN.has(u))return bimg(u,'sci b')+esc(k);if(MP.has(mkey(k)))return mimg(k,'sci m')+esc(k);const tm=TM.find(x=>x.toUpperCase()===u);if(tm)return logo(tm,'sci t')+esc(k);const md=MD.find(x=>x.toUpperCase()===u);if(md&&IMGS['mode'+mkey(md)])return `<img class="sci o" src="${IMGS['mode'+mkey(md)]}" alt="">`+esc(k);return esc(k)};
+  return h.replace(/<b>([^<]+)<\/b>/g,(m,x)=>{const tx=x.replace(/&amp;/g,'&');const parts=tx.split(/(\s*(?:\+|→|->)\s*)/);return '<b class="sci-w">'+parts.map((p,i)=>i%2?esc(p):one(p)).join('')+'</b>'})}
 function scInsights(R){
   const S=scSets(R),fr=S.filter(x=>x.ty!=='tournament'),to=S.filter(x=>x.ty==='tournament');
   const last=S.map(x=>x.d).sort().pop()||'',L=Date.parse(last);
@@ -6091,9 +6102,9 @@ function scoutHTML(){
     <div class="tc-kpis">${kp(n,'Sets')}${kp(w+'–'+(n-w),'Record',wlc(w,n-w))}${kp(Math.round(wr*100)+'%','Win rate',wlc(w,n-w))}${kp(pos>=0?'#'+(pos+1)+'<em>/'+rk.length+'</em>':'–','Model rating '+(rat>=0?'+':'')+rat.toFixed(2))}${kp(lw+'–'+ld,'Last '+last.length+' matches',wlc(lw,ld))}${avgU!=null?kp(Math.round(avgU*100)+'%',esc(U)+' win chance per map (model, avg)',avgU>.5?'win':avgU<.5?'lose':'draw'):''}${rt(rT,'Tournament')}${rt(rF,'Friendly')}</div>
     ${conf}
     <div class="sc-sum">
-      <div class="sc-col t"><h4>Threats</h4><ul>${threats.join('')||'<li class="msg">Nothing stands out yet.</li>'}</ul></div>
-      <div class="sc-col w"><h4>Weaknesses</h4><ul>${weak.join('')||'<li class="msg">Nothing stands out yet.</li>'}</ul></div>
-      <div class="sc-col p"><h4>Game plan</h4><ul>${plan.join('')||'<li class="msg">Not enough data.</li>'}</ul></div>
+      <div class="sc-col t"><h4>Threats</h4><ul>${scIco(threats.join(''))||'<li class="msg">Nothing stands out yet.</li>'}</ul></div>
+      <div class="sc-col w"><h4>Weaknesses</h4><ul>${scIco(weak.join(''))||'<li class="msg">Nothing stands out yet.</li>'}</ul></div>
+      <div class="sc-col p"><h4>Game plan</h4><ul>${scIco(plan.join(''))||'<li class="msg">Not enough data.</li>'}</ul></div>
     </div>
     ${sec('Practising now',SI.s1)}
     ${sec('What they hide',SI.s2)}
@@ -7001,7 +7012,7 @@ document.addEventListener('click',e=>{
     if(TP.mode==='cb'){const c=TPCB[TP.key];tpClose();if(c)c.fn(t);return}
     if(TP.mode==='balopp'){if(t!==balTeam){balOpp=t;store.set('tvt:balO',t)}tpClose();renderBal();return}
     if(TP.mode==='bal'){balTeam=t;store.set('tvt:balT',t);tpClose();renderBal();return}
-    if(TP.mode==='one'){oneTeam=t;tpClose();rs();return}
+    if(TP.mode==='one'){oneTeam=t;store.set('tvt:selT',JSON.stringify([t]));tpClose();rs();return}
     if(TP.mode==='pool'){const pt=poolTeams||(poolTeams=visTeams()),i=pt.indexOf(t);if(i>=0)pt.splice(i,1);else pt.push(t);tpMark();rs();return}
     // compare 2 teams: A then B (or only B when opened from the B box)
     if(TP.slot){tpSetPair(TP.slot,t);tpClose();return}
@@ -7066,9 +7077,11 @@ function drTablesBlock(list,teams,mode){
   const gRows=srt(gM).map(([k,e],i)=>`<tr><td class="rk">${i+1}</td><td class="ic">${ics(k)}</td><td class="num">${e.n}</td><td class="dmaps">${mapsH(e.maps)}</td></tr>`).join('');
   const cH=(c,txt,n)=>`<span class="dr-ch"><span>${txt}</span><img class="coinm" src="${COIN[c]}" alt=""><small>${plural(n,'draft')}</small></span>`;
   const one=(m,key)=>Object.entries(m).map(([k,e])=>[k,key?e[key]:e.n]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]||(a[0]<b[0]?-1:1));
-  const t3=(title,L,ic,first)=>wrap(title,`<tr><th class="rk"></th><th>${first}</th><th class="num">Times</th></tr>`,L.map(([k,n],i)=>`<tr><td class="rk">${i+1}</td><td class="ic">${ic(k)}</td><td class="num">${n}</td></tr>`).join(''),'dr-c3');
   const bc3=(m,t)=>t3(t,one(m),ics,bc==='duos'?'Duo':'Trio'),bcM1=bc==='duos'?bnD1:bnT1,bcML=bc==='duos'?bnDL:bnTL;
   const pkOn=!!DR.showPk;
+  const nAll=nd*(mode==='both'?2:1),bpc=(c,n)=>n?Math.round(100*c/n):0;
+  const bpan=(title,L,n,trio)=>`<section class="u-panel"><header><span class="u-hd">${title}</span>${/<small>/.test(title)?'':`<small>${plural(n,'draft')}</small>`}</header><div class="u-scroll">${L.map(([k,c],i)=>`<div class="u-row u-bnr${trio?' tri':''}"><span class="u-rk">${i+1}</span>${trio?`<span class="u-btri" title="${esc(k)}">${k.split(' + ').map(x=>`<span class="bz-b u-bi">${bimg(x,'mx-bni')}</span>`).join('')}</span>`:`<span class="bz-b u-bi">${bimg(k,'mx-bni')}</span>`}<div class="u-nm">${trio?'':`<b>${esc(k)}</b>`}<small class="u-rec">${c} ${c===1?'time':'times'}</small></div><div class="u-wr"><b style="color:#f87171">${bpc(c,n)}%</b><span><i style="width:${bpc(c,n)}%;background:#f87171"></i></span></div></div>`).join('')||'<p class="msg u-none">No bans</p>'}</div></section>`;
+  const t3=(title,L,ic,first)=>bpan(title,L,/1st/.test(title)?nF:/last/.test(title)?nL:nAll,first!=='Brawler');
   return {sum,tabs:`<div class="dr-pkbar"><button type="button" class="btn quiet" data-drshowpk aria-expanded="${pkOn}">${pkOn?'Hide picks ▴':'Show picks ▾'}</button></div>
     ${pkOn?`<div class="dr-tabs">${wrap('Picks',pkH,pkRows,'dr-wide2')}</div>`:''}
     <div class="dr-sub">Bans</div><div class="dr-3">${t3('Total',one(bn),bI,'Brawler')}${t3(cH('blue','When having 1st',nF),one(bn,'f'),bI,'Brawler')}${t3(cH('red','When having last',nL),one(bn,'z'),bI,'Brawler')}</div>
@@ -7137,17 +7150,22 @@ body{padding-bottom:50px}
 <script>
 (function(){
   // [label, main section, Team Stats tab]
-  const T=[['Team Stats','stats','stats'],['Match Selector','stats','match'],['Card','stats','card'],['Scouting','stats','scout'],['Results','stats','group'],['Tier List','stats','tier'],null,
-           ['Draft','draft'],['Team Predictor','pred'],['Balance','bal'],['Data check','check'],['Worlds bracket','worlds']];
+  const T=[['Team Stats','stats','stats','Brawlers, bans, players, comps and drafts of one team, two teams compared or several together'],['Match Selector','stats','match','Every scrim and match played, set by set, with bans, picks and player stats'],['Results','stats','group','Results of the selected teams: head to head, matches by team, regions, weekly win rate, top picks and maps'],
+           ['Scouting','stats','scout','Full report of a rival: what they practise now, what they hide, bans, maps, how to beat them and their players'],['Card','stats','card','One-page summary of a team to download and share as an image'],['Balance','bal','','How each balance patch changed what teams pick and ban'],
+           ['Tier List','stats','tier','Meta score of every brawler (S to E) from the drafts of the teams you choose'],['Draft','draft','','Save drafts, get draft suggestions, practise against a bot or follow a live draft'],['Team Predictor','pred','','Win chance between two teams, map by map'],
+           ['Worlds bracket','worlds','','Simulation of the Worlds bracket with the model'],null,['Data check','check','','Problems found in the data (missing tags, odd rows…) to fix in the sheet']];
   const bar=document.getElementById('sheetbar');if(!bar)return;
-  bar.innerHTML=T.map((t,i)=>t?`<button type="button" class="sb-t${t[2]&&t[2]!=='stats'?' sb-sub':''}" data-sb="${i}">${t[0]}</button>`:'<span class="sb-sep"></span>').join('');
+  bar.innerHTML=T.map((t,i)=>t?`<button type="button" class="sb-t" data-sb="${i}" data-tip="${t[3]||''}">${t[0]}</button>`:'<span class="sb-sep"></span>').join('');
+  const tip=document.createElement('div');tip.id='sbtip';document.body.appendChild(tip);let tt=0;
+  bar.addEventListener('mouseover',e=>{const b=e.target.closest('[data-sb]');if(!b||!b.dataset.tip)return;clearTimeout(tt);tt=setTimeout(()=>{const r=b.getBoundingClientRect();tip.textContent=b.dataset.tip;tip.style.left=Math.max(8,Math.min(innerWidth-288,r.left+r.width/2-140))+'px';tip.style.top=(r.bottom+8)+'px';tip.classList.add('on')},350)});
+  bar.addEventListener('mouseout',e=>{if(e.target.closest('[data-sb]')){clearTimeout(tt);tip.classList.remove('on')}});bar.addEventListener('click',()=>{clearTimeout(tt);tip.classList.remove('on')});
   const q=s=>document.querySelector(s);
   bar.addEventListener('click',e=>{const b=e.target.closest('[data-sb]');if(!b)return;const t=T[+b.dataset.sb];
     const mv=q(`.mnav[data-view="${t[1]}"]`);if(mv&&mv.getAttribute('aria-selected')!=='true')mv.click();
-    if(t[2]){const tb=q(`.tabbtn[data-tab="${t[2]}"]`);if(tb&&tb.getAttribute('aria-selected')!=='true')tb.click()}
+    if(t[2]&&t[1]==='stats'){const tb=q(`.tabbtn[data-tab="${t[2]}"]`);if(tb&&tb.getAttribute('aria-selected')!=='true')tb.click()}
     window.scrollTo({top:0,behavior:'smooth'});sync()});
   function sync(){const mv=q('.mnav[aria-selected="true"]'),v=mv?mv.dataset.view:'',tb=q('.tabbtn[aria-selected="true"]'),tab=tb?tb.dataset.tab:'';
-    bar.querySelectorAll('[data-sb]').forEach(b=>{const t=T[+b.dataset.sb];const on=t[1]===v&&(!t[2]||t[2]===tab);b.classList.toggle('on',on)});
+    bar.querySelectorAll('[data-sb]').forEach(b=>{const t=T[+b.dataset.sb];const on=t[1]===v&&(t[1]!=='stats'||t[2]===tab);b.classList.toggle('on',on)});
     const ck=q('.mnav[data-view="check"] span .chkb'),bt=bar.querySelector('[data-sb="'+T.findIndex(t=>t&&t[1]==='check')+'"]');
     if(bt)bt.innerHTML='Data check'+(ck?' '+ck.outerHTML:'');
     const a=bar.querySelector('.on');if(a&&(a.offsetLeft<bar.scrollLeft||a.offsetLeft+a.offsetWidth>bar.scrollLeft+bar.clientWidth))bar.scrollLeft=a.offsetLeft-20}
@@ -8269,4 +8287,20 @@ body{font-family:var(--body)!important;font-feature-settings:'tnum' 1,'cv11' 1}
  body.sb-mini .sbmini b{display:block}
  body.sb-mini .sbar>header.hero,body.sb-mini .sbar>section.panel[aria-label="Data"]{display:none!important}
 }
-</style>
+</style><style id="banline">
+.dr-no{position:absolute!important;inset:0!important;width:auto!important;height:auto!important;border:0!important;border-radius:inherit!important;background:none!important;overflow:hidden;pointer-events:none}
+.dr-no::after{content:''!important;position:absolute!important;left:-15%!important;right:-15%!important;top:50%!important;width:auto!important;height:2px!important;background:#ef4444!important;transform:rotate(-45deg)!important;border-radius:0!important}
+.dr-t2.ban,.dr-t2.gb,.dr-imgw{border-radius:8px;overflow:hidden;box-shadow:0 0 0 1px rgba(239,68,68,.55)}
+.dr-t2.ban .bi,.dr-t2.gb .bi,.dr-imgw .bi{filter:grayscale(.6)!important;opacity:1!important}
+.u-bi,.bz-b{position:relative;overflow:hidden}
+</style><style>.sci{width:22px!important;height:22px!important;border-radius:5px;vertical-align:-6px;margin:0 4px 0 0;object-fit:cover}.sci.m{width:18px!important;height:25px!important;vertical-align:-8px}.sci.t,.sci.o{object-fit:contain;border-radius:0}.sc-col li{line-height:1.9}.sci-w{white-space:nowrap}</style><style>.gt-pm{align-items:start}.gt-pm .pdcol .pds{max-height:820px}.gt-maps .gt-mi{width:30px!important;height:42px!important;object-fit:cover;border-radius:6px}.gt-maps .gt-tn b{color:#fff}.gt-pm table.rank tbody tr{height:62px}</style><style>.tld-bg{left:auto!important;right:6px!important;transform:translateY(-50%)!important}.tld-pl b,.tld-pl small{position:relative;z-index:1}</style><style>#predview table td,#predview table th{padding-top:13px!important;padding-bottom:13px!important}#predview table tbody tr{border-bottom:1px solid #1d1b27}</style><style>.bal-sech{display:flex;align-items:center;gap:8px}.bal-fold{background:#121118;border:1px solid #2b2540;border-radius:8px;color:#c4b5fd;width:28px;height:28px;cursor:pointer;font-size:13px;flex:none}.bal-fold:hover{border-color:#a855f7}.bal-sech.folded{opacity:.75}</style><style>#sbtip{position:fixed;z-index:200;width:280px;background:#1a1626;border:1px solid #3b2a52;border-radius:12px;padding:10px 12px;font-size:12.5px;line-height:1.45;color:#e5e3f0;box-shadow:0 12px 30px rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .12s}#sbtip.on{opacity:1}</style><style id="speed">body{background-attachment:scroll!important}#sheetbar,.uxidx,.u-ddp{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}#sheetbar{background:#0e0d14!important}.uxidx{background:#121118!important}.dr-list>.dr-card2,.u-crow,.mx-tr{content-visibility:auto;contain-intrinsic-size:auto 90px}</style><style>.gt-pm{display:grid!important;grid-template-columns:minmax(0,1.15fr) minmax(0,1.15fr) minmax(0,.8fr)!important;gap:14px}.gt-pm table.rank{min-width:0!important;width:100%}.gt-pm table.rank td,.gt-pm table.rank th{padding-left:8px!important;padding-right:8px!important}.gt-maps td:nth-child(2){text-align:left!important}.gt-maps .gt-tn{justify-content:flex-start!important}
+@media (max-width:1300px){.gt-pm{grid-template-columns:1fr!important}}</style>
+<style id="mbt">.mbx{display:block;margin:10px 0}
+.mb1{display:grid;grid-template-columns:repeat(auto-fit,minmax(520px,1fr));gap:14px}
+.mb1-r{display:grid;grid-template-columns:62px 70px minmax(0,1fr) minmax(0,.8fr) 16px;gap:12px;align-items:center;padding:10px 16px;border-bottom:1px solid #1b1a24;min-height:62px;cursor:pointer}.mb1-r:hover{background:#17161f}
+.mb1-d{font-weight:700;color:#fff;font-size:13px}.mb1-d small{display:block;color:#6e6a85;font-weight:500;font-size:11px}
+.mb1-res{text-align:center;border-radius:10px;padding:6px 0}.mb1-res b{display:block;font-size:17px}.mb1-res small{font-size:9.5px;letter-spacing:.1em;font-weight:800}
+.mb1-res.w{background:rgba(74,222,128,.1);color:#4ade80}.mb1-res.l{background:rgba(248,113,113,.1);color:#f87171}.mb1-res.d{background:rgba(250,204,21,.1);color:#facc15}.mb1-res.sm{padding:5px 8px;font-size:10.5px;font-weight:800;letter-spacing:.08em}
+.mb1-op{display:flex;align-items:center;gap:10px;min-width:0}.mb1-op>span{min-width:0}.mb1-op b{display:block;color:#fff;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mb1-op small,.mb1-my small{display:block;font-size:11px;color:#8e8ab0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mb1-my{min-width:0;text-align:right}.mb1-my small:before{content:'with ';color:#6e6a85}.mb1-go{color:#6e6a85;font-size:20px}
+.mb1-sc{max-height:760px;overflow:auto;scrollbar-width:thin;scrollbar-color:#3b2a52 transparent}.mb1-op small .gt-p,.mb1-my small .gt-p{display:inline}.mb1-op small .gt-p+.gt-p:before,.mb1-my small .gt-p+.gt-p:before{content:' · ';color:#6e6a85;font-style:normal}</style>
