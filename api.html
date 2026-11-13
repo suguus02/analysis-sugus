@@ -2071,7 +2071,11 @@ const TYPE_DEF=[["SHELLY","DAMAGE DEALER"],["COLT","DAMAGE DEALER"],["BULL","TAN
 const TYPE_ORDER=['DAMAGE DEALER','TANK','MARKSMAN','THROWER','CONTROLLER','ASSASSIN','SUPPORT'];
 const TYPE_COL={'DAMAGE DEALER':'#ff8a5c','TANK':'#6fcf7b','MARKSMAN':'#e8b44a','THROWER':'#c28bff','CONTROLLER':'#6fa8e0','ASSASSIN':'#ff6b7d','SUPPORT':'#5fd1c4','OTHER':'#9a99ad'};
 let BNAMES=[];
-function setTypes(list){BNAMES=list.map(x=>x[0]);const m={};for(const [b,x] of list){const k=mkey(b),tt=String(x||'').trim().toUpperCase().replace('ASSASIN','ASSASSIN');if(k&&tt)m[k]=tt}return m}
+// rarity from the Picks sheet (3rd column after BRAWLERS), English or Spanish
+var RAR_SHEET={};
+function rarNorm(x){const v=String(x||'').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Z ]/g,' ').replace(/\s+/g,' ').trim();if(!v)return '';
+  if(/ULTRA/.test(v))return 'ULTRA LEGENDARY';if(/LEGEND/.test(v))return 'LEGENDARY';if(/MYTH|MITIC/.test(v))return 'MYTHIC';if(/EPIC/.test(v))return 'EPIC';if(/SUPER/.test(v))return 'SUPER RARE';if(/RAR/.test(v))return 'RARE';if(/START|INICIAL|COMUN|BASIC/.test(v))return 'STARTING';return ''}
+function setTypes(list){BNAMES=list.map(x=>x[0]);const m={};RAR_SHEET={};for(const x of list){const r=rarNorm(x[2]);if(r)RAR_SHEET[mkey(x[0])]=r}for(const [b,x] of list){const k=mkey(b),tt=String(x||'').trim().toUpperCase().replace('ASSASIN','ASSASSIN');if(k&&tt)m[k]=tt}return m}
 let BTYPE=setTypes(TYPE_DEF);
 const typeOf=b=>BTYPE[mkey(b)]||'OTHER';
 const tIdx=x=>{const i=TYPE_ORDER.indexOf(x);return i<0?99:i};
@@ -4764,7 +4768,7 @@ async function readPicks(mcp){ // Picks sheet: B = selected teams (+ tournament 
         cand[h.toUpperCase()]=[...new Set(P.flatMap(p=>p.tags))];plr[h.toUpperCase()]=P;
         tbl[h.toUpperCase()]={tour:tT>0?S(row[tT]):'',region:tR>0?S(row[tR]):''};
         if(cS>0){const z=S(row[cS]).toUpperCase();if(/^TRY/.test(z))rank[h.toUpperCase()]=1;else if(/^OLD/.test(z))rank[h.toUpperCase()]=2}}
-      const b=S(row[cB]),ty=S(row[cB+1]);if(b&&ty)types.push([b,ty]);
+      const b=S(row[cB]),ty=S(row[cB+1]),ra=S(row[cB+2]);if(b&&ty)types.push(ra&&rarNorm(ra)?[b,ty,ra]:[b,ty]);
     }
     const off={},missing=[],meta={},known={};
     for(const n of selT){
@@ -4983,7 +4987,7 @@ const RAR_ORDER=['STARTING','RARE','SUPER RARE','EPIC','MYTHIC','LEGENDARY','ULT
 const RARITY={"shelly":"STARTING","colt":"RARE","bull":"RARE","brock":"RARE","barley":"RARE","nita":"RARE","elprimo":"RARE","poco":"RARE","rosa":"RARE","rico":"SUPER RARE","jessie":"SUPER RARE","dynamike":"SUPER RARE","darryl":"SUPER RARE","penny":"SUPER RARE","tick":"SUPER RARE","carl":"SUPER RARE","8bit":"SUPER RARE","jacky":"SUPER RARE","gus":"SUPER RARE","bo":"EPIC","piper":"EPIC","pam":"EPIC","frank":"EPIC","bibi":"EPIC","bea":"EPIC","emz":"EPIC","gale":"EPIC","nani":"EPIC","colette":"EPIC","edgar":"EPIC","stu":"EPIC","belle":"EPIC","grom":"EPIC","griff":"EPIC","ash":"EPIC","lola":"EPIC","bonnie":"EPIC","sam":"EPIC","mandy":"EPIC","maisie":"EPIC","hank":"EPIC","pearl":"EPIC","larrylawrie":"EPIC","angelo":"EPIC","berry":"EPIC","shade":"EPIC","meeple":"EPIC","trunk":"EPIC","bolt":"EPIC","mortis":"MYTHIC","tara":"MYTHIC","gene":"MYTHIC","mrp":"MYTHIC","max":"MYTHIC","sprout":"MYTHIC","lou":"MYTHIC","byron":"MYTHIC","ruffs":"MYTHIC","squeak":"MYTHIC","buzz":"MYTHIC","fang":"MYTHIC","eve":"MYTHIC","janet":"MYTHIC","otis":"MYTHIC","buster":"MYTHIC","gray":"MYTHIC","rt":"MYTHIC","willow":"MYTHIC","doug":"MYTHIC","chuck":"MYTHIC","charlie":"MYTHIC","mico":"MYTHIC","melodie":"MYTHIC","lily":"MYTHIC","clancy":"MYTHIC","moe":"MYTHIC","juju":"MYTHIC","ollie":"MYTHIC","lumi":"MYTHIC","finx":"MYTHIC","jaeyong":"MYTHIC","alli":"MYTHIC","mina":"MYTHIC","ziggy":"MYTHIC","gigi":"MYTHIC","glowbert":"MYTHIC","najia":"MYTHIC","damian":"MYTHIC","starrnova":"MYTHIC","wendy":"MYTHIC","cosmo":"MYTHIC","vince":"MYTHIC","spike":"LEGENDARY","crow":"LEGENDARY","leon":"LEGENDARY","sandy":"LEGENDARY","surge":"LEGENDARY","amber":"LEGENDARY","meg":"LEGENDARY","chester":"LEGENDARY","cordelius":"LEGENDARY","kit":"LEGENDARY","draco":"LEGENDARY","kenji":"LEGENDARY","pierce":"LEGENDARY","nori":"LEGENDARY","kaze":"ULTRA LEGENDARY","sirius":"ULTRA LEGENDARY"};
 const RAR_NAME={'STARTING':'Starting','RARE':'Rare','SUPER RARE':'Super Rare','EPIC':'Epic','MYTHIC':'Mythic','LEGENDARY':'Legendary','ULTRA LEGENDARY':'Ultra Legendary'};
 const RAR_COL={'STARTING':'#9db4cf','RARE':'#2fdd1c','SUPER RARE':'#0087fa','EPIC':'#b116ed','MYTHIC':'#fe0022','LEGENDARY':'#fef423','ULTRA LEGENDARY':'linear-gradient(135deg,#ff5fd2,#ffb347,#4fd1ff)'};
-const rarOf=n=>RARITY[mkey(n)]||'OTHER';
+const rarOf=n=>RAR_SHEET[mkey(n)]||RARITY[mkey(n)]||'OTHER';
 DR.sort=store.get('tvt:drsort')==='az'?'az':'rarity';
 function drSorted(){const n=drNames();if(DR.sort==='az')return n;const ix=x=>{const i=RAR_ORDER.indexOf(rarOf(x));return i<0?99:i};return n.sort((a,b)=>ix(a)-ix(b)||a.localeCompare(b))}
 
