@@ -5175,6 +5175,12 @@ function lvData(){const map=LV.map,VS={},ON={},WITH={},add=(O,a,b,w,k)=>{const e
   return {VS,ON,WITH}}
 function lvUse(team){const c={},w={};let T=0;for(const x of scSets(team)){const k=(x.m===LV.map?3:1)*(x.ty==='tournament'?2:1);T+=k;for(const b of x.mine||[]){if(!b)continue;const q=lvK(b);c[q]=(c[q]||0)+k;w[q]=(w[q]||0)+k*x.win}}return {c,w,T}}
 function lvRivalBans(){const o={};let T=0;for(const d of drAll()){const side=d.blue===LV.rival?'b':d.red===LV.rival?'r':'';if(!side)continue;const k=(d.map===LV.map?3:1)*(d.kind==='tournament'||d.kind==='T'?2:1);T+=k;for(const b of (d.bans||{})[side]||[])if(b){const q=lvK(b);o[q]=(o[q]||0)+k}}return {o,T}}
+let LVED='';
+function lvSet(k,v){if(k==='us'||k==='rival'||k==='map'){if(v)LV[k]=v}else if(k[0]==='p'){LV.picks[+k.slice(1)-1]=v;if(v)LV.hist.push({k:'pick',n:+k.slice(1)})}else{const sd=k.slice(1,-1),i=+k.slice(-1);LV.bans[sd][i]=v;if(v)LV.hist.push({k:'ban',s:sd,i})}lvSave()}
+function lvMatch(k,v){v=String(v||'').trim();if(!v)return '';const L=k==='us'||k==='rival'?allTeams():k==='map'?[...new Set(ds.matches.map(m=>m.m).filter(Boolean))]:drNames().filter(n=>!lvUsed().has(n));
+  const q=v.toUpperCase(),ex=L.find(x=>x.toUpperCase()===q);if(ex)return ex;const st=L.filter(x=>x.toUpperCase().startsWith(q));if(st.length)return st[0];const inc=L.filter(x=>x.toUpperCase().includes(q));return inc[0]||''}
+document.addEventListener('keydown',e=>{const i=e.target;if(!i||i.id!=='lvIn')return;if(e.key==='Escape'){LVED='';drRender();return}if(e.key!=='Enter')return;e.preventDefault();const m=lvMatch(i.dataset.lvk,i.value);if(!m){i.classList.add('bad');return}lvSet(i.dataset.lvk,m);LVED='';drRender()});
+document.addEventListener('change',e=>{const i=e.target;if(!i||i.id!=='lvIn')return;const k=i.dataset.lvk,L=k==='us'||k==='rival'?allTeams():k==='map'?[...new Set(ds.matches.map(m=>m.m))]:drNames();const ex=L.find(x=>x.toUpperCase()===String(i.value).trim().toUpperCase());if(ex){lvSet(k,ex);LVED='';drRender()}});
 function liveHTML(){
   const T=allTeams();if(!LV.us||!T.includes(LV.us))LV.us=T.includes('TRIBE GAMING')?'TRIBE GAMING':(T[0]||'');if(!LV.rival||!T.includes(LV.rival)||LV.rival===LV.us)LV.rival=T.find(t=>t!==LV.us)||'';
   const maps=[...new Set(ds.matches.map(m=>m.m).filter(Boolean))].sort();if(!LV.map||!maps.includes(LV.map))LV.map=maps[0]||'';
@@ -5197,9 +5203,13 @@ function liveHTML(){
   const tb=isBan?theirBan():null,tp=!isBan?theirPick():null;
   const sel=(id,v,L)=>`<select class="dr-input lv-sel" data-lvset="${id}">${L.map(x=>`<option${x===v?' selected':''}>${esc(x)}</option>`).join('')}</select>`;
   const step=!N?'<b class="lv-done">Draft complete</b>':N.k==='ban'?`Bans · <b>${N.s==='us'?esc(LV.us):esc(LV.rival)}</b> (${3-LV.bans[N.s].filter(Boolean).length} left)`:`Pick ${N.n} · <b class="${N.s==='us'?'lv-you':''}">${N.s==='us'?'your turn':esc(LV.rival)}</b>`;
-  const slot=(n,side)=>{const b=LV.picks[n-1],cur=N&&N.k==='pick'&&N.n===n;return `<div class="lv-s${b?' f':''}${cur?' cur':''}" ${b?`data-lvclr="p${n}" title="Click to remove"`:''}>${b?bimg(b,'lv-si'):'<span class="lv-q">?</span>'}<span class="lv-n">${n}</span>${b?`<b>${esc(b)}</b>`:cur?'<b class="lv-now">picking…</b>':'<b class="lv-e">–</b>'}</div>`};
-  const bans=side=>`<div class="lv-bans">${LV.bans[side].map((b,i)=>b?`<span class="lv-b" data-lvclr="b${side}${i}" title="${esc(b)} · click to remove">${bimg(b,'lv-bi')}</span>`:`<span class="lv-b0${N&&N.k==='ban'&&N.s===side&&N.i===i?' cur':''}"></span>`).join('')}</div>`;
-  const team=(t,side)=>`<div class="lv-team ${side}"><div class="lv-th">${logo(t,'lv-lg')}<div><b>${esc(t)}</b><small>${(LV.first==='us')===(side==='us')?'1st pick':'last pick'}</small></div>${coinI((LV.first==='us')===(side==='us'),'lv-coin')}</div><small class="lv-lab">Bans</small>${bans(side)}<small class="lv-lab">Picks</small>${lvOrd()[side].map(n=>slot(n,side)).join('')}</div>`;
+  const ed=(k,ph,list)=>`<span class="lv-ed"><input id="lvIn" class="dr-input" data-lvk="${k}" list="lvDL" placeholder="${ph}" autocomplete="off"><datalist id="lvDL">${list.map(x=>`<option value="${esc(x)}">`).join('')}</datalist>${k[0]==='p'||k[0]==='b'?`<button type="button" class="lv-x" data-lvx="${k}" title="Clear">✕</button>`:''}</span>`;
+  const bl=drNames().filter(n=>!used.has(n));
+  const slot=(n,side)=>{const b=LV.picks[n-1],cur=N&&N.k==='pick'&&N.n===n,k='p'+n;if(LVED===k)return `<div class="lv-s ed">${b?bimg(b,'lv-si'):'<span class="lv-q">?</span>'}<span class="lv-n">${n}</span>${ed(k,'Type a brawler…',bl)}</div>`;
+    return `<div class="lv-s${b?' f':''}${cur?' cur':''}" data-lvedit="${k}" title="Click to type a brawler">${b?bimg(b,'lv-si'):'<span class="lv-q">?</span>'}<span class="lv-n">${n}</span>${b?`<b>${esc(b)}</b>`:cur?'<b class="lv-now">picking… <small>click to type</small></b>':'<b class="lv-e">–</b>'}</div>`};
+  const bans=side=>`<div class="lv-bans">${LV.bans[side].map((b,i)=>{const k='b'+side+i;if(LVED===k)return `<span class="lv-bed">${ed(k,'Ban…',bl)}</span>`;return b?`<span class="lv-b" data-lvedit="${k}" title="${esc(b)} · click to change">${bimg(b,'lv-bi')}</span>`:`<span class="lv-b0${N&&N.k==='ban'&&N.s===side&&N.i===i?' cur':''}" data-lvedit="${k}" title="Click to type a ban">+</span>`}).join('')}</div>`;
+  const tname=(side,t)=>LVED===side?ed(side,'Type a team…',T.filter(x=>x!==(side==='us'?LV.rival:LV.us))):`<b class="lv-tn" data-lvedit="${side}" title="Click to change the team">${esc(t)} <i>✎</i></b>`;
+  const team=(t,side)=>`<div class="lv-team ${side}"><div class="lv-th">${logo(t,'lv-lg')}<div>${tname(side==='us'?'us':'rival',t)}<small>${(LV.first==='us')===(side==='us')?'1st pick':'last pick'}</small></div></div><small class="lv-lab">Bans</small>${bans(side)}<small class="lv-lab">Picks</small>${lvOrd()[side].map(n=>slot(n,side)).join('')}</div>`;
   const strip=[1,2,3,4,5,6].map(n=>`<span class="lv-o ${O.us.includes(n)?'us':'th'}${LV.picks[n-1]?' d':''}${N&&N.k==='pick'&&N.n===n?' cur':''}">${n}</span>`).join('');
   const row=(x,i,btn)=>`<div class="u-row lv-r"><span class="u-rk">${i+1}</span>${bimg(x.b,'u-ic')}<div class="u-nm"><b>${esc(x.b)}</b><span class="lv-why">${x.why.map(w=>`<i style="color:${col(w[1])}">${esc(w[0])}</i>`).join('')||'<i>few sets</i>'}</span></div><div class="lv-sc"><b>${Math.round(100*x.sc)}</b><span><i style="width:${Math.max(4,Math.min(100,(x.sc-.3)*250))}%"></i></span></div>${btn&&ourTurn?`<button type="button" class="lv-pick" data-lvput="${esc(x.b)}">${isBan?'Ban':'Pick'}</button>`:'<span></span>'}</div>`;
   const prow=(x,i)=>`<div class="u-row lv-r2"><span class="u-rk">${i+1}</span>${bimg(x.b,'u-ic')}<div class="u-nm"><b>${esc(x.b)}</b></div><div class="u-wr"><b style="color:#c4b5fd">${pc(x.p)}%</b><span><i style="width:${pc(x.p)}%;background:#a855f7"></i></span></div>${!ourTurn&&N?`<button type="button" class="lv-pick alt" data-lvput="${esc(x.b)}">${isBan?'Ban':'Pick'}</button>`:'<span></span>'}</div>`;
@@ -5209,10 +5219,11 @@ function liveHTML(){
   const right=isBan?`<section class="u-panel"><header><span class="u-hd">${logo(LV.rival,'l20')} They will probably ban</span><small>${tb.T?`from the saved drafts of ${esc(LV.rival)} (on ${esc(LV.map)} ×3)`:'no saved drafts of this team yet'}</small></header>${tb.E.map(prow).join('')||'<p class="msg u-none">No data</p>'}</section>`
     :`<section class="u-panel"><header><span class="u-hd">${logo(LV.rival,'l20')} ${N&&!ourTurn?'Their pick now':'Their next pick'} · most likely</span><small>${esc(LV.rival)} on ${esc(LV.map)} ×3 · tournament ×2 · what beats your picks</small></header>${(tp||[]).map(prow).join('')||'<p class="msg u-none">No data</p>'}${tip}</section>`;
   return drSubHTML()+`<div class="lv">
-    <div class="lv-top"><span class="lv-live">● LIVE</span><span class="lv-f"><small>Us</small>${sel('us',LV.us,T)}</span><span class="lv-f"><small>Rival</small>${sel('rival',LV.rival,T.filter(t=>t!==LV.us))}</span><span class="lv-f"><small>Map</small>${sel('map',LV.map,maps)}</span>
-      <span class="seg2"><button type="button" data-lvfirst="us" aria-pressed="${LV.first==='us'}">${coinI(true,'lv-coin')} We have 1st</button><button type="button" data-lvfirst="them" aria-pressed="${LV.first==='them'}">They have 1st ${coinI(true,'lv-coin')}</button></span>
-      <span class="lv-step">${step}</span><span class="lv-act"><button type="button" class="btn quiet" data-lvundo${LV.hist.length?'':' disabled'}>↶ Undo</button><button type="button" class="btn quiet" data-lvnew>New set</button><button type="button" class="btn" data-lvsave${LV.picks.some(Boolean)?'':' disabled'}>Save as draft</button></span></div>
-    <div class="lv-board">${team(LV.us,'us')}<div class="lv-mid">${mimg(LV.map,'lv-map')}<div class="lv-strip">${strip}</div><small>pick order</small></div>${team(LV.rival,'them')}</div>
+    <div class="lv-board">${team(LV.us,'us')}<div class="lv-mid"><span class="lv-live">● LIVE</span>
+      <button type="button" class="lv-coinb" data-lvflip title="Click to change who has the 1st pick">${LV.first==='us'?'◀ ':''}${coinI(true,'lv-coinbig')}${LV.first==='us'?'':' ▶'}<small>1st pick · click to swap</small></button>
+      ${LVED==='map'?`<div class="lv-mapEd">${ed('map','Type a map…',maps)}</div>`:`<button type="button" class="lv-mapb" data-lvedit="map" title="Click to change the map">${mimg(LV.map,'lv-map')}<span>${esc(LV.map||'Choose a map')} ✎</span></button>`}
+      <div class="lv-strip">${strip}</div><span class="lv-step">${step}</span>
+      <div class="lv-act"><button type="button" class="btn quiet" data-lvundo${LV.hist.length?'':' disabled'}>↶ Undo</button><button type="button" class="btn quiet" data-lvnew>New set</button><button type="button" class="btn" data-lvsave${LV.picks.some(Boolean)?'':' disabled'}>Save as draft</button></div></div>${team(LV.rival,'them')}</div>
     ${N?`<div class="lv-grid"><section class="u-panel"><header><span class="u-hd">${leftT}</span><small>${leftS}</small></header>${mine.map((x,i)=>row(x,i,1)).join('')||'<p class="msg u-none">No data</p>'}</section>${right}</div>`:''}
     <section class="u-panel lv-all"><header><span class="u-hd">All brawlers</span><small>click one to put it in the next slot${N?` (${N.k==='ban'?'ban of '+esc(N.s==='us'?LV.us:LV.rival):'pick '+N.n})`:''} · click a filled slot to clear it <input class="dr-input" id="lvQ" placeholder="Search…" autocomplete="off" value="${esc(LV.q)}" style="width:170px;padding:5px 10px;margin-left:8px"></small></header>
       <div class="lv-pool">${drNames().map(n=>`<button type="button" class="lv-p${used.has(n)?' x':''}" data-lvput="${esc(n)}" data-nm="${esc(n)}" title="${esc(n)}"${used.has(n)?' disabled':''}>${bimg(n,'lv-pi')||`<span>${esc(n)}</span>`}</button>`).join('')}</div></section></div>`}
@@ -5221,7 +5232,10 @@ document.addEventListener('click',e=>{const t=e.target;if(!t.closest)return;
   if(!DR.live)return;
   const p=t.closest('[data-lvput]');if(p){lvPut(p.dataset.lvput);return}
   const f=t.closest('[data-lvfirst]');if(f){LV.first=f.dataset.lvfirst;lvSave();drRender();return}
-  const c=t.closest('[data-lvclr]');if(c){const k=c.dataset.lvclr;if(k[0]==='p')LV.picks[+k.slice(1)-1]='';else{const sd=k.slice(1,-1);LV.bans[sd][+k.slice(-1)]=''}lvSave();drRender();return}
+  const x=t.closest('[data-lvx]');if(x){lvSet(x.dataset.lvx,'');LVED='';drRender();return}
+  const ed=t.closest('[data-lvedit]');if(ed){LVED=ed.dataset.lvedit;drRender();return}
+  if(t.closest('[data-lvflip]')){const O=lvOrd(),u=O.us.map(n=>LV.picks[n-1]),h=O.them.map(n=>LV.picks[n-1]);LV.first=LV.first==='us'?'them':'us';const N2=lvOrd();LV.picks=['','','','','',''];N2.us.forEach((n,i)=>LV.picks[n-1]=u[i]||'');N2.them.forEach((n,i)=>LV.picks[n-1]=h[i]||'');LV.hist=[];lvSave();drRender();return}
+  if(LVED&&!t.closest('.lv-ed')){LVED='';drRender()}
   if(t.closest('[data-lvundo]')){const h=LV.hist.pop();if(h){if(h.k==='ban')LV.bans[h.s][h.i]='';else LV.picks[h.n-1]=''}lvSave();drRender();return}
   if(t.closest('[data-lvnew]')){LV.bans={us:['','',''],them:['','','']};LV.picks=['','','','','',''];LV.hist=[];lvSave();drRender();return}
   if(t.closest('[data-lvsave]')){const d=drNew();d.map=LV.map;d.blue=LV.us;d.red=LV.rival;d.coin=LV.first==='us'?'blue':'red';d.bans={b:LV.bans.us.slice(),r:LV.bans.them.slice()};
@@ -5230,11 +5244,22 @@ document.addEventListener('click',e=>{const t=e.target;if(!t.closest)return;
 document.addEventListener('change',e=>{const s=e.target.closest&&e.target.closest('[data-lvset]');if(!s||!DR.live)return;LV[s.dataset.lvset]=s.value;lvSave();drRender()});
 document.addEventListener('input',e=>{if(e.target.id!=='lvQ')return;LV.q=e.target.value;const q=lvK(LV.q);document.querySelectorAll('.lv-pool .lv-p').forEach(b=>{b.style.display=!q||b.dataset.nm.includes(q)?'':'none'})});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='lvQ'){const b=[...document.querySelectorAll('.lv-pool .lv-p')].find(x=>x.style.display!=='none'&&!x.disabled);if(b){LV.q='';lvPut(b.dataset.lvput)}}});
+// typing a brawler in a box: the active slot of the editor, the current box of Practice vs bot
+function tyMatch(v,used){v=String(v||'').trim().toUpperCase();if(!v)return '';const L=drNames().filter(n=>!used||!used.has(mkey(n)));return L.find(x=>x===v)||L.find(x=>x.startsWith(v))||L.find(x=>x.includes(v))||''}
+function tyApply(i){const k=i.dataset.tyk;if(k==='ds'){const u=DS.d?drUsedMap(DS.d):{},m=tyMatch(i.value,new Set(Object.keys(u).filter(x=>!(DS.phase==='bans'&&DS.myBans.map(mkey).includes(x)))));if(!m){i.classList.add('bad');return}dsClick(m);return}
+  const m=tyMatch(i.value,null);if(!m){i.classList.add('bad');return}drAssign(k,m);drRender()}
+document.addEventListener('keydown',e=>{const i=e.target;if(!i.classList||!i.classList.contains('tyIn'))return;if(e.key==='Enter'){e.preventDefault();tyApply(i)}else if(e.key==='Escape'){DR.active='';drRender()}else i.classList.remove('bad')});
+document.addEventListener('input',e=>{const i=e.target;if(!i.classList||!i.classList.contains('tyIn')||e.inputType)return;if(drNames().includes(String(i.value).trim().toUpperCase()))setTimeout(()=>tyApply(i),0)});
+document.addEventListener('click',e=>{if(e.target.classList&&e.target.classList.contains('tyIn'))e.stopPropagation()},true);
+function tyMount(el){if(!document.getElementById('tyDL')){const d=document.createElement('datalist');d.id='tyDL';d.innerHTML=drNames().map(n=>`<option value="${esc(n)}">`).join('');document.body.appendChild(d)}
+  if(!DR.sim&&!DR.live&&DR.mode==='grid'&&DR.active){const sl=el.querySelector(`[data-slot="${CSS.escape(DR.active)}"]`);if(sl&&!sl.querySelector('.tyIn')){const i=document.createElement('input');i.className='dr-input tyIn';i.dataset.tyk=DR.active;i.setAttribute('list','tyDL');i.autocomplete='off';i.placeholder='Type…';sl.classList.add('tyOn');sl.appendChild(i)}}
+  const f=el.querySelector('.tyIn');if(f&&!(document.activeElement&&/INPUT|TEXTAREA/.test(document.activeElement.tagName)&&document.activeElement.type!=='checkbox'&&!document.activeElement.classList.contains('tyIn')))setTimeout(()=>f.focus({preventScroll:true}),0)}
 function drRender(){const el=$('drmain');if(!el||(view!=='draft'&&view!=='suggest'))return;
   const pg=el.querySelector('.dr-pgrid'),sl=pg?pg.scrollLeft:0;
   el.className='sugm';
+  setTimeout(()=>{const i=document.getElementById('lvIn');if(i)i.focus()},0);
   el.innerHTML=DR.live&&view==='draft'?liveHTML():DR.sim&&view==='draft'?simHTML():DR.sug?drEditorHTML()+sgHTML():drEditorHTML()+drListHTML()+drSettingsHTML();
-  const pg2=el.querySelector('.dr-pgrid');if(pg2)pg2.scrollLeft=sl}
+  const pg2=el.querySelector('.dr-pgrid');if(pg2)pg2.scrollLeft=sl;try{tyMount(el)}catch(e){}}
 function drPopRender(){const box=$('drpopbox');if(!box)return;const p=DR.pop;if(!p){box.innerHTML='';return}
   const d=DR.cur;let inner='',focusId='';
   if(p.type==='brawler'){
@@ -5392,8 +5417,9 @@ function simHTML(){const teams=dsTeams(),maps=dsMaps();
     <button type="button" class="btn ds-go" data-dsstart${DS.map?'':' disabled'}>${DS.d?'↺ New draft':'Start draft'}</button>`;
   if(!DS.d)return `<section class="panel">${drSubHTML()}<h2 class="ttl" style="margin:6px 0">Practice vs bot</h2><div class="ds-setup">${setupIn}</div><p class="msg">Choose your team and the rival the bot plays like (or leave both on the meta), the map and who picks first.</p></section>`;
   const d=DS.d,pos=drPos(d.coin),nx=dsNext(),P=dsProb(),pa=Math.round(100*P.p),meFirst=d.coin==='blue';
-  const pickCard=(n)=>{const b=d.picks[n-1],cur=nx&&nx.n===n&&DS.phase==='picks';return `<div class="dz-c${b?' f':''}${cur?' cur':''}"><span class="dz-n">${n}</span>${b?bimg(b,'dz-ci')+`<span class="dz-cn">${esc(b)}</span>`:`<span class="dz-e">${cur?(DS.busy||nx.who==='bot'?'…':'YOUR PICK'):'#'+n}</span>`}</div>`};
-  const banI=b=>`<div class="dz-ban${b?' f':''}">${b?bimg(b,'dz-bi'):''}</div>`;
+  const tin=(ph)=>`<input class="dr-input tyIn" data-tyk="ds" list="tyDL" placeholder="${ph}" autocomplete="off">`;
+  const pickCard=(n)=>{const b=d.picks[n-1],cur=nx&&nx.n===n&&DS.phase==='picks',me=cur&&!DS.busy&&nx.who==='me';return `<div class="dz-c${b?' f':''}${cur?' cur':''}${me?' ty':''}"><span class="dz-n">${n}</span>${b?bimg(b,'dz-ci')+`<span class="dz-cn">${esc(b)}</span>`:me?`<span class="dz-e">YOUR PICK</span>${tin('Type…')}`:`<span class="dz-e">${cur?'…':'#'+n}</span>`}</div>`};
+  let banTy=false;const banI=b=>{if(!b&&DS.phase==='bans'&&!banTy){banTy=true;return `<div class="dz-ban ty">${tin('Ban…')}</div>`}return `<div class="dz-ban${b?' f':''}"${b&&DS.phase==='bans'?` data-dsb="${esc(b)}" title="Click to remove"`:''}>${b?bimg(b,'dz-bi'):''}</div>`};
   const side=me=>{const team=me?DS.me:DS.opp,ns=(me?pos[0]:pos[1]).slice().sort((a,b)=>a-b);
     const bans=me?[0,1,2].map(i=>DS.myBans[i]||''):(DS.phase==='bans'?['','','']:d.bans.r);
     return `<div class="dz-side ${me?'b':'r'}"><div class="dz-th">${dsLogo(team)}<div><b>${esc(team?team:me?'You':'Meta bot')}</b><small>${me?'you':'bot · '+DS.diff}${(meFirst===me)?' · 1st pick':''}</small></div></div>
@@ -5506,7 +5532,7 @@ function sgHTML(){
   const list=sgScores(kind,team,opp,map,kind==='pick'?mineP:[],kind==='pick'?theirP:[]).slice(0,12);
   const what=p[0]==='pick'?'Pick '+p[1]:p[0]==='ban'?'Ban':'Global ban';
   return box(`<p class="msg" style="margin:0 0 10px;text-align:center">${what} for <b style="color:${team?tcol(team):'inherit'}">${team?esc(team):'any team'}</b> on <b>${map?esc(map):'all maps'}</b> · ${kind==='pick'?'blends '+(team?'the team\'s own results with the brawler, ':'')+'the brawler\'s results '+(map?'on this map ':'')+'across all teams'+(opp?', and how badly the rival does against it':'')+(mineP.length?', how it pairs with '+mineP.join(' + '):'')+(theirP.length?', how it does against '+theirP.join(' + '):''):(opp?'brawlers the rival is strongest and most used with':'the strongest and most used brawlers')+(map?' on this map':'')}${team&&opp?'':' · choose the teams and the map for sharper suggestions'}. Click one to fill the slot.</p>
-   <div class="sg-list">${list.map((x,i)=>`<button type="button" class="sg-b" data-gb="${esc(x.name)}" data-rar="${rarOf(x.name)}"><span class="sg-r">${i+1}</span>${bimg(x.name,'bi lg')}<b>${esc(x.name)}</b><em title="Score: ${kind==='pick'?'estimated win chance of this pick, as a %':'ban priority index (not a %)'}">${Math.round(x.score*100)}${kind==='pick'?'%':''}</em>${x.info.map(([l,v])=>`<small>${l}: ${v}</small>`).join('')}</button>`).join('')}</div>
+   <div class="sg-list">${list.map((x,i)=>`<button type="button" class="sg-b" data-gb="${esc(x.name)}" data-rar="${rarOf(x.name)}"><span class="sg-r">${i+1}</span>${bimg(x.name,'bi lg')}<b>${esc(x.name)}</b><em style="${kind==='pick'?wrSoft(x.score):'background:transparent;color:#c4b5fd;font-weight:800'}" title="Score: ${kind==='pick'?'estimated win chance of this pick, as a %':'ban priority index (not a %)'}">${Math.round(x.score*100)}${kind==='pick'?'%':''}</em>${x.info.map(([l,v])=>`<small>${l}: ${v}</small>`).join('')}</button>`).join('')}</div>
    <p class="foot" style="margin-top:8px">Each line shows win rate [sets in the selected period / sets in all dates]. The period leads; when it has few sets, older data fills in. ${kind==='pick'?'The % is the estimated win chance of the pick: a weighted average of the signals available (team 30, meta 15, rival weakness 20, synergy with your picks 20, results against their picks 15; missing ones are dropped and the rest rescaled), not a calibrated probability.':'The number is a ban priority index (rival strength + usage + meta), not a %.'} Brawlers already picked or banned are left out.</p>`);
 }
 
@@ -7763,7 +7789,7 @@ window.SBOPEN=window.SBOPEN||new Set();const SBOPEN=window.SBOPEN;
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-mexp]');if(!b)return;e.preventDefault();e.stopPropagation();const k=b.dataset.mexp;if(SBOPEN.has(k))SBOPEN.delete(k);else SBOPEN.add(k);const c=b.closest('.mcol');if(c)c.classList.toggle('sbo',SBOPEN.has(k))},true);
 (function(){const W=document.querySelector('.wrap');if(!W)return;const hero=W.querySelector('header.hero'),data=W.querySelector('section.panel[aria-label="Data"]'),scope=document.getElementById('statsscope');if(!hero||!data||!scope)return;
   const L=document.createElement('div');L.className='sbl';const A=document.createElement('aside');A.className='sbar';A.id='sbar';const Mn=document.createElement('div');Mn.className='sbmain';
-  A.innerHTML='<button type="button" class="sbhide" data-sbt="0" title="Hide this panel">‹ Hide panel</button>';
+  A.innerHTML='<div class="sbtop"><button type="button" class="sbmini" data-sbmini title="Show / hide the title, period and data info"><i class="sbch"></i><span>Period &amp; data</span><b id="sbPer"></b></button><button type="button" class="sbhide" data-sbt="0" title="Hide this panel"><i class="sbch l"></i>Hide panel</button></div>';
   W.insertBefore(L,hero);[hero,data,scope].forEach(n=>A.appendChild(n));
   const rest=[...W.children].filter(n=>n!==L);rest.forEach(n=>Mn.appendChild(n));
   const show=document.createElement('button');show.type='button';show.className='sbshow';show.dataset.sbt='1';show.title='Show the panel with period, teams and maps';show.innerHTML='<span>☰</span> Filters';
@@ -8170,4 +8196,77 @@ body{font-family:var(--body)!important;font-feature-settings:'tnum' 1,'cv11' 1}
 .lv-pick.alt{background:transparent;border:1px solid #a855f7;color:#c4b5fd}
 .lv-p{background:none;border:0;padding:0;cursor:pointer;border-radius:8px}.lv-p:hover:not(:disabled){outline:2px solid #a855f7}.lv-p:disabled{cursor:default}.lv-p span{display:inline-block;font-size:10px;padding:4px;color:#cfcce0;width:42px;overflow:hidden}
 .lv-top .seg2 button{display:inline-flex;align-items:center;gap:6px}
-</style><style>.lv-top .lv-act{margin-left:0}.lv-top{row-gap:10px}</style>
+</style><style>.lv-top .lv-act{margin-left:0}.lv-top{row-gap:10px}</style><style id="rev115">
+.lv-mid{gap:12px!important;justify-content:flex-start!important;padding-top:16px!important}
+.lv-coinb{display:flex;flex-direction:row;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;background:#0d0c12;border:1px solid #3b2a52;border-radius:14px;padding:8px 14px;color:#c4b5fd;font-weight:800;font-size:18px;cursor:pointer}
+.lv-coinb:hover{border-color:#a855f7;background:rgba(168,85,247,.12)}.lv-coinb small{flex-basis:100%;text-align:center;font-size:10.5px;color:#8e8ab0;font-weight:600}.lv-coinbig{width:34px!important;height:34px!important}
+.lv-mapb{display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:0;cursor:pointer;color:#fff;font-weight:700;font-size:14px;padding:0}.lv-mapb:hover .lv-map{outline:2px solid #a855f7}.lv-mapb span{color:#e5e3f0}
+.lv-map{width:160px!important;height:220px!important}
+.lv-step{font-size:13px;color:#cfcce0;text-align:center}.lv-act{display:flex;flex-direction:column;gap:6px;width:100%}.lv-act .btn{width:100%}
+.lv-tn{cursor:pointer;display:block;font-size:17px;color:#fff}.lv-tn i{font-style:normal;font-size:12px;color:#6e6a85}.lv-tn:hover i{color:#c4b5fd}
+.lv-s{cursor:pointer}.lv-s:hover{border-color:#a855f7}.lv-now small{display:block;font-size:10.5px;color:#8e8ab0;font-weight:500}
+.lv-s.ed{border:1.5px solid #a855f7;background:rgba(168,85,247,.08)}
+.lv-ed{display:flex;align-items:center;gap:6px;flex:1;min-width:0}.lv-ed input{flex:1;min-width:0;padding:8px 10px!important;font-size:14px!important}.lv-ed input.bad{border-color:#f87171!important}
+.lv-x{background:none;border:1px solid #3b2a52;border-radius:8px;color:#f87171;cursor:pointer;padding:6px 9px}
+.lv-b0{display:flex;align-items:center;justify-content:center;color:#4a4660;font-size:20px;cursor:pointer}.lv-b0:hover{border-color:#a855f7;color:#c4b5fd}
+.lv-bed{flex:1;min-width:0}.lv-bed .lv-ed input{padding:6px 8px!important}
+.lv-mapEd{width:100%}.lv-team .lv-th .lv-ed input{font-size:15px!important}
+</style><style id="rev116">
+/* typing boxes */
+.tyIn{width:100%;padding:6px 8px!important;font-size:12.5px!important;text-transform:uppercase;border-color:#a855f7!important;background:#0d0c12!important}.tyIn.bad{border-color:#f87171!important}
+[data-slot].tyOn{position:relative;outline:2px solid #a855f7}
+[data-slot].tyOn .tyIn{position:absolute;left:6px;right:6px;bottom:6px;width:auto;z-index:3}
+.dz-c.ty{flex-direction:column;gap:8px;padding:8px;border:1.5px solid #facc15!important;background:rgba(250,204,21,.06)!important}
+.dz-ban.ty{width:110px!important;border:1.5px solid #a855f7!important;background:#0d0c12!important;overflow:visible!important}.dz-ban.ty .tyIn{height:100%;padding:4px 6px!important;font-size:11.5px!important;border:0!important}
+.dz-ban[data-dsb]{cursor:pointer}
+/* Practice vs bot: same look as the rest */
+.dz-side.b{border-color:rgba(96,165,250,.45)!important;background:linear-gradient(180deg,rgba(96,165,250,.08),#121118 40%)!important}
+.dz-side.r{border-color:rgba(248,113,113,.45)!important;background:linear-gradient(180deg,rgba(248,113,113,.08),#121118 40%)!important}
+.dz-side{border-radius:16px!important;padding:16px!important}.dz-th b{font-size:16px;color:#fff}
+.dz-c{border-radius:14px!important;background:#0d0c12!important;border:1px solid #24222f!important}.dz-c.cur{border:1.5px dashed #facc15!important}
+.dz-ban{width:46px!important;height:46px!important;border-radius:10px!important;border:1px dashed #3b2a52!important;background:#0d0c12!important}.dz-ban.f{border:1px solid #f8717166!important}.dz-bi{width:46px!important;height:46px!important}
+.dz-map{border-radius:16px!important;border-color:#2b2540!important}
+.dz-mid{background:#121118;border:1px solid #24222f;border-radius:16px;padding:14px}
+.dz-turn{background:#121118;border:1px solid #2b2540;border-radius:14px;padding:10px 16px;margin:8px 0 12px!important}
+.dz-sug,.dz-pool{background:#121118!important;border:1px solid #24222f!important;border-radius:16px!important;padding:14px!important}
+.dz-h{font-size:11.5px!important;letter-spacing:.1em!important;color:#a78bfa!important;font-weight:700;text-transform:uppercase}
+.dz-sg{background:#0d0c12!important;border-color:#24222f!important;border-radius:12px!important;padding:8px!important}.dz-sg:hover{border-color:#a855f7!important}
+.dz-sb i{background:linear-gradient(90deg,#a855f7,#ec4899)!important}
+.dz-br{background:#0d0c12!important;border-color:#24222f!important}.dz-br:hover{border-color:#a855f7!important}
+.dz-set{background:#121118;border:1px solid #2b2540;border-radius:14px;padding:10px 14px}
+.ds-setup{background:#121118;border:1px solid #2b2540;border-radius:14px;padding:14px;gap:14px!important}
+/* Draft Suggestion + Save Draft editor: dark panels instead of solid blue / red */
+.dr-stage{background:linear-gradient(90deg,rgba(96,165,250,.10),#121118 45%,#121118 55%,rgba(248,113,113,.10))!important;border:1px solid #2b2540!important;border-radius:18px!important}
+.dr-pk{background:#0d0c12!important;border:1px solid #24222f!important;border-radius:14px!important}
+.dr-pk.blue{border-color:rgba(96,165,250,.35)!important}.dr-pk.red{border-color:rgba(248,113,113,.35)!important}
+.dr-pk.act,.dr-sl.act{border:1.5px solid #facc15!important;box-shadow:0 0 0 3px rgba(250,204,21,.12)}
+.dr-sl{background:#0d0c12!important;border-color:#3b2a52!important;border-radius:12px!important}
+.dr-teambtn,.dr-tbtn,[data-tpop]{border-radius:999px!important;background:#121118!important}
+.dr-pool,.dr-pgrid{background:#121118!important;border:1px solid #24222f!important;border-radius:16px!important}
+.dr-wp,.dr-wpbox{background:#121118!important;border:1px solid #24222f!important;border-radius:16px!important}
+.sg-b{background:#121118!important;border:1px solid #24222f!important;border-radius:14px!important;padding:10px 8px!important}.sg-b:hover{border-color:#a855f7!important}
+.sg-b .heat,.sg-b [class*="pct"],.sg-b b{background:transparent!important}
+.sg-r{color:#6e6a85!important}
+</style><style>.sg-b em{font-size:20px!important;font-style:normal;padding:0!important;border:0!important}.sg-b small{color:#8e8ab0!important}</style><script>
+// side panel: fold the title + period box so only teams and maps show
+(function(){let m=false;try{m=localStorage.getItem('tvt:sbmini')==='1'}catch(e){}
+  const per=()=>{const b=document.getElementById('sbPer'),t=document.getElementById('uxPerT');if(b)b.textContent=t?t.textContent.replace(/^\d{4}(\s*–\s*\d{4})?/,'').trim():''};
+  const set=v=>{m=v;document.body.classList.toggle('sb-mini',m);try{localStorage.setItem('tvt:sbmini',m?'1':'0')}catch(e){}per()};set(m);
+  document.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('[data-sbmini]'))set(!m)});
+  setInterval(per,1500)})();
+</script>
+<style id="rev117">
+.sbtop{display:none}
+@media (min-width:1200px){
+ .sbtop{display:flex;align-items:center;gap:8px}
+ .sbtop .sbhide{align-self:auto!important;margin-left:auto}
+ .sbhide,.sbmini{display:inline-flex!important;align-items:center;gap:7px;line-height:1;height:30px;padding:0 12px!important;background:none;border:1px solid #2b2540;border-radius:999px;color:#9a97ad;font-size:12px;cursor:pointer}
+ .sbhide:hover,.sbmini:hover{color:#fff;border-color:#a855f7}
+ .sbmini{min-width:0;flex:1}.sbmini span{white-space:nowrap}.sbmini b{display:none;font-weight:600;color:#c4b5fd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-left:auto}
+ .sbch{width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);margin-top:-4px;flex:none;transition:transform .15s}
+ .sbch.l{transform:rotate(135deg);margin-top:0;margin-right:-1px}
+ body.sb-mini .sbmini .sbch{transform:rotate(-45deg);margin-top:0}
+ body.sb-mini .sbmini b{display:block}
+ body.sb-mini .sbar>header.hero,body.sb-mini .sbar>section.panel[aria-label="Data"]{display:none!important}
+}
+</style>
