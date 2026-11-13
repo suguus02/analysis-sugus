@@ -6660,39 +6660,45 @@ document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest
 
 // ===== Rating leaderboard (Worlds bracket): period of the page calendar, teams you choose, sortable columns
 const LB={teams:null,sort:'r',dir:-1};try{const x=JSON.parse(store.get('tvt:lb')||'null');if(x)Object.assign(LB,x)}catch(e){}
-const lbSave=()=>store.set('tvt:lb',JSON.stringify({teams:LB.teams,sort:LB.sort,dir:LB.dir}));
-function lbHTML(){const F=FULL;if(!F||!F.matches)return '';const DAY=864e5,rg=rangeOf(F),T=(LB.teams&&LB.teams.length?LB.teams:M.D.off).filter(t=>allTeams().includes(t));
-  const all=F.matches.filter(m=>!m.sh&&!m.s&&m.a&&m.b&&m.a!==m.b&&m.w!==m.l);
-  const W=all.filter(m=>m.d>=rg.from&&m.d<=rg.to),last=W.reduce((a,m)=>m.d>a?m.d:a,''),L=Date.parse(last||rg.to);
-  const rate=S=>{const G=S.map(m=>[m.a,m.b,m.w>m.l?1:0,Math.pow(.5,(L-Date.parse(m.d))/DAY/45)*(m.ty==='tournament'?2:1)]),TT=[...new Set(G.flatMap(g=>[g[0],g[1]]))],r={};TT.forEach(t=>r[t]=0);
+const lbSave=()=>store.set('tvt:lb',JSON.stringify({teams:LB.teams,sort:LB.sort,dir:LB.dir,vs:LB.vs}));
+function lbHTML(){const F=FULL;if(!F||!F.matches||!ds)return '';const DAY=864e5,rg=rangeOf(F),T=(LB.teams&&LB.teams.length?LB.teams:M.D.off).filter(t=>allTeams().includes(t)),only=LB.vs==='sel',TS=new Set(T);
+  // the same sets as Team Stats (period and game type of the page), seen from each team
+  const MI={};for(const m of ds.matches)MI[m.i]=m;
+  const IT={};for(const t of T)IT[t]=Engine.setList(ds,DB,t,null).filter(x=>!x.s&&x.win!==.5&&(!only||TS.has(x.opTeam)));
+  let last='';for(const t of T)for(const x of IT[t])if(x.d>last)last=x.d;const L=Date.parse(last||rg.to);
+  const G0={};for(const t of T)for(const x of IT[t]){const op=x.opTeam||('?'+(x.opp||x.i)),m=MI[x.i]||{},k=x.i+'|'+[t,op].sort().join('|');if(G0[k])continue;G0[k]=[t,op,x.win===1?1:0,x.d,m.ty]}
+  const games=Object.values(G0);
+  const rate=S=>{const G=S.map(g=>[g[0],g[1],g[2],Math.pow(.5,(L-Date.parse(g[3]))/DAY/45)*(g[4]==='tournament'?2:1)]),TT=[...new Set(G.flatMap(g=>[g[0],g[1]]))],r={};TT.forEach(t=>r[t]=0);
     for(let it=0;it<120;it++){const gr={},hs={};TT.forEach(t=>{gr[t]=-r[t]*.5;hs[t]=.5});for(const [a,b,y,w] of G){const p=1/(1+Math.exp(r[b]-r[a]));gr[a]+=w*(y-p);gr[b]-=w*(y-p);hs[a]+=w*p*(1-p);hs[b]+=w*p*(1-p)}TT.forEach(t=>r[t]+=gr[t]/hs[t])}
     const ref=T.filter(t=>r[t]!=null),mo=ref.length?ref.reduce((a,t)=>a+r[t],0)/ref.length:0,o={};for(const t of TT)o[t]=Math.round(1500+173.7*(r[t]-mo));return o};
-  const R=rate(W),R0=last?rate(W.filter(m=>m.d<last)):R;
-  const rows=T.map(t=>{const S=W.filter(m=>m.a===t||m.b===t),g={};for(const m of S){const op=m.a===t?m.b:m.a,k=m.d+'|'+op,e=g[k]||(g[k]={d:m.d,t:m.t,w:0,l:0,ty:m.ty});const y=m.a===t?m.y:1-m.y;if(y===1)e.w++;else if(y===0)e.l++;if(m.ty==='tournament')e.ty='tournament';if(m.t<e.t)e.t=m.t}
+  const R=rate(games),R0=last?rate(games.filter(g=>g[3]<last)):R;
+  const rows=T.map(t=>{const S=IT[t],g={};for(const x of S){const m=MI[x.i]||{},op=x.opTeam||x.opp||'?',k=x.d+'|'+op,e=g[k]||(g[k]={d:x.d,t:m.t||0,w:0,l:0,ty:m.ty});if(x.win===1)e.w++;else e.l++;if(m.ty==='tournament')e.ty='tournament';if((m.t||0)<e.t)e.t=m.t}
     const Mt=Object.values(g).sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:a.t-b.t),res=e=>e.w>e.l?'W':e.w<e.l?'L':'D',form=Mt.slice(-5).map(res);let st=0,sr='';for(let i=Mt.length-1;i>=0;i--){const q=res(Mt[i]);if(!sr)sr=q;if(q===sr&&q!=='D')st++;else break}
-    const sw=S.reduce((a,m)=>a+(m.a===t?m.y:1-m.y),0),fs=form.reduce((a,q)=>a+(q==='W'?1:q==='D'?.5:0),0);
+    const sw=S.filter(x=>x.win===1).length,fs=form.reduce((a,q)=>a+(q==='W'?1:q==='D'?.5:0),0);
     return {t,r:R[t]!=null?R[t]:null,d:R[t]!=null&&R0[t]!=null?R[t]-R0[t]:0,scr:Mt.filter(e=>e.ty!=='tournament').length,tou:Mt.filter(e=>e.ty==='tournament').length,sets:S.length,wr:S.length?sw/S.length:0,form,fs,st:st>=3?st+sr:''}});
   const key={r:x=>x.r==null?-1e9:x.r,d:x=>x.d,scr:x=>x.scr,tou:x=>x.tou,sets:x=>x.sets,wr:x=>x.sets?x.wr:-1,form:x=>x.fs,t:x=>x.t}[LB.sort]||(x=>x.r);
   rows.sort((a,b)=>{const A=key(a),B=key(b);return (typeof A==='string'?A.localeCompare(B):A-B)*LB.dir||((b.r||0)-(a.r||0))});
   const byR=rows.slice().sort((a,b)=>(b.r==null?-1e9:b.r)-(a.r==null?-1e9:a.r)),pos=t=>byR.findIndex(x=>x.t===t)+1;
   const mxS=Math.max(1,...rows.map(x=>x.scr)),mxT=Math.max(1,...rows.map(x=>x.tou)),col=p=>p>=.6?'#4ade80':p>=.53?'#86efac':p>.47?'#facc15':p>.4?'#fca5a5':'#f87171';
   const th=(k,l,c)=>`<th class="${c||''}${LB.sort===k?' on':''}" data-lbs="${k}" title="Sort by ${l}">${l}${LB.sort===k?(LB.dir<0?' ▾':' ▴'):''}</th>`;
-  const LIST=[...new Set([...M.D.off,...allTeams()])].filter(t=>W.some(m=>m.a===t||m.b===t)||M.D.off.includes(t)).sort((a,b)=>(M.D.off.includes(b)-M.D.off.includes(a))||a.localeCompare(b));
+  const LIST=[...new Set([...M.D.off,...allTeams()])].filter(t=>ds.matches.some(m=>m.a===t||m.b===t)||M.D.off.includes(t)).sort((a,b)=>(M.D.off.includes(b)-M.D.off.includes(a))||a.localeCompare(b));
   const isW=!(LB.teams&&LB.teams.length),q=String(LB.q||'').toUpperCase();
   const chips=`<div class="lb-ctl"><div class="u-dd${LB.open?' open':''}"><button type="button" class="u-ddb" data-lbdd><span class="u-lul">Teams</span><b>${isW?'Worlds teams ('+T.length+')':T.length+' teams'}</b><i>▾</i></button>
     ${LB.open?`<div class="u-ddp lb-ddp"><div class="u-ddh"><span class="u-lubs"><button type="button" data-lbw class="${isW?'on':''}">Worlds teams</button><button type="button" data-lbnone>None</button></span><input class="dr-input" id="lbQ" placeholder="Search a team…" value="${esc(LB.q||'')}" autocomplete="off" style="flex:1;min-width:140px;padding:6px 10px"></div>
       <div class="lb-grid">${LIST.filter(t=>!q||t.toUpperCase().includes(q)).map(t=>`<button type="button" class="lb-op${T.includes(t)?' on':''}" data-lbt="${esc(t)}">${logo(t,'l20')}<span>${esc(t)}</span>${M.D.off.includes(t)?'':'<small>other</small>'}</button>`).join('')}</div></div>`:''}</div>
+    <span class="seg2"><button type="button" data-lbvs="all" aria-pressed="${!only}">All rivals</button><button type="button" data-lbvs="sel" aria-pressed="${only}">Selected teams</button></span>
     <span class="lb-logos">${T.slice().sort((a,b)=>a.localeCompare(b)).map(t=>`<span title="${esc(t)}">${logo(t,'l20')}</span>`).join('')}</span></div>`;
-  return `<section class="u-panel lb"><header><span class="u-hd">Rating leaderboard</span><small>${fmtDate(rg.from)} – ${fmtDate(rg.to)} (calendar of the page) · tournament sets count double · click a column to sort</small></header>${chips}
+  return `<section class="u-panel lb"><header><span class="u-hd">Rating leaderboard</span><small>${fmtDate(rg.from)} – ${fmtDate(rg.to)} (calendar and game type of the page) · ${only?'only sets between the teams in the table':'sets against every rival'} · tournament sets count double · click a column to sort</small></header>${chips}
    <div class="lb-wrap"><table class="lb-t"><thead><tr><th>#</th>${th('t','Team','l')}${th('r','Rating')}${th('d','Day')}${th('scr','Scrims')}${th('tou','Tourn.')}${th('sets','Sets')}${th('wr','Win %')}${th('form','Form')}</tr></thead><tbody>
    ${rows.map(x=>`<tr><td class="lb-rk">${x.r==null?'–':pos(x.t)}</td><td class="l"><span class="lb-tm">${logo(x.t,'lb-lg')}<b>${esc(x.t)}</b>${x.st?`<em class="lb-st ${x.st.slice(-1)==='W'?'w':'l'}">${x.st}</em>`:''}<small>${esc(REGION[x.t]||'')}</small></span></td>
     <td class="lb-r">${x.r==null?'–':x.r}</td><td class="lb-d ${x.d>0?'up':x.d<0?'dn':''}">${x.d>0?'▲ '+x.d:x.d<0?'▼ '+(-x.d):'='}</td>
     <td><div class="lb-bar"><b>${x.scr}</b><span><i style="width:${Math.round(100*x.scr/mxS)}%"></i></span></div></td><td><div class="lb-bar t"><b>${x.tou||'–'}</b><span><i style="width:${Math.round(100*x.tou/mxT)}%"></i></span></div></td>
     <td class="lb-n">${x.sets}</td><td>${x.sets?`<b class="lb-wr" style="color:${col(x.wr)}">${Math.round(100*x.wr)}%</b>`:'–'}</td><td><span class="lb-f">${x.form.map(q=>`<i class="${q.toLowerCase()}">${q}</i>`).join('')}</span></td></tr>`).join('')}</tbody></table></div>
-   <p class="foot" style="padding:0 16px 14px;margin:0">Rating = strength from every set of the period (who you beat counts, recent sets weigh more, tournament ×2), on a scale where 1500 is the average of the teams in the table. # = position by rating. Day = change after the last day of the period. Scrims / Tourn. = matches (all sets vs the same rival on the same day). Form = last 5 matches, newest on the right; 3+ wins or losses in a row are marked next to the name.</p></section>`}
+   <p class="foot" style="padding:0 16px 14px;margin:0">Same sets as Team Stats (period and All / Tournament / Friendly of the page; single games and draws left out). Rating = strength from those sets (who you beat counts, recent sets weigh more, tournament ×2), on a scale where 1500 is the average of the teams in the table. # = position by rating. Day = change after the last day of the period. Scrims / Tourn. = matches (all sets vs the same rival on the same day). Form = last 5 matches, newest on the right; 3+ wins or losses in a row are marked next to the name.</p></section>`}
 function lbMount(){const el=$('wbview');if(!el||el.hidden&&view!=='worlds')return;let b=document.getElementById('lbx');if(!b){b=document.createElement('div');b.id='lbx'}if(b.parentNode!==el||el.firstChild!==b)el.insertBefore(b,el.firstChild);try{b.innerHTML=lbHTML()}catch(e){b.innerHTML='<p class="msg">Leaderboard: '+esc(e.message)+'</p>'}}
 document.addEventListener('click',e=>{const t=e.target;if(!t.closest)return;
   const h=t.closest('[data-lbs]');if(h){const k=h.dataset.lbs;if(LB.sort===k)LB.dir=-LB.dir;else{LB.sort=k;LB.dir=k==='t'?1:-1}lbSave();lbMount();return}
+  const vs=t.closest('[data-lbvs]');if(vs){LB.vs=vs.dataset.lbvs;lbSave();lbMount();return}
   if(t.closest('[data-lbdd]')){LB.open=!LB.open;lbMount();if(LB.open)setTimeout(()=>{const i=document.getElementById('lbQ');if(i)i.focus()},0);return}
   const x=t.closest('[data-lbt]');if(x){const cur=(LB.teams&&LB.teams.length?LB.teams:M.D.off).slice(),k=cur.indexOf(x.dataset.lbt);if(k>=0)cur.splice(k,1);else cur.push(x.dataset.lbt);LB.teams=cur.length?cur:['__none'];lbSave();lbMount();return}
   if(t.closest('[data-lbw]')){LB.teams=null;lbSave();lbMount();return}
@@ -8376,4 +8382,4 @@ body{font-family:var(--body)!important;font-feature-settings:'tnum' 1,'cv11' 1}
 .lb-op:before{content:'';width:16px;height:16px;border-radius:5px;border:1.5px solid #4a4660;flex:none;box-sizing:border-box}
 .lb-op.on{opacity:1;background:rgba(168,85,247,.10)}.lb-op.on:before{background:#a855f7 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.5l2.5 2.5L12 5.5' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E") center/12px no-repeat;border-color:#a855f7}
 .lb-op:hover{opacity:1;background:#1d1b27}.lb-op span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lb-op small{margin-left:auto;font-size:10px;color:#6e6a85}
-.lb-logos{display:flex;gap:6px;flex-wrap:wrap}.lb-logos img{width:24px!important;height:24px!important;object-fit:contain;opacity:.85}</style>
+.lb-logos{display:flex;gap:6px;flex-wrap:wrap}.lb-logos img{width:24px!important;height:24px!important;object-fit:contain;opacity:.85}</style><style>.lb-ctl .seg2{margin:0 0 0 8px}.lb-ctl{gap:10px}</style>
