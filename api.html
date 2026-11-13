@@ -3142,15 +3142,20 @@ function setBans(m){if((m.na||[]).some(Boolean)||(m.nb||[]).some(Boolean))return
   const d=setDraft(m);if(!d||!d.bans||!((d.bans.b||[]).some(Boolean)||(d.bans.r||[]).some(Boolean)))return {a:[],b:[],src:''};
   const p=drPos(d.coin),bl=brKey(p[0].map(n=>d.picks[n-1])),blueA=bl===brKey(m.ba)?true:bl===brKey(m.bb)?false:(d.blue===m.a);
   return {a:(blueA?d.bans.b:d.bans.r)||[],b:(blueA?d.bans.r:d.bans.b)||[],src:'draft'}}
+// send to the drafts sheet: waits up to 35 s and tries again (up to 4 times) when the sheet is busy or the request times out
+async function drSend(cfg,body){let last='';for(let k=0;k<4;k++){if(k){DR.msg=`The sheet is busy, trying again (${k+1}/4)…`;try{drRender()}catch(e){}await new Promise(r=>setTimeout(r,2500*k))}
+  const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),35000);
+  try{const res=await fetch(cfg.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body),signal:ac.signal});clearTimeout(tm);const j=await res.json();
+    if(j.ok)return j;last=j.error||'rejected';if(!/busy|lock|bloqueo|tiempo|timeout|time/i.test(last))return j}
+  catch(e){clearTimeout(tm);last=e&&e.name==='AbortError'?'the sheet took too long to answer':(e&&e.message||String(e))}}
+  throw new Error(last+' (tried 4 times)')}
 async function drPersist(d){d.saved=new Date().toISOString();const cfg=drCfg(),c=drClone(d);DRV++;
   if(!cfg.url){const i=DR.local.findIndex(x=>x.id===d.id);if(i>=0)DR.local[i]=c;else DR.local.push(c);store.set('tvt:drlocal',JSON.stringify(DR.local));return 'local'}
-  const res=await fetch(cfg.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:cfg.token,action:'save',row:drToRow(d)})});
-  const j=await res.json();if(!j.ok)throw new Error(j.error||'rejected');
+  const j=await drSend(cfg,{token:cfg.token,action:'save',row:drToRow(d)});if(!j.ok)throw new Error(j.error||'rejected');
   const i=DR.list.findIndex(x=>x.id===c.id);if(i>=0)DR.list[i]=c;else DR.list.push(c);DR.local=DR.local.filter(x=>x.id!==c.id);
   store.set('tvt:drlocal',JSON.stringify(DR.local));store.set('tvt:drafts',JSON.stringify(DR.list));return 'sheet'}
 async function drRemove(id){const cfg=drCfg();DRV++;
-  if(cfg.url&&DR.list.some(x=>x.id===id)){const res=await fetch(cfg.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:cfg.token,action:'delete',id})});
-    const j=await res.json();if(!j.ok)throw new Error(j.error||'rejected');DR.list=DR.list.filter(x=>x.id!==id);store.set('tvt:drafts',JSON.stringify(DR.list))}
+  if(cfg.url&&DR.list.some(x=>x.id===id)){const j=await drSend(cfg,{token:cfg.token,action:'delete',id});if(!j.ok)throw new Error(j.error||'rejected');DR.list=DR.list.filter(x=>x.id!==id);store.set('tvt:drafts',JSON.stringify(DR.list))}
   DR.local=DR.local.filter(x=>x.id!==id);store.set('tvt:drlocal',JSON.stringify(DR.local))}
 // first: 'a' | 'b' | '' (unknown); order: the six brawlers in pick order, or null to keep / guess
 async function setSave(m,first,order){const old=setDraft(m);
@@ -4298,7 +4303,8 @@ function groupTab(){
     let _dp=null,_dk=0;const rowsH=L.map(e=>{const res=e.w>e.l?'w':e.w<e.l?'l':'d',o=opT(e);if(e.d!==_dp){_dp=e.d;_dk++}
       const gi=GTM.push({t,e,o})-1;
       const rn=o||top3(e.rv).map(nmOf).join(' / ')||'Rival';
-      return `<div class="mb1-r gt-clk" data-gtm="${gi}" title="Click to see this match set by set"><span class="mb1-d">${fmtDate(e.d).replace(/ \d{4}$/,'')}<small>${mxHM(e.t)}</small></span><span class="mb1-res ${res}"><b>${e.w}-${e.l}</b><small>${res==='w'?'WIN':res==='l'?'LOSS':'DRAW'}</small></span>
+      const tour=e.sets.some(z=>z.m&&z.m.ty==='tournament');
+      return `<div class="mb1-r gt-clk${tour?' tour':''}" data-gtm="${gi}" title="Click to see this match set by set"><span class="mb1-d">${fmtDate(e.d).replace(/ \d{4}$/,'')}<small>${mxHM(e.t)}</small><em class="mb1-ty ${tour?'t':'f'}">${tour?'Tournament':'Friendly'}</em></span><span class="mb1-res ${res}"><b>${e.w}-${e.l}</b><small>${res==='w'?'WIN':res==='l'?'LOSS':'DRAW'}</small></span>
         <span class="mb1-op">${logo(o||'?','u-lg')}<span><b>${esc(rn)}</b><small>${pl(top3(e.rv),o)}</small></span></span><span class="mb1-my"><small>${pl(top3(e.my),t)}</small></span><span class="mb1-go">›</span></div>`}).join('');
     const wp=tw+tl?tw/(tw+tl):0;
     return `<section class="u-panel"><header><span class="u-hd">${logo(t,'l20')} ${esc(t)}</span><small>${L.length} ${L.length===1?'match':'matches'} · ${tw}-${tl} sets · <b style="color:${wp>=.53?'#4ade80':wp>.47?'#facc15':'#f87171'}">${pc(tw,tw+tl)}</b></small></header><div class="mb1-sc">${rowsH||'<p class="msg u-none">No sets in this period.</p>'}</div></section>`}).join('');
@@ -4952,8 +4958,7 @@ async function drSave(){
     store.set('tvt:drlocal',JSON.stringify(DR.local));shAfterSave(d);DR.msg='Saved in this browser only. Connect the sheet (bottom of this page) to share drafts with the team.';drRender();return}
   DR.busy=true;DR.msg='Saving…';drRender();
   try{
-    const res=await fetch(cfg.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:cfg.token,action:'save',row:drToRow(d)})});
-    const j=await res.json();if(!j.ok)throw new Error(j.error||'rejected');
+    const j=await drSend(cfg,{token:cfg.token,action:'save',row:drToRow(d)});if(!j.ok)throw new Error(j.error||'rejected');
     const c=drClone(d),i=DR.list.findIndex(x=>x.id===c.id);if(i>=0)DR.list[i]=c;else DR.list.push(c);
     DR.local=DR.local.filter(x=>x.id!==c.id);store.set('tvt:drlocal',JSON.stringify(DR.local));store.set('tvt:drafts',JSON.stringify(DR.list));
     shAfterSave(d);DR.msg='Saved to the sheet.'}
@@ -4963,8 +4968,7 @@ async function drDelete(id){
   const cfg=drCfg(),isLocal=DR.local.some(x=>x.id===id)&&!DR.list.some(x=>x.id===id);
   if(!isLocal){
     if(!cfg.url){DR.msg='Connect the sheet to delete shared drafts.';DR.bad=true;drRender();return}
-    try{const res=await fetch(cfg.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:cfg.token,action:'delete',id})});
-      const j=await res.json();if(!j.ok)throw new Error(j.error||'rejected');DR.list=DR.list.filter(x=>x.id!==id);store.set('tvt:drafts',JSON.stringify(DR.list))}
+    try{const j=await drSend(cfg,{token:cfg.token,action:'delete',id});if(!j.ok)throw new Error(j.error||'rejected');DR.list=DR.list.filter(x=>x.id!==id);store.set('tvt:drafts',JSON.stringify(DR.list))}
     catch(e){DR.msg='Could not delete: '+(e&&e.message||e);DR.bad=true;DR.confirm=null;drRender();return}
   }
   DR.local=DR.local.filter(x=>x.id!==id);store.set('tvt:drlocal',JSON.stringify(DR.local));
@@ -6146,8 +6150,7 @@ async function ovrPump(){if(SOVR.busy)return;SOVR.busy=true;const cfg=drCfg();
   while(SOVR.q.length){const x=SOVR.q[0];
     try{const body=x.t?{token:cfg.token,action:'save',row:[OVR_ID+x.k,todayISO(),'(team choice)','','',x.t,'','','','','','','','','','','','','','','','','','','No borrar: equipo elegido en Data check > Ambiguous lineups',new Date().toISOString()]}
         :{token:cfg.token,action:'delete',id:OVR_ID+x.k};
-      const res=await fetch(cfg.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});
-      const j=await res.json();if(!j.ok)throw new Error(j.error||'rejected');
+      const j=await drSend(cfg,body);if(!j.ok)throw new Error(j.error||'rejected');
       SOVR.q.shift();SOVR.recent[x.k]={t:x.t,at:Date.now()};if(x.fromLocal){const L=ovrLocal();delete L[x.k];store.set(OVRK,JSON.stringify(L));if(x.t){SOVR.map[x.k]=x.t;store.set('tvt:sovr',JSON.stringify(SOVR.map))}}
       SOVR.msg=''}
     catch(e){const L=ovrLocal();for(const y of SOVR.q){if(y.t)L[y.k]=y.t}store.set(OVRK,JSON.stringify(L));SOVR.q=[];
@@ -6650,7 +6653,49 @@ function wbEvoHTML(){const P=wbHistory();if(!P||P.length<2)return '';
       <p><b>The line.</b> Every week the numbers are calculated again with only the sets up to that day, so you see how each team was rated at that moment. A team with few sets moves a lot from one week to the next.</p>
       <p><b>What it does not know.</b> Roster changes, the patch, who the teams choose to scrim against or how seriously they take a scrim.</p></div></details></section>`}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-wbev]');if(!b||!WB_EV)return;const t=b.dataset.wbev;if(WB_EV.has(t))WB_EV.delete(t);else WB_EV.add(t);renderWB()});
-function renderWB(){const el=$('wbview');if(!el)return;if(!FULL||!FULL.matches){el.innerHTML='<section class="panel"><p class="msg">Loading the data…</p></section>';return}
+
+// ===== Rating leaderboard (Worlds bracket): period of the page calendar, teams you choose, sortable columns
+const LB={teams:null,sort:'r',dir:-1};try{const x=JSON.parse(store.get('tvt:lb')||'null');if(x)Object.assign(LB,x)}catch(e){}
+const lbSave=()=>store.set('tvt:lb',JSON.stringify({teams:LB.teams,sort:LB.sort,dir:LB.dir}));
+function lbHTML(){const F=FULL;if(!F||!F.matches)return '';const DAY=864e5,rg=rangeOf(F),T=(LB.teams&&LB.teams.length?LB.teams:M.D.off).filter(t=>allTeams().includes(t));
+  const all=F.matches.filter(m=>!m.sh&&!m.s&&m.a&&m.b&&m.a!==m.b&&m.w!==m.l);
+  const W=all.filter(m=>m.d>=rg.from&&m.d<=rg.to),last=W.reduce((a,m)=>m.d>a?m.d:a,''),L=Date.parse(last||rg.to);
+  const rate=S=>{const G=S.map(m=>[m.a,m.b,m.w>m.l?1:0,Math.pow(.5,(L-Date.parse(m.d))/DAY/45)*(m.ty==='tournament'?2:1)]),TT=[...new Set(G.flatMap(g=>[g[0],g[1]]))],r={};TT.forEach(t=>r[t]=0);
+    for(let it=0;it<120;it++){const gr={},hs={};TT.forEach(t=>{gr[t]=-r[t]*.5;hs[t]=.5});for(const [a,b,y,w] of G){const p=1/(1+Math.exp(r[b]-r[a]));gr[a]+=w*(y-p);gr[b]-=w*(y-p);hs[a]+=w*p*(1-p);hs[b]+=w*p*(1-p)}TT.forEach(t=>r[t]+=gr[t]/hs[t])}
+    const ref=T.filter(t=>r[t]!=null),mo=ref.length?ref.reduce((a,t)=>a+r[t],0)/ref.length:0,o={};for(const t of TT)o[t]=Math.round(1500+173.7*(r[t]-mo));return o};
+  const R=rate(W),R0=last?rate(W.filter(m=>m.d<last)):R;
+  const rows=T.map(t=>{const S=W.filter(m=>m.a===t||m.b===t),g={};for(const m of S){const op=m.a===t?m.b:m.a,k=m.d+'|'+op,e=g[k]||(g[k]={d:m.d,t:m.t,w:0,l:0,ty:m.ty});const y=m.a===t?m.y:1-m.y;if(y===1)e.w++;else if(y===0)e.l++;if(m.ty==='tournament')e.ty='tournament';if(m.t<e.t)e.t=m.t}
+    const Mt=Object.values(g).sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:a.t-b.t),res=e=>e.w>e.l?'W':e.w<e.l?'L':'D',form=Mt.slice(-5).map(res);let st=0,sr='';for(let i=Mt.length-1;i>=0;i--){const q=res(Mt[i]);if(!sr)sr=q;if(q===sr&&q!=='D')st++;else break}
+    const sw=S.reduce((a,m)=>a+(m.a===t?m.y:1-m.y),0),fs=form.reduce((a,q)=>a+(q==='W'?1:q==='D'?.5:0),0);
+    return {t,r:R[t]!=null?R[t]:null,d:R[t]!=null&&R0[t]!=null?R[t]-R0[t]:0,scr:Mt.filter(e=>e.ty!=='tournament').length,tou:Mt.filter(e=>e.ty==='tournament').length,sets:S.length,wr:S.length?sw/S.length:0,form,fs,st:st>=3?st+sr:''}});
+  const key={r:x=>x.r==null?-1e9:x.r,d:x=>x.d,scr:x=>x.scr,tou:x=>x.tou,sets:x=>x.sets,wr:x=>x.sets?x.wr:-1,form:x=>x.fs,t:x=>x.t}[LB.sort]||(x=>x.r);
+  rows.sort((a,b)=>{const A=key(a),B=key(b);return (typeof A==='string'?A.localeCompare(B):A-B)*LB.dir||((b.r||0)-(a.r||0))});
+  const byR=rows.slice().sort((a,b)=>(b.r==null?-1e9:b.r)-(a.r==null?-1e9:a.r)),pos=t=>byR.findIndex(x=>x.t===t)+1;
+  const mxS=Math.max(1,...rows.map(x=>x.scr)),mxT=Math.max(1,...rows.map(x=>x.tou)),col=p=>p>=.6?'#4ade80':p>=.53?'#86efac':p>.47?'#facc15':p>.4?'#fca5a5':'#f87171';
+  const th=(k,l,c)=>`<th class="${c||''}${LB.sort===k?' on':''}" data-lbs="${k}" title="Sort by ${l}">${l}${LB.sort===k?(LB.dir<0?' ▾':' ▴'):''}</th>`;
+  const LIST=[...new Set([...M.D.off,...allTeams()])].filter(t=>W.some(m=>m.a===t||m.b===t)||M.D.off.includes(t)).sort((a,b)=>(M.D.off.includes(b)-M.D.off.includes(a))||a.localeCompare(b));
+  const isW=!(LB.teams&&LB.teams.length),q=String(LB.q||'').toUpperCase();
+  const chips=`<div class="lb-ctl"><div class="u-dd${LB.open?' open':''}"><button type="button" class="u-ddb" data-lbdd><span class="u-lul">Teams</span><b>${isW?'Worlds teams ('+T.length+')':T.length+' teams'}</b><i>▾</i></button>
+    ${LB.open?`<div class="u-ddp lb-ddp"><div class="u-ddh"><span class="u-lubs"><button type="button" data-lbw class="${isW?'on':''}">Worlds teams</button><button type="button" data-lbnone>None</button></span><input class="dr-input" id="lbQ" placeholder="Search a team…" value="${esc(LB.q||'')}" autocomplete="off" style="flex:1;min-width:140px;padding:6px 10px"></div>
+      <div class="lb-grid">${LIST.filter(t=>!q||t.toUpperCase().includes(q)).map(t=>`<button type="button" class="lb-op${T.includes(t)?' on':''}" data-lbt="${esc(t)}">${logo(t,'l20')}<span>${esc(t)}</span>${M.D.off.includes(t)?'':'<small>other</small>'}</button>`).join('')}</div></div>`:''}</div>
+    <span class="lb-logos">${T.slice().sort((a,b)=>a.localeCompare(b)).map(t=>`<span title="${esc(t)}">${logo(t,'l20')}</span>`).join('')}</span></div>`;
+  return `<section class="u-panel lb"><header><span class="u-hd">Rating leaderboard</span><small>${fmtDate(rg.from)} – ${fmtDate(rg.to)} (calendar of the page) · tournament sets count double · click a column to sort</small></header>${chips}
+   <div class="lb-wrap"><table class="lb-t"><thead><tr><th>#</th>${th('t','Team','l')}${th('r','Rating')}${th('d','Day')}${th('scr','Scrims')}${th('tou','Tourn.')}${th('sets','Sets')}${th('wr','Win %')}${th('form','Form')}</tr></thead><tbody>
+   ${rows.map(x=>`<tr><td class="lb-rk">${x.r==null?'–':pos(x.t)}</td><td class="l"><span class="lb-tm">${logo(x.t,'lb-lg')}<b>${esc(x.t)}</b>${x.st?`<em class="lb-st ${x.st.slice(-1)==='W'?'w':'l'}">${x.st}</em>`:''}<small>${esc(REGION[x.t]||'')}</small></span></td>
+    <td class="lb-r">${x.r==null?'–':x.r}</td><td class="lb-d ${x.d>0?'up':x.d<0?'dn':''}">${x.d>0?'▲ '+x.d:x.d<0?'▼ '+(-x.d):'='}</td>
+    <td><div class="lb-bar"><b>${x.scr}</b><span><i style="width:${Math.round(100*x.scr/mxS)}%"></i></span></div></td><td><div class="lb-bar t"><b>${x.tou||'–'}</b><span><i style="width:${Math.round(100*x.tou/mxT)}%"></i></span></div></td>
+    <td class="lb-n">${x.sets}</td><td>${x.sets?`<b class="lb-wr" style="color:${col(x.wr)}">${Math.round(100*x.wr)}%</b>`:'–'}</td><td><span class="lb-f">${x.form.map(q=>`<i class="${q.toLowerCase()}">${q}</i>`).join('')}</span></td></tr>`).join('')}</tbody></table></div>
+   <p class="foot" style="padding:0 16px 14px;margin:0">Rating = strength from every set of the period (who you beat counts, recent sets weigh more, tournament ×2), on a scale where 1500 is the average of the teams in the table. # = position by rating. Day = change after the last day of the period. Scrims / Tourn. = matches (all sets vs the same rival on the same day). Form = last 5 matches, newest on the right; 3+ wins or losses in a row are marked next to the name.</p></section>`}
+function lbMount(){const el=$('wbview');if(!el||el.hidden&&view!=='worlds')return;let b=document.getElementById('lbx');if(!b){b=document.createElement('div');b.id='lbx'}if(b.parentNode!==el||el.firstChild!==b)el.insertBefore(b,el.firstChild);try{b.innerHTML=lbHTML()}catch(e){b.innerHTML='<p class="msg">Leaderboard: '+esc(e.message)+'</p>'}}
+document.addEventListener('click',e=>{const t=e.target;if(!t.closest)return;
+  const h=t.closest('[data-lbs]');if(h){const k=h.dataset.lbs;if(LB.sort===k)LB.dir=-LB.dir;else{LB.sort=k;LB.dir=k==='t'?1:-1}lbSave();lbMount();return}
+  if(t.closest('[data-lbdd]')){LB.open=!LB.open;lbMount();if(LB.open)setTimeout(()=>{const i=document.getElementById('lbQ');if(i)i.focus()},0);return}
+  const x=t.closest('[data-lbt]');if(x){const cur=(LB.teams&&LB.teams.length?LB.teams:M.D.off).slice(),k=cur.indexOf(x.dataset.lbt);if(k>=0)cur.splice(k,1);else cur.push(x.dataset.lbt);LB.teams=cur.length?cur:['__none'];lbSave();lbMount();return}
+  if(t.closest('[data-lbw]')){LB.teams=null;lbSave();lbMount();return}
+  if(t.closest('[data-lbnone]')){LB.teams=['__none'];lbSave();lbMount();return}
+  if(LB.open&&!t.closest('.lb-ctl .u-dd')&&document.contains(t)){LB.open=false;lbMount()}});
+document.addEventListener('input',e=>{if(e.target.id!=='lbQ')return;LB.q=e.target.value;const q=LB.q.toUpperCase();document.querySelectorAll('.lb-op').forEach(b=>{b.style.display=!q||b.dataset.lbt.toUpperCase().includes(q)?'':'none'})});
+function renderWB(){setTimeout(lbMount,0);const el=$('wbview');if(!el)return;if(!FULL||!FULL.matches){el.innerHTML='<section class="panel"><p class="msg">Loading the data…</p></section>';return}
   const R=wbRatings(),key=_wbK+'|'+JSON.stringify(WB_RES);if(key!==_wbSK){_wbS=wbSim(R.r,WB_RES,5,7,20000);_wbSK=key}const S=_wbS,nres=Object.keys(WB_RES).length;
   el.innerHTML=`<section class="panel wb"><div class="wb-hero"><div><h2>WORLDS <span>2026</span> · Bracket prediction</h2><p>20 000 simulated tournaments with the strength of each team from the sets in the data (recent sets and tournaments weigh more; ${plural(R.n,'set')} between Worlds teams, last data ${fmtDate(R.last)}). Every match Bo5, the grand final Bo7. Click a team in any match to set the real result: everything after it updates.</p></div>
     <div class="wb-ctl"><label>Times</label><span class="wb-seg"><button type="button" data-wbtz="jst" aria-pressed="${WB_TZ==='jst'}">JST</button><button type="button" data-wbtz="es" aria-pressed="${WB_TZ==='es'}">Madrid</button></span><button type="button" class="wb-btn" data-wbclear="1"${nres?'':' disabled'}>↺ Clear results${nres?' ('+nres+')':''}</button></div></div>
@@ -6754,8 +6799,7 @@ async function rpLoad(force){if(RP.st===1||(RP.st===2&&!force&&Date.now()-(RP.at
 function rpNote(team,sec){const k=team+'|'+sec,l=RP_LOCAL[k],s=RP.sheet[k];if(l&&!l.synced)return {text:l.text,pending:true};return {text:s?s.text:(l?l.text:''),pending:false}}
 async function rpSave(team,sec,text){const k=team+'|'+sec;RP_LOCAL[k]={text,t:Date.now(),synced:false};rpLocalSave();RP.msg[sec]='Saving…';rpPaintMsg(sec);
   const cfg=drCfg();if(!cfg.url){RP.msg[sec]='Saved in this browser only (the sheet is not connected).';rpPaintMsg(sec);return}
-  try{const res=await fetch(cfg.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:cfg.token,action:'note',team,section:sec,text})});
-    const j=await res.json();if(!j.ok)throw new Error(j.error==='unknown action'?'the sheet code is not updated yet (paste the new code and update the web app)':(j.error||'rejected'));
+  try{const j=await drSend(cfg,{token:cfg.token,action:'note',team,section:sec,text});if(!j.ok)throw new Error(j.error==='unknown action'?'the sheet code is not updated yet (paste the new code and update the web app)':(j.error||'rejected'));
     RP_LOCAL[k].synced=true;rpLocalSave();RP.sheet[k]={text,at:new Date().toISOString()};RP.msg[sec]='Saved to the sheet ✓'}
   catch(e){RP.msg[sec]='Saved in this browser only: '+(e&&e.message||e)}
   rpPaintMsg(sec)}
@@ -8303,4 +8347,29 @@ body{font-family:var(--body)!important;font-feature-settings:'tnum' 1,'cv11' 1}
 .mb1-res.w{background:rgba(74,222,128,.1);color:#4ade80}.mb1-res.l{background:rgba(248,113,113,.1);color:#f87171}.mb1-res.d{background:rgba(250,204,21,.1);color:#facc15}.mb1-res.sm{padding:5px 8px;font-size:10.5px;font-weight:800;letter-spacing:.08em}
 .mb1-op{display:flex;align-items:center;gap:10px;min-width:0}.mb1-op>span{min-width:0}.mb1-op b{display:block;color:#fff;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mb1-op small,.mb1-my small{display:block;font-size:11px;color:#8e8ab0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mb1-my{min-width:0;text-align:right}.mb1-my small:before{content:'with ';color:#6e6a85}.mb1-go{color:#6e6a85;font-size:20px}
-.mb1-sc{max-height:760px;overflow:auto;scrollbar-width:thin;scrollbar-color:#3b2a52 transparent}.mb1-op small .gt-p,.mb1-my small .gt-p{display:inline}.mb1-op small .gt-p+.gt-p:before,.mb1-my small .gt-p+.gt-p:before{content:' · ';color:#6e6a85;font-style:normal}</style>
+.mb1-sc{max-height:760px;overflow:auto;scrollbar-width:thin;scrollbar-color:#3b2a52 transparent}.mb1-op small .gt-p,.mb1-my small .gt-p{display:inline}.mb1-op small .gt-p+.gt-p:before,.mb1-my small .gt-p+.gt-p:before{content:' · ';color:#6e6a85;font-style:normal}</style><style id="mbrow">.mb1{display:grid!important;grid-auto-flow:column!important;grid-template-columns:none!important;grid-auto-columns:minmax(520px,560px)!important;overflow-x:auto;overflow-y:hidden;padding-bottom:10px;scrollbar-width:thin;scrollbar-color:#3b2a52 transparent;align-items:start}</style>
+<style id="mbt2">
+.mb1{display:flex!important;gap:14px;overflow-x:auto;padding-bottom:10px;align-items:flex-start;scrollbar-width:thin;scrollbar-color:#3b2a52 transparent}
+.mb1>.u-panel{flex:0 0 560px;max-width:560px}
+.mb1-r{grid-template-columns:76px 70px minmax(0,1fr) minmax(0,.8fr) 16px!important}
+.mb1-ty{display:inline-block;margin-top:4px;font-style:normal;font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;border-radius:5px;padding:1px 6px}
+.mb1-ty.t{background:#facc15;color:#000}.mb1-ty.f{background:#24222f;color:#9a97ad}
+.mb1-r.tour{box-shadow:inset 3px 0 0 #facc15}
+</style><style id="lb">.lb{margin-bottom:18px}.lb-t{width:100%;border-collapse:collapse}.lb-t th{font-size:10.5px;letter-spacing:.08em;color:#a78bfa;text-transform:uppercase;padding:12px 10px;border-bottom:1px solid #24222f;text-align:center;background:#15131d}.lb-t th.l,.lb-t td.l{text-align:left}
+.lb-t td{padding:0 10px;height:62px;border-bottom:1px solid #1b1a24;text-align:center;color:#e5e3f0}.lb-t tr:hover td{background:#17161f}
+.lb-rk{color:#6e6a85;font-weight:700;font-size:15px;width:40px}.lb-tm{display:flex;align-items:center;gap:12px}.lb-lg{width:34px!important;height:34px!important;object-fit:contain}.lb-tm b{font-size:16px;font-weight:800;color:#fff;letter-spacing:.02em}.lb-tm small{font-size:11px;color:#6e6a85;text-transform:uppercase;letter-spacing:.06em}
+.lb-st{font-style:normal;font-size:11px;font-weight:800;border-radius:6px;padding:2px 7px}.lb-st.w{background:rgba(74,222,128,.15);color:#4ade80}.lb-st.l{background:rgba(248,113,113,.15);color:#f87171}
+.lb-r{font-size:18px;font-weight:800;color:#fff}.lb-d{font-weight:700;font-size:13px;color:#6e6a85}.lb-d.up{color:#4ade80}.lb-d.dn{color:#f87171}
+.lb-bar{display:flex;flex-direction:column;align-items:center;gap:4px}.lb-bar b{font-size:17px;color:#fff}.lb-bar span{width:58px;height:4px;background:#24222f;border-radius:3px;overflow:hidden}.lb-bar i{display:block;height:100%;background:linear-gradient(90deg,#a855f7,#c4b5fd)}.lb-bar.t i{background:#facc15}.lb-bar.t b{color:#facc15}
+.lb-n{color:#9a97ad}.lb-wr{font-size:17px}
+.lb-f{display:inline-flex;gap:4px}.lb-f i{font-style:normal;width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800}.lb-f .w{background:rgba(74,222,128,.18);color:#4ade80}.lb-f .l{background:rgba(248,113,113,.18);color:#f87171}.lb-f .d{background:#24222f;color:#9a97ad}
+.lb-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:12px 16px;border-bottom:1px solid #24222f}
+.lb-chip{display:inline-flex;align-items:center;gap:6px;background:#0d0c12;border:1px solid #2a2838;border-radius:999px;color:#e5e3f0;font:600 12px inherit;padding:4px 10px;cursor:pointer}.lb-chip i{font-style:normal;color:#6e6a85;font-size:10px}.lb-chip:hover{border-color:#f87171}.lb-chip:hover i{color:#f87171}
+.lb-add{width:auto!important;padding:5px 10px!important;font-size:12px!important}
+.lb-wrap{overflow-x:auto}.lb-t th[data-lbs]{cursor:pointer;user-select:none}.lb-t th[data-lbs]:hover{color:#fff}.lb-t th.on{color:#fff}
+</style><style>.lb-ctl{position:relative;justify-content:space-between}.lb-ddp{width:min(620px,92vw)!important}.lb-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;max-height:340px;overflow:auto}
+.lb-op{display:flex;align-items:center;gap:8px;background:transparent;border:1px solid transparent;border-radius:10px;padding:7px 10px;color:#cfcce0;font:600 12.5px inherit;cursor:pointer;text-align:left;opacity:.55}
+.lb-op:before{content:'';width:16px;height:16px;border-radius:5px;border:1.5px solid #4a4660;flex:none;box-sizing:border-box}
+.lb-op.on{opacity:1;background:rgba(168,85,247,.10)}.lb-op.on:before{background:#a855f7 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.5l2.5 2.5L12 5.5' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E") center/12px no-repeat;border-color:#a855f7}
+.lb-op:hover{opacity:1;background:#1d1b27}.lb-op span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lb-op small{margin-left:auto;font-size:10px;color:#6e6a85}
+.lb-logos{display:flex;gap:6px;flex-wrap:wrap}.lb-logos img{width:24px!important;height:24px!important;object-fit:contain;opacity:.85}</style>
