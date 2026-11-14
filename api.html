@@ -1678,7 +1678,7 @@ function processRows(rows,db,opts){
     }
   }
   for(const m of matches){
-    if(newFmt){m.s=(m.n<2)?1:0;m.y=m.w>m.l?1:m.w<m.l?0:0.5;m.sc=m.w+'-'+m.l+(m.dr?'':'');delete m.n;delete m.last}
+    if(newFmt){m.s=(m.n<2)?1:0;m.y=m.w>m.l?1:m.w<m.l?0:0.5;m.sc=m.w+'-'+m.l+(m.dr?'':'');delete m.n;delete m.last;if(Math.max(m.w,m.l)<2){m.na=null;m.nb=null}}
   }
   matches.sort((x,y)=>x.d<y.d?-1:x.d>y.d?1:x.t-y.t||x.i-y.i);
   matches.forEach((m,k)=>{m.i=k});
@@ -1853,8 +1853,8 @@ function describe(ds,M){
 
 // ---------- descriptive analysis: picks, duos, rivals, matches by date ----------
 function orient(m,team){
-  if(m.a===team)return {sc:m.sc||'',dr:m.dr||0,win:m.y,mine:m.ba,theirs:m.bb,myTags:m.ta,opTags:m.tb,opLabel:m.b,myBans:m.na||null,opBans:m.nb||null};
-  if(m.b===team)return {sc:m.sc?m.sc.split('-').reverse().join('-'):'',dr:m.dr||0,win:m.y===0.5?0.5:1-m.y,mine:m.bb,theirs:m.ba,myTags:m.tb,opTags:m.ta,opLabel:m.a,myBans:m.nb||null,opBans:m.na||null};
+  if(m.a===team)return {sc:m.sc||'',dr:m.dr||0,win:m.y,mine:m.ba,theirs:m.bb,myTags:m.ta,opTags:m.tb,opLabel:m.b,myBans:Math.max(m.w||0,m.l||0)<2&&m.w!=null?null:m.na||null,opBans:Math.max(m.w||0,m.l||0)<2&&m.w!=null?null:m.nb||null};
+  if(m.b===team)return {sc:m.sc?m.sc.split('-').reverse().join('-'):'',dr:m.dr||0,win:m.y===0.5?0.5:1-m.y,mine:m.bb,theirs:m.ba,myTags:m.tb,opTags:m.ta,opLabel:m.a,myBans:Math.max(m.w||0,m.l||0)<2&&m.w!=null?null:m.nb||null,opBans:Math.max(m.w||0,m.l||0)<2&&m.w!=null?null:m.na||null};
   return null;
 }
 function teamStats(ds,team,maps,limit){
@@ -3142,7 +3142,9 @@ function setInfo(m){const d=setDraft(m);if(!d||drUnk(d))return {d,first:'',num:{
   const first=(d.coin==='blue')===blueA?'a':'b',num={};if(!d.po)d.picks.forEach((b,i)=>{if(b)num[mkey(b)]=i+1});
   return {d,first,num,po:!!d.po}}
 // bans of a set: from the API, or else from its saved draft (drafts saved before the API gave bans)
-function setBans(m){if((m.na||[]).some(Boolean)||(m.nb||[]).some(Boolean))return {a:m.na||[],b:m.nb||[],src:'api'};
+// sets nobody won (1-1, 1-0…): loose games without a draft, so no bans
+const noDraft=m=>!!m&&m.w!=null&&m.l!=null&&Math.max(m.w,m.l)<2;
+function setBans(m){if(noDraft(m))return {a:[],b:[],src:''};if((m.na||[]).some(Boolean)||(m.nb||[]).some(Boolean))return {a:m.na||[],b:m.nb||[],src:'api'};
   const d=setDraft(m);if(!d||!d.bans||!((d.bans.b||[]).some(Boolean)||(d.bans.r||[]).some(Boolean)))return {a:[],b:[],src:''};
   const p=drPos(d.coin),bl=brKey(p[0].map(n=>d.picks[n-1])),blueA=bl===brKey(m.ba)?true:bl===brKey(m.bb)?false:(d.blue===m.a);
   return {a:(blueA?d.bans.b:d.bans.r)||[],b:(blueA?d.bans.r:d.bans.b)||[],src:'draft'}}
@@ -3177,7 +3179,7 @@ async function setSave(m,first,order){const old=setDraft(m);
     if(!sameCoin){const picks=Array(6).fill('');sideBr(first).forEach((b,i)=>picks[firstN[i]-1]=b);sideBr(second).forEach((b,i)=>picks[secN[i]-1]=b);d.picks=picks;d.po='O'}}
   void pos;void oldNum;
   // bans from the API when the draft has none
-  const nb=(x,s)=>(s==='a'?m.na:m.nb)||[];
+  const nb=(x,s)=>noDraft(m)?[]:(s==='a'?m.na:m.nb)||[];
   if(!(d.bans.b||[]).some(Boolean)&&!(d.bans.r||[]).some(Boolean)&&(m.na||m.nb)){const ab=col('a')==='blue';d.bans={b:(ab?nb(m,'a'):nb(m,'b')).slice(0,3),r:(ab?nb(m,'b'):nb(m,'a')).slice(0,3)}}
   while(d.bans.b.length<3)d.bans.b.push('');while(d.bans.r.length<3)d.bans.r.push('');
   if(!old){d.blue=blueA?(m.a||''):(m.b||'');d.red=blueA?(m.b||''):(m.a||'')}
@@ -4928,7 +4930,7 @@ let _daK=null,_daV=[];
 function drApi(){if(typeof FULL==='undefined'||!FULL||!FULL.matches)return [];const man=DR.list.length+DR.local.length;
   const k=FULL.matches.length+'|'+man+'|'+(typeof DRV==='undefined'?0:DRV);if(_daK===k)return _daV;
   const saved=new Set(drAll().map(d=>[d.date,mkey(d.map||''),d.blue,d.red].join('|')));const out=[];
-  for(const m of FULL.matches){if(m.s||!m.na||!(m.na.some(Boolean)||(m.nb||[]).some(Boolean)))continue;
+  for(const m of FULL.matches){if(m.s||noDraft(m)||!m.na||!(m.na.some(Boolean)||(m.nb||[]).some(Boolean)))continue;
     const A=m.a||'',B=m.b||'';if(setDraft(m))continue;
     out.push({id:'api:'+m.d+':'+m.i,api:1,su:1,kind:m.ty==='tournament'?'api':'',date:m.d,mode:modeOfMap(m.m),map:m.m,coin:'',blue:A,red:B,
       bans:{b:m.na.slice(),r:(m.nb||[]).slice()},picks:Array(6).fill(''),gb:{b:[],r:[]},winner:m.y===1?'blue':m.y===0?'red':'',notes:'',saved:''})}
