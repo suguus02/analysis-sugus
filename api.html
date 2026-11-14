@@ -2999,7 +2999,7 @@ function statMapsHTML(){
       return `<button type="button" class="mpk pr${on?' on':''}${any&&!on?' dim':''}" data-sm="${esc(m)}" aria-pressed="${on}" style="background-image:url('${bg}')" title="${esc(m)} · ${TL.map((T,ti)=>T[0]+' '+(MWs[ti][m]?pc(MWs[ti][m])+' ['+MWs[ti][m].n+']':'no sets')).join(' · ')}"><span class="mc-sh"></span><span class="mc-in"><span class="mc-n">${ic}<b>${esc(m)}</b><small>${tot?plural(tot,'set'):'no sets'}</small></span>${rows}</span></button>`}
     const e=MW[m],tc=topComp(0,m);
     const comp=tc&&tc.length?`<div class="mc-cp">${cps(0,m)}</div>`:'<div class="mc-cp"><span class="msg">no sets</span></div>';
-    return `<button type="button" class="mpk${on?' on':''}${any&&!on?' dim':''}" data-sm="${esc(m)}" aria-pressed="${on}" style="background-image:url('${bg}')" title="${esc(m)}${e?' · win rate '+pc(e)+' ['+e.n+' sets]':''}"><span class="mc-sh"></span><span class="mc-in"><span class="mc-n">${ic}<b>${esc(m)}</b></span><span class="mc-row"><span class="mc-w ${e?cls(e.w/e.n):'pc-n'}">${e?(Math.round(1000*e.w/e.n)/10).toFixed(1).replace('.',',')+'%':'–'}</span><small>${e?plural(e.n,'set'):'no sets'}</small></span>${comp}</span></button>`};
+    return `<button type="button" class="mpk${on?' on':''}${any&&!on?' dim':''}" data-sm="${esc(m)}" aria-pressed="${on}" style="background-image:url('${bg}')" title="${esc(m)}${e?' · win rate '+pc(e)+' ['+e.n+' sets]':''}"><span class="mc-sh"></span><span class="mc-in"><span class="mc-n">${ic}<b>${esc(m)}</b></span><span class="mc-row"><span class="mc-w ${e?cls(e.w/e.n):'pc-n'}">${e?(Math.round(1000*e.w/e.n)/10).toFixed(1).replace('.',',')+'%':'–'}</span><small>${e?plural(e.n,'set'):'no sets'}</small></span>${comp}</span><em class="mc-nb" title="${e?plural(e.n,'set'):'no sets'}">${e?e.n:0}</em></button>`};
   const grp=modes.map(({mode,ms,aggs})=>{
     const ic=IMGS['mode'+mkey(mode)]?`<img class="mico" src="${IMGS['mode'+mkey(mode)]}" alt="">`:'';
     const whole=ms.every(m=>statMaps.includes(m));
@@ -8466,4 +8466,8 @@ body{font-family:var(--body)!important;font-feature-settings:'tnum' 1,'cv11' 1}
 .cas-ht{flex-wrap:wrap;row-gap:4px}
 .cas-ht .cas-hn{flex:1 1 auto;min-width:90px}
 .cas-ht .cas-hw{flex:0 0 auto}
+
+/* rev134: number of sets as a small label on the map picture (side panel mosaic) */
+.mpk .mc-nb{display:none}
+@media (min-width:1200px){html body .sbar .mcol .mpk.mpk .mc-nb{display:block;position:absolute;top:4px;right:4px;z-index:2;font-style:normal;font-size:10px;font-weight:800;color:#fff;background:rgba(10,9,16,.82);border:1px solid #3b2a5a;border-radius:6px;padding:1px 5px;line-height:1.3;pointer-events:none}}
 </style>
