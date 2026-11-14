@@ -2566,9 +2566,14 @@ const CKX={};
 function ddBuild(team,cls,key,pool){
   const F=FK(key),flt=F.flt,tfs=F.tfs;
   let items;
-  if(pool){const pt=(poolTeams||(poolTeams=visTeams())).filter(x=>M.D.off.includes(x));items=[];for(const t of pt)for(const x of Engine.setList(ds,DB,t,mapsFilter()))items.push(Object.assign({team:t},x));
-    // a set between two selected teams must be there from both sides (so it counts once as a win and once as a loss); drop the ones seen from one side only and a team against itself
-    const PT=new Set(pt),K=new Set(items.map(x=>x.team+'|'+x.i));items=items.filter(x=>!PT.has(x.opTeam)||(x.opTeam!==x.team&&K.has(x.opTeam+'|'+x.i)))}else items=Engine.setList(ds,DB,team,mapsFilter());
+  if(pool){const pt=(poolTeams||(poolTeams=visTeams())).filter(x=>M.D.off.includes(x));items=[];const raw=Engine.setListRaw||Engine.setList;for(const t of pt)for(const x of raw(ds,DB,t,mapsFilter()))items.push(Object.assign({team:t},x));
+    // a set between two selected teams must be there from both sides (so it counts once as a win and once as a loss):
+    // if both teams have the set, each one is the other's rival (even if a sub made the rival's name come out different); a set only one of them has, while its rival is a selected team, is left out; a team against itself too
+    const PT=new Set(pt),G={};items.forEach(x=>(G[x.i]=G[x.i]||[]).push(x));const keep=[];
+    for(const k in G){const L=G[k],T=[...new Set(L.map(x=>x.team))];
+      if(T.length===2&&L.length===2){const [p,q]=L;p.opTeam=q.team;q.opTeam=p.team;p.opp=q.team;q.opp=p.team;p.named=q.named=true;keep.push(p,q)}
+      else if(T.length===1&&L.length===1){const x=L[0];if(x.opTeam!==x.team&&!PT.has(x.opTeam))keep.push(x)}}
+    items=keep.sort((a,b)=>a.i-b.i);if(rivOn()){const S=rivSet();items=items.filter(x=>x.opTeam&&S.has(x.opTeam))}}else items=Engine.setList(ds,DB,team,mapsFilter());
   let LU=null;if(!pool){LU=luApply(team,items,key,!!key);items=LU.items}else{LU=luApplyPool(items);items=LU.items}
   TLIST=[...new Set([...TYPE_ORDER,...Object.values(BTYPE),'OTHER'])];
   const items0=items,base=Engine.applyFilter(items0.filter(x=>!x.s),flt.own,flt.enemy);
@@ -2938,15 +2943,25 @@ function nxPressure(T,per){const R=T.map(t=>{const it=per[t].map(x=>({win:x.win,
   R.sort((a,b)=>(b.n?b.w/b.n:0)-(a.n?a.w/a.n:0));
   return `<table class="pr-t"><thead><tr><th></th><th class="l">Team</th><th>Comebacks<small>won after losing game 1</small></th><th>Closing out<small>won after winning game 1</small></th><th>Deciders<small>sets that went to game 3</small></th></tr></thead><tbody>${R.map((r,i)=>`<tr><td class="rk">${i+1}</td><td class="l"><span class="pr-tm">${logo(r.t,'l20')}<b>${esc(r.t)}</b></span></td><td>${bar(r.w,r.n)}</td><td>${bar(r.cw,r.cn)}</td><td>${bar(r.dw,r.dn)}</td></tr>`).join('')}</tbody></table>`}
 // ===== Tier List: brawler vs brawler on a map
-function nxMatchups(SRC,sel,map){const S=(SRC||[]).filter(m=>!m.s&&(m.y===1||m.y===0)&&(!map||m.m===map)&&(sel.has(m.a)||sel.has(m.b)));
-  const pk={};S.forEach(m=>[...(m.ba||[]),...(m.bb||[])].filter(Boolean).forEach(b=>pk[b]=(pk[b]||0)+1));
-  const top=Object.entries(pk).sort((a,b)=>b[1]-a[1]).slice(0,12).map(x=>x[0]);const C={};
-  const add=(A,B,y)=>(A||[]).forEach(a=>{if(!top.includes(a))return;(B||[]).forEach(b=>{if(!top.includes(b)||a===b)return;const k=a+'|'+b,e=C[k]||(C[k]={n:0,w:0});e.n++;e.w+=y})});
-  S.forEach(m=>{add(m.ba,m.bb,m.y);add(m.bb,m.ba,1-m.y)});
+function nxMatchups(SRC,sel,map){
+  // the sets of the chosen teams (each set seen from the chosen team's side, like "Our brawlers" in Comps)
+  const D2=Object.assign({},ds,{matches:SRC||[]}),items=[];
+  for(const t of sel)for(const x of Engine.setList(D2,DB,t,map?[map]:null))if(!x.s&&(x.win===1||x.win===0))items.push(Object.assign(x,{team:t}));
+  window.NXMU={items,map};
+  const pk={};items.forEach(x=>(x.mine||[]).filter(Boolean).forEach(b=>pk[b]=(pk[b]||0)+1));
+  const top=Object.entries(pk).sort((a,b)=>b[1]-a[1]).slice(0,20).map(x=>x[0]);const C={};
+  items.forEach(x=>(x.mine||[]).forEach(a=>{if(!top.includes(a))return;new Set(x.theirs||[]).forEach(b=>{if(!top.includes(b))return;const k=a+'|'+b,e=C[k]||(C[k]={n:0,w:0});e.n++;e.w+=x.win})}));
   const bg=v=>v==null?'#16151f':v>=.6?'rgba(74,222,128,.42)':v>=.53?'rgba(74,222,128,.2)':v>.47?'rgba(250,204,21,.16)':v>.4?'rgba(248,113,113,.22)':'rgba(248,113,113,.42)';
   if(!top.length)return '<p class="msg">No sets for this map and these teams.</p>';
-  return `<div class="mu-w"><table class="mu"><tr><th class="mu-c">${map?mimg(map,'mu-mi'):'<small>All maps</small>'}</th>${top.map(b=>`<th title="${esc(b)}">${bimg(b,'mu-bi')}</th>`).join('')}</tr>${top.map(a=>`<tr><th title="${esc(a)}">${bimg(a,'mu-bi')}</th>${top.map(b=>{if(a===b)return '<td class="sl"></td>';const e=C[a+'|'+b],v=e&&e.n>=4?e.w/e.n:null;return `<td style="--bg:${bg(v)}" title="${esc(a)} vs ${esc(b)}: ${e?e.w+' won of '+e.n:'no'} sets">${v==null?'<small>·</small>':Math.round(v*100)+`<small>${e.n}</small>`}</td>`}).join('')}</tr>`).join('')}</table></div>
-  <p class="msg" style="font-size:11.5px;margin-top:8px">Row = your brawler, column = the rival's brawler · % of sets won when both were on the field · small number = sets · empty = fewer than 4 sets · ${S.length} sets of the chosen teams${map?' on '+esc(map):' on all maps'}.</p>`}
+  return `<div class="mu-w"><table class="mu"><tr><th class="mu-c">${map?mimg(map,'mu-mi'):'<small>All maps</small>'}</th>${top.map(b=>`<th title="${esc(b)}">${bimg(b,'mu-bi')}</th>`).join('')}</tr>${top.map(a=>`<tr><th title="${esc(a)}">${bimg(a,'mu-bi')}</th>${top.map(b=>{if(a===b)return '<td class="sl"></td>';const e=C[a+'|'+b],v=e&&e.n>=4?e.w/e.n:null;if(!e)return '<td><small>·</small></td>';return `<td class="mu-k" style="--bg:${bg(v)}" data-mu="${esc(a+'|'+b)}" title="${esc(a)} vs ${esc(b)}: ${e.w} won of ${e.n} sets · click to see them">${v==null?`<em>${e.w}/${e.n}</em><small>sets won</small>`:`<span>WR</span>${Math.round(v*100)}%<small>${e.n} sets</small>`}</td>`}).join('')}</tr>`).join('')}</table></div>
+  <p class="msg" style="font-size:11.5px;margin-top:8px">Row = brawler of the chosen teams, column = brawler of their rival · WR = % of sets won by the chosen team · below = sets played · grey cells (fewer than 4 sets) show sets won / sets played, e.g. 1/2 · top 20 brawlers of the map · <b style="color:#c4b5fd">click a cell to see the exact sets</b> · ${items.length} sets of the chosen teams${map?' on '+esc(map):' on all maps'} (same sets as "Our brawlers" / "Their brawlers" in Comps, with the teams and dates chosen here).</p>`}
+document.addEventListener('click',e=>{const c=e.target.closest&&e.target.closest('[data-mu]');if(c&&window.NXMU){const [a,b]=c.dataset.mu.split('|');
+    const L=window.NXMU.items.filter(x=>(x.mine||[]).includes(a)&&(x.theirs||[]).includes(b)).sort((p,q)=>p.d<q.d?1:p.d>q.d?-1:q.i-p.i);const w=L.filter(x=>x.win===1).length;
+    const ov=document.createElement('div');ov.className='mu-ov';ov.innerHTML=`<div class="mu-box"><header>${bimg(a,'mu-bi')}<b>${esc(nx.tc(a))}</b><span>vs</span>${bimg(b,'mu-bi')}<b>${esc(nx.tc(b))}</b><small>${window.NXMU.map?esc(window.NXMU.map)+' · ':''}${w} won of ${L.length} sets</small><button type="button" class="mu-x">✕</button></header>${compRows(L,'')}</div>`;
+    document.body.appendChild(ov);return}
+  const o=e.target.closest&&e.target.closest('.mu-ov');if(o&&(e.target===o||e.target.closest('.mu-x'))){o.remove();return}
+  if(o&&e.target.closest('[data-slk]'))o.remove()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){const o=document.querySelector('.mu-ov');if(o)o.remove()}});
 
 // ===== win rate by day (Overview); click a day = Match Selector on that day with that team
 function dwChart(items,team,small){const its=(items||[]).filter(x=>!x.s&&x.win!==.5),D={};for(const x of its){const e=D[x.d]||(D[x.d]={d:x.d,n:0,w:0});e.n++;if(x.win===1)e.w++}
@@ -2979,7 +2994,7 @@ document.addEventListener('click',e=>{const t=e.target;if(!t.closest)return;cons
   const o=t.closest('[data-rivt]');if(o){const x=o.dataset.rivt,i=RIV.L.indexOf(x);if(i>=0)RIV.L.splice(i,1);else RIV.L.push(x);RIV.m=RIV.L.length?'pick':'all';rivSave();renderDetail();return}
   if(t.closest('[data-rivdone]')){RIV.open=false;renderDetail()}});
 document.addEventListener('input',e=>{if(e.target.id!=='rivQ')return;const q=e.target.value.toUpperCase();document.querySelectorAll('.riv-l .lb-op').forEach(b=>{b.style.display=!q||b.dataset.rivt.toUpperCase().includes(q)?'':'none'})});
-(function(){const f=Engine.setList;Engine.setList=function(){const r=f.apply(this,arguments);if(!rivOn())return r;const S=rivSet();return r.filter(x=>x.opTeam&&S.has(x.opTeam))}})();
+(function(){const f=Engine.setList;Engine.setListRaw=f;Engine.setList=function(){const r=f.apply(this,arguments);if(!rivOn())return r;const S=rivSet();return r.filter(x=>x.opTeam&&S.has(x.opTeam))}})();
 const resSeg=()=>`<div class="seg2\" role="group" aria-label="Result">${[['all','All results'],['win','Wins only'],['loss','Losses only']].map(([v,l])=>`<button type="button" data-cres="${v}" aria-pressed="${comboRes===v}">${l}</button>`).join('')}</div>`;
 // compare 2 teams: both teams side by side, each with its own filters
 function pairDeep(){
@@ -8577,4 +8592,19 @@ body{font-family:var(--body)!important;font-feature-settings:'tnum' 1,'cv11' 1}
 #detail .mu td,.mu td{background:var(--bg,#16151f)!important;width:54px;height:46px;text-align:center;font-weight:800;font-size:15px;border-radius:7px;color:#fff;border:0!important}.mu td small{display:block;font-size:9.5px;color:#cfcbe6;font-weight:600}#detail .mu td.sl,.mu td.sl{background:#0b0a10!important}
 .mu-bi{width:38px;height:38px;border-radius:8px}.mu-mi{width:52px;height:38px;object-fit:cover;border-radius:7px}
 @media (max-width:1300px){.fp{grid-template-columns:28px 1fr 1fr 1fr;row-gap:10px}.fp-n{grid-column:2/-1}}
+
+/* rev136: matchups count from the chosen teams' side; click a cell = the exact sets */
+.mu td.mu-k{cursor:pointer}.mu td.mu-k:hover{outline:2px solid #a855f7}
+.mu-ov{position:fixed;inset:0;z-index:99990;background:rgba(5,4,10,.78);display:flex;align-items:flex-start;justify-content:center;padding:40px 24px;overflow:auto}
+.mu-box b{color:#fff}.mu-box .u-copp b{color:#e5e3f0}.mu-box{color:#e5e3f0;width:min(1300px,100%);background:#121118;border:1px solid #3b2a5a;border-radius:18px;box-shadow:0 20px 60px #000;overflow:hidden}
+.mu-box>header{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid #24222f}.mu-box>header b{font-size:17px}.mu-box>header span{color:#6e6a85;font-weight:700}.mu-box>header small{color:#9a97ad;margin-left:10px}
+.mu-x{margin-left:auto;background:none;border:0;color:#9a97ad;font-size:20px;cursor:pointer}.mu-x:hover{color:#fff}
+
+/* rev137: matchups cells: WR % big, sets below, top 20 */
+#detail .mu td,.mu td{width:60px;min-width:60px;max-width:60px;height:58px;font-size:15px;line-height:1.1}
+.mu td span{display:block;font-size:8.5px;letter-spacing:.08em;color:#cfcbe6;font-weight:700;opacity:.8}
+.mu td em{display:block;font-style:normal;font-size:12px;color:#cfcbe6}
+.mu td small{font-size:9px!important;margin-top:2px}
+.mu th{width:52px}.mu-bi{width:36px;height:36px}
+.mu-w{max-width:100%;overflow-x:auto}.mu tr>th:first-child{position:sticky;left:0;background:#121118!important;z-index:1}
 </style>
