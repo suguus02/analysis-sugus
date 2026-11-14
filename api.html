@@ -2038,7 +2038,7 @@ const mkey=s=>String(s).toLowerCase().replace(/[^a-z0-9]/g,'');
   if(!own||!repo)return;
   const KEY='tvt:ownimg3:'+repo,EXT=/\.(png|jpe?g|webp|gif|svg)$/i;
   const apply=L=>{if(!L)return;let n=0;
-    const nm=f=>mkey(f.split('/').pop().replace(EXT,'')),url=f=>f.split('/').map(encodeURIComponent).join('/');
+    const nm=f=>mkey(f.split('/').pop().replace(EXT,'')),url=f=>f.split('/').map(x=>encodeURIComponent(x).replace(/'/g,'%27').replace(/\(/g,'%28').replace(/\)/g,'%29')).join('/');
     for(const f of L.logos||[]){IMGS[nm(f)]=url(f);n++}
     for(const f of L.brawlers||[]){IMGS['br'+nm(f)]=url(f);n++}
     for(const f of L.maps||[]){const k=nm(f);IMGS[k]=url(f);IMGS['bg'+k]=url(f);n++}
@@ -2564,7 +2564,9 @@ const CKX={};
 function ddBuild(team,cls,key,pool){
   const F=FK(key),flt=F.flt,tfs=F.tfs;
   let items;
-  if(pool){const pt=(poolTeams||(poolTeams=visTeams())).filter(x=>M.D.off.includes(x));items=[];for(const t of pt)for(const x of Engine.setList(ds,DB,t,mapsFilter()))items.push(Object.assign({team:t},x))}else items=Engine.setList(ds,DB,team,mapsFilter());
+  if(pool){const pt=(poolTeams||(poolTeams=visTeams())).filter(x=>M.D.off.includes(x));items=[];for(const t of pt)for(const x of Engine.setList(ds,DB,t,mapsFilter()))items.push(Object.assign({team:t},x));
+    // a set between two selected teams must be there from both sides (so it counts once as a win and once as a loss); drop the ones seen from one side only and a team against itself
+    const PT=new Set(pt),K=new Set(items.map(x=>x.team+'|'+x.i));items=items.filter(x=>!PT.has(x.opTeam)||(x.opTeam!==x.team&&K.has(x.opTeam+'|'+x.i)))}else items=Engine.setList(ds,DB,team,mapsFilter());
   let LU=null;if(!pool){LU=luApply(team,items,key,!!key);items=LU.items}else{LU=luApplyPool(items);items=LU.items}
   TLIST=[...new Set([...TYPE_ORDER,...Object.values(BTYPE),'OTHER'])];
   const items0=items,base=Engine.applyFilter(items0.filter(x=>!x.s),flt.own,flt.enemy);
@@ -6300,6 +6302,19 @@ function chkBadge(){
   try{const R=chkRun();const b=document.querySelector('.mnav[data-view="check"] span');if(!b||!R)return;
     b.innerHTML='Data check'+(R.n?` <i class="chkb ${R.bad.length?'bad':'warn'}">${R.n}</i>`:' <i class="chkb ok">✓</i>')}catch(e){}
 }
+
+// sets between two Worlds teams that only one of them gets (or a team against itself): usually a sub or a tag missing in Picks
+function oneSideHTML(){if(!ds)return '';const off=M.D.off,L={},MI={};for(const m of ds.matches)MI[m.i]=m;
+  for(const t of off)L[t]=Engine.setList(ds,DB,t,null).filter(x=>!x.s);
+  const has=(t,i)=>(L[t]||[]).some(y=>y.i===i),out=[];
+  for(const t of off)for(const x of L[t]){const o=x.opTeam;if(!o||!off.includes(o))continue;
+    if(o===t)out.push({x,t,why:'both sides are '+t+' (a team against itself)'});else if(!has(o,x.i))out.push({x,t,why:o+' is the rival here, but this set is not counted as a set of '+o})}
+  const seen=new Set(),U=out.filter(r=>{const k=r.x.i+'|'+r.t;if(seen.has(k))return false;seen.add(k);return true}).sort((a,b)=>a.x.d<b.x.d?1:a.x.d>b.x.d?-1:0);
+  if(!U.length)return '<p class="msg">None in this period: every set between two Worlds teams counts for both.</p>';
+  const nm=(n,g)=>esc(sheetName(g,n)||n||g||'');
+  const pl=(N,T)=>[0,1,2].map(k=>`<span class="os-p">${nm((N||[])[k],(T||[])[k])}<small>${esc((T||[])[k]||'')}</small></span>`).join('');
+  return `<p class="msg" style="margin:0 0 8px">${plural(U.length,'set')} in the period. Usually one of the rival's players is a sub or has a tag that is not under that team in Picks: add the tag to the team (or mark the player as a sub) and the set will count for both teams.</p>
+   <div class="tablewrap"><table class="rank tiny chk-t"><thead><tr><th>Date</th><th>Counted for</th><th>Its players</th><th>Rival players</th><th>Score</th><th>Why</th></tr></thead><tbody>${U.slice(0,60).map(({x,t,why})=>{const m=MI[x.i]||{};return `<tr><td>${fmtDate(x.d)}${m.t?'<br><small>'+mxHM(m.t)+'</small>':''}</td><td>${logo(t,'l20')} ${esc(t)}</td><td>${pl(x.myNames,x.myTags)}</td><td>${pl(x.opNames,x.opTags)}</td><td>${esc(x.sc||'')}</td><td class="os-w">${esc(why)}</td></tr>`}).join('')}</tbody></table></div>${U.length>60?'<p class="msg">Showing the newest 60.</p>':''}`}
 function checkHTML(){
   const R=chkRun();
   if(!R)return '<section class="panel"><p class="msg">The data is still loading.</p></section>';
@@ -6321,6 +6336,7 @@ function checkHTML(){
     <h3 class="sec-h">Unknown maps (last 45 days)</h3>${list(R.maps,'No unknown maps.')}
     <h3 class="sec-h">Brawlers without a type</h3>${list(R.brs,'Every brawler has a type.')}
     <h3 class="sec-h">Ambiguous lineups</h3>${ambHTML(R)}
+    <h3 class="sec-h">Sets counted for only one team</h3>${oneSideHTML()}
     <h3 class="sec-h">Tags in more than one team</h3>${R.conf.length?`<div class="chk-chips">${R.conf.map(([g,t])=>`<span class="chk-chip">${esc(g)} <small>${esc(t.join(' / '))}</small></span>`).join('')}</div>`:'<p class="msg">No repeated tags.</p>'}
   </section>`;
 }
@@ -8437,3 +8453,4 @@ body{font-family:var(--body)!important;font-feature-settings:'tnum' 1,'cv11' 1}
  .sbar .mcol .mpk .mc-row{display:flex!important;justify-content:center!important;margin:0!important}.sbar .mcol .mpk .mc-w{font-size:12px!important;font-weight:800}
 }
 </style><style>.hh-t td.hh-tot,.hh-t td.hh-tot b{white-space:nowrap}.hh-t td.hh-tot{min-width:86px}</style>
+<style>.os-p{display:block;font-size:12px;color:#e5e3f0;white-space:nowrap}.os-p small{color:#6e6a85;margin-left:5px;font-size:10.5px}.os-w{font-size:12px;color:#facc15;max-width:280px;white-space:normal}</style>
