@@ -2854,7 +2854,7 @@ function tsPool(pt,label,cls,D,o){const C=tsAgg(D.items0),{pc,col,bar,top,row,no
   if(k==='overview'){
     const tm=top(C.TM).sort((a,b)=>b.w/b.n-a.w/a.n).map((e,i)=>row(i+1,logo(e.k,'u-lg'),esc(e.k),e.n,e.w,bar(e.w,e.n))).join('')||none;
     const BS=bnSum(true,false);
-    body=nxTop(pt,t=>(D.items0||[]).filter(x=>(x.team||x.myTeam)===t))+dwChart(D.items0,'')+`<div class="u-grid3"><section class="u-panel"><header>Most picked brawlers <button type="button" class="u-lnk" data-tss="brawlers">See all ${Object.keys(C.B).length} →</button></header>${tsBrRows(C)}</section>
+    body=nxPoolNote(pt,D.items0)+nxTop(pt,t=>(D.items0||[]).filter(x=>(x.team||x.myTeam)===t))+dwChart(D.items0,'')+`<div class="u-grid3"><section class="u-panel"><header>Most picked brawlers <button type="button" class="u-lnk" data-tss="brawlers">See all ${Object.keys(C.B).length} →</button></header>${tsBrRows(C)}</section>
       <section class="u-panel"><header>Best duos <button type="button" class="u-lnk" data-tss="brawlers">See all →</button></header>${tsDuoRows(C)}</section>
       <section class="u-panel"><header>Teams <small>win rate in the period</small></header>${tm}</section></div>
       <section class="u-panel"><header>All maps <small>by mode · the selected teams together · pick maps in the side panel to filter the page</small></header>${tsMaps([C],[label])}</section>
@@ -2929,6 +2929,10 @@ function nxTop(teams,itemsOf){
   const strips=teams.slice(0,16).map(t=>nxFpHTML(t,itemsOf(t))).join('');
   const finds=teams.length===1?nxFindHTML(teams[0],itemsOf(teams[0])):teams.length===2?`<div class="u-grid2 nf-2">${teams.map(t=>nxFindHTML(t,itemsOf(t),1)).join('')}</div>`:'';
   return `<div class="fp-wrap">${strips}</div>${finds}`}
+function nxPoolNote(pt,items){const P=new Set(pt),O={};(items||[]).forEach(x=>{if(!x.s&&x.opTeam&&!P.has(x.opTeam)&&(x.win===1||x.win===0))O[x.opTeam]=(O[x.opTeam]||0)+1});const L=Object.entries(O).sort((a,b)=>b[1]-a[1]);
+  if(!L.length)return rivOn()?'<div class="pn-ok">✓ Only sets between the selected teams: every set counts once as a win and once as a loss, so every day is 50%.</div>':'';
+  if(!rivOn())return '';const n=L.reduce((a,x)=>a+x[1],0);
+  return `<div class="pn-w">Also counted: <b>${n} sets</b> against teams that are rivals but not selected (${L.slice(0,8).map(([t,k])=>`${logo(t,'l20')} ${esc(t)} <small>${k}</small>`).join(' · ')}). That is why the win rate is not 50%. Select them too to see only sets between the selected teams.</div>`}
 // ===== Results: timeline (one square per set) + under pressure
 function nxTimeline(T,per,orient){const all=[...new Set(T.flatMap(t=>per[t].map(x=>x.m.d)))].sort();if(!all.length)return '';
   const days=[];for(let d=all[0];d<=all[all.length-1];d=nx.dAdd(d,1))days.push(d);
@@ -2983,7 +2987,8 @@ document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest
 // ===== rivals filter for Team Stats: all rivals / Worlds teams / chosen teams
 const RIV={m:'all',L:[],open:false};try{const x=JSON.parse(store.get('tvt:riv')||'null');if(x){RIV.m=x.m||'all';RIV.L=x.L||[]}}catch(e){}
 const rivSave=()=>store.set('tvt:riv',JSON.stringify({m:RIV.m,L:RIV.L}));
-const rivSet=()=>RIV.m==='worlds'?new Set(M.D.off):RIV.m==='pick'?new Set(RIV.L):null;
+const rivWorlds=()=>{const W=M.D.off.filter(t=>/^worlds$/i.test(String(TOUR[t]||'').trim()));return W.length?W:M.D.off};
+const rivSet=()=>RIV.m==='worlds'?new Set(rivWorlds()):RIV.m==='pick'?new Set(RIV.L):null;
 const rivOn=()=>RIV.m!=='all'&&view==='stats'&&tab==='stats'&&!!rivSet();
 function rivBanner(){if(!rivOn())return '';const n=RIV.m==='worlds'?'Worlds teams':plural(RIV.L.length,'chosen team');return `<div class="riv-ban">Only sets against <b>${n}</b>${RIV.m==='pick'?' · '+RIV.L.map(t=>logo(t,'l20')).join(''):''}<button type="button" data-riv="all">Show all rivals</button></div>`}
 function rivHTML(){const m=RIV.m,list=allTeams().slice().sort((a,b)=>(M.D.off.includes(b)-M.D.off.includes(a))||a.localeCompare(b));
@@ -8607,4 +8612,9 @@ body{font-family:var(--body)!important;font-feature-settings:'tnum' 1,'cv11' 1}
 .mu td small{font-size:9px!important;margin-top:2px}
 .mu th{width:52px}.mu-bi{width:36px;height:36px}
 .mu-w{max-width:100%;overflow-x:auto}.mu tr>th:first-child{position:sticky;left:0;background:#121118!important;z-index:1}
+
+/* rev138 */
+.pn-ok,.pn-w{border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:13px;line-height:1.5}
+.pn-ok{background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.35);color:#86efac}
+.pn-w{background:rgba(250,204,21,.07);border:1px solid rgba(250,204,21,.4);color:#fde68a}.pn-w b{color:#fff}.pn-w small{color:#a8a29e}.pn-w .l20{vertical-align:middle}
 </style>
