@@ -2746,7 +2746,7 @@ function tsOne(team,cls,D,o){
       return `<div class="u-mcol"><div class="u-mch">${mi?`<img src="${mi}" alt="">`:'<span></span>'}<b>${esc(md)}</b><span style="color:${col(pc(tw,tn))}">${pc(tw,tn)}%</span><small>${plural(tn,'set')}</small></div>${L.sort((a,b)=>b.w/b.n-a.w/a.n||b.n-a.n).map(e=>`<div class="u-mc" title="${esc(e.k)} · ${e.w}W ${e.n-e.w}L">${mimg(e.k,'u-mci')}<div><b>${esc(e.k)}</b><small>${plural(e.n,'set')} · ${e.w}W ${e.n-e.w}L</small></div><span style="color:${col(pc(e.w,e.n))}">${pc(e.w,e.n)}%</span></div>`).join('')}</div>`};
     const maps=modes.map(md=>mcol(md,Object.values(MP).filter(e=>modeOfMap(e.k)===md))).join('')+(other.length?mcol('Other',other):'');
     const BC=bnCalc(team,D,true,false),bn=Object.entries(BC.T).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([k,n])=>({k,n}));nb=BC.tot;
-    body=`<div class="u-grid3">
+    body=dwChart(D.items0,team)+`<div class="u-grid3">
       <section class="u-panel"><header>Most picked brawlers <button type="button" class="u-lnk" data-tss="brawlers">See all ${Object.keys(B).length} →</button></header>${br}</section>
       <section class="u-panel"><header>Best duos <button type="button" class="u-lnk" data-tss="brawlers">See all →</button></header>${du}</section>
       <section class="u-panel"><header>Opponents <small>${plural(Object.keys(OP).length,'rival')}</small></header>${op}</section></div>
@@ -2767,7 +2767,7 @@ function tsOne(team,cls,D,o){
       <div class="u-cfb">${resSeg()}${D.nSingles||!showSingles?`<label class="chk"><input type="checkbox" data-sgl="1"${showSingles?' checked':''}> Show single games (${D.nSingles})</label>`:''}<span class="u-cfs">${D.summary}</span></div></div>
     ${compRows(D.log,team)}</section>`;
   else body=`<div class="u-blk uxdr">${draftsTab()}</div>`;
-  return `${o.one?'':'<div class="segs" style="justify-content:center">'+o.teamSeg+'</div>'}<div class="u-ts">${hero}${sub}${body}
+  return `${o.one?'':'<div class="segs" style="justify-content:center">'+o.teamSeg+'</div>'}<div class="u-ts">${rivBanner()}${hero}${sub}${body}
     <p class="foot" style="margin-top:4px">Picks and wins count sets (single games and draws excluded). Win rate = wins / picks. With few sets the percentages swing a lot.</p></div>`}
 // ===== Team Stats with 2 teams (compare) and with several teams together: same look as one team
 const tsU={pc:(w,n)=>n?Math.round(100*w/n):0,col:p=>p>=60?'#4ade80':p>=53?'#86efac':p>47?'#facc15':p>40?'#fca5a5':'#f87171'};
@@ -2812,7 +2812,7 @@ function tsPair(){const A=ddBuild(sel.a,'a','A',false),B=ddBuild(sel.b,'b','B',f
   let body='';
   if(k==='overview'){
     const two=f=>`<div class="u-grid2">${DD.map((D,i)=>f(D,CC[i])).join('')}</div>`;
-    body=two((D,C)=>`<section class="u-panel"><header><span class="u-hd">${logo(D.team,'l20')} Most picked · ${esc(D.team)}</span> <button type="button" class="u-lnk" data-tss="brawlers">See all →</button></header>${tsBrRows(C,both)}</section>`)
+    body=two(D=>dwChart(D.items0,D.team,1))+two((D,C)=>`<section class="u-panel"><header><span class="u-hd">${logo(D.team,'l20')} Most picked · ${esc(D.team)}</span> <button type="button" class="u-lnk" data-tss="brawlers">See all →</button></header>${tsBrRows(C,both)}</section>`)
       +`<p class="u-note" style="margin:-6px 0 0"><span class="hlb-k">Gold frame</span> = brawler picked by both teams</p>`
       +two((D,C)=>`<section class="u-panel"><header><span class="u-hd">${logo(D.team,'l20')} Best duos · ${esc(D.team)}</span></header>${tsDuoRows(C,6)}</section>`)
       +`<section class="u-panel"><header>All maps <small>by mode · win rate of each team · pick maps in the side panel to filter the page</small></header>${tsMaps(CC,names)}</section>`
@@ -2831,7 +2831,7 @@ function tsPair(){const A=ddBuild(sel.a,'a','A',false),B=ddBuild(sel.b,'b','B',f
   else if(k==='comps')body=`<div class="u-tg">${resSeg()}${A.nSingles+B.nSingles||!showSingles?`<label class="chk"><input type="checkbox" data-sgl="1"${showSingles?' checked':''}> Show single games (${A.nSingles+B.nSingles})</label>`:''}</div>`
     +DD.map(D=>`<section class="u-panel"><header><span class="u-hd">${logo(D.team,'l20')} ${esc(D.team)}</span><small>${esc(D.logTitle.replace(/^Comps · /,''))}</small></header><div class="u-cf"><div class="u-cfg2">${D.selects('Our brawlers','Their brawlers')}</div><div class="u-cfg2">${D.tsel('Our types','Their types')}</div><div class="u-cfb"><span class="u-cfs">${D.summary}</span></div></div>${compRows(D.log,D.team)}</section>`).join('');
   else body=`<div class="u-blk uxdr">${draftsTab()}</div>`;
-  return `<div class="u-ts">${hero}${sub}${body}<p class="foot">Picks and wins count sets (single games and draws excluded). Win rate = wins / picks. With few sets the percentages swing a lot.</p></div>`}
+  return `<div class="u-ts">${rivBanner()}${hero}${sub}${body}<p class="foot">Picks and wins count sets (single games and draws excluded). Win rate = wins / picks. With few sets the percentages swing a lot.</p></div>`}
 function luHeroPool(D){const P=D.LU&&D.LU.pool;if(!P||!P.n)return '';const on=e=>!P.sel||P.sel.has(e.k),reg=LUREG2.P||new Set(),regOn=!!P.sel&&reg.size>0&&LUK.P.every(k=>reg.has(k)===P.sel.has(k));
   const grp=P.order.map(t=>{const es=P.byT[t],open=LUOPEN.has('P|'+t+'|hero'),show=open?es:es.slice(0,4);return `<div class="u-lugrp"><span class="u-lugt" title="${esc(t)}">${logo(t,'l20')}<b>${esc(t)}</b></span><div class="u-luc">${show.map(e=>luChip(Object.assign({},e,{k:e.nm}),t,'P',LUK.P.indexOf(e.k),on(e))).join('')}${es.length>4?`<button type="button" class="u-lumore" data-luhero="${esc('P|'+t)}">${open?'show less ▴':'+'+(es.length-4)+' more ▾'}</button>`:''}</div></div>`}).join('');
   const body=P.order.map(t=>`<div class="u-ddg"><span class="u-lugt">${logo(t,'l20')}<b>${esc(t)}</b></span>${P.byT[t].map(e=>luChip(Object.assign({},e,{k:e.nm}),t,'P',LUK.P.indexOf(e.k),on(e))).join('')}</div>`).join('');
@@ -2845,7 +2845,7 @@ function tsPool(pt,label,cls,D,o){const C=tsAgg(D.items0),{pc,col,bar,top,row,no
   if(k==='overview'){
     const tm=top(C.TM).sort((a,b)=>b.w/b.n-a.w/a.n).map((e,i)=>row(i+1,logo(e.k,'u-lg'),esc(e.k),e.n,e.w,bar(e.w,e.n))).join('')||none;
     const BS=bnSum(true,false);
-    body=`<div class="u-grid3"><section class="u-panel"><header>Most picked brawlers <button type="button" class="u-lnk" data-tss="brawlers">See all ${Object.keys(C.B).length} →</button></header>${tsBrRows(C)}</section>
+    body=dwChart(D.items0,'')+`<div class="u-grid3"><section class="u-panel"><header>Most picked brawlers <button type="button" class="u-lnk" data-tss="brawlers">See all ${Object.keys(C.B).length} →</button></header>${tsBrRows(C)}</section>
       <section class="u-panel"><header>Best duos <button type="button" class="u-lnk" data-tss="brawlers">See all →</button></header>${tsDuoRows(C)}</section>
       <section class="u-panel"><header>Teams <small>win rate in the period</small></header>${tm}</section></div>
       <section class="u-panel"><header>All maps <small>by mode · the selected teams together · pick maps in the side panel to filter the page</small></header>${tsMaps([C],[label])}</section>
@@ -2863,8 +2863,40 @@ function tsPool(pt,label,cls,D,o){const C=tsAgg(D.items0),{pc,col,bar,top,row,no
     <div class="u-cf"><div class="u-cfg2">${D.selects('Their brawlers'.replace('Their','Our'),'Their brawlers')}</div><div class="u-cfg2">${D.tsel('Our types','Their types')}</div>
       <div class="u-cfb">${resSeg()}${D.nSingles||!showSingles?`<label class="chk"><input type="checkbox" data-sgl="1"${showSingles?' checked':''}> Show single games (${D.nSingles})</label>`:''}<span class="u-cfs">${D.summary}</span></div></div>${compRows(D.log,null)}</section>`;
   else body=`<div class="u-blk uxdr">${draftsTab()}</div>`;
-  return `<div class="u-ts">${hero}${sub}${body}<p class="foot">Picks and wins count sets (single games and draws excluded). Win rate = wins / picks. With few sets the percentages swing a lot.</p></div>`}
-const resSeg=()=>`<div class="seg2" role="group" aria-label="Result">${[['all','All results'],['win','Wins only'],['loss','Losses only']].map(([v,l])=>`<button type="button" data-cres="${v}" aria-pressed="${comboRes===v}">${l}</button>`).join('')}</div>`;
+  return `<div class="u-ts">${rivBanner()}${hero}${sub}${body}<p class="foot">Picks and wins count sets (single games and draws excluded). Win rate = wins / picks. With few sets the percentages swing a lot.</p></div>`}
+// ===== win rate by day (Overview); click a day = Match Selector on that day with that team
+function dwChart(items,team,small){const its=(items||[]).filter(x=>!x.s&&x.win!==.5),D={};for(const x of its){const e=D[x.d]||(D[x.d]={d:x.d,n:0,w:0});e.n++;if(x.win===1)e.w++}
+  const L=Object.values(D).sort((a,b)=>a.d<b.d?-1:1);if(!L.length)return '';
+  const col=p=>p>=.6?'#4ade80':p>=.53?'#86efac':p>.47?'#facc15':p>.4?'#fca5a5':'#f87171';
+  const W=small?760:1500,H=small?240:260,pl=46,pr=16,pt=22,pb=56,cw=(W-pl-pr)/L.length,y=p=>pt+(1-p)*(H-pt-pb),fs=small&&L.length>12?9.5:11.5;
+  let g='';for(const v of [0,.25,.5,.75,1])g+=`<line x1="${pl}" x2="${W-pr}" y1="${y(v)}" y2="${y(v)}" stroke="${v===.5?'#3b2a52':'#1d1b27'}"${v===.5?' stroke-dasharray="5 5"':''}/><text x="${pl-8}" y="${y(v)+4}" fill="#6e6a85" font-size="12" text-anchor="end">${v*100}%</text>`;
+  const tw=its.filter(x=>x.win===1).length,avg=tw/its.length;
+  const bars=L.map((e,i)=>{const x=pl+cw*i,p=e.w/e.n,bw=Math.min(34,cw*.62);
+    return `<g class="dw-b" data-dwd="${e.d}" data-dwt="${esc(team||'')}"><rect x="${x}" y="${pt-10}" width="${cw}" height="${H-pt+10}" fill="transparent"/><rect class="dw-r" x="${x+cw/2-bw/2}" y="${y(p)}" width="${bw}" height="${Math.max(2,H-pb-y(p))}" rx="5" fill="${col(p)}"/>
+      <text x="${x+cw/2}" y="${y(p)-7}" fill="${col(p)}" font-size="${fs+.5}" font-weight="800" text-anchor="middle">${Math.round(100*p)}%</text>
+      <text x="${x+cw/2}" y="${H-pb+18}" fill="#cfcce0" font-size="${fs}" font-weight="600" text-anchor="middle">${fmtDate(e.d).replace(/ \d{4}$/,'')}</text><text x="${x+cw/2}" y="${H-pb+34}" fill="#6e6a85" font-size="${fs-1}" text-anchor="middle">${e.n} sets</text>
+      <title>${fmtDate(e.d)} · ${e.w}W ${e.n-e.w}L (${Math.round(100*p)}%) · click to open this day in Match Selector</title></g>`}).join('');
+  const pts=L.map((e,i)=>(pl+cw*i+cw/2)+','+y(e.w/e.n)).join(' ');
+  return `<section class="u-panel dw"><header><span class="u-hd">${small&&team?logo(team,'l20')+' ':''}Win rate by day</span><small>average ${Math.round(100*avg)}% · dashed line = 50% · <b style="color:#c4b5fd">click a day to see its matches →</b></small></header>
+    <div class="dw-c"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${g}<line x1="${pl}" x2="${W-pr}" y1="${y(avg)}" y2="${y(avg)}" stroke="#a855f7" stroke-width="1.5" opacity=".6"/>${bars}<polyline points="${pts}" fill="none" stroke="#c4b5fd" stroke-width="2" opacity=".45" pointer-events="none"/></svg></div></section>`}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-dwd]');if(!b)return;dateSel=b.dataset.dwd;calMonth=dateSel.slice(0,7);msTeam=b.dataset.dwt||'';try{mxOpen=0}catch(x){}
+  const t=document.querySelector('#sheetbar [data-sb="1"]');if(t)t.click();window.scrollTo(0,0)});
+// ===== rivals filter for Team Stats: all rivals / Worlds teams / chosen teams
+const RIV={m:'all',L:[],open:false};try{const x=JSON.parse(store.get('tvt:riv')||'null');if(x){RIV.m=x.m||'all';RIV.L=x.L||[]}}catch(e){}
+const rivSave=()=>store.set('tvt:riv',JSON.stringify({m:RIV.m,L:RIV.L}));
+const rivSet=()=>RIV.m==='worlds'?new Set(M.D.off):RIV.m==='pick'?new Set(RIV.L):null;
+const rivOn=()=>RIV.m!=='all'&&view==='stats'&&tab==='stats'&&!!rivSet();
+function rivBanner(){if(!rivOn())return '';const n=RIV.m==='worlds'?'Worlds teams':plural(RIV.L.length,'chosen team');return `<div class="riv-ban">Only sets against <b>${n}</b>${RIV.m==='pick'?' · '+RIV.L.map(t=>logo(t,'l20')).join(''):''}<button type="button" data-riv="all">Show all rivals</button></div>`}
+function rivHTML(){const m=RIV.m,list=allTeams().slice().sort((a,b)=>(M.D.off.includes(b)-M.D.off.includes(a))||a.localeCompare(b));
+  return `<div class="riv"><span class="u-lul">Rivals</span><span class="seg2"><button type="button" data-riv="all" aria-pressed="${m==='all'}">All rivals</button><button type="button" data-riv="worlds" aria-pressed="${m==='worlds'}">Worlds teams</button><button type="button" data-riv="pick" aria-pressed="${m==='pick'}">${m==='pick'&&RIV.L.length?RIV.L.length+' chosen':'Choose'} ▾</button></span>
+    ${RIV.open?`<div class="riv-p"><input class="dr-input" id="rivQ" placeholder="Search a team…" autocomplete="off"><div class="riv-l">${list.map(t=>`<button type="button" class="lb-op${RIV.L.includes(t)?' on':''}" data-rivt="${esc(t)}">${logo(t,'l20')}<span>${esc(t)}</span>${M.D.off.includes(t)?'':'<small>other</small>'}</button>`).join('')}</div><button type="button" class="btn quiet" data-rivdone>Done</button></div>`:''}</div>`}
+document.addEventListener('click',e=>{const t=e.target;if(!t.closest)return;const b=t.closest('[data-riv]');
+  if(b){const v=b.dataset.riv;if(v==='pick'){RIV.open=!RIV.open;if(RIV.L.length)RIV.m='pick'}else{RIV.m=v;RIV.open=false}rivSave();renderDetail();return}
+  const o=t.closest('[data-rivt]');if(o){const x=o.dataset.rivt,i=RIV.L.indexOf(x);if(i>=0)RIV.L.splice(i,1);else RIV.L.push(x);RIV.m=RIV.L.length?'pick':'all';rivSave();renderDetail();return}
+  if(t.closest('[data-rivdone]')){RIV.open=false;renderDetail()}});
+document.addEventListener('input',e=>{if(e.target.id!=='rivQ')return;const q=e.target.value.toUpperCase();document.querySelectorAll('.riv-l .lb-op').forEach(b=>{b.style.display=!q||b.dataset.rivt.toUpperCase().includes(q)?'':'none'})});
+(function(){const f=Engine.setList;Engine.setList=function(){const r=f.apply(this,arguments);if(!rivOn())return r;const S=rivSet();return r.filter(x=>x.opTeam&&S.has(x.opTeam))}})();
+const resSeg=()=>`<div class="seg2\" role="group" aria-label="Result">${[['all','All results'],['win','Wins only'],['loss','Losses only']].map(([v,l])=>`<button type="button" data-cres="${v}" aria-pressed="${comboRes===v}">${l}</button>`).join('')}</div>`;
 // compare 2 teams: both teams side by side, each with its own filters
 function pairDeep(){
   const A=ddBuild(sel.a,'a','A',false),B=ddBuild(sel.b,'b','B',false),own=subject==='own';
@@ -4039,7 +4071,7 @@ $('statsscope').addEventListener('click',e=>{
   const sm=e.target.closest('[data-sm]');if(sm){const m=sm.dataset.sm;if(!m)statMaps=[];else{const i=statMaps.indexOf(m);if(i>=0)statMaps.splice(i,1);else statMaps.push(m)}renderDetail();return}
   const smo=e.target.closest('[data-smode]');if(smo){const ms=smo.dataset.smode.split('|');if(ms.every(m=>statMaps.includes(m)))statMaps=statMaps.filter(m=>!ms.includes(m));else ms.forEach(m=>{if(!statMaps.includes(m))statMaps.push(m)});renderDetail();return}});
 function scopeWithMaps(){const s=scopeHTML();if(!['stats','players','card'].includes(tab))return s;let mh='';try{mh=statMapsHTML()}catch(e){mh=''}
-  return mh?`<div class="scmaps v"><div class="scm-l">${s}</div><div class="scm-r">${mh}</div></div>`:s}
+  return mh?`<div class="scmaps v"><div class="scm-l">${s}${tab==='stats'?rivHTML():''}</div><div class="scm-r">${mh}</div></div>`:s}
 // ===== Team Stats > Caster =====
 // two teams, one map, dates; everything counts sets
 const CAS=(()=>{const d={a:'',b:'',map:'',from:'',to:'',cmp:'tour',cvT:'',cvR:'',pick:[],sort:{}};try{return Object.assign(d,JSON.parse(store.get('tvt:caster')||'{}'))}catch(e){return d}})();
@@ -4296,7 +4328,7 @@ function groupTab(){
         if(r===c)return '<td class="hh-c"><span class="h2-x">/</span></td>';const w=HH[r][c].w,n=HH[r][c].n,p=n?w/n:0,k=p>.5?'g':p<.5?'r':'e';
         return n?`<td class="hh-c" title="${esc(r)} ${w}-${n-w} ${esc(c)}"><span class="h2 ${k}"><b>${pc0(w,n)}</b><small>${w}-${n-w} · ${n} sets${n<10?'*':''}</small></span></td>`:'<td class="hh-c"><span class="h2-no">–</span></td>'}).join('')}</tr>`}).join('');
     const regSw=`<div class="gt-sw"><span class="seg2"><button type="button" data-gtreg="1" aria-pressed="${gtReg}">Only the registered players</button><button type="button" data-gtreg="0" aria-pressed="${!gtReg}">Full team (with pick-ups)</button></span></div>`;
-    h2h=sec('Head to head',regSw+`<div class="hh-wrap"><table class="hh-t h2t"><thead><tr><th class="hh-tot">Total sets and WR</th><th></th>${TO.map(c=>`<th class="hh-c hh-ch">${logo(c,'l28')}<span>${ros(c)||esc(c)}</span></th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><p class="h2-leg"><i class="g"></i>Winning record <i class="r"></i>Losing record <span>–</span> No sets <span>*</span> Under 10 sets</p>`,
+    h2h=sec('Head to head',regSw+`<div class="hh-wrap"><table class="hh-t h2t"><thead><tr><th class="hh-tot hh-tot2" colspan="2">Total sets and WR</th>${TO.map(c=>`<th class="hh-c hh-ch">${logo(c,'l28')}<span>${ros(c)||esc(c)}</span></th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><p class="h2-leg"><i class="g"></i>Winning record <i class="r"></i>Losing record <span>–</span> No sets <span>*</span> Under 10 sets</p>`,
       'Each square: sets played and win rate of the team in the row against the team in the column (hover it for the score). An empty square: they did not play each other. '+(gtReg?'Only the registered players: a set counts only when both teams play with their own players of the Picks sheet (all 3, or the 2 / 1 listed there); sets with pick-ups are left out. Total = all the sets of the team with its own players in the period (against everybody).':'Full team: every set of the team counts, pick-ups included. Total = all the sets of the team in the period (against everybody).'))}
   // 2) every scrim / match of each team, one column per team
   const pl=(tags,team)=>tags.filter(Boolean).map(g=>{const sub=team&&isSub(team,g);return `<span class="gt-p${sub?' sub':''}"${sub?` title="${SUBT}"`:''}>${esc(nmOf(g))}</span>`}).join('');
@@ -4324,7 +4356,7 @@ function groupTab(){
       return n?`<td class="hh-c" title="${esc(r)} ${w}-${n-w} vs ${esc(c)}"><i style="${gtHeat(w/n,n)}"><small>Sets: ${n}</small><b>WR: ${pc1(w,n)}</b></i></td>`:'<td class="hh-c"></td>'}).join('');
       return `<tr><td class="hh-tot"><small>Sets: ${tn}</small><b style="color:${tn?(tw/tn>=.55?'#7ee2a0':tw/tn<.45?'#ff8a80':'#ffc861'):'inherit'}">WR: ${pc1(tw,tn)}</b></td><td class="hh-who hh-rg"><i class="gt-rd" style="background:${REGC[r]}"></i><span>${esc(r)}</span></td>${cells}</tr>`}).join('');
     const tb=regs.map(r=>{const ts=T.filter(t=>RG(t)===r);let w=0,n=0;for(const t of ts)for(const x of per[t]){n++;w+=x.win}return {r,ts,w,n}}).sort((a,b)=>(b.n?b.w/b.n:0)-(a.n?a.w/a.n:0));
-    regH=sec('Region head to head',`<div class="hh-wrap"><table class="hh-t"><thead><tr><th class="hh-tot">Sets and WR vs other regions</th><th></th>${allR.map(c=>`<th class="hh-c hh-ch hh-rgh"><i class="gt-rd" style="background:${REGC[c]}"></i><span>vs ${esc(c)}</span></th>`).join('')}</tr></thead><tbody>${mx}</tbody></table></div>
+    regH=sec('Region head to head',`<div class="hh-wrap"><table class="hh-t"><thead><tr><th class="hh-tot hh-tot2" colspan="2">Sets and WR vs other regions</th>${allR.map(c=>`<th class="hh-c hh-ch hh-rgh"><i class="gt-rd" style="background:${REGC[c]}"></i><span>vs ${esc(c)}</span></th>`).join('')}</tr></thead><tbody>${mx}</tbody></table></div>
       <div class="gt-scroll" style="margin-top:12px"><table class="gt-t"><thead><tr><th class="gt-c">Region</th><th class="gt-c">Win rate</th><th class="gt-c">Average sets played</th><th class="gt-c">Sets played</th><th class="gt-c">Sets won</th><th class="gt-c">Teams</th></tr></thead><tbody>${tb.map(x=>`<tr><td class="gt-c"><span class="gt-tn"><i class="gt-rd" style="background:${REGC[x.r]}"></i><b>${esc(x.r)}</b></span></td><td class="gt-c gt-big" style="${gtHeat(x.n?x.w/x.n:.5)}">${pc(x.w,x.n)}</td><td class="gt-c">${x.ts.length?Math.round(x.n/x.ts.length):0}</td><td class="gt-c">${x.n}</td><td class="gt-c">${x.w}</td><td class="gt-c gt-tl">${x.ts.map(t=>logo(t,'l20')).join('')}</td></tr>`).join('')}</tbody></table></div>`,
       'Top: sets and win rate of the selected teams of each region against teams of each other region (rivals in the Picks sheet with a region); a region against itself is left dark. Bottom: all the sets of the selected teams of that region; Average sets played = sets per team.')}
   // 4) win rate per week: one block per week from the start date to the end date, each sorted by win rate
@@ -8384,4 +8416,24 @@ body{font-family:var(--body)!important;font-feature-settings:'tnum' 1,'cv11' 1}
 .lb-op:before{content:'';width:16px;height:16px;border-radius:5px;border:1.5px solid #4a4660;flex:none;box-sizing:border-box}
 .lb-op.on{opacity:1;background:rgba(168,85,247,.10)}.lb-op.on:before{background:#a855f7 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.5l2.5 2.5L12 5.5' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E") center/12px no-repeat;border-color:#a855f7}
 .lb-op:hover{opacity:1;background:#1d1b27}.lb-op span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lb-op small{margin-left:auto;font-size:10px;color:#6e6a85}
-.lb-logos{display:flex;gap:6px;flex-wrap:wrap}.lb-logos img{width:24px!important;height:24px!important;object-fit:contain;opacity:.85}</style><style>.lb-ctl .seg2{margin:0 0 0 8px}.lb-ctl{gap:10px}</style>
+.lb-logos{display:flex;gap:6px;flex-wrap:wrap}.lb-logos img{width:24px!important;height:24px!important;object-fit:contain;opacity:.85}</style><style>.lb-ctl .seg2{margin:0 0 0 8px}.lb-ctl{gap:10px}</style><style id="rev126">
+.dw-c{padding:12px 16px 8px}.dw-c svg{width:100%;height:auto;display:block}.dw-b{cursor:pointer}.dw-b .dw-r{opacity:.85}.dw-b:hover .dw-r{opacity:1;stroke:#fff;stroke-width:1.5}.dw-b:hover rect:first-child{fill:rgba(168,85,247,.08)}
+.riv{display:flex;flex-direction:column;gap:6px;margin-top:12px;padding-top:12px;border-top:1px solid #24222f;position:relative}.riv .seg2{display:flex}.riv .seg2 button{flex:1;font-size:12px!important;padding:7px 4px!important;white-space:nowrap}
+.riv-p{background:#15131d;border:1px solid #3b2a52;border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:6px}.riv-l{display:flex;flex-direction:column;gap:2px;max-height:300px;overflow:auto}
+.riv-ban{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:rgba(250,204,21,.08);border:1px solid rgba(250,204,21,.4);color:#fde68a;border-radius:12px;padding:8px 14px;font-size:13px}.riv-ban b{color:#facc15}.riv-ban img{width:20px;height:20px;object-fit:contain}
+.riv-ban button{margin-left:auto;background:none;border:1px solid #facc15;color:#facc15;border-radius:999px;padding:4px 12px;font-size:12px;cursor:pointer}
+.hh-tot2{width:auto!important;white-space:nowrap;font-size:11px!important;letter-spacing:.08em;text-transform:uppercase;color:#a78bfa!important;vertical-align:bottom!important}
+/* side panel maps: mosaic, always visible */
+@media (min-width:1200px){
+ .sbar .mexp{display:none!important}
+ body .sbar .mcols>.mcol{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px!important;padding:8px 0 4px!important}
+ .sbar .mcol>.mhd{grid-column:1/-1!important;margin:0!important;padding:4px 6px!important}
+ body .sbar .mcol .mpk.mpk{display:flex!important;flex-direction:column!important;grid-column:auto!important;height:auto!important;min-height:0!important;margin:0!important;width:auto!important;padding:0!important;background-size:0 0!important;background-color:#0d0c12!important;border:1px solid #24222f!important;border-radius:9px!important;position:relative;overflow:hidden}
+ body .sbar .mcol .mpk.mpk:before{content:'';display:block;height:44px;background-image:inherit;background-size:cover;background-position:center}
+ body .sbar .mcol .mpk.mpk[aria-pressed="true"],body .sbar .mcol .mpk.mpk.on{border-color:#a855f7!important;box-shadow:0 0 0 1px #a855f7}
+ .sbar .mcol .mpk .mc-sh,.sbar .mcol .mpk .mc-cp,.sbar .mcol .mpk .mico,.sbar .mcol .mpk .mc-row small{display:none!important}
+ .sbar .mcol .mpk .mc-in{position:static!important;inset:auto!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:flex-start!important;gap:1px!important;padding:4px 3px 5px!important;background:#0d0c12!important}
+ .sbar .mcol .mpk .mc-n{display:block!important;width:100%;text-align:center}.sbar .mcol .mpk .mc-n b{display:block;font-size:10px!important;font-weight:600!important;color:#e5e3f0!important;text-transform:none!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:none!important}
+ .sbar .mcol .mpk .mc-row{display:flex!important;justify-content:center!important;margin:0!important}.sbar .mcol .mpk .mc-w{font-size:12px!important;font-weight:800}
+}
+</style><style>.hh-t td.hh-tot,.hh-t td.hh-tot b{white-space:nowrap}.hh-t td.hh-tot{min-width:86px}</style>
