@@ -7116,6 +7116,16 @@ document.addEventListener('change',e=>{const t=e.target;if(t&&t.matches&&t.match
 document.addEventListener('input',e=>{const t=e.target;if(!(t&&t.dataset&&t.dataset.rpnote))return;const k=RP.team+'|'+t.dataset.rpnote;RP_LOCAL[k]={text:t.value,t:Date.now(),synced:false};rpLocalSave();
   const m=document.querySelector(`[data-rpmsg="${t.dataset.rpnote}"]`);if(m)m.textContent='Not saved to the sheet yet';const p=t.parentNode.querySelector('.rp-print');if(p)p.textContent=t.value});
 
+window.CTXINFO=function(){const P=[];const ex=x=>esc(x);let teams='';
+  if(view==='pred'&&sel&&sel.a){teams=`${logo(String(sel.a).toUpperCase(),'')}<b>${ex(sel.a)}</b> vs ${logo(String(sel.b).toUpperCase(),'')}<b>${ex(sel.b)}</b>`}
+  else if(view==='stats'){if(tab==='scout'&&SC&&SC.rival)teams=`${logo(SC.rival,'')}<b>${ex(SC.rival)}</b>`+(SC.map?' · '+ex(SC.map):'');
+    else if(tab==='tier')teams='';
+    else if(scope==='one'){const t=curOne();teams=`${logo(t,'')}<b>${ex(t)}</b>`}else if(scope==='pool'){teams=`<b>${(poolTeams||[]).length} teams together</b>`}else if(sel&&sel.a){teams=`${logo(sel.a,'')}<b>${ex(sel.a)}</b> vs ${logo(sel.b,'')}<b>${ex(sel.b)}</b>`}}
+  if(teams)P.push(teams);const per=($('sbPer')||{}).textContent||'';if(per)P.push(`<b>${ex(per)}</b>`);
+  const ty=(flt2&&flt2.type)||'all';P.push(ty==='all'?'All games':ty==='tournament'?'Tournament':'Friendly');
+  if(view==='stats'&&tab!=='scout'&&tab!=='tier')P.push(ex(filterLabel()));
+  if(view==='pred'&&sel&&sel.maps)P.push(sel.maps.length?sel.maps.length+(sel.maps.length===1?' map':' maps'):'No maps chosen');
+  return P};
 function renderCheck(){const el=$('checkview');if(el)el.innerHTML=checkHTML()}
 
 // ---- Brawler comparison (stats come from the "Brawlers" tab; a built-in copy is used until it loads)
@@ -8170,7 +8180,7 @@ table.rank td.heat{line-height:1.1}
 #sheetbar .sb-t:hover{background:rgba(168,85,247,.10)!important;color:#fff!important}
 #sheetbar .sb-t.on{background:linear-gradient(135deg,#a855f7,#7c3aed)!important;color:#fff!important;box-shadow:0 4px 14px rgba(168,85,247,.35)!important}
 #sheetbar .sb-sep{height:22px;margin:0 10px!important}
-body{padding-top:64px!important}@media (min-width:1200px){.sbar{top:64px!important;max-height:calc(100vh - 76px)!important}}
+body{padding-top:96px!important}@media (min-width:1200px){.sbar{top:64px!important;max-height:calc(100vh - 76px)!important}}
 /* side panel: status under the title, refresh next to share */
 .sbar #apiBadge{position:static!important;transform:none!important;max-width:none!important;justify-content:center!important;margin:2px 0 0!important;left:auto!important;top:auto!important}
 @media (min-width:1200px){
@@ -8721,4 +8731,67 @@ body.sc-sb:not(.sb-off) #detail .uxmaps{display:none}
 .tcard .tc-box .rank.tiny td:nth-child(2){white-space:normal}
 
 #detail table.pr-t{display:table!important}#detail table.pr-t thead{display:table-header-group!important}#detail table.pr-t tbody{display:table-row-group!important}
+
+/* ===== rev142: professional pass - one type scale, aligned numbers, info icons, context bar, same cards everywhere ===== */
+:root{--pro-card:#121118;--pro-card2:#16151e;--pro-bd:#24222f;--pro-bd2:#2e2b3d;--pro-r:14px;--pro-tx:#ece9f8;--pro-mut:#9a97ad;--pro-mut2:#6e6a85;--pro-acc:#a855f7}
+/* 1) numbers: same width for every digit, so columns line up */
+body{font-variant-numeric:tabular-nums}
+#detail td.num,#detail th.num,#wbview td.num,#wbview th.num{text-align:right!important}
+/* 2) one type scale: section titles, table titles, column headers */
+.tc-sec>.lbl,.gt-sec>.lbl,.tc-box>.lbl,.u-panel .u-hd,.cas-ln span,.wb h3,.wb-tab h3,#wbview h3{font-size:13px!important;font-weight:700!important;letter-spacing:.01em!important;text-transform:none!important;color:var(--pro-tx)!important}
+.tc-sec>.lbl,.gt-sec>.lbl{border:0!important;background:none!important;padding:2px 0!important}
+.tc-sec>.lbl::first-letter,.gt-sec>.lbl::first-letter,.tc-box>.lbl::first-letter,.u-panel .u-hd::first-letter{text-transform:uppercase}
+#detail th,#wbview th,.cas-t th,.pr-t th{font-size:10px!important;font-weight:700!important;letter-spacing:.07em!important;text-transform:uppercase;color:#8f8aa8!important}
+#detail th small,.pr-t th small{text-transform:none;letter-spacing:0;font-weight:500}
+/* 3) colours with a meaning: purple = selected / clickable, green-red = win-loss, yellow = 50% or tournament */
+.cas-hw span,.u-tile b{text-shadow:none}
+/* 6) same cards everywhere */
+.u-panel,.cas-card,.tc-box,.tcard,.lb-wrap,.mu-w,.wb-tab,.pr-t,.tl-wrap,.cas-mid,.cas-ht,.pc-res,.pc-gb,.fp,.nf-i{border-radius:var(--pro-r)!important}
+.u-panel,.cas-card,.tc-box{background:var(--pro-card)!important;border:1px solid var(--pro-bd)!important}
+.tcard{background:#0f0e15!important;border:1px solid var(--pro-bd)!important}
+.u-panel>header,.cas-ch{border-bottom:1px solid var(--pro-bd)}
+/* 7) empty and loading states */
+#detail td.msg,#detail p.msg.u-none,.nodata,#detail .tc-sec p.msg:only-child{color:var(--pro-mut2)!important;font-size:12.5px!important;text-align:center!important;padding:16px 8px!important;font-style:italic}
+.nodata{border:1px dashed var(--pro-bd2);border-radius:var(--pro-r);margin:18px 0}
+.pro-load{position:relative;overflow:hidden;color:transparent!important;background:#15141d;border-radius:var(--pro-r);min-height:120px}
+.pro-load::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(168,85,247,.08),transparent);animation:proSh 1.3s infinite}
+@keyframes proSh{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+/* 4) explanations behind an (i) icon */
+.ix-i{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;border:1px solid #4b4568;color:#b9b3d6;font:700 10px/1 Inter,sans-serif;font-style:italic;margin-left:6px;cursor:help;vertical-align:middle;background:rgba(168,85,247,.08);flex:none;padding:0;text-transform:none!important;letter-spacing:0!important}
+.ix-i:hover{border-color:var(--pro-acc);color:#fff;background:rgba(168,85,247,.25)}
+.ix-moved{display:none!important}
+.ix-alone{display:flex;justify-content:flex-end;margin:4px 2px 0}
+#ixtip{position:fixed;z-index:100000;max-width:360px;background:#1b1926;border:1px solid #3b2a5a;border-radius:10px;padding:10px 12px;color:#dcd8ee;font:500 12px/1.5 Inter,sans-serif;box-shadow:0 12px 30px rgba(0,0,0,.5);pointer-events:none;opacity:0;transition:opacity .12s}
+#ixtip.on{opacity:1}
+/* 5) context bar under the tabs */
+#ctxbar{position:fixed;top:48px;left:0;right:0;z-index:39;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:7px 18px;background:rgba(14,13,20,.94);border-bottom:1px solid #221f30;font-size:12.5px;color:var(--pro-mut)}
+#ctxbar b{color:var(--pro-tx);font-weight:700}#ctxbar .cx-t{color:#c4b5fd;font-weight:700;letter-spacing:.02em}
+#ctxbar .cx-d{width:4px;height:4px;border-radius:50%;background:#4b4568}
+#ctxbar img{width:18px;height:18px;object-fit:contain;vertical-align:middle;margin-right:4px}
 </style>
+<script>
+/* rev142: explanations behind an (i) icon + context bar */
+(function(){
+  const tip=document.createElement('div');tip.id='ixtip';document.body.appendChild(tip);
+  document.addEventListener('mouseover',e=>{const b=e.target.closest&&e.target.closest('.ix-i');if(!b)return;tip.textContent=b.dataset.info||'';const r=b.getBoundingClientRect();
+    tip.style.left=Math.max(8,Math.min(innerWidth-372,r.left-170))+'px';tip.style.top=(r.bottom+8+300>innerHeight?r.top-8-Math.min(300,tip.offsetHeight||120):r.bottom+8)+'px';tip.classList.add('on')});
+  document.addEventListener('mouseout',e=>{if(e.target.closest&&e.target.closest('.ix-i'))tip.classList.remove('on')});
+  document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('.ix-i');if(b){e.preventDefault();e.stopPropagation();tip.classList.toggle('on')}},true);
+  const NOTES='p.foot,.wb-note,.cas-foot,p.msg.tl-src,.u-note,.gt-sec>p.msg,.mu-w+p.msg,p.msg.cx-note,.tc-sec>p.msg.dw-note';
+  const HEADS='.lbl,.u-hd,.cas-ln span,h2,h3,h4,.pr-h .lbl';
+  function headFor(n){let box=n.closest('.tc-sec,.u-panel,.cas-card,.gt-sec,section,.tl-wrap,.panel');let p=n.previousElementSibling;
+    while(p){if(p.matches&&p.matches(HEADS))return p;const h=p.querySelector&&p.querySelector(':scope '+HEADS.split(',').join(',:scope '));if(h&&p.matches('.tl-ctl,.u-panel>header,header,.cas-ch'))return h;p=p.previousElementSibling}
+    if(box){const h=box.querySelector(HEADS);if(h&&!h.contains(n))return h}return null}
+  function pass(root){(root||document).querySelectorAll(NOTES).forEach(n=>{if(n.classList.contains('ix-moved'))return;const t=(n.innerText||'').trim();if(t.length<50)return;
+      const h=headFor(n);const b=document.createElement('button');b.type='button';b.className='ix-i';b.textContent='i';b.dataset.info=t;b.title='';
+      if(h&&!h.querySelector('.ix-i')){h.appendChild(b)}else{const w=document.createElement('div');w.className='ix-alone';w.appendChild(b);n.parentNode.insertBefore(w,n)}
+      n.classList.add('ix-moved')})}
+  // context bar
+  const bar=document.createElement('div');bar.id='ctxbar';
+  function ctx(){const sb=document.getElementById('sheetbar');if(!sb)return;if(bar.parentNode!==sb.parentNode)sb.parentNode.insertBefore(bar,sb.nextSibling);
+    try{const on=sb.querySelector('.sb-t.on');const tabN=on?on.textContent.trim():'';const P=[`<span class="cx-t">${tabN.replace(/[<>&]/g,'')}</span>`].concat(window.CTXINFO?window.CTXINFO():[]);
+      const h=P.join('<i class="cx-d"></i>');if(bar.innerHTML!==h)bar.innerHTML=h}catch(e){console.error('ctx',e)}}
+  let q=0;const run=()=>{q=0;pass(document);ctx()};const sched=()=>{if(!q)q=requestAnimationFrame(run)};
+  new MutationObserver(sched).observe(document.body,{childList:true,subtree:true});document.addEventListener('click',()=>setTimeout(sched,30));sched();
+})();
+</script>
