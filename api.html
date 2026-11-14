@@ -4310,7 +4310,6 @@ function prSbPaint(){const A=document.getElementById('sbar');if(!A)return;let bo
   if(!box){box=document.createElement('div');box.id='prSb';box.className='pr-sb';A.appendChild(box)}
   box.style.display='';document.body.classList.add('pr-sb');
   const D=M.D,av=new Set(D.maps||[]),S=sel.maps||[],ML=(MODELIST||[]).map(([md,ms])=>[md,ms.filter(m=>av.has(m))]).filter(x=>x[1].length);
-  const other=[...av].filter(m=>!ML.some(x=>x[1].includes(m)));if(other.length)ML.push(['Other',other]);
   box.innerHTML=`<div class="pr-h"><span class="lbl">Maps of the series</span>${S.length?`<button type="button" class="pr-clr" data-prclr>Clear</button>`:''}</div><p class="pr-hint">${S.length?`${S.length} ${S.length===1?'map':'maps'} · click them in the order they are played`:'Click the maps in the order they are played'}</p>`+
     ML.map(([md,ms])=>{const ic=IMGS['mode'+mkey(md)];return `<div class="pr-g"><div class="pr-gh">${ic?`<img src="${ic}" alt="">`:''}<b>${esc(md)}</b></div><div class="pr-tiles">${ms.map(m=>{const k=S.indexOf(m),u=IMGS['bg'+mkey(m)]||IMGS[mkey(m)]||'';
       return `<button type="button" class="pr-t${k>=0?' on':''}" data-prmap="${esc(m)}" title="${esc(m)}${k>=0?' · map '+(k+1)+' of the series · click to remove':' · click to add'}"><span class="pr-im"${u?` style="background-image:url('${u}')"`:''}>${k>=0?`<b>${k+1}</b>`:''}</span><small>${esc(m)}</small></button>`}).join('')}</div></div>`}).join('')}
