@@ -6683,7 +6683,7 @@ function wbEvoHTML(){const P=wbHistory();if(!P||P.length<2)return '';
   if(!WB_EV){const top=teams.filter(t=>lastV(t)!=null).sort((a,b)=>lastV(b)-lastV(a)).slice(0,5);WB_EV=new Set(top.concat([WB_US]))}
   const sh=teams.filter(t=>WB_EV.has(t));let lo=1e9,hi=-1e9;for(const p of P)for(const t of sh)if(p.v[t]!=null){lo=Math.min(lo,p.v[t]);hi=Math.max(hi,p.v[t])}
   if(hi<lo){lo=1400;hi=1600}const pad=(hi-lo)*.08+5;lo-=pad;hi+=pad;
-  const W=1000,H=360,x0=52,x1=W-120,y0=16,y1=H-34,X=i=>x0+i*(x1-x0)/(P.length-1),Y=v=>y0+(hi-v)/(hi-lo)*(y1-y0);
+  const W=1000,H=360,x0=52,x1=W-175,y0=16,y1=H-34,X=i=>x0+i*(x1-x0)/(P.length-1),Y=v=>y0+(hi-v)/(hi-lo)*(y1-y0);
   let g='';const step=Math.ceil(P.length/9);
   P.forEach((p,i)=>{if(i%step===0||i===P.length-1)g+=`<line x1="${X(i)}" x2="${X(i)}" y1="${y0}" y2="${y1}" class="ev-gl"/><text x="${X(i)}" y="${H-12}" class="ev-ax" text-anchor="middle">${fmtDate(p.d).replace(/ \d{4}$/,'')}</text>`});
   for(let k=0;k<=4;k++){const v=lo+(hi-lo)*k/4;g+=`<text x="${x0-8}" y="${Y(v)+4}" class="ev-ax" text-anchor="end">${Math.round(v)}</text><line x1="${x0}" x2="${x1}" y1="${Y(v)}" y2="${Y(v)}" class="ev-gl h"/>`}
@@ -8453,4 +8453,15 @@ body{font-family:var(--body)!important;font-feature-settings:'tnum' 1,'cv11' 1}
  .sbar .mcol .mpk .mc-row{display:flex!important;justify-content:center!important;margin:0!important}.sbar .mcol .mpk .mc-w{font-size:12px!important;font-weight:800}
 }
 </style><style>.hh-t td.hh-tot,.hh-t td.hh-tot b{white-space:nowrap}.hh-t td.hh-tot{min-width:86px}</style>
-<style>.os-p{display:block;font-size:12px;color:#e5e3f0;white-space:nowrap}.os-p small{color:#6e6a85;margin-left:5px;font-size:10.5px}.os-w{font-size:12px;color:#facc15;max-width:280px;white-space:normal}</style>
+<style>.os-p{display:block;font-size:12px;color:#e5e3f0;white-space:nowrap}.os-p small{color:#6e6a85;margin-left:5px;font-size:10.5px}.os-w{font-size:12px;color:#facc15;max-width:280px;white-space:normal}
+/* rev131: comps rows - bans above the brawlers of each side so they never run into the team names */
+.u-crow .u-cside{flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:4px!important;min-width:0}
+.u-crow .u-cbn{order:-1;align-self:center!important;margin-top:0!important;min-height:22px}
+.u-crow .u-cbr{min-width:0}
+
+/* rev132: no overlaps on narrower screens */
+.u-grid3{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))!important}
+.cas-ht{flex-wrap:wrap;row-gap:4px}
+.cas-ht .cas-hn{flex:1 1 auto;min-width:90px}
+.cas-ht .cas-hw{flex:0 0 auto}
+</style>
