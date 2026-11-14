@@ -2402,9 +2402,10 @@ let tfs={own:{n:1,k:''},enemy:{n:1,k:''}};
 let view=['stats','draft','pred','suggest','check','bal','worlds'].includes(store.get('tvt:view'))?store.get('tvt:view'):'stats',tab='stats',statMaps=[],oneTeam=null,comboKind='duos',focus='A',scope='one',poolTeams=null,subject='own',flt={own:['','',''],enemy:['','','']},onlyRepeat=false,comboRes='all',showSingles=true,matchView='cards',dateTeam='A',dateSel=null,rivalSel=0,calMonth=null,calOpen=false,msPop='';
 const teamOf=s=>s==='A'?sel.a:sel.b;
 const ALL='__all__',SEL='__sel__';
-function teamLabel(r,cls,size){ // named rival (with logo) or 3 players stacked
+function cleanName(n){return String(n==null?'':n).replace(/[\u2600-\u27BF\u2B00-\u2BFF\u{1F000}-\u{1FAFF}\uFE0F\u200D]/gu,'').replace(/\s{2,}/g,' ').trim()||String(n||'')}
+function teamLabel(r,cls,size){ // named rival (with logo) or 'Mixed lineup' with its 3 players
   if(r.named)return `<span class="teamrow">${logo(r.name,size||'l28')}<b>${esc(r.name)}</b></span>`;
-  return `<span class="stack">${r.players.map(p=>`<span>${esc(p)}</span>`).join('')}</span>`;
+  return `<span class="stack mixl"><b>Mixed lineup</b><small>${r.players.map(p=>esc(cleanName(p))).join(' · ')}</small></span>`;
 }
 function mapsFilter(){return statMaps.length?statMaps.slice():null}
 function filterLabel(){return !statMaps.length?'all maps':statMaps.length===1?statMaps[0]:plural(statMaps.length,'selected map')}
@@ -2925,14 +2926,16 @@ function nxFindHTML(team,items,narrow){const F=nxFind(team,items);if(!F.length)r
   return `<section class="u-panel nf${NXF.open?'':' shut'}"><header><span class="u-hd">${narrow?logo(team,'l20')+' ':''}Key findings</span><button type="button" class="u-lnk" data-nxf>${NXF.open?'Hide ▴':'Show ▾'}</button></header>${NXF.open?`<div class="nf-g${narrow?' one':''}">${F.map(f=>`<div class="nf-i ${f.k}"><i>${f.k==='up'?'▲':f.k==='dn'?'▼':'★'}</i><span>${f.t}</span>${f.ic||''}</div>`).join('')}</div>`:''}</section>`}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-nxf]');if(!b)return;NXF.open=!NXF.open;store.set('tvt:nxf',NXF.open?'1':'0');renderDetail()});
 // top of Team Stats overview: fingerprint strip(s) + key findings
+const NXT={fp:false,nf:false};try{NXT.fp=store.get('tvt:nxfp')==='1';NXT.nf=store.get('tvt:nxnf')==='1'}catch(e){}
 function nxTop(teams,itemsOf){
+  if(teams.length===1){const t=teams[0],F=nxFind(t,itemsOf(t));
+    const sum=F.length?`<div class="nx-sum"><span class="k">In short</span><span>${F.slice(0,2).map(f=>f.t).join(' · ')}</span></div>`:'';
+    const btn=(k,l)=>`<button type="button" class="nx-more${NXT[k]?' on':''}" data-nxt="${k}">${NXT[k]?'▾':'▸'} ${l}</button>`;
+    return `${sum}<div class="nx-mores">${btn('fp','Team fingerprint')}${F.length?btn('nf',`All key findings (${F.length})`):''}</div>${NXT.fp?`<div class="fp-wrap">${nxFpHTML(t,itemsOf(t))}</div>`:''}${NXT.nf?nxFindHTML(t,itemsOf(t)):''}`}
   const strips=teams.slice(0,16).map(t=>nxFpHTML(t,itemsOf(t))).join('');
-  const finds=teams.length===1?nxFindHTML(teams[0],itemsOf(teams[0])):teams.length===2?`<div class="u-grid2 nf-2">${teams.map(t=>nxFindHTML(t,itemsOf(t),1)).join('')}</div>`:'';
+  const finds=teams.length===2?`<div class="u-grid2 nf-2">${teams.map(t=>nxFindHTML(t,itemsOf(t),1)).join('')}</div>`:'';
   return `<div class="fp-wrap">${strips}</div>${finds}`}
-function nxPoolNote(pt,items){const P=new Set(pt),O={};(items||[]).forEach(x=>{if(!x.s&&x.opTeam&&!P.has(x.opTeam)&&(x.win===1||x.win===0))O[x.opTeam]=(O[x.opTeam]||0)+1});const L=Object.entries(O).sort((a,b)=>b[1]-a[1]);
-  if(!L.length)return rivOn()?'<div class="pn-ok">✓ Only sets between the selected teams: every set counts once as a win and once as a loss, so every day is 50%.</div>':'';
-  if(!rivOn())return '';const n=L.reduce((a,x)=>a+x[1],0);
-  return `<div class="pn-w">Also counted: <b>${n} sets</b> against teams that are rivals but not selected (${L.slice(0,8).map(([t,k])=>`${logo(t,'l20')} ${esc(t)} <small>${k}</small>`).join(' · ')}). That is why the win rate is not 50%. Select them too to see only sets between the selected teams.</div>`}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-nxt]');if(!b)return;const k=b.dataset.nxt;NXT[k]=!NXT[k];store.set(k==='fp'?'tvt:nxfp':'tvt:nxnf',NXT[k]?'1':'0');renderDetail()});
 // ===== Results: timeline (one square per set) + under pressure
 function nxTimeline(T,per,orient){const all=[...new Set(T.flatMap(t=>per[t].map(x=>x.m.d)))].sort();if(!all.length)return '';
   const days=[];for(let d=all[0];d<=all[all.length-1];d=nx.dAdd(d,1))days.push(d);
@@ -3113,7 +3116,7 @@ const PLAYER_NAMES={};
 let _pnMap=null,_pnSrc=null;
 function sheetName(tag,fb){ // name as written in the Picks sheet for this tag, else the in-game name
   const src=FULL&&FULL.pickPlayers;if(src!==_pnSrc){_pnSrc=src;_pnMap={};if(src)for(const t in src)for(const p of src[t])for(const g of p.tags)if(p.name)_pnMap[g]=p.name}
-  return (tag&&_pnMap&&_pnMap[tag])||fb||''}
+  return cleanName((tag&&_pnMap&&_pnMap[tag])||fb||'')}
 let _rgSrc=null,_rgSrc2=null,_rgMap={};
 function regTags(team){
   if(!team)return null;const F=FULL||{};
@@ -4224,7 +4227,7 @@ function casterTab(P){
   const offOK=(t,tags)=>{const P=((FULL&&FULL.pickPlayers&&(FULL.pickPlayers[t]||FULL.pickPlayers[casOrig[t]]))||[]).slice(0,3).map(p_=>new Set((p_.tags||[]).map(g=>String(g).toUpperCase()))).filter(s_=>s_.size);
     return !P.length||P.every(s_=>tags.some(g=>s_.has(String(g).toUpperCase())))};
   const rows=CAS.trio==='off'?casRows().filter(x=>offOK(x.t,x.mt)):casRows(),onMap=x=>MKS.has(x.mk),RA=rows.filter(x=>x.t===A&&onMap(x)),RB=rows.filter(x=>x.t===B&&onMap(x)),RG=rows.filter(x=>GS.has(x.t)&&onMap(x));
-  const tcA='#3d6ff0',tcB='#e5484d'; // Team A (left) blue, Team B (right) red
+  const tcA='#e5e3f0',tcB='#d4b483'; // Team A (left) blue, Team B (right) red
   const cmpLbl=P&&CAS.cmp==='pick'?'the chosen teams':CAS.cmp==='reg'?(CAS.cvR||'these teams'):(CAS.cvT||'these teams');
   // controls (one line each): compare with + dates, then the maps
   const tours=[...new Set(teams.map(casTour).filter(Boolean))],regs=[...new Set(teams.map(casReg).filter(Boolean))].sort();
@@ -4289,7 +4292,7 @@ function predCas(r,msg){
   let extra='';
   if(r){const n=r.perMap.length,even=n%2===0,sd=scoreDist(r.perMap);
     const all=[...sd.A.map(o=>({o,w:'A'})),...sd.T.map(o=>({o,w:''})),...sd.B.map(o=>({o,w:'B'}))].sort((x,y)=>y.o.p-x.o.p),medal=['🥇','🥈','🥉'];
-    const cell=(x,i)=>{const o=x.o,t=x.w==='A'?A0:x.w==='B'?B0:'',c=x.w==='A'?'#3d6ff0':x.w==='B'?'#e5484d':'#8e8ab0';
+    const cell=(x,i)=>{const o=x.o,t=x.w==='A'?A0:x.w==='B'?B0:'',c=x.w==='A'?'#e5e3f0':x.w==='B'?'#d4b483':'#8e8ab0';
       return `<div class="pc-sc${i===0?' top':''}" style="--c:${c}">${i<3?`<u>${medal[i]}</u>`:''}${t?logo(t,'l20'):'<em>Draw</em>'}<b>${o.a}–${o.b}</b><span>${(o.p*100).toFixed(o.p<.095?1:0)}%</span></div>`};
     extra=`<div class="pc-row"><div class="pc-gb pc-a">${gbBarHTML('a')}</div><div class="pc-res"><div class="pc-t">Probability of each result · ${plural(n,'map')}${even?', all maps played':', the series ends when a team clinches'}</div><div class="pc-scs">${all.slice(0,8).map(cell).join('')}</div></div><div class="pc-gb pc-b">${gbBarHTML('b')}</div></div>`}
   else extra=`<div class="pc-row"><div class="pc-gb pc-a">${gbBarHTML('a')}</div><p class="msg" style="margin:0;align-self:center;text-align:center">${esc(msg||'')}</p><div class="pc-gb pc-b">${gbBarHTML('b')}</div></div>`;
@@ -8768,6 +8771,27 @@ body{font-variant-numeric:tabular-nums}
 #ctxbar b{color:var(--pro-tx);font-weight:700}#ctxbar .cx-t{color:#c4b5fd;font-weight:700;letter-spacing:.02em}
 #ctxbar .cx-d{width:4px;height:4px;border-radius:50%;background:#4b4568}
 #ctxbar img{width:18px;height:18px;object-fit:contain;vertical-align:middle;margin-right:4px}
+
+/* rev143: simpler top of Team Stats, grouped tabs, one table density, neutral predictor colours, clean names */
+.u-hero:not(.u-hero2) .u-tiles>.u-tile:nth-child(n+5){display:none}.u-hero:not(.u-hero2) .u-tiles{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+.nx-sum{margin:14px 0 8px;display:flex;align-items:center;gap:14px;background:linear-gradient(90deg,rgba(168,85,247,.14),#121118);border:1px solid #3b2a5a;border-radius:14px;padding:13px 18px;font-size:14.5px;color:#e5e3f0;line-height:1.5}
+.nx-sum b{color:#fff}.nx-sum .k{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#c4b5fd;font-weight:800;white-space:nowrap}
+.nx-mores{display:flex;gap:8px;margin:0 0 14px}.nx-more{border:1px solid #2e2b3d;border-radius:999px;padding:6px 14px;font-size:12.5px;color:#c4b5fd;background:#121118;cursor:pointer;font-family:inherit}.nx-more:hover,.nx-more.on{border-color:#a855f7;color:#fff}
+#sheetbar .sb-grp{display:flex;align-items:center;gap:2px;background:#14131c;border:1px solid #24222f;border-radius:12px;padding:3px;margin:0 6px}
+#sheetbar .sb-grp>i{font-style:normal;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#6e6a85;font-weight:800;padding:0 8px 0 6px}
+#detail table:not(.mu):not(.lb-t) tbody tr{height:40px}
+#detail table:not(.mu) td img.bi,#detail table:not(.mu) td .bi{width:26px!important;height:26px!important}
+#detail .tcard .tc-box table td img.bi,#detail .tcard .tc-box table td .bi{width:22px!important;height:22px!important}
+#detail table.rank:not(.tiny) td,#detail table.cas-t td,#detail table.pr-t td{font-size:12.5px}
+#detail .tcard table tbody tr{height:auto}
+.cas-ht{background:linear-gradient(180deg,#1a1824,#121118)!important;border-color:#2e2b3d!important}
+.cas-card{border-top-color:#2e2b3d!important}
+.stack.mixl{display:flex;flex-direction:column;gap:2px}.stack.mixl b{color:#e5e3f0;font-size:13px}.stack.mixl small{color:#8a86a0;font-size:11px;font-weight:500;line-height:1.3}
+
+@media (max-width:1850px){.tc-row5 .rank.tiny td.ic .nmx{display:none}.tc-row5 .rank.tiny td.ic{justify-content:center}}
+.tc-row5 .rank.tiny td.ic{overflow:hidden!important}.tc-row5 .rank.tiny td.ic .bi{flex:none}
+
+.tc-row5 .rank.tiny td.ic:not(:has(img)){justify-content:flex-start!important;flex-direction:column;align-items:flex-start!important}
 </style>
 <script>
 /* rev142: explanations behind an (i) icon + context bar */
@@ -8794,4 +8818,13 @@ body{font-variant-numeric:tabular-nums}
   let q=0;const run=()=>{q=0;pass(document);ctx()};const sched=()=>{if(!q)q=requestAnimationFrame(run)};
   new MutationObserver(sched).observe(document.body,{childList:true,subtree:true});document.addEventListener('click',()=>setTimeout(sched,30));sched();
 })();
+</script>
+
+<script>
+/* rev143: tabs in three groups */
+(function(){const G=[['Team',['Team Stats','Scouting','Card','Match Selector']],['Meta',['Tier List','Balance','Draft']],['Competition',['Results','Team Predictor','Worlds bracket']]];
+  function go(){const sb=document.getElementById('sheetbar');if(!sb||sb.querySelector('.sb-grp'))return !!sb;const B=[...sb.querySelectorAll('.sb-t')];if(!B.length)return false;const by={};B.forEach(b=>by[b.textContent.trim()]=b);
+    const D=G.map(([g,L])=>{const d=document.createElement('div');d.className='sb-grp';d.innerHTML='<i>'+g+'</i>';L.forEach(n=>{if(by[n])d.appendChild(by[n])});return d});sb.prepend(...D);
+    sb.querySelectorAll(':scope>.sb-sep').forEach(x=>x.remove());return true}
+  if(!go()){const t=setInterval(()=>{if(go())clearInterval(t)},200)}})();
 </script>
