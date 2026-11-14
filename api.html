@@ -4182,7 +4182,7 @@ const CAS=(()=>{const d={a:'',b:'',map:'',from:'',to:'',cmp:'tour',cvT:'',cvR:''
 const casSave=()=>store.set('tvt:caster',JSON.stringify(CAS));
 const casU=t=>grpClean(t).toUpperCase();
 // 50% in yellow, red below, green above (few sets = paler)
-function casWr(p,n){const d=p-.5,c=n==null?1:Math.min(1,.4+n/15);if(Math.abs(d)<.05)return 'background:hsla(40,92%,52%,.42);color:#fff;font-weight:800';return wrSoft(p,n)}
+function casWr(p,n){const d=p-.5,c=n==null?1:Math.min(1,.4+n/15);if(Math.abs(d)<.05)return 'background:transparent;color:#facc15;font-weight:800';return wrSoft(p,n)}
 // the teams: the list SELECTED TEAMS of the Picks sheet, in its order
 const casOrig={};
 function casTeams(){const S=(SELECTED&&SELECTED.length)?SELECTED:Object.keys(TOUR),o=[];for(const x of S){const u=String(x).trim().toUpperCase();if(!u||o.includes(u))continue;casOrig[u]=x;o.push(u)}return o}
@@ -4244,7 +4244,7 @@ function casterTab(P){
   if(p==null){const sh=(w,n)=>(w+3)/(n+6),all=t=>{const L=rows.filter(x=>x.t===t);return sh(L.reduce((a,x)=>a+x.win,0),L.length)},hh=(t,o)=>{const L=rows.filter(x=>x.t===t&&x.o===o);return sh(L.reduce((a,x)=>a+x.win,0),L.length)};
     const sA=.4*sh(hA.w,hA.n)+.35*all(A)+.25*hh(A,B),sB=.4*sh(hB.w,hB.n)+.35*all(B)+.25*hh(B,A);p=1/(1+Math.exp(-6*(sA-sB)));src='the win rate of each team on this map, its form on every map and their head to head (sets)'}
   const pa=Math.round(100*p);
-  const mid=`<div class="cas-mid" style="--m:${MC}">${many?`<div class="cas-mthumbs">${MAPS.map((m,k)=>{const u=IMGS['bg'+mkey(m)]||IMGS[mkey(m)]||'';return u?`<span><img src="${u}" alt="" title="${esc(m)}"><b>${k+1}</b></span>`:''}).join('')}</div>`:mimg?`<img class="cas-mimg" src="${mimg}" alt="">`:''}<div class="cas-mwp"><div class="cas-mt"><span>${IMGS['mode'+mkey(MD)]?`<img class="cas-mi" src="${IMGS['mode'+mkey(MD)]}" alt="">`:''}${many?'':esc(MD)}</span><b>${many?'Series of '+MAPS.length+' maps':esc(MAP)}</b></div>
+  const mid=`<div class="cas-mid${MAPS.length>4?' many':''}" style="--m:${MC}">${many?`<div class="cas-mthumbs${MAPS.length>12?' xs':MAPS.length>6?' sm':''}">${MAPS.map((m,k)=>{const u=IMGS['bg'+mkey(m)]||IMGS[mkey(m)]||'';return u?`<span><img src="${u}" alt="" title="${esc(m)}"><b>${k+1}</b></span>`:''}).join('')}</div>`:mimg?`<img class="cas-mimg" src="${mimg}" alt="">`:''}<div class="cas-mwp"><div class="cas-mt"><span>${IMGS['mode'+mkey(MD)]?`<img class="cas-mi" src="${IMGS['mode'+mkey(MD)]}" alt="">`:''}${many?'':esc(MD)}</span><b>${many?'Series of '+MAPS.length+' maps':esc(MAP)}</b></div>
     <div class="cas-wpt" title="Win chance from ${src}">${many?'Series win chance':'Win chance'}</div><div class="cas-wpr"><b style="color:${tcA}">${pa}%</b><div class="cas-wpb"><i style="flex:${pa};background:${tcA}"></i><i style="flex:${100-pa};background:${tcB}"></i></div><b style="color:${tcB}">${100-pa}%</b></div></div></div>`;
   // tables
   const head=(t,tog,col,tip)=>`<div class="cas-ch"${col?` style="--c:${col}"`:''}><div class="cas-ln" title="${esc(tip||'')}"><span>${t}</span></div>${tog||''}</div>`;
@@ -4266,7 +4266,7 @@ function casterTab(P){
     const who=x=>x.t?`<div class="cas-tm">${logo(x.t,'l20')}<span>${esc(x.t)}</span></div>`:`<div class="cas-pl">${x.tags.map(g=>`<span>${esc(nmOf(g))}</span>`).join('')}</div>`;
     const rs=arr.map(x=>`<tr${x.t===A||x.t===B?rowAttr(x.t):''}><td>${who(x)}</td><td class="num">${x.n}</td><td class="num cas-w" style="${casWr(x.w/x.n,x.n)}">${casPc(x.w,x.n)}</td><td class="num mut">${x.w}–${x.n-x.w}</td></tr>`).join('');
     return `<div class="cas-sub" style="--c:${col}">${head(`${logo(t,'l20')} Most played rivals`,casTog(id,[['n','Sets'],['wr','Win rate']],'n'),col,'the 5 rivals '+t+' played the most sets against (every map); rivals that are not in the list are shown by their 3 players')}<table class="cas-t"><tbody>${rs||'<tr><td colspan="4" class="msg">No sets.</td></tr>'}</tbody></table></div>`};
-  return `<div class="cas" title="">${top}${maps_}<div class="cas-head">${chips(A,'casa')}${hdr(A,hA,tcA)}${mid}${hdr(B,hB,tcB,1)}${chips(B,'casb')}</div>${P&&P.extra?P.extra:''}
+  return `<div class="cas${P?' cas-p':''}" title="">${top}${maps_}<div class="cas-head">${chips(A,'casa')}${hdr(A,hA,tcA)}${mid}${hdr(B,hB,tcB,1)}${chips(B,'casb')}</div>${P&&P.extra?P.extra:''}
     <div class="cas-g4">${pkT('pkA',`${logo(A,'l20')} ${esc(A)}`,RA,tcA)}${pkT('pkG',(many?'Selected maps':'Selected map')+' · total picks',RG,'var(--accent,#d63a50)')}${duoT()}${pkT('pkB',`${logo(B,'l20')} ${esc(B)}`,RB,tcB)}</div>
     <div class="cas-g5"><div class="cas-card cas-rv">${rivT(A,tcA)}</div>${teamT('wMap',many?'Win rate · these maps':'Win rate · '+esc(MAP),onMap,'sets on '+(many?MAPS.join(', '):MAP))}${teamT('wMode',MDS.size>1?'Win rate · their modes':'Win rate · '+esc(MD),x=>MDS.has(x.md),'sets on every map of '+[...MDS].join(', '))}${teamT('wAll','Win rate · all maps',()=>true,'sets on every map and mode')}<div class="cas-card cas-rv">${rivT(B,tcB)}</div></div>
     <p class="cas-foot">Sets from ${fmtDate(R.from)} to ${fmtDate(R.to)} (single games and draws left out) · pick rate = share of the sets with that brawler · Team A in blue, Team B in red${BAN.size?' · global bans left out of the brawler and duo tables: '+esc([...BAN].join(', ')):''}</p></div>`}
@@ -4295,13 +4295,26 @@ function predCas(r,msg){
   else extra=`<div class="pc-row"><div class="pc-gb pc-a">${gbBarHTML('a')}</div><p class="msg" style="margin:0;align-self:center;text-align:center">${esc(msg||'')}</p><div class="pc-gb pc-b">${gbBarHTML('b')}</div></div>`;
   let p=null,src='';
   if(r){const pa=r.series.A,pb=r.series.B;p=pa+pb>0?pa/(pa+pb):.5;src=r.perMap.length>1?'the Team Predictor model: chance of winning the series'+(r.perMap.length%2===0?' (draws left out)':''):'the Team Predictor model'}
-  return casterTab({A:U(A0),B:U(B0),maps:sel.maps.slice(),p,src,extra,ban:gbAll()});
+  setTimeout(prSbPaint,0);return casterTab({A:U(A0),B:U(B0),maps:sel.maps.slice(),p,src,extra,ban:gbAll()});
 }
 document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-pra],[data-prb],[data-prmap]');if(!t||!M||!M.D)return;const d=t.dataset,D=M.D;
   const ix=n=>D.off.findIndex(x=>String(x).toUpperCase()===String(n).toUpperCase());
   if(d.pra!=null||d.prb!=null){const i=ix(d.pra!=null?d.pra:d.prb);if(i<0)return;
     const other=d.pra!=null?$('selB'):$('selA');if(+other.value===i)other.value=d.pra!=null?$('selA').value:$('selB').value;(d.pra!=null?$('selA'):$('selB')).value=i;render();return}
   if(d.prmap!=null){const m=d.prmap,k=sel.maps.indexOf(m);if(k>=0)sel.maps.splice(k,1);else{if(!D.maps.includes(m))return;sel.maps.push(m)}saveSel();render()}});
+
+// ===== rev139: Team Predictor maps chosen in the side panel (like Team Stats)
+function prSbPaint(){const A=document.getElementById('sbar');if(!A)return;let box=document.getElementById('prSb');
+  const on=typeof view!=='undefined'&&view==='pred'&&M&&M.D;
+  if(!on){if(box)box.style.display='none';document.body.classList.remove('pr-sb');return}
+  if(!box){box=document.createElement('div');box.id='prSb';box.className='pr-sb';A.appendChild(box)}
+  box.style.display='';document.body.classList.add('pr-sb');
+  const D=M.D,av=new Set(D.maps||[]),S=sel.maps||[],ML=(MODELIST||[]).map(([md,ms])=>[md,ms.filter(m=>av.has(m))]).filter(x=>x[1].length);
+  const other=[...av].filter(m=>!ML.some(x=>x[1].includes(m)));if(other.length)ML.push(['Other',other]);
+  box.innerHTML=`<div class="pr-h"><span class="lbl">Maps of the series</span>${S.length?`<button type="button" class="pr-clr" data-prclr>Clear</button>`:''}</div><p class="pr-hint">${S.length?`${S.length} ${S.length===1?'map':'maps'} · click them in the order they are played`:'Click the maps in the order they are played'}</p>`+
+    ML.map(([md,ms])=>{const ic=IMGS['mode'+mkey(md)];return `<div class="pr-g"><div class="pr-gh">${ic?`<img src="${ic}" alt="">`:''}<b>${esc(md)}</b></div><div class="pr-tiles">${ms.map(m=>{const k=S.indexOf(m),u=IMGS['bg'+mkey(m)]||IMGS[mkey(m)]||'';
+      return `<button type="button" class="pr-t${k>=0?' on':''}" data-prmap="${esc(m)}" title="${esc(m)}${k>=0?' · map '+(k+1)+' of the series · click to remove':' · click to add'}"><span class="pr-im"${u?` style="background-image:url('${u}')"`:''}>${k>=0?`<b>${k+1}</b>`:''}</span><small>${esc(m)}</small></button>`}).join('')}</div></div>`}).join('')}
+document.addEventListener('click',e=>{const c=e.target.closest&&e.target.closest('[data-prclr]');if(c){sel.maps=[];saveSel();render()}setTimeout(prSbPaint,0)});
 // ===== easier to use: top bar, share, scouting index, team stats tabs, data check =====
 (function(){const ft=$('fType'),host=$('uxGamesHost');if(ft&&host)host.appendChild(ft);
   const cal=$('uxCal'),pg=$('rcal')&&$('rcal').closest('.pgrp');if(cal){const x=document.createElement('button');x.type='button';x.id='uxCalX';x.title='Close';x.textContent='✕';cal.appendChild(x)}if(pg&&cal)cal.appendChild(pg);
@@ -8617,4 +8630,25 @@ body{font-family:var(--body)!important;font-feature-settings:'tnum' 1,'cv11' 1}
 .pn-ok,.pn-w{border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:13px;line-height:1.5}
 .pn-ok{background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.35);color:#86efac}
 .pn-w{background:rgba(250,204,21,.07);border:1px solid rgba(250,204,21,.4);color:#fde68a}.pn-w b{color:#fff}.pn-w small{color:#a8a29e}.pn-w .l20{vertical-align:middle}
+
+/* rev139: Team Predictor - maps in the side panel, map thumbnails that fit, smaller table titles */
+body.pr-sb:not(.sb-off) .cas-p .cas-maps{display:none}
+.pr-sb{border-top:1px solid #24222f;margin-top:10px;padding:12px 4px 4px}
+.pr-h{display:flex;align-items:center;justify-content:space-between}.pr-clr{background:none;border:1px solid #3b2a52;color:#c4b5fd;border-radius:8px;padding:3px 10px;font-size:11.5px;cursor:pointer}
+.pr-hint{color:#6e6a85;font-size:11.5px;margin:4px 0 8px}
+.pr-g{margin-bottom:10px}.pr-gh{display:flex;align-items:center;gap:7px;margin:0 0 6px}.pr-gh img{width:18px;height:18px}.pr-gh b{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#e5e3f0}
+.pr-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.pr-t{display:flex;flex-direction:column;background:#0d0c12;border:1px solid #24222f;border-radius:9px;overflow:hidden;padding:0;cursor:pointer;color:#e5e3f0}
+.pr-t:hover{border-color:#6d4bb0}.pr-t.on{border-color:#a855f7;box-shadow:0 0 0 1px #a855f7}
+.pr-im{position:relative;display:block;height:44px;background-size:cover;background-position:center;background-color:#1b1a24}
+.pr-im b{position:absolute;top:4px;right:4px;background:#a855f7;color:#fff;font-size:11px;font-weight:900;border-radius:6px;padding:1px 6px}
+.pr-t small{font-size:10px;font-weight:600;padding:4px 3px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
+.cas-mid{min-width:0;overflow:hidden}.cas-mthumbs{flex-wrap:wrap;max-width:100%;min-width:0;align-content:center}
+.cas-mthumbs.sm img{height:40px}.cas-mthumbs.xs img{height:28px}.cas-mthumbs.xs{gap:3px}.cas-mthumbs.xs b{font-size:8.5px;padding:0 3px}
+.cas-ln{font-size:10px!important;letter-spacing:.04em!important;gap:6px!important}
+.cas-ln:before,.cas-ln:after{display:none!important}.cas-t th{white-space:normal!important;line-height:1.2}
+.cas-ch{flex-wrap:wrap;justify-content:center;row-gap:4px}
+.cas-ch>.cas-ln{flex:1 1 100%!important}
+.cas-ln span{white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis;line-height:1.3}
+.cas-mid.many{flex-direction:column;align-items:stretch;gap:6px}.cas-mid.many .cas-mthumbs{justify-content:center}.cas-mid.many .cas-mwp{width:100%}
 </style>
