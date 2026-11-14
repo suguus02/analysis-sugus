@@ -1674,7 +1674,7 @@ function processRows(rows,db,opts){
       if(!newFmt){matches.push(Object.assign({},m,{w:m.y===1?1:0,l:m.y===0?1:0,dr:m.y===0.5?1:0,sc:''}));continue}
       if(!cur||cur.n>=9||cur.w>=2||cur.l>=2||(m.ht&&cur.ht&&m.t-cur.last>900)){ // a set ends when one side has 2 wins (Bo3), after 15 min without a game or after 9 games (draws are replayed): a rematch with the same comps is a new set
       cur=Object.assign({},m,{w:0,l:0,dr:0,n:0,last:m.t});matches.push(cur)}
-      cur.n++;cur.last=m.t;if(cur.n>1&&!cur.na&&m.na){cur.na=m.na;cur.nb=m.nb}if(cur.n>1&&m.gs)cur.gs=(cur.gs||[]).concat(m.gs);if(m.y===1)cur.w++;else if(m.y===0)cur.l++;else cur.dr++;
+      cur.n++;cur.last=m.t;if(cur.n>1&&!cur.na&&m.na){cur.na=m.na;cur.nb=m.nb}if(cur.n>1&&m.gs)cur.gs=(cur.gs||[]).concat(m.gs);cur.q=(cur.q||'')+(m.y===1?'W':m.y===0?'L':'D');if(m.y===1)cur.w++;else if(m.y===0)cur.l++;else cur.dr++;
     }
   }
   for(const m of matches){
@@ -1682,7 +1682,7 @@ function processRows(rows,db,opts){
   }
   matches.sort((x,y)=>x.d<y.d?-1:x.d>y.d?1:x.t-y.t||x.i-y.i);
   matches.forEach((m,k)=>{m.i=k});
-  return {v:4,ev:2,official,matches,names,raw,dups,rounds,fmt:newFmt?'rounds':'sets',knownTags:opts.known||{},known:knownNames(db,opts.known),rank:rk};
+  return {v:4,ev:3,official,matches,names,raw,dups,rounds,fmt:newFmt?'rounds':'sets',knownTags:opts.known||{},known:knownNames(db,opts.known),rank:rk};
 }
 // vuelve a etiquetar los equipos de un conjunto ya procesado (por ejemplo al cargar otra tabla de equipos)
 function relabel(ds,db){
@@ -1853,8 +1853,8 @@ function describe(ds,M){
 
 // ---------- descriptive analysis: picks, duos, rivals, matches by date ----------
 function orient(m,team){
-  if(m.a===team)return {sc:m.sc||'',dr:m.dr||0,win:m.y,mine:m.ba,theirs:m.bb,myTags:m.ta,opTags:m.tb,opLabel:m.b,myBans:Math.max(m.w||0,m.l||0)<2&&m.w!=null?null:m.na||null,opBans:Math.max(m.w||0,m.l||0)<2&&m.w!=null?null:m.nb||null};
-  if(m.b===team)return {sc:m.sc?m.sc.split('-').reverse().join('-'):'',dr:m.dr||0,win:m.y===0.5?0.5:1-m.y,mine:m.bb,theirs:m.ba,myTags:m.tb,opTags:m.ta,opLabel:m.a,myBans:Math.max(m.w||0,m.l||0)<2&&m.w!=null?null:m.nb||null,opBans:Math.max(m.w||0,m.l||0)<2&&m.w!=null?null:m.na||null};
+  if(m.a===team)return {q:m.q||'',sc:m.sc||'',dr:m.dr||0,win:m.y,mine:m.ba,theirs:m.bb,myTags:m.ta,opTags:m.tb,opLabel:m.b,myBans:Math.max(m.w||0,m.l||0)<2&&m.w!=null?null:m.na||null,opBans:Math.max(m.w||0,m.l||0)<2&&m.w!=null?null:m.nb||null};
+  if(m.b===team)return {q:(m.q||'').replace(/[WL]/g,c=>c==='W'?'L':'W'),sc:m.sc?m.sc.split('-').reverse().join('-'):'',dr:m.dr||0,win:m.y===0.5?0.5:1-m.y,mine:m.bb,theirs:m.ba,myTags:m.tb,opTags:m.ta,opLabel:m.a,myBans:Math.max(m.w||0,m.l||0)<2&&m.w!=null?null:m.nb||null,opBans:Math.max(m.w||0,m.l||0)<2&&m.w!=null?null:m.na||null};
   return null;
 }
 function teamStats(ds,team,maps,limit){
@@ -1959,7 +1959,7 @@ function setList(ds,db,team,maps){
     if(set&&!set.has(m.m))continue;
     const o=orient(m,team);if(!o)continue;
     const d=display(rs(o.opLabel,o.opTags),ds);
-    out.push({i:m.i,d:m.d,map:m.m,ty:m.ty||'',win:o.win,sc:o.sc,s:m.s?1:0,mine:o.mine,theirs:o.theirs,myBans:o.myBans,opBans:o.opBans,
+    out.push({i:m.i,d:m.d,map:m.m,ty:m.ty||'',win:o.win,q:o.q,sc:o.sc,s:m.s?1:0,mine:o.mine,theirs:o.theirs,myBans:o.myBans,opBans:o.opBans,
       myNames:o.myTags.map(g=>ds.names[g]||''),opNames:o.opTags.map(g=>ds.names[g]||''),myTags:o.myTags.slice(),opTags:o.opTags.slice(),opp:d.named?d.name:o.opTags.filter(Boolean).map(g=>ds.names[g]||g).join(' / '),named:d.named,myTeam:team,opTeam:d.named?d.name:''});
   }
   return out;
@@ -2750,7 +2750,7 @@ function tsOne(team,cls,D,o){
       return `<div class="u-mcol"><div class="u-mch">${mi?`<img src="${mi}" alt="">`:'<span></span>'}<b>${esc(md)}</b><span style="color:${col(pc(tw,tn))}">${pc(tw,tn)}%</span><small>${plural(tn,'set')}</small></div>${L.sort((a,b)=>b.w/b.n-a.w/a.n||b.n-a.n).map(e=>`<div class="u-mc" title="${esc(e.k)} · ${e.w}W ${e.n-e.w}L">${mimg(e.k,'u-mci')}<div><b>${esc(e.k)}</b><small>${plural(e.n,'set')} · ${e.w}W ${e.n-e.w}L</small></div><span style="color:${col(pc(e.w,e.n))}">${pc(e.w,e.n)}%</span></div>`).join('')}</div>`};
     const maps=modes.map(md=>mcol(md,Object.values(MP).filter(e=>modeOfMap(e.k)===md))).join('')+(other.length?mcol('Other',other):'');
     const BC=bnCalc(team,D,true,false),bn=Object.entries(BC.T).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([k,n])=>({k,n}));nb=BC.tot;
-    body=dwChart(D.items0,team)+`<div class="u-grid3">
+    body=nxTop([team],()=>D.items0)+dwChart(D.items0,team)+`<div class="u-grid3">
       <section class="u-panel"><header>Most picked brawlers <button type="button" class="u-lnk" data-tss="brawlers">See all ${Object.keys(B).length} →</button></header>${br}</section>
       <section class="u-panel"><header>Best duos <button type="button" class="u-lnk" data-tss="brawlers">See all →</button></header>${du}</section>
       <section class="u-panel"><header>Opponents <small>${plural(Object.keys(OP).length,'rival')}</small></header>${op}</section></div>
@@ -2816,7 +2816,7 @@ function tsPair(){const A=ddBuild(sel.a,'a','A',false),B=ddBuild(sel.b,'b','B',f
   let body='';
   if(k==='overview'){
     const two=f=>`<div class="u-grid2">${DD.map((D,i)=>f(D,CC[i])).join('')}</div>`;
-    body=two(D=>dwChart(D.items0,D.team,1))+two((D,C)=>`<section class="u-panel"><header><span class="u-hd">${logo(D.team,'l20')} Most picked · ${esc(D.team)}</span> <button type="button" class="u-lnk" data-tss="brawlers">See all →</button></header>${tsBrRows(C,both)}</section>`)
+    body=nxTop(DD.map(D=>D.team),t=>(DD.find(D=>D.team===t)||{}).items0)+two(D=>dwChart(D.items0,D.team,1))+two((D,C)=>`<section class="u-panel"><header><span class="u-hd">${logo(D.team,'l20')} Most picked · ${esc(D.team)}</span> <button type="button" class="u-lnk" data-tss="brawlers">See all →</button></header>${tsBrRows(C,both)}</section>`)
       +`<p class="u-note" style="margin:-6px 0 0"><span class="hlb-k">Gold frame</span> = brawler picked by both teams</p>`
       +two((D,C)=>`<section class="u-panel"><header><span class="u-hd">${logo(D.team,'l20')} Best duos · ${esc(D.team)}</span></header>${tsDuoRows(C,6)}</section>`)
       +`<section class="u-panel"><header>All maps <small>by mode · win rate of each team · pick maps in the side panel to filter the page</small></header>${tsMaps(CC,names)}</section>`
@@ -2849,7 +2849,7 @@ function tsPool(pt,label,cls,D,o){const C=tsAgg(D.items0),{pc,col,bar,top,row,no
   if(k==='overview'){
     const tm=top(C.TM).sort((a,b)=>b.w/b.n-a.w/a.n).map((e,i)=>row(i+1,logo(e.k,'u-lg'),esc(e.k),e.n,e.w,bar(e.w,e.n))).join('')||none;
     const BS=bnSum(true,false);
-    body=dwChart(D.items0,'')+`<div class="u-grid3"><section class="u-panel"><header>Most picked brawlers <button type="button" class="u-lnk" data-tss="brawlers">See all ${Object.keys(C.B).length} →</button></header>${tsBrRows(C)}</section>
+    body=nxTop(pt,t=>(D.items0||[]).filter(x=>(x.team||x.myTeam)===t))+dwChart(D.items0,'')+`<div class="u-grid3"><section class="u-panel"><header>Most picked brawlers <button type="button" class="u-lnk" data-tss="brawlers">See all ${Object.keys(C.B).length} →</button></header>${tsBrRows(C)}</section>
       <section class="u-panel"><header>Best duos <button type="button" class="u-lnk" data-tss="brawlers">See all →</button></header>${tsDuoRows(C)}</section>
       <section class="u-panel"><header>Teams <small>win rate in the period</small></header>${tm}</section></div>
       <section class="u-panel"><header>All maps <small>by mode · the selected teams together · pick maps in the side panel to filter the page</small></header>${tsMaps([C],[label])}</section>
@@ -2868,6 +2868,86 @@ function tsPool(pt,label,cls,D,o){const C=tsAgg(D.items0),{pc,col,bar,top,row,no
       <div class="u-cfb">${resSeg()}${D.nSingles||!showSingles?`<label class="chk"><input type="checkbox" data-sgl="1"${showSingles?' checked':''}> Show single games (${D.nSingles})</label>`:''}<span class="u-cfs">${D.summary}</span></div></div>${compRows(D.log,null)}</section>`;
   else body=`<div class="u-blk uxdr">${draftsTab()}</div>`;
   return `<div class="u-ts">${rivBanner()}${hero}${sub}${body}<p class="foot">Picks and wins count sets (single games and draws excluded). Win rate = wins / picks. With few sets the percentages swing a lot.</p></div>`}
+// ===== rev135: team fingerprint, key findings, comebacks, results timeline, brawler matchups
+const nx={pc:v=>v==null||isNaN(v)?'–':Math.round(v*100)+'%',col:v=>v==null?'#9a97ad':v>=.6?'#4ade80':v>=.53?'#86efac':v>.47?'#facc15':v>.4?'#fca5a5':'#f87171',
+  wr:A=>{const v=A.filter(x=>x.win===1||x.win===0);return v.length?v.filter(x=>x.win===1).length/v.length:null},
+  dAdd:(d,n)=>{const t=new Date(d+'T12:00:00Z');t.setUTCDate(t.getUTCDate()+n);return t.toISOString().slice(0,10)},
+  tc:s=>String(s).toLowerCase().replace(/(^|[\s-])\S/g,x=>x.toUpperCase()),
+  first:q=>{const m=String(q||'').match(/[WL]/);return m?m[0]:''}};
+// comebacks: sets where the team lost the first game / won the first game
+function nxCome(items){const v=(items||[]).filter(x=>!x.s&&(x.win===1||x.win===0)&&x.q);const L1=v.filter(x=>nx.first(x.q)==='L'),W1=v.filter(x=>nx.first(x.q)==='W');
+  return {n:L1.length,w:L1.filter(x=>x.win===1).length,cn:W1.length,cw:W1.filter(x=>x.win===1).length,dn:v.filter(x=>/^(2-1|1-2)$/.test(x.sc||'')).length,dw:v.filter(x=>/^(2-1|1-2)$/.test(x.sc||'')&&x.win===1).length}}
+function nxFp(team,items){const A=(items||[]).filter(x=>!x.s&&(x.win===1||x.win===0));const n=A.length;if(!n)return null;
+  const br={};A.forEach(x=>(x.mine||[]).filter(Boolean).forEach(b=>br[b]=(br[b]||0)+1));const s=Object.values(br).sort((a,b)=>b-a);
+  const pool=Object.keys(br).filter(b=>br[b]/n>=.05).length,top3=s.slice(0,3).reduce((a,v)=>a+v,0)/(3*n);
+  const md={};A.forEach(x=>{const m=modeOfMap(x.map)||'';if(m)(md[m]=md[m]||[]).push(x)});const bm=Object.entries(md).filter(([m,v])=>v.length>=6).sort((a,b)=>nx.wr(b[1])-nx.wr(a[1]))[0];
+  const last=A.reduce((a,x)=>x.d>a?x.d:a,''),wk=nx.dAdd(last,-6),f=A.filter(x=>x.d>=wk);const cb=nxCome(A);
+  return {n,pool,top3,bm:bm?bm[0]:'',bmw:bm?nx.wr(bm[1]):null,bmn:bm?bm[1].length:0,form:nx.wr(f),fn:f.length,cb}}
+function nxFpHTML(team,items){const f=nxFp(team,items);if(!f)return '';
+  const g=(lab,val,p,c,tip)=>`<span class="fp-g" title="${esc(tip)}"><small>${lab}</small><b style="color:${c||'#fff'}">${val}</b><i><u style="width:${Math.round(Math.max(0,Math.min(1,p||0))*100)}%;background:${c||'#a855f7'}"></u></i></span>`;
+  const mi=f.bm&&IMGS['mode'+mkey(f.bm)]?`<img class="fp-mi" src="${IMGS['mode'+mkey(f.bm)]}" alt="">`:'';
+  const cb=f.cb.n?f.cb.w/f.cb.n:null;
+  return `<div class="fp">${logo(team,'l28')}<b class="fp-n">${esc(team)}</b>
+    ${g('Pool',f.pool+' brawlers',f.pool/25,'',`Brawlers used in 5%+ of the sets (${f.n} sets)`)}
+    ${g('Top-3 reliance',nx.pc(f.top3),f.top3*2.5,'','How much of the team\'s picks are its 3 most used brawlers')}
+    ${g('Best mode',f.bm?mi+esc(nx.tc(f.bm)):'–',f.bmw,nx.col(f.bmw),f.bm?`${nx.pc(f.bmw)} in ${f.bmn} sets`:'not enough sets')}
+    ${g('Form · last 7 days',nx.pc(f.form),f.form,nx.col(f.form),`${f.fn} sets in the last 7 days of the period`)}
+    ${g('Comebacks',f.cb.n?`${nx.pc(cb)} <small>${f.cb.w}/${f.cb.n}</small>`:'–',cb,nx.col(cb),'Sets won after losing the first game')}</div>`}
+// key findings: short facts written from the data of the period
+function nxFind(team,items){const A=(items||[]).filter(x=>!x.s&&(x.win===1||x.win===0));if(A.length<10)return [];const out=[];
+  const last=A.reduce((a,x)=>x.d>a?x.d:a,''),wk=nx.dAdd(last,-6);
+  const bym={};A.forEach(x=>(bym[x.map]=bym[x.map]||[]).push(x));
+  const mm=Object.entries(bym).filter(([m,v])=>v.length>=6).map(([m,v])=>{const r=v.slice().sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:a.i-b.i).slice(-10);return {m,n:r.length,w:r.filter(x=>x.win===1).length}});
+  const lo=mm.slice().sort((a,b)=>a.w/a.n-b.w/b.n)[0],hi=mm.slice().sort((a,b)=>b.w/b.n-a.w/a.n)[0];
+  if(lo&&lo.w/lo.n<=.4)out.push({k:'dn',s:1-lo.w/lo.n,t:`Has lost <b>${lo.n-lo.w} of the last ${lo.n}</b> sets on <b>${esc(lo.m)}</b>`,ic:mimg(lo.m,'nf-mi')});
+  if(hi&&hi.w/hi.n>=.65)out.push({k:'up',s:hi.w/hi.n,t:`Best map lately: <b>${esc(hi.m)}</b>, <b>${hi.w} of the last ${hi.n}</b> sets won`,ic:mimg(hi.m,'nf-mi')});
+  const ck=x=>(x.mine||[]).filter(Boolean).slice().sort().join('+');const old=new Set(A.filter(x=>x.d<wk).map(ck));const nw={};A.filter(x=>x.d>=wk).forEach(x=>{const k=ck(x);if(k.split('+').length===3&&!old.has(k))(nw[k]=nw[k]||[]).push(x)});
+  const nb=Object.entries(nw).filter(([k,v])=>v.length>=3).sort((a,b)=>b[1].length-a[1].length)[0];
+  if(nb&&old.size)out.push({k:'new',s:.9,t:`New in the last 7 days: <b>${nb[0].split('+').map(nx.tc).join(' + ')}</b>, ${nb[1].length} sets, ${nx.pc(nx.wr(nb[1]))} won`,ic:`<span class="nf-cp">${nb[0].split('+').map(b=>bimg(b,'nf-bi')).join('')}</span>`});
+  const w1=A.filter(x=>x.d>=wk),w0=A.filter(x=>x.d<wk);if(w1.length>=8&&w0.length>=8){const d=nx.wr(w1)-nx.wr(w0);if(Math.abs(d)>=.1)out.push({k:d>0?'up':'dn',s:Math.abs(d)*3,t:`Form: <b>${nx.pc(nx.wr(w1))}</b> in the last 7 days vs ${nx.pc(nx.wr(w0))} before (<b>${d>0?'+':''}${Math.round(d*100)} pts</b>)`,ic:''})}
+  const off=new Set(M.D.off||[]),byo={};A.forEach(x=>{const o=x.opTeam;if(o&&off.has(o)&&o!==team)(byo[o]=byo[o]||[]).push(x)});
+  const ro=Object.entries(byo).filter(([o,v])=>v.length>=8).map(([o,v])=>({o,n:v.length,w:v.filter(x=>x.win===1).length}));
+  const hr=ro.slice().sort((a,b)=>a.w/a.n-b.w/b.n)[0],er=ro.slice().sort((a,b)=>b.w/b.n-a.w/a.n)[0];
+  if(hr&&hr.w/hr.n<=.4)out.push({k:'dn',s:1-hr.w/hr.n,t:`Hardest rival: <b>${esc(hr.o)}</b>, only ${hr.w} of ${hr.n} sets won`,ic:logo(hr.o,'nf-lg')});
+  if(er&&er.w/er.n>=.65&&er!==hr)out.push({k:'up',s:er.w/er.n,t:`Best against <b>${esc(er.o)}</b>: ${er.w} of ${er.n} sets won`,ic:logo(er.o,'nf-lg')});
+  const br={};A.forEach(x=>(x.mine||[]).filter(Boolean).forEach(b=>{const e=br[b]||(br[b]={n:0,w:0});e.n++;if(x.win===1)e.w++}));
+  const hb=Object.entries(br).filter(([b,e])=>e.n>=8&&e.w/e.n>=.65).sort((a,b)=>b[1].w/b[1].n-a[1].w/a[1].n)[0];
+  if(hb)out.push({k:'up',s:hb[1].w/hb[1].n,t:`<b>${esc(nx.tc(hb[0]))}</b> is winning: ${hb[1].w} of ${hb[1].n} sets with it`,ic:bimg(hb[0],'nf-bi')});
+  const cb=nxCome(A);if(cb.n>=8){const p=cb.w/cb.n;if(p>=.4)out.push({k:'up',s:p+.2,t:`Comes back well: won <b>${cb.w} of ${cb.n}</b> sets after losing the first game`,ic:''});else if(p<=.15)out.push({k:'dn',s:1-p,t:`Rarely comes back: only <b>${cb.w} of ${cb.n}</b> sets won after losing the first game`,ic:''})}
+  return out.sort((a,b)=>b.s-a.s).slice(0,6)}
+const NXF={open:true};try{NXF.open=store.get('tvt:nxf')!=='0'}catch(e){}
+function nxFindHTML(team,items,narrow){const F=nxFind(team,items);if(!F.length)return '';
+  return `<section class="u-panel nf${NXF.open?'':' shut'}"><header><span class="u-hd">${narrow?logo(team,'l20')+' ':''}Key findings</span><button type="button" class="u-lnk" data-nxf>${NXF.open?'Hide ▴':'Show ▾'}</button></header>${NXF.open?`<div class="nf-g${narrow?' one':''}">${F.map(f=>`<div class="nf-i ${f.k}"><i>${f.k==='up'?'▲':f.k==='dn'?'▼':'★'}</i><span>${f.t}</span>${f.ic||''}</div>`).join('')}</div>`:''}</section>`}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-nxf]');if(!b)return;NXF.open=!NXF.open;store.set('tvt:nxf',NXF.open?'1':'0');renderDetail()});
+// top of Team Stats overview: fingerprint strip(s) + key findings
+function nxTop(teams,itemsOf){
+  const strips=teams.slice(0,16).map(t=>nxFpHTML(t,itemsOf(t))).join('');
+  const finds=teams.length===1?nxFindHTML(teams[0],itemsOf(teams[0])):teams.length===2?`<div class="u-grid2 nf-2">${teams.map(t=>nxFindHTML(t,itemsOf(t),1)).join('')}</div>`:'';
+  return `<div class="fp-wrap">${strips}</div>${finds}`}
+// ===== Results: timeline (one square per set) + under pressure
+function nxTimeline(T,per,orient){const all=[...new Set(T.flatMap(t=>per[t].map(x=>x.m.d)))].sort();if(!all.length)return '';
+  const days=[];for(let d=all[0];d<=all[all.length-1];d=nx.dAdd(d,1))days.push(d);
+  const head=days.map(d=>`<span>${+d.slice(8)}/${+d.slice(5,7)}</span>`).join('');
+  const rows=T.map(t=>{const by={};per[t].forEach(x=>(by[x.m.d]=by[x.m.d]||[]).push(x));let w=0,n=0;
+    const cells=days.map(d=>{const v=(by[d]||[]).slice().sort((a,b)=>a.m.t-b.m.t);v.forEach(x=>{if(x.win===1)w++;if(x.win===1||x.win===0)n++});
+      return `<span class="tl2-d${v.length?' on':''}"${v.length?` data-dwd="${d}" data-dwt="${esc(t)}" title="${esc(t)} · ${fmtDate(d)} · ${v.filter(x=>x.win===1).length}W ${v.filter(x=>x.win===0).length}L · click to open the day"`:''}>${v.map(x=>`<i class="${x.win===1?'w':x.win===0?'l':'d'}${x.m.ty==='tournament'?' t':''}"></i>`).join('')}</span>`}).join('');
+    return `<div class="tl2-r"><span class="tl2-n">${logo(t,'l20')}<b>${esc(t)}</b><small style="color:${nx.col(n?w/n:null)}">${n?Math.round(100*w/n)+'%':''}</small></span>${cells}</div>`}).join('');
+  return `<div class="tl2" style="--nd:${days.length}"><div class="tl2-s"><div class="tl2-h"><span></span>${head}</div>${rows}</div></div>`}
+function nxPressure(T,per){const R=T.map(t=>{const it=per[t].map(x=>({win:x.win,sc:x.sd==='a'?(x.m.sc||''):(x.m.sc||'').split('-').reverse().join('-'),q:x.sd==='a'?(x.m.q||''):(x.m.q||'').replace(/[WL]/g,c=>c==='W'?'L':'W'),s:0}));return {t,...nxCome(it)}}).filter(r=>r.n+r.dn>0);
+  const bar=(w,n)=>{const p=n?w/n:null;return `<span class="pr-b"><span class="ix-bar"><i style="width:${Math.round(100*(p||0))}%;background:${nx.col(p)}"></i><u></u></span><em style="color:${nx.col(p)}">${nx.pc(p)}</em><small>${w}/${n}</small></span>`};
+  R.sort((a,b)=>(b.n?b.w/b.n:0)-(a.n?a.w/a.n:0));
+  return `<table class="pr-t"><thead><tr><th></th><th class="l">Team</th><th>Comebacks<small>won after losing game 1</small></th><th>Closing out<small>won after winning game 1</small></th><th>Deciders<small>sets that went to game 3</small></th></tr></thead><tbody>${R.map((r,i)=>`<tr><td class="rk">${i+1}</td><td class="l"><span class="pr-tm">${logo(r.t,'l20')}<b>${esc(r.t)}</b></span></td><td>${bar(r.w,r.n)}</td><td>${bar(r.cw,r.cn)}</td><td>${bar(r.dw,r.dn)}</td></tr>`).join('')}</tbody></table>`}
+// ===== Tier List: brawler vs brawler on a map
+function nxMatchups(SRC,sel,map){const S=(SRC||[]).filter(m=>!m.s&&(m.y===1||m.y===0)&&(!map||m.m===map)&&(sel.has(m.a)||sel.has(m.b)));
+  const pk={};S.forEach(m=>[...(m.ba||[]),...(m.bb||[])].filter(Boolean).forEach(b=>pk[b]=(pk[b]||0)+1));
+  const top=Object.entries(pk).sort((a,b)=>b[1]-a[1]).slice(0,12).map(x=>x[0]);const C={};
+  const add=(A,B,y)=>(A||[]).forEach(a=>{if(!top.includes(a))return;(B||[]).forEach(b=>{if(!top.includes(b)||a===b)return;const k=a+'|'+b,e=C[k]||(C[k]={n:0,w:0});e.n++;e.w+=y})});
+  S.forEach(m=>{add(m.ba,m.bb,m.y);add(m.bb,m.ba,1-m.y)});
+  const bg=v=>v==null?'#16151f':v>=.6?'rgba(74,222,128,.42)':v>=.53?'rgba(74,222,128,.2)':v>.47?'rgba(250,204,21,.16)':v>.4?'rgba(248,113,113,.22)':'rgba(248,113,113,.42)';
+  if(!top.length)return '<p class="msg">No sets for this map and these teams.</p>';
+  return `<div class="mu-w"><table class="mu"><tr><th class="mu-c">${map?mimg(map,'mu-mi'):'<small>All maps</small>'}</th>${top.map(b=>`<th title="${esc(b)}">${bimg(b,'mu-bi')}</th>`).join('')}</tr>${top.map(a=>`<tr><th title="${esc(a)}">${bimg(a,'mu-bi')}</th>${top.map(b=>{if(a===b)return '<td class="sl"></td>';const e=C[a+'|'+b],v=e&&e.n>=4?e.w/e.n:null;return `<td style="--bg:${bg(v)}" title="${esc(a)} vs ${esc(b)}: ${e?e.w+' won of '+e.n:'no'} sets">${v==null?'<small>·</small>':Math.round(v*100)+`<small>${e.n}</small>`}</td>`}).join('')}</tr>`).join('')}</table></div>
+  <p class="msg" style="font-size:11.5px;margin-top:8px">Row = your brawler, column = the rival's brawler · % of sets won when both were on the field · small number = sets · empty = fewer than 4 sets · ${S.length} sets of the chosen teams${map?' on '+esc(map):' on all maps'}.</p>`}
+
 // ===== win rate by day (Overview); click a day = Match Selector on that day with that team
 function dwChart(items,team,small){const its=(items||[]).filter(x=>!x.s&&x.win!==.5),D={};for(const x of its){const e=D[x.d]||(D[x.d]={d:x.d,n:0,w:0});e.n++;if(x.win===1)e.w++}
   const L=Object.values(D).sort((a,b)=>a.d<b.d?-1:1);if(!L.length)return '';
@@ -4387,9 +4467,11 @@ function groupTab(){
   const mapsH=`<table class="rank gt-maps"><thead><tr><th class="rk"></th><th>Map</th><th class="num">Sets</th></tr></thead><tbody>${maps.map(([m,n],i)=>{return `<tr><td class="rk">${i+1}</td><td><span class="gt-tn">${mimg(m,'gt-mi')}${IMGS['mode'+mkey(modeOfMap(m))]?`<img class="gt-mo" src="${IMGS['mode'+mkey(modeOfMap(m))]}" alt="" title="${esc(modeOfMap(m))}">`:''}<b>${esc(m)}</b></span></td><td class="num">${n}</td></tr>`}).join('')}</tbody></table>`;
   const pmH=sec('Picks and maps of the selected teams together',`<div class="gt-pm">${[['Top 20 picks · '+NS+' team-sets',ptab(pk,'Brawler')],['Top 20 duos (same team)',ptab(du,'Duo')],['Maps · most played first',mapsH]].map(([h,t])=>`<div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0">${h}</div></div><div class="scroll pds">${t}</div></div>`).join('')}</div>`,
     'Picks: sets of the selected teams where the brawler (or the duo) was used, each team counted on its own. Pick rate = % of those sets. Maps: sets played on each of the 18 rotation maps, with the icon of their mode.');
-  return `<div class="gt">${h2h}${matches}${regH}${weekH}${pmH}</div>`}
+  const tlH=sec('Timeline',nxTimeline(T,per),'One row per team, one column per day: every square is a set (green won, red lost, yellow border = tournament), in the order they were played. Click a day to open it in Match Selector.');
+  const prH=sec('Under pressure',nxPressure(T,per),'Comebacks = sets won after losing the first game · Closing out = sets won after winning the first game · Deciders = sets that went to a 3rd game. Only sets where the order of the games is known.');
+  return `<div class="gt">${tlH}${prH}${h2h}${matches}${regH}${weekH}${pmH}</div>`}
 // ===== Tier List: meta score of every brawler from the drafts of the chosen teams
-const TL={teams:null,map:'',since:'patch',from:'',to:'',open:null};
+const TL={teams:null,map:'',since:'patch',from:'',to:'',open:null,view:'tier'};try{if(store.get('tvt:tlview')==='mu')TL.view='mu'}catch(e){}
 try{const x=JSON.parse(store.get('tvt:tier')||'null');if(x){TL.teams=x.teams||null;TL.map=x.map||'';TL.since=x.since||'patch';TL.from=x.from||'';TL.to=x.to||''}}catch(e){}
 const tlSave=()=>store.set('tvt:tier',JSON.stringify({teams:TL.teams,map:TL.map,since:TL.since,from:TL.from,to:TL.to}));
 const TL_W={pres:.5,wr:.3,prio:.2};
@@ -4506,15 +4588,16 @@ function tierTab(){const C=tlCalc();TLC=C;const off=M.D.off,sel=new Set(TL.teams
   const rows=tiers.map(([k,rg,f])=>{const L=C.list.filter(f);return `<div class="tl-row tl-${k.toLowerCase()}"><div class="tl-lab"><span class="tl-k">${k}</span><small>${rg}</small><small>${L.length} brawlers</small></div><div class="tl-g">${L.map(tile).join('')||'<span class="msg">—</span>'}</div></div>`}).join('');
   return `<div class="tl-wrap"><div class="tl-ctl">
     <div class="tl-teams"><span class="lbl">Teams</span><button type="button" class="chip" data-tlall aria-pressed="${all}">All teams</button>${chips}</div>
-    <div class="tl-opts"><label class="lbl">Map <select data-tlmap><option value="">All maps</option>${maps.map(m=>`<option${m===TL.map?' selected':''}>${esc(m)}</option>`).join('')}</select></label>
+    <div class="tl-opts"><span class="seg2 tl-vw"><button type="button" data-tlview="tier" aria-pressed="${TL.view!=='mu'}">Tier list</button><button type="button" data-tlview="mu" aria-pressed="${TL.view==='mu'}">Matchups</button></span><label class="lbl">Map <select data-tlmap><option value="">All maps</option>${maps.map(m=>`<option${m===TL.map?' selected':''}>${esc(m)}</option>`).join('')}</select></label>
       <span class="seg2"><button type="button" data-tlsince="patch" aria-pressed="${TL.since==='patch'}">Since the last balance${C.patch?' ('+fmtDate(C.patch)+')':''}</button><button type="button" data-tlsince="period" aria-pressed="${TL.since==='period'}">Whole selected period</button><button type="button" data-tlsince="custom" aria-pressed="${TL.since==='custom'}">📅 Choose dates</button></span>
       ${TL.since==='custom'?(()=>{const b=FULL&&FULL.matches&&FULL.matches.length?rangeOf(FULL):{mn:'',mx:''};return `<span class="tl-dates"><label>From <input type="date" data-tlfrom value="${esc(TL.from||'')}" min="${b.mn}" max="${b.mx}"></label><label>To <input type="date" data-tlto value="${esc(TL.to||'')}" min="${b.mn}" max="${b.mx}"></label>${TL.from||TL.to?'<button type="button" class="chip" data-tlclr>Clear</button>':''}</span>`})():''}</div>
     <p class="msg tl-src">${plural(C.nSets,'set')} of ${all?'all the teams':plural(C.teams.length,'team')}${TL.map?' on '+esc(TL.map):''}${TL.since==='custom'?' · '+(TL.from?fmtDate(TL.from):'start')+' – '+(TL.to?fmtDate(TL.to):'today'):''} · meta score = presence (pick + ban rate) 50% + adjusted win rate 30% + pick priority 20% · recent sets and stronger teams weigh more · hover a brawler for the details · ▲▼ = pick rate of the last 7 days vs before · faded = fewer than 5 sets</p></div>
-    ${rows}${unseen.length?`<div class="tl-row tl-n"><div class="tl-lab"><span class="tl-k">–</span><small>not picked</small><small>${unseen.length} brawlers</small></div><div class="tl-g">${unseen.map(n=>`<div class="tl-t few">${bimg(n,'tl-i')}<b>${esc(n)}</b><span class="tl-sc">–</span></div>`).join('')}</div></div>`:''}</div>`}
+    ${TL.view==='mu'?nxMatchups(C.SRC||tlSrc(),sel,TL.map):rows}${TL.view!=='mu'&&unseen.length?`<div class="tl-row tl-n"><div class="tl-lab"><span class="tl-k">–</span><small>not picked</small><small>${unseen.length} brawlers</small></div><div class="tl-g">${unseen.map(n=>`<div class="tl-t few">${bimg(n,'tl-i')}<b>${esc(n)}</b><span class="tl-sc">–</span></div>`).join('')}</div></div>`:''}</div>`}
 document.addEventListener('click',e=>{const t=e.target;if(!t.closest||tab!=='tier')return;
   const a=t.closest('[data-tlall]');if(a){TL.teams=null;tlSave();renderDetail();return}
   const b=t.closest('[data-tlt]');if(b){const x=b.dataset.tlt;let L=TL.teams&&TL.teams.length?TL.teams.slice():[];const i=L.indexOf(x);if(i>=0)L.splice(i,1);else L.push(x);TL.teams=L.length?L:null;tlSave();renderDetail();return}
   const s=t.closest('[data-tlsince]');if(s){TL.since=s.dataset.tlsince;tlSave();renderDetail();return}
+  const vw=t.closest('[data-tlview]');if(vw){TL.view=vw.dataset.tlview;try{store.set('tvt:tlview',TL.view)}catch(x){}renderDetail();return}
   if(t.closest('[data-tlclr]')){TL.from='';TL.to='';tlSave();renderDetail()}});
 document.addEventListener('change',e=>{const t=e.target;if(!t.closest)return;const s=t.closest('[data-tlmap]');if(s){TL.map=s.value;tlSave();renderDetail();return}
   if(t.matches('[data-tlfrom]')){TL.from=t.value;tlSave();renderDetail();return}if(t.matches('[data-tlto]')){TL.to=t.value;tlSave();renderDetail()}});
@@ -7225,7 +7308,7 @@ DB=loadDb();
 (async()=>{
   const src=store.get('tvt:src');let st=null;
   if(src==='csv')st=loadStored();
-  else{const c=await idbGet('sheet');if(c&&c.ds&&c.ds.v===4&&c.ds.ev===2&&Array.isArray(c.ds.matches))st=c.ds}
+  else{const c=await idbGet('sheet');if(c&&c.ds&&c.ds.v===4&&c.ds.ev===3&&Array.isArray(c.ds.matches))st=c.ds}
   if(!st&&src!=='csv'){setStatus('Loading the automatic copy of the sheet…',false,10);st=await snapStart();setStatus('')}
   if(st&&Array.isArray(st.btypes)&&st.btypes.length>20)BTYPE=setTypes(st.btypes);
   build(st||JSON.parse(JSON.stringify(DEFAULT)),!!st);
@@ -8470,4 +8553,28 @@ body{font-family:var(--body)!important;font-feature-settings:'tnum' 1,'cv11' 1}
 /* rev134: number of sets as a small label on the map picture (side panel mosaic) */
 .mpk .mc-nb{display:none}
 @media (min-width:1200px){html body .sbar .mcol .mpk.mpk .mc-nb{display:block;position:absolute;top:4px;right:4px;z-index:2;font-style:normal;font-size:10px;font-weight:800;color:#fff;background:rgba(10,9,16,.82);border:1px solid #3b2a5a;border-radius:6px;padding:1px 5px;line-height:1.3;pointer-events:none}}
+
+/* rev135: fingerprint, key findings, timeline, under pressure, matchups */
+.fp-wrap{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.fp{display:grid;grid-template-columns:28px minmax(120px,190px) repeat(5,minmax(0,1fr));gap:16px;align-items:center;background:#121118;border:1px solid #24222f;border-radius:14px;padding:10px 16px}
+.fp-n{font-size:14px;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fp-g{display:flex;flex-direction:column;gap:3px;min-width:0}.fp-g>small{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:#6e6a85;white-space:nowrap}.fp-g>b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:5px}.fp-g>b small{color:#6e6a85;font-size:11px;font-weight:600}
+.fp-g>i{height:4px;background:#24222f;border-radius:3px;overflow:hidden}.fp-g>i u{display:block;height:100%}.fp-mi{width:16px;height:16px}
+.nf{margin-bottom:14px}.nf.shut{padding-bottom:0}.nf-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:10px;padding:14px 16px}.nf-g.one{grid-template-columns:1fr}
+.nf-i{display:flex;align-items:center;gap:12px;background:#17161f;border:1px solid #24222f;border-left:3px solid #a855f7;border-radius:10px;padding:10px 14px;font-size:13.5px;line-height:1.4;color:#cfcce0}.nf-i>span{flex:1}.nf-i b{color:#fff}.nf-i>i{font-style:normal;width:18px;text-align:center}
+.nf-i.up{border-left-color:#4ade80}.nf-i.up>i{color:#4ade80}.nf-i.dn{border-left-color:#f87171}.nf-i.dn>i{color:#f87171}.nf-i.new{border-left-color:#facc15}.nf-i.new>i{color:#facc15}
+.nf-mi{width:52px;height:32px;object-fit:cover;border-radius:6px;flex:none}.nf-bi{width:30px;height:30px;border-radius:6px}.nf-cp{display:flex;gap:3px}.nf-lg{width:28px;height:28px;object-fit:contain}
+.tl2{overflow-x:auto;width:100%}.tl2-s{min-width:calc(190px + var(--nd)*44px)}.tl2-h,.tl2-r{display:grid;grid-template-columns:190px repeat(var(--nd),minmax(40px,1fr));gap:3px;align-items:center}
+.tl2-h span{font-size:10px;color:#6e6a85;text-align:center}.tl2-r{padding:5px 0;border-bottom:1px solid #1b1a24}.tl2-n{display:flex;align-items:center;gap:7px;min-width:0}.tl2-n b{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tl2-n small{margin-left:auto;font-weight:800;font-size:11.5px;padding-right:6px}
+.tl2-d{display:flex;flex-wrap:wrap;gap:2px;justify-content:center;align-content:center;min-height:24px;border-radius:6px;padding:2px}.tl2-d.on{cursor:pointer}.tl2-d.on:hover{background:#1f1d2b}
+.tl2-d i{width:7px;height:7px;border-radius:2px;background:#6e6a85}.tl2-d i.w{background:#4ade80}.tl2-d i.l{background:#f87171}.tl2-d i.t{outline:1.5px solid #facc15}
+.pr-t{width:100%;border-collapse:collapse}.pr-t th{font-size:10.5px;letter-spacing:.07em;color:#a78bfa;text-transform:uppercase;padding:10px;border-bottom:1px solid #24222f;background:#15131d;text-align:center}.pr-t th small{display:block;text-transform:none;letter-spacing:0;color:#6e6a85;font-weight:500;font-size:10.5px}
+.pr-t th.l,.pr-t td.l{text-align:left}.pr-t td{padding:6px 10px;border-bottom:1px solid #1b1a24;text-align:center}.pr-t .rk{color:#6e6a85;font-weight:700;width:30px}.pr-tm{display:flex;align-items:center;gap:8px}.pr-tm b{font-size:13px;white-space:nowrap}
+.pr-b{display:grid;grid-template-columns:minmax(60px,1fr) 46px 52px;gap:8px;align-items:center}.pr-b em{font-style:normal;font-weight:800;font-size:14px;text-align:right}.pr-b small{color:#6e6a85;font-size:11px;text-align:left}
+.ix-bar{position:relative;height:8px;background:#24222f;border-radius:5px;overflow:hidden;display:block}.ix-bar i{display:block;height:100%;border-radius:5px}.ix-bar u{position:absolute;top:-2px;bottom:-2px;left:50%;width:1px;background:#6e6a85}
+.tl-vw{margin-right:6px}
+.mu-w{overflow-x:auto}.mu{border-collapse:separate;border-spacing:3px;width:auto!important;min-width:0!important;margin:0 auto}.mu th{padding:2px;width:46px;background:none!important;border:0!important}.mu th.mu-c small{color:#6e6a85;font-size:10px}
+#detail .mu td,.mu td{background:var(--bg,#16151f)!important;width:54px;height:46px;text-align:center;font-weight:800;font-size:15px;border-radius:7px;color:#fff;border:0!important}.mu td small{display:block;font-size:9.5px;color:#cfcbe6;font-weight:600}#detail .mu td.sl,.mu td.sl{background:#0b0a10!important}
+.mu-bi{width:38px;height:38px;border-radius:8px}.mu-mi{width:52px;height:38px;object-fit:cover;border-radius:7px}
+@media (max-width:1300px){.fp{grid-template-columns:28px 1fr 1fr 1fr;row-gap:10px}.fp-n{grid-column:2/-1}}
 </style>
