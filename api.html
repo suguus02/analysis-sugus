@@ -2927,7 +2927,8 @@ function nxFindHTML(team,items,narrow){const F=nxFind(team,items);if(!F.length)r
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-nxf]');if(!b)return;NXF.open=!NXF.open;store.set('tvt:nxf',NXF.open?'1':'0');renderDetail()});
 // top of Team Stats overview: fingerprint strip(s) + key findings
 const NXT={fp:false,nf:false};try{NXT.fp=store.get('tvt:nxfp')==='1';NXT.nf=store.get('tvt:nxnf')==='1'}catch(e){}
-function nxTop(teams,itemsOf){
+function nxTop(teams,itemsOf){try{return nxTop0(teams,itemsOf)}catch(e){console.error('nxTop',e);return ''}}
+function nxTop0(teams,itemsOf){
   if(teams.length===1){const t=teams[0],F=nxFind(t,itemsOf(t));
     const sum=F.length?`<div class="nx-sum"><span class="k">In short</span><span>${F.slice(0,2).map(f=>f.t).join(' · ')}</span></div>`:'';
     const btn=(k,l)=>`<button type="button" class="nx-more${NXT[k]?' on':''}" data-nxt="${k}">${NXT[k]?'▾':'▸'} ${l}</button>`;
@@ -8791,7 +8792,7 @@ body{font-variant-numeric:tabular-nums}
 @media (max-width:1850px){.tc-row5 .rank.tiny td.ic .nmx{display:none}.tc-row5 .rank.tiny td.ic{justify-content:center}}
 .tc-row5 .rank.tiny td.ic{overflow:hidden!important}.tc-row5 .rank.tiny td.ic .bi{flex:none}
 
-.tc-row5 .rank.tiny td.ic:not(:has(img)){justify-content:flex-start!important;flex-direction:column;align-items:flex-start!important}
+.tc-row5 .rank.tiny td.ic.tcomp{justify-content:flex-start!important;flex-direction:column;align-items:flex-start!important}
 </style>
 <script>
 /* rev142: explanations behind an (i) icon + context bar */
@@ -8806,7 +8807,7 @@ body{font-variant-numeric:tabular-nums}
   function headFor(n){let box=n.closest('.tc-sec,.u-panel,.cas-card,.gt-sec,section,.tl-wrap,.panel');let p=n.previousElementSibling;
     while(p){if(p.matches&&p.matches(HEADS))return p;const h=p.querySelector&&p.querySelector(':scope '+HEADS.split(',').join(',:scope '));if(h&&p.matches('.tl-ctl,.u-panel>header,header,.cas-ch'))return h;p=p.previousElementSibling}
     if(box){const h=box.querySelector(HEADS);if(h&&!h.contains(n))return h}return null}
-  function pass(root){(root||document).querySelectorAll(NOTES).forEach(n=>{if(n.classList.contains('ix-moved'))return;const t=(n.innerText||'').trim();if(t.length<50)return;
+  function pass(root){if(!root)return;root.querySelectorAll(NOTES).forEach(n=>{if(n.classList.contains('ix-moved'))return;const t=(n.textContent||'').replace(/\s+/g,' ').trim();if(t.length<50)return;
       const h=headFor(n);const b=document.createElement('button');b.type='button';b.className='ix-i';b.textContent='i';b.dataset.info=t;b.title='';
       if(h&&!h.querySelector('.ix-i')){h.appendChild(b)}else{const w=document.createElement('div');w.className='ix-alone';w.appendChild(b);n.parentNode.insertBefore(w,n)}
       n.classList.add('ix-moved')})}
@@ -8815,8 +8816,9 @@ body{font-variant-numeric:tabular-nums}
   function ctx(){const sb=document.getElementById('sheetbar');if(!sb)return;if(bar.parentNode!==sb.parentNode)sb.parentNode.insertBefore(bar,sb.nextSibling);
     try{const on=sb.querySelector('.sb-t.on');const tabN=on?on.textContent.trim():'';const P=[`<span class="cx-t">${tabN.replace(/[<>&]/g,'')}</span>`].concat(window.CTXINFO?window.CTXINFO():[]);
       const h=P.join('<i class="cx-d"></i>');if(bar.innerHTML!==h)bar.innerHTML=h}catch(e){console.error('ctx',e)}}
-  let q=0;const run=()=>{q=0;pass(document);ctx()};const sched=()=>{if(!q)q=requestAnimationFrame(run)};
-  new MutationObserver(sched).observe(document.body,{childList:true,subtree:true});document.addEventListener('click',()=>setTimeout(sched,30));sched();
+  let q=0;const run=()=>{q=0;for(const id of ['detail','wbview','statsscope','checkview','sbar'])pass(document.getElementById(id));ctx()};const sched=()=>{clearTimeout(q);q=setTimeout(run,180)};
+  const MO=new MutationObserver(sched);const hook=()=>{for(const id of ['detail','wbview','checkview']){const el=document.getElementById(id);if(el&&!el.__mo){el.__mo=1;MO.observe(el,{childList:true})}}};hook();setInterval(hook,3000);
+  document.addEventListener('click',sched);document.addEventListener('change',sched);sched();
 })();
 </script>
 
