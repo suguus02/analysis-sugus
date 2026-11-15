@@ -2937,6 +2937,10 @@ function nxTop0(teams,itemsOf){
   const finds=teams.length===2?`<div class="u-grid2 nf-2">${teams.map(t=>nxFindHTML(t,itemsOf(t),1)).join('')}</div>`:'';
   return `<div class="fp-wrap">${strips}</div>${finds}`}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-nxt]');if(!b)return;const k=b.dataset.nxt;NXT[k]=!NXT[k];store.set(k==='fp'?'tvt:nxfp':'tvt:nxnf',NXT[k]?'1':'0');renderDetail()});
+function nxPoolNote(pt,items){const P=new Set(pt),O={};(items||[]).forEach(x=>{if(!x.s&&x.opTeam&&!P.has(x.opTeam)&&(x.win===1||x.win===0))O[x.opTeam]=(O[x.opTeam]||0)+1});const L=Object.entries(O).sort((a,b)=>b[1]-a[1]);
+  if(!L.length)return rivOn()?'<div class="pn-ok">✓ Only sets between the selected teams: every set counts once as a win and once as a loss, so every day is 50%.</div>':'';
+  if(!rivOn())return '';const n=L.reduce((a,x)=>a+x[1],0);
+  return `<div class="pn-w">Also counted: <b>${n} sets</b> against teams that are rivals but not selected (${L.slice(0,8).map(([t,k])=>`${logo(t,'l20')} ${esc(t)} <small>${k}</small>`).join(' · ')}). That is why the win rate is not 50%. Select them too to see only sets between the selected teams.</div>`}
 // ===== Results: timeline (one square per set) + under pressure
 function nxTimeline(T,per,orient){const all=[...new Set(T.flatMap(t=>per[t].map(x=>x.m.d)))].sort();if(!all.length)return '';
   const days=[];for(let d=all[0];d<=all[all.length-1];d=nx.dAdd(d,1))days.push(d);
