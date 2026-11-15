@@ -1937,9 +1937,9 @@ function dayMatches(ds,db,team,date,maps){
   const rs=resolver(ds,db),cur={},list=[],ms=maps&&maps.length?new Set(maps):null;
   for(const m of ds.matches){
     if(m.d!==date)continue;if(ms&&!ms.has(m.m))continue;const o=orient(m,team);if(!o)continue;
-    const r=rs(o.opLabel,o.opTags),tt=m.ht?m.t:null;let e=cur[r.id];
+    const r=rs(o.opLabel,o.opTags),tt=m.ht?m.t:null,ck=r.id+'|'+(m.ty==='tournament'?'T':'F');let e=cur[ck];
     if(e&&tt!=null&&e.lastT!=null&&tt-e.lastT>MATCH_GAP)e=null;
-    if(!e){e=cur[r.id]={res:r,sets:[],w:0,l:0,d:0,first:m.i,lastT:null,startT:tt,trios:{}};list.push(e)}
+    if(!e){e=cur[ck]={res:r,sets:[],w:0,l:0,d:0,first:m.i,lastT:null,startT:tt,trios:{},tour:m.ty==='tournament'};list.push(e)}
     {const key=o.opTags.filter(Boolean).slice().sort().join(',');if(key)e.trios[key]=(e.trios[key]||0)+1}
     if(tt!=null){e.lastT=tt;if(e.startT==null)e.startT=tt}
     e.sets.push({t:m.ht?m.t:null,s:m.s?1:0,sc:o.sc,dr:o.dr,i:m.i,map:m.m,win:o.win,mine:o.mine,theirs:o.theirs,myNames:o.myTags.map(g=>ds.names[g]||''),opNames:o.opTags.map(g=>ds.names[g]||''),myTags:o.myTags.slice(),opTags:o.opTags.slice(),myTeam:team});
@@ -1949,7 +1949,7 @@ function dayMatches(ds,db,team,date,maps){
     e.sets.sort((a,b)=>a.i-b.i);
     const dsp=display(e.res,ds);
     if(!dsp.named){const bt=Object.entries(e.trios).sort((a,b)=>b[1]-a[1])[0];if(bt){const tg=bt[0].split(',');dsp.players=tg.map(g=>ds.names[g]||g);dsp.tags=tg}}
-    return Object.assign({sets:e.sets,w:e.w,l:e.l,d:e.d,first:e.first,start:e.startT},dsp)});
+    return Object.assign({sets:e.sets,w:e.w,l:e.l,d:e.d,first:e.first,start:e.startT,tour:!!e.tour},dsp)});
 }
 
 
@@ -2480,7 +2480,7 @@ function recentHTML(team,mf){
   const rows=dts.map(x=>{const L=Engine.dayMatches(ds,DB,team,x.d,mf).filter(r=>r.w+r.l+r.d>0).sort((a,b)=>a.first-b.first);
     const ts=L.flatMap(r=>r.sets.filter(s=>!s.s&&s.t!=null).map(s=>s.t)),h0=ts.length?hr(Math.min(...ts)):null,h1=ts.length?hr(Math.max(...ts)):null;
     const hrs=h0==null?'':h0===h1?h0+'h':h0+'h – '+h1+'h';
-    const cells=L.map((r,k)=>{const [c]=outcome(r.w,r.l);return `<span class="lsc ${c}${x.d===dateSel&&k===rivalSel?' sel':''}" data-day="${x.d}" data-lri="${k}" title="Open this match${r.start!=null?' · from '+clk(r.start):''}">${r.named?logo(r.name,'l28')+`<span class="lsn">${esc(r.name)}</span>`:`<span class="stack">${r.players.map(p=>`<span>${esc(p)}</span>`).join('')}</span>`}<b>${r.w}-${r.l}</b></span>`}).join('');
+    const cells=L.map((r,k)=>{const [c]=outcome(r.w,r.l);return `<span class="lsc ${c}${r.tour?' tour':''}${x.d===dateSel&&k===rivalSel?' sel':''}" data-day="${x.d}" data-lri="${k}" title="${r.tour?'Tournament · ':''}Open this match${r.start!=null?' · from '+clk(r.start):''}">${r.tour?'<em class="lsc-t">T</em>':''}${r.named?logo(r.name,'l28')+`<span class="lsn">${esc(r.name)}</span>`:`<span class="stack">${r.players.map(p=>`<span>${esc(p)}</span>`).join('')}</span>`}<b>${r.w}-${r.l}</b></span>`}).join('');
     return `<div class="lsrow"><div class="lsd" data-day="${x.d}" title="Open this day"><b>${fmtDate(x.d)}</b><small>${hrs}</small></div><div class="lscells">${cells}</div></div>`}).join('');
   return `<div class="recent"><div class="ttl" style="margin-top:0">Latest scrims · last ${dts.length} days played${mf?' · selected maps only':''}</div><div class="lslist">${rows||'<p class="msg">No sets</p>'}</div></div>`;
 }
@@ -3367,7 +3367,7 @@ function mxSet(m,L,open){const key=mxKey(m);MXM[key]={m,L};const nm=g=>sheetName
   const ctl=`<div class="bz-ctl"><span>Pick order</span><span class="seg2"><button type="button" data-mxf="${a.s}" aria-pressed="${lf===true}">◀ Left had 1st</button><button type="button" data-mxf="${b.s}" aria-pressed="${lf===false}">Right had 1st ▶</button><button type="button" data-mxf="" aria-pressed="${!I.first}">Unknown</button></span>
     ${I.first?(E?`<span class="bz-hint">Click the brawlers in the order they were picked (${E.list.length}/6)${E.err?' · <b>'+esc(E.err)+'</b>':''}</span><button type="button" class="btn quiet" data-mxord="cancel">Cancel</button>`:`<button type="button" class="btn quiet" data-mxord="edit">✎ ${I.po?'Set the order of the picks':'Change the order of the picks'}</button>`):''}
     <small class="bz-sv" data-mxmsg>${MXMSG[key]||(I.d?(I.po?'1st pick saved · order of the picks not set':'saved'):'')}</small></div>`;
-  return `<div class="mx-s${open?' open':''}" data-mxk="${esc(key)}"><div class="mx-r bz-r" data-mxs>${mi?`<img class="mx-md" src="${mi}" alt="" title="${esc(md)}">`:'<span class="mx-md"></span>'}
+  return `<div class="mx-s${open?' open':''}${m.ty==='tournament'?' tour':''}" data-mxk="${esc(key)}"><div class="mx-r bz-r" data-mxs>${mi?`<img class="mx-md" src="${mi}" alt="" title="${esc(md)}">`:'<span class="mx-md"></span>'}
     ${bmini(a.bn)}<span class="mx-bs">${a.b.map(n=>bimg(n,'mx-b')).join('')}</span><b class="mx-g${ya===1?' w':''}">${a.g??''}</b>${mk(ya)}
     <span class="mx-mid"><span class="bz-mn">${esc(m.m)}</span>${lf===true?'<small class="bz-1">◀ 1st</small>':lf===false?'<small class="bz-1">1st ▶</small>':''}</span>${mk(ya===.5?.5:1-ya)}<b class="mx-g${ya===0?' w':''}">${b.g??''}</b><span class="mx-bs">${b.b.map(n=>bimg(n,'mx-b')).join('')}</span>${bmini(b.bn)}<span class="mx-ch">⌄</span></div>
     ${ctl}${cpSide?'':coinPred}
@@ -3383,7 +3383,7 @@ function mxCard(m,L,idx){const nm=g=>sheetName(g,(ds.names||{})[g])||g||'—',I=
   const stat=g=>{const q=ST&&ST.P[String(g||'').toUpperCase()];if(!q)return '';return `<span class="cd-st" title="${q.n} game${q.n>1?'s':''}: kills/deaths, damage per game"><b>${q.k}/${q.d}</b><span>${fmtK(q.dm/q.n)}</span>${q.st?'<i>★</i>':''}</span>`};
   const trio=S=>`<div class="trio">${S.b.map((n,k)=>{const p=num(n);return `<div class="bcell"><span class="bnm">${p?`<i class="cd-n">${p}</i>`:''}${esc(n||'—')}</span>${bimg(n,'bi card')}<span class="pbold">${esc(nm(S.tg[k])).replace('|','|<wbr>')}</span>${stat(S.tg[k])}</div>`}).join('')}</div>`;
   const bans=(S,left)=>{const c=I.first?coinI(I.first===S.s,'cd-coin'+(left?' r':'')):'',B=S.bn.some(Boolean)?S.bn.filter(Boolean).map(x=>`<span class="bz-b" title="Ban: ${esc(x)}">${bimg(x,'mx-bni')}</span>`).join(''):'';return `<span class="cd-hb">${left?B+c:c+B}</span>`};
-  return `<div class="set cd${m.s?' solo':''}" data-cdi="${idx}" title="Click to see it big and to set the pick order"><div class="cd-head"><span class="res ${sc}">${st.toUpperCase()}</span>${bans(a,true)}<span class="setmap"${mapCol(m.m)}>${esc(m.m)}<small class="cd-tm">${mxHM(m.t)}${ST?' · '+ST.games+' game'+(ST.games>1?'s':''):''}</small></span>${bans(b)}<span class="mapimg">${mimg(m.m,'')}</span></div>
+  return `<div class="set cd${m.s?' solo':''}${m.ty==='tournament'?' tour':''}" data-cdi="${idx}" title="Click to see it big and to set the pick order"><div class="cd-head"><span class="res ${sc}">${st.toUpperCase()}</span>${bans(a,true)}<span class="setmap"${mapCol(m.m)}>${esc(m.m)}<small class="cd-tm">${mxHM(m.t)}${ST?' · '+ST.games+' game'+(ST.games>1?'s':''):''}</small></span>${bans(b)}<span class="mapimg">${mimg(m.m,'')}</span></div>
     <div class="matchup"><span class="setno">${L?m.w:m.l}-${L?m.l:m.w}</span>${trio(a)}<span class="vs">VS</span>${trio(b)}</div></div>`}
 let CDL=[];
 // summary of the bans of each team in the whole match (most banned first)
@@ -3431,7 +3431,7 @@ function setModal(m,L){if(!m)return;const A=L?m.a:m.b,B=L?m.b:m.a,nm=g=>sheetNam
   const side=t=>t?logo(t,'gm-lg')+`<b>${esc(t)}</b>`:`<b>${esc(((L?m.ta:m.tb)||[]).map(nm).join(' / '))}</b>`;
   const rv=B?`<b>${esc(B)}</b>${logo(B,'gm-lg')}`:`<b>${esc(((L?m.tb:m.ta)||[]).map(nm).join(' / '))}</b>`;
   const ya=L?m.y:1-m.y;let ov=document.getElementById('gmOv');if(!ov){ov=document.createElement('div');ov.id='gmOv';document.body.appendChild(ov)}
-  ov.innerHTML=`<div class="gm" role="dialog" aria-label="Set"><div class="gm-top"><span class="gm-date">${fmtDate(m.d)} · ${mxHM(m.t)}${m.last?'–'+mxHM(m.last):''}</span><button type="button" class="gm-close" data-gmclose aria-label="Close">✕</button></div>
+  ov.innerHTML=`<div class="gm${m.ty==='tournament'?' tour':''}" role="dialog" aria-label="Set"><div class="gm-top"><span class="gm-date">${fmtDate(m.d)} · ${mxHM(m.t)}${m.last?'–'+mxHM(m.last):''}</span><button type="button" class="gm-close" data-gmclose aria-label="Close">✕</button></div>
     <div class="gm-hd"><span class="gm-t">${side(A)}</span><span class="gm-sc"><b class="${ya===1?'w':''}">${L?m.w:m.l}</b> – <b class="${ya===0?'w':''}">${L?m.l:m.w}</b></span><span class="gm-t r">${rv}</span></div>
     <div class="gm-list mx-list">${mxSet(m,L,true)}</div><div class="gm-ft"><button type="button" class="btn" data-gmclose>Close</button></div></div>`;
   ov.classList.add('on')}
@@ -3441,10 +3441,11 @@ let mxOpen=0,MXL=[];
 // scrim window for a Match Selector row (same window as Results)
 function mxModal(e){if(!e)return;const L=e.sets,nm=g=>sheetName(g,(ds.names||{})[g])||g;
   const rvN=e.b||[...e.bp].slice(0,3).join(' / ')||'Rival';
+  try{mgbCtx(L.map(x=>({m:x.m,L:x.L})))}catch(err){}
   let ov=document.getElementById('gmOv');if(!ov){ov=document.createElement('div');ov.id='gmOv';document.body.appendChild(ov)}
-  ov.innerHTML=`<div class="gm cdw" role="dialog" aria-label="Scrim"><div class="gm-top"><span class="gm-date">${fmtDate(dateSel)} · ${mxHM(e.t0)}–${mxHM(e.t1)}</span><button type="button" class="gm-close" data-gmclose aria-label="Close">✕</button></div>
+  ov.innerHTML=`<div class="gm cdw${e.tour?' tour':''}" role="dialog" aria-label="Scrim"><div class="gm-top"><span class="gm-date">${e.tour?'<em class="gm-tt">Tournament</em>':''}${fmtDate(dateSel)} · ${mxHM(e.t0)}–${mxHM(e.t1)}</span><button type="button" class="gm-close" data-gmclose aria-label="Close">✕</button></div>
     <div class="gm-hd"><span class="gm-t">${e.a?logo(e.a,'gm-lg')+`<b>${esc(e.a)}</b>`:`<b>${esc([...(e.ap||[])].slice(0,3).join(' / ')||'Rival')}</b>`}</span><span class="gm-sc"><b class="${e.w>e.l?'w':''}">${e.w}</b> – <b class="${e.l>e.w?'w':''}">${e.l}</b></span><span class="gm-t r"><b>${esc(rvN)}</b>${e.b?logo(e.b,'gm-lg'):''}</span></div>
-    ${cdBody(L.map(x=>({m:x.m,L:x.L})))}
+    <div class="mgb" id="mgbBox"></div>${cdBody(L.map(x=>({m:x.m,L:x.L})))}
     <div class="gm-ft"><button type="button" class="btn" data-gmclose>Close</button></div></div>`;
   ov.classList.add('on')}
 // all matches (sets vs the same rival) on a day; listed team on the left (the chosen team when there is one)
@@ -3453,12 +3454,12 @@ function mxMatches(d,team){const T=new Set(allTeams()),G={},nm=g=>sheetName(g,(d
   for(const m of ds.matches){if(m.s||m.d!==d)continue;const ia=T.has(m.a),ib=T.has(m.b);if(!ia&&!ib)continue;
     if(team&&m.a!==team&&m.b!==team)continue;
     let L=team?m.a===team:(ia&&(!ib||m.a<=m.b));const A=L?m.a:m.b,B=L?m.b:m.a,bl=T.has(B);
-    const k=A+'|'+(bl?B:'?'+B),e=G[k]||(G[k]={a:A,b:bl?B:'',bp:new Set(),sets:[],w:0,l:0});
+    const k=A+'|'+(bl?B:'?'+B)+'|'+(m.ty==='tournament'?'T':'F'),e=G[k]||(G[k]={a:A,b:bl?B:'',bp:new Set(),sets:[],w:0,l:0,tour:m.ty==='tournament'});
     e.sets.push({m,L});const y=L?m.y:1-m.y;if(y===1)e.w++;else if(y===0)e.l++;
     if(!bl)for(const g of ((L?m.tb:m.ta)||[]))if(g)e.bp.add(nm(g))}
   // the same two teams can play more than one scrim in a day: a gap of more than MX_GAP minutes between two sets starts a new match
   const GG=[];for(const e of Object.values(G)){e.sets.sort((p,q)=>p.m.t-q.m.t);let cur=null,end=-1;
-    for(const x of e.sets){if(!cur||x.m.t-end>MX_GAP*60){cur={a:e.a,b:e.b,bp:e.bp,sets:[],w:0,l:0};GG.push(cur)}
+    for(const x of e.sets){if(!cur||x.m.t-end>MX_GAP*60){cur={a:e.a,b:e.b,bp:e.bp,sets:[],w:0,l:0,tour:e.tour};GG.push(cur)}
       cur.sets.push(x);const y=x.L?x.m.y:1-x.m.y;if(y===1)cur.w++;else if(y===0)cur.l++;end=Math.max(end,x.m.last||x.m.t)}}
   // the team that won the match always on the left
   // a draw: alphabetical order from left to right (A–Z); a rival that is not on the list stays on the right
@@ -3475,7 +3476,7 @@ function datesTab(){
   const tn=e=>e.b?`${logo(e.b,'l28')}<b>${esc(e.b)}</b>`:`<span class="mx-pp">${esc([...e.bp].slice(0,3).join(' · ')||'Rival')}</span>`;
   const rows=L.map((e,i)=>{const op=false;
     const modes=[...new Set(e.sets.map(x=>modeOfMap(x.m.m)))].map(md=>{const mi=IMGS['mode'+mkey(md)];return mi?`<img class="mx-mm" src="${mi}" title="${esc(md)}" alt="">`:''}).join('');
-    return `<tr class="mx-tr${op?' on':''}" data-mxo="${i}"><td class="mx-time">${mxHM(e.t0)}–${mxHM(e.t1)}</td><td class="mx-ta">${e.a?`${logo(e.a,'l28')}<b>${esc(e.a)}</b>`:`<span class="mx-pp">${esc([...(e.ap||[])].slice(0,3).join(' · ')||'Rival')}</span>`}</td>
+    return `<tr class="mx-tr${op?' on':''}${e.tour?' tour':''}" data-mxo="${i}"><td class="mx-time">${mxHM(e.t0)}–${mxHM(e.t1)}${e.tour?'<em class="mx-tt">Tournament</em>':''}</td><td class="mx-ta">${e.a?`${logo(e.a,'l28')}<b>${esc(e.a)}</b>`:`<span class="mx-pp">${esc([...(e.ap||[])].slice(0,3).join(' · ')||'Rival')}</span>`}</td>
       <td class="mx-sc"><b class="${e.w>e.l?'w':e.w<e.l?'l':''}">${e.w}</b>–<b class="${e.l>e.w?'w':e.l<e.w?'l':''}">${e.l}</b></td><td class="mx-tb">${tn(e)}</td><td class="num">${e.sets.length}</td><td class="mx-mds">${modes}</td><td class="mx-cc">↗</td></tr>
 `}).join('');
   return `<div class="mpickrow msrow" style="margin-top:14px"><div class="dbox msdate"><button type="button" class="dbtn${calOpen?' open':''}" data-calopen="1" aria-expanded="${calOpen}"><span class="dl">Date</span><b>${fmtDate(dateSel)}</b><small>${plural(dayT.length,'team')} played</small><span class="dcar">▾</span></button>${calOpen?`<div class="calpop">${calendarHTML(played,dates)}</div>`:''}</div>
@@ -4529,6 +4530,58 @@ function ppPrint(){const o=ppPlan(),first=PP.side==='1st',md=modeOfMap(PP.map)||
   let el=document.getElementById('ppPrint');if(!el){el=document.createElement('div');el.id='ppPrint';document.body.appendChild(el)}el.innerHTML=html;
   const imgs=[...el.querySelectorAll('img')];Promise.all(imgs.map(i=>i.complete?1:new Promise(r=>{i.onload=i.onerror=r;setTimeout(r,1500)}))).then(()=>{document.body.classList.add('pp-printing');setTimeout(()=>{window.print();setTimeout(()=>document.body.classList.remove('pp-printing'),500)},50)})}
 
+// ===== global bans of one match (entered by hand in the match window; saved in the GLOBAL BANS tab) =====
+const MGBD={st:0,at:0,rows:{}};let MGB=null;
+const mgbSide=(m,isA)=>{const t=isA?m.a:m.b;return t||((isA?m.ta:m.tb)||[]).filter(Boolean).slice().sort().join('+')};
+const mgbName=(m,isA)=>{const t=isA?m.a:m.b;if(t)return t;const nm=g=>sheetName(g,(ds.names||{})[g])||g;return ((isA?m.ta:m.tb)||[]).filter(Boolean).map(nm).slice(0,3).join(' / ')||'Rival'};
+function mgbCtx(list){if(!list||!list.length){MGB=null;return}
+  const S=list.filter(x=>x&&x.m).slice().sort((a,b)=>(a.m.t||0)-(b.m.t||0)),m0=S[0].m,L0=!!S[0].L;
+  const ids=[mgbSide(m0,L0),mgbSide(m0,!L0)],names=[mgbName(m0,L0),mgbName(m0,!L0)],ty=S.some(x=>x.m.ty==='tournament')?'T':'F';
+  const t0=m0.t||0,t1=Math.max(...S.map(x=>x.m.last||x.m.t||0));
+  MGB={pre:m0.d+'|'+ids.slice().sort().join(' v ')+'|'+ty,key:m0.d+'|'+ids.slice().sort().join(' v ')+'|'+ty+'|'+mxHM(t0),d:m0.d,ids,names,t0,t1,tour:ty==='T',pop:-1,q:''};
+  mgbLoad();setTimeout(mgbPaint,0)}
+// the saved entry of this match: same day, same teams, same type and its start inside this match
+function mgbFind(){if(!MGB)return null;if(MGBD.rows[MGB.key])return MGB.key;
+  for(const k in MGBD.rows){if(!k.startsWith(MGB.pre+'|'))continue;const r=MGBD.rows[k];if(r.t0!=null&&r.t0>=MGB.t0-3600&&r.t0<=MGB.t1+600)return k}return null}
+function mgbGet(){const k=mgbFind();const r=k?MGBD.rows[k]:null;const o=(r&&r.bans)||{};return MGB.ids.map(id=>{const a=(o[id]||[]).slice(0,2);while(a.length<2)a.push('');return a})}
+async function mgbLoad(force){if(MGBD.st===1||(!force&&MGBD.st===2&&Date.now()-MGBD.at<60000))return;MGBD.st=1;MGBD.at=Date.now();
+  try{const rows=await gviz('sheet='+encodeURIComponent('GLOBAL BANS')+'&headers=1&tq='+encodeURIComponent('select *'));
+    for(const r of rows.slice(1)){const k=String(r[0]||'').trim();if(!k)continue;const cur=MGBD.rows[k];if(cur&&cur.dirty)continue;
+      const sp=v=>String(v||'').split(',').map(s=>s.trim()).filter(Boolean),bans={};let t0=null;try{const j=JSON.parse(r[8]||'{}');t0=j.t0;Object.assign(bans,j.bans||{})}catch(e){}
+      if(!Object.keys(bans).length){const ia=String(r[2]||''),ib=String(r[4]||'');if(ia)bans[ia]=sp(r[3]);if(ib)bans[ib]=sp(r[5])}
+      MGBD.rows[k]={bans,t0,upd:String(r[6]||''),by:String(r[7]||'')}}
+    MGBD.st=2}catch(e){MGBD.st=3}
+  try{const L=JSON.parse(store.get('tvt:mgblocal')||'{}');for(const k in L){const c=MGBD.rows[k];if(!c||String(L[k].upd||'')>String(c.upd||''))MGBD.rows[k]=Object.assign({},L[k],{dirty:1})}}catch(e){}
+  mgbPaint()}
+let _mgbT=null;
+function mgbSet(side,arr){if(!MGB)return;const k=mgbFind()||MGB.key,r=MGBD.rows[k]||(MGBD.rows[k]={bans:{},t0:MGB.t0});
+  r.bans[MGB.ids[side]]=arr;r.t0=r.t0==null?MGB.t0:r.t0;r.dirty=1;r.upd=new Date().toISOString();r.by=ppUser();r.names={[MGB.ids[0]]:MGB.names[0],[MGB.ids[1]]:MGB.names[1]};r.d=MGB.d;
+  try{const L=JSON.parse(store.get('tvt:mgblocal')||'{}');L[k]=r;store.set('tvt:mgblocal',JSON.stringify(L))}catch(e){}
+  clearTimeout(_mgbT);const ids=MGB.ids.slice(),names=MGB.names.slice();_mgbT=setTimeout(()=>mgbPush(k,ids,names),700);mgbPaint()}
+async function mgbPush(k,ids,names){const r=MGBD.rows[k];if(!r)return;const cfg=drCfg();if(!cfg.url){MGBD.msg='Saved in this browser only';mgbPaint();return}
+  MGBD.msg='Saving…';mgbPaint();
+  try{const j=await drSend(cfg,{token:cfg.token,action:'gban',key:k,date:r.d||k.split('|')[0],t1:names[0],b1:(r.bans[ids[0]]||[]).filter(Boolean).join(', '),t2:names[1],b2:(r.bans[ids[1]]||[]).filter(Boolean).join(', '),json:JSON.stringify({t0:r.t0,bans:r.bans}),by:ppUser()});
+    if(!j.ok)throw new Error(j.error==='unknown action'?'paste the new sheet code and update the web app':(j.error||'rejected'));
+    r.upd=j.updated||r.upd;delete r.dirty;try{const L=JSON.parse(store.get('tvt:mgblocal')||'{}');delete L[k];store.set('tvt:mgblocal',JSON.stringify(L))}catch(e){}
+    MGBD.msg='Saved';mgbPaint();setTimeout(()=>{if(MGBD.msg==='Saved'){MGBD.msg='';mgbPaint()}},2500)}
+  catch(e){MGBD.msg='Not saved in the sheet: '+(e.message||e)+' (kept in this browser)';mgbPaint()}}
+function mgbPaint(){const box=document.getElementById('mgbBox');if(!box||!MGB)return;const G=mgbGet(),k=mgbFind(),r=k&&MGBD.rows[k];
+  const slot=(i,j)=>{const b=G[i][j],on=MGB.pop===i&&MGB.slot===j;return `<button type="button" class="mgb-sl${b?' fill':''}${on?' act':''}" data-mgbadd="${i}:${j}" title="${b?'Change '+esc(b):'Choose global ban '+(j+1)}">${b?`<span class="mgb-iw">${bimg(b,'mgb-i')}<u></u></span><b>${esc(b)}</b><i class="mgb-ed" aria-hidden="true">✎</i>`:`<small>Global</small><span class="mgb-ph0">+</span>`}</button>`};
+  const side=i=>`<div class="mgb-s${i?' r':''}"><span class="mgb-n">${esc(MGB.names[i])}</span><div class="mgb-l">${slot(i,0)}${slot(i,1)}</div></div>`;
+  const all=new Set([...G[0],...G[1]].filter(Boolean).map(mkey)),q=MGB.q.trim().toLowerCase();
+  const pop=MGB.pop>=0?`<div class="mgb-pop"><div class="mgb-ph"><b>Global ban ${MGB.slot+1} · ${esc(MGB.names[MGB.pop])}</b><input type="text" class="mgb-q" placeholder="Search a brawler" value="${esc(MGB.q)}" autocomplete="off" spellcheck="false">${G[MGB.pop][MGB.slot]?'<button type="button" class="mgb-clr" data-mgbclr>Empty this slot</button>':''}<button type="button" class="mgb-x" data-mgbclose>✕</button></div>
+    <div class="mgb-g">${drNames().filter(n=>!q||n.toLowerCase().includes(q)).map(n=>`<button type="button" class="mgb-o" data-mgbpick="${esc(n)}"${all.has(mkey(n))?' disabled':''}>${bimg(n,'mgb-oi')}<span>${esc(n)}</span></button>`).join('')}</div></div>`:'';
+  const st=MGBD.msg||(r&&r.by&&!r.dirty?`by ${esc(r.by)} · ${ppAgo(r.upd)}`:'');
+  box.innerHTML=`<div class="mgb-h"><b>Global bans</b><small>${G[0].concat(G[1]).some(Boolean)?'banned for the whole match':'not entered yet · click a slot to choose the brawler'}</small>${st?`<em>${esc(st)}</em>`:''}</div><div class="mgb-row">${side(0)}${side(1)}</div>${pop}`;
+  const inp=box.querySelector('.mgb-q');if(inp){inp.addEventListener('input',()=>{MGB.q=inp.value;const pos=inp.selectionStart;mgbPaint();const n=document.querySelector('#mgbBox .mgb-q');if(n){n.focus();n.setSelectionRange(pos,pos)}});
+    inp.addEventListener('keydown',ev=>{if(ev.key==='Enter'){const o=document.querySelector('#mgbBox .mgb-o:not([disabled])');if(o)o.click()}else if(ev.key==='Escape'){ev.stopPropagation();MGB.pop=-1;MGB.q='';mgbPaint()}});
+    if(!matchMedia('(pointer:coarse)').matches&&document.activeElement!==inp)setTimeout(()=>inp.focus(),10)}}
+document.addEventListener('click',e=>{const t=e.target;if(!t||!t.closest||!MGB)return;
+  const a=t.closest('[data-mgbadd]');if(a){const [i,j]=a.dataset.mgbadd.split(':').map(Number);if(MGB.pop===i&&MGB.slot===j){MGB.pop=-1}else{MGB.pop=i;MGB.slot=j}MGB.q='';mgbPaint();return}
+  if(t.closest('[data-mgbclr]')&&MGB.pop>=0){const s=MGB.pop,G=mgbGet();G[s][MGB.slot]='';MGB.pop=-1;MGB.q='';mgbSet(s,G[s]);return}
+  if(t.closest('[data-mgbclose]')){MGB.pop=-1;MGB.q='';mgbPaint();return}
+  const p=t.closest('[data-mgbpick]');if(p&&!p.disabled&&MGB.pop>=0){const s=MGB.pop,G=mgbGet();G[s][MGB.slot]=p.dataset.mgbpick;MGB.pop=-1;MGB.q='';mgbSet(s,G[s]);return}});
+
 // ===== easier to use: top bar, share, scouting index, team stats tabs, data check =====
 (function(){const ft=$('fType'),host=$('uxGamesHost');if(ft&&host)host.appendChild(ft);
   const cal=$('uxCal'),pg=$('rcal')&&$('rcal').closest('.pgrp');if(cal){const x=document.createElement('button');x.type='button';x.id='uxCalX';x.title='Close';x.textContent='✕';cal.appendChild(x)}if(pg&&cal)cal.appendChild(pg);
@@ -4623,9 +4676,10 @@ function gtModal(i){const it=GTM[i];if(!it)return;const {t,e,o}=it,nmOf=g=>esc(s
   const hm_=t=>String(Math.floor(t/3600)%24).padStart(2,'0')+':'+String(Math.floor(t%3600/60)).padStart(2,'0');
   const L=e.sets.slice().sort((a,b)=>a.m.t-b.m.t),rv=o||'',rvN=rv||[...e.rv.keys()].slice(0,3).map(g=>sheetName(g,(ds.names||{})[g])||g).join(' / ');
   let ov=document.getElementById('gmOv');if(!ov){ov=document.createElement('div');ov.id='gmOv';document.body.appendChild(ov)}
-  ov.innerHTML=`<div class="gm cdw" role="dialog" aria-label="Scrim"><div class="gm-top"><span class="gm-date">${fmtDate(e.d)} · ${hm_(L[0].m.t)}–${hm_(Math.max(...L.map(x=>x.m.last||x.m.t)))}</span><button type="button" class="gm-close" data-gmclose aria-label="Close">✕</button></div>
+  const tourM=L.some(x=>x.m.ty==='tournament');try{mgbCtx(L.map(x=>({m:x.m,L:x.sd==='a'})))}catch(err){}
+  ov.innerHTML=`<div class="gm cdw${tourM?' tour':''}" role="dialog" aria-label="Scrim"><div class="gm-top"><span class="gm-date">${tourM?'<em class="gm-tt">Tournament</em>':''}${fmtDate(e.d)} · ${hm_(L[0].m.t)}–${hm_(Math.max(...L.map(x=>x.m.last||x.m.t)))}</span><button type="button" class="gm-close" data-gmclose aria-label="Close">✕</button></div>
     <div class="gm-hd"><span class="gm-t">${logo(t,'gm-lg')}<b>${esc(t)}</b></span><span class="gm-sc"><b class="${e.w>e.l?'w':''}">${e.w}</b> – <b class="${e.l>e.w?'w':''}">${e.l}</b></span><span class="gm-t r"><b>${esc(rvN||'Rival')}</b>${rv?logo(rv,'gm-lg'):''}</span></div>
-    ${cdBody(L.map(x=>({m:x.m,L:x.sd==='a'})))}
+    <div class="mgb" id="mgbBox"></div>${cdBody(L.map(x=>({m:x.m,L:x.sd==='a'})))}
     <div class="gm-ft"><button type="button" class="btn" data-gmclose>Close</button></div></div>`;
   ov.classList.add('on')}
 document.addEventListener('click',e=>{const t=e.target;if(!t.closest)return;
@@ -4663,8 +4717,11 @@ function groupTab(){
       'Each square: sets played and win rate of the team in the row against the team in the column (hover it for the score). An empty square: they did not play each other. '+(gtReg?'Only the registered players: a set counts only when both teams play with their own players of the Picks sheet (all 3, or the 2 / 1 listed there); sets with pick-ups are left out. Total = all the sets of the team with its own players in the period (against everybody).':'Full team: every set of the team counts, pick-ups included. Total = all the sets of the team in the period (against everybody).'))}
   // 2) every scrim / match of each team, one column per team
   const pl=(tags,team)=>tags.filter(Boolean).map(g=>{const sub=team&&isSub(team,g);return `<span class="gt-p${sub?' sub':''}"${sub?` title="${SUBT}"`:''}>${esc(nmOf(g))}</span>`}).join('');
-  GTM=[];const cols=T.map(t=>{const g={};
-    for(const x of per[t]){const rtags=(x.sd==='a'?x.m.tb:x.m.ta)||[],k=x.m.d+'|'+(x.op||rtags.slice().sort().join(',')),e=g[k]||(g[k]={d:x.m.d,t:x.m.t,op:x.op,w:0,l:0,my:new Map(),rv:new Map(),sets:[]});e.sets.push(x);
+  GTM=[];const cols=T.map(t=>{const g={},cur={};let gi0=0;
+    // one block = sets against the same rival, on the same day, of the same type (scrim / tournament), with no pause of more than 2 hours
+    for(const x of per[t].slice().sort((p,q)=>(p.m.d<q.m.d?-1:p.m.d>q.m.d?1:(p.m.t||0)-(q.m.t||0)))){const rtags=(x.sd==='a'?x.m.tb:x.m.ta)||[],ty=x.m.ty==='tournament'?'T':'F',bk=x.m.d+'|'+(x.op||rtags.slice().sort().join(','))+'|'+ty;
+      let k=cur[bk];if(!k||(x.m.t!=null&&g[k].last!=null&&x.m.t-g[k].last>7200)){k=bk+'|'+(gi0++);cur[bk]=k}
+      const e=g[k]||(g[k]={d:x.m.d,t:x.m.t,last:x.m.t,op:x.op,w:0,l:0,my:new Map(),rv:new Map(),sets:[]});e.sets.push(x);if(x.m.t!=null)e.last=Math.max(e.last||0,x.m.t);
       if(x.win===1)e.w++;else e.l++;if(x.m.t<e.t)e.t=x.m.t;
       for(const tg of (x.sd==='a'?x.m.ta:x.m.tb)||[])if(tg)e.my.set(tg,(e.my.get(tg)||0)+1);for(const tg of rtags)if(tg)e.rv.set(tg,(e.rv.get(tg)||0)+1)}
     const L=Object.values(g).sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:b.t-a.t),top3=mp=>[...mp.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>x[0]);
@@ -4677,7 +4734,7 @@ function groupTab(){
         <span class="mb1-op">${logo(o||'?','u-lg')}<span><b>${esc(rn)}</b><small>${pl(top3(e.rv),o)}</small></span></span><span class="mb1-my"><small>${pl(top3(e.my),t)}</small></span><span class="mb1-go">›</span></div>`}).join('');
     const wp=tw+tl?tw/(tw+tl):0;
     return `<section class="u-panel"><header><span class="u-hd">${logo(t,'l20')} ${esc(t)}</span><small>${L.length} ${L.length===1?'match':'matches'} · ${tw}-${tl} sets · <b style="color:${wp>=.53?'#4ade80':wp>.47?'#facc15':'#f87171'}">${pc(tw,tw+tl)}</b></small></header><div class="mb1-sc">${rowsH||'<p class="msg u-none">No sets in this period.</p>'}</div></section>`}).join('');
-  const matches=sec('Matches by team',`<div class="mb1">${cols}</div>`,'One column per team, newest first. Click a match to see it set by set. A match = every set against the same rival on the same day; Result = sets won - sets lost. Players in <i style="opacity:.65;text-decoration:underline dotted">dotted italics</i> are pick-ups (not on that team\'s roster). Scroll sideways and down inside the box.');
+  const matches=sec('Matches by team',`<div class="mb1">${cols}</div>`,'One column per team, newest first. Click a match to see it set by set. A match = the sets against the same rival on the same day, split when they change from scrim to tournament (or after a pause of over 2 hours); Result = sets won - sets lost. Players in <i style="opacity:.65;text-decoration:underline dotted">dotted italics</i> are pick-ups (not on that team\'s roster). Scroll sideways and down inside the box.');
   // 3) regions
   const RG=t=>REGION[t]||'',regs0=[...new Set(T.map(RG).filter(Boolean))],allR=['North America','South America','EMEA','APAC','China'].filter(r=>Object.values(REGION).includes(r)),regs=allR.filter(r=>regs0.includes(r)).concat(regs0.filter(r=>!allR.includes(r)));
   let regH='';
@@ -8757,8 +8814,8 @@ body{font-family:var(--body)!important;font-feature-settings:'tnum' 1,'cv11' 1}
 .mb1>.u-panel{flex:0 0 560px;max-width:560px}
 .mb1-r{grid-template-columns:76px 70px minmax(0,1fr) minmax(0,.8fr) 16px!important}
 .mb1-ty{display:inline-block;margin-top:4px;font-style:normal;font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;border-radius:5px;padding:1px 6px}
-.mb1-ty.t{background:#facc15;color:#000}.mb1-ty.f{background:#24222f;color:#9a97ad}
-.mb1-r.tour{box-shadow:inset 3px 0 0 #facc15}
+.mb1-ty.t{background:transparent;color:#facc15;border:1px solid #facc15;padding:0 5px}.mb1-ty.f{background:#24222f;color:#9a97ad}
+.mb1-r.tour{box-shadow:inset 0 0 0 1.5px #facc15;border-radius:10px;background:transparent}
 </style><style id="lb">.lb{margin-bottom:18px}.lb-t{width:100%;border-collapse:collapse}.lb-t th{font-size:10.5px;letter-spacing:.08em;color:#a78bfa;text-transform:uppercase;padding:12px 10px;border-bottom:1px solid #24222f;text-align:center;background:#15131d}.lb-t th.l,.lb-t td.l{text-align:left}
 .lb-t td{padding:0 10px;height:62px;border-bottom:1px solid #1b1a24;text-align:center;color:#e5e3f0}.lb-t tr:hover td{background:#17161f}
 .lb-rk{color:#6e6a85;font-weight:700;font-size:15px;width:40px}.lb-tm{display:flex;align-items:center;gap:12px}.lb-lg{width:34px!important;height:34px!important;object-fit:contain}.lb-tm b{font-size:16px;font-weight:800;color:#fff;letter-spacing:.02em}.lb-tm small{font-size:11px;color:#6e6a85;text-transform:uppercase;letter-spacing:.06em}
@@ -9100,6 +9157,51 @@ body.pp-sb:not(.sb-off) #detail .pp{}
 @media (max-width:1500px){.pp .dp-grid.pp-g2{grid-template-columns:minmax(0,1fr)!important}.pp-rc{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}}
 
 .pp .dp-ov table{width:auto!important;min-width:520px}.pp .dp-ov td{min-width:130px}.pp .dp-mn{width:230px}
+
+/* rev146: tournament sets framed in yellow */
+.mx-s.tour,#detail .mx-s.tour{border:1.5px solid #facc15!important;box-shadow:0 0 0 1px rgba(250,204,21,.18),0 0 18px rgba(250,204,21,.10)}
+.mx-s.tour.open{border-color:#facc15!important}
+.gm.tour{border:1.5px solid #facc15!important;box-shadow:0 0 0 1px rgba(250,204,21,.2),0 20px 60px rgba(0,0,0,.6),0 0 30px rgba(250,204,21,.12)!important}
+
+.set.cd.tour{border:1.5px solid #facc15!important;box-shadow:0 0 0 1px rgba(250,204,21,.15),0 0 16px rgba(250,204,21,.08)}
+.gm-tt{font-style:normal;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#facc15;border:1px solid #facc15;border-radius:6px;padding:1px 7px;margin-right:8px}
+
+#detail table.mx-t tr.mx-tr.tour td{box-shadow:inset 0 1.5px 0 #facc15,inset 0 -1.5px 0 #facc15!important}
+#detail table.mx-t tr.mx-tr.tour td:first-child{box-shadow:inset 0 1.5px 0 #facc15,inset 0 -1.5px 0 #facc15,inset 1.5px 0 0 #facc15!important}
+#detail table.mx-t tr.mx-tr.tour td:last-child{box-shadow:inset 0 1.5px 0 #facc15,inset 0 -1.5px 0 #facc15,inset -1.5px 0 0 #facc15!important}
+.mx-tt{display:block;width:max-content;font-style:normal;font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#facc15;border:1px solid #facc15;border-radius:6px;padding:0 6px;margin-top:4px}
+
+.lsc.tour{border:1.5px solid #facc15!important;position:relative}
+.lsc-t{font-style:normal;font-size:9px;font-weight:800;color:#facc15;border:1px solid #facc15;border-radius:4px;padding:0 4px;line-height:14px;margin-right:2px}
+
+/* rev147: global bans of a match */
+.mgb{position:relative;margin:12px 18px 0;background:#121118;border:1px solid #24222f;border-radius:12px;padding:10px 12px}
+.gm.tour .mgb{border-color:rgba(250,204,21,.35)}
+.mgb-h{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}.mgb-h b{font-size:13px;color:#fff}.mgb-h small{font-size:11.5px;color:#9a97ad}.mgb-h em{margin-left:auto;font-style:normal;font-size:11.5px;color:#4ade80}
+.mgb-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mgb-s{display:flex;flex-direction:column;gap:6px;min-width:0}.mgb-s.r{align-items:flex-end;text-align:right}.mgb-s.r .mgb-l{justify-content:flex-end}
+.mgb-n{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#c4b5fd;font-weight:800;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgb-l{display:flex;gap:8px;align-items:flex-start}
+.mgb-sl{position:relative;width:82px;height:86px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:#0f0e15;border:1.5px dashed #3b2a5a;border-radius:11px;cursor:pointer;font-family:Inter,sans-serif;color:#e9e7f5;padding:6px 4px}
+.mgb-sl small{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:#6e6a85;font-weight:800}.mgb-ph0{font-size:22px;color:#a78bfa;line-height:1}
+.mgb-sl:hover,.mgb-sl.act{border-color:#a855f7;box-shadow:0 0 0 1px #a855f7}
+.mgb-sl.fill{border-style:solid;border-color:#3a2530;background:#16151e}
+.mgb-sl b{font-size:10.5px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgb-iw{position:relative;display:block;width:44px;height:44px}.mgb-iw .mgb-i{width:44px;height:44px;border-radius:8px;filter:grayscale(.55) brightness(.85)}
+.mgb-iw u{position:absolute;inset:0;border-radius:8px;background:linear-gradient(135deg,transparent 46%,#f87171 46%,#f87171 54%,transparent 54%)}
+.mgb-ed{position:absolute;top:4px;right:5px;font-style:normal;font-size:12px;color:#9a97ad;line-height:1}.mgb-sl:hover .mgb-ed{color:#c4b5fd}
+.mgb-clr{background:none;border:1px solid #3a2530;color:#f87171;border-radius:8px;padding:6px 10px;font:600 12px Inter,sans-serif;cursor:pointer;white-space:nowrap}
+.mgb-b{display:flex;align-items:center;gap:6px;background:#1b1a24;border:1px solid #3a2530;border-radius:9px;padding:3px 8px 3px 3px;font:700 12px Inter,sans-serif;color:#e9e7f5;cursor:pointer;position:relative}
+.mgb-b .mgb-i{width:30px;height:30px;border-radius:7px;filter:grayscale(.55) brightness(.85)}
+.mgb-b::before{content:'';position:absolute;left:3px;top:3px;width:30px;height:30px;border-radius:7px;background:linear-gradient(135deg,transparent 46%,#f87171 46%,#f87171 54%,transparent 54%);pointer-events:none}
+.mgb-b i{font-style:normal;color:#6e6a85;font-size:10px}.mgb-b:hover{border-color:#f87171}.mgb-b:hover i{color:#f87171}
+.mgb-add{border:1px dashed #3b2a5a;background:transparent;color:#a78bfa;border-radius:9px;padding:8px 12px;font:700 12px Inter,sans-serif;cursor:pointer}.mgb-add:hover{border-color:#a855f7;color:#c4b5fd}
+.mgb-pop{position:absolute;left:12px;right:12px;top:calc(100% - 6px);z-index:30;background:#16151e;border:1px solid #3b2a5a;border-radius:12px;box-shadow:0 18px 40px rgba(0,0,0,.6);padding:10px}
+.mgb-ph{display:flex;align-items:center;gap:10px;margin-bottom:8px}.mgb-ph b{font-size:12.5px;white-space:nowrap}.mgb-q{flex:1;min-width:0;background:#0d0c12;border:1px solid #2a2838;border-radius:8px;color:#e5e3f0;padding:7px 10px;font:13px Inter,sans-serif}
+.mgb-x{background:none;border:0;color:#9a97ad;font-size:14px;cursor:pointer}
+.mgb-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:6px;max-height:260px;overflow:auto}
+.mgb-o{display:flex;flex-direction:column;align-items:center;gap:3px;background:#1b1a24;border:1px solid #24222f;border-radius:9px;padding:6px 4px;color:#e5e3f0;font:600 10.5px Inter,sans-serif;cursor:pointer}.mgb-o:hover{border-color:#a855f7}.mgb-o[disabled]{opacity:.3;cursor:default}
+.mgb-oi{width:36px;height:36px;border-radius:7px}.mgb-o span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 </style>
 <script>
 /* rev142: explanations behind an (i) icon + context bar */
