@@ -1519,6 +1519,7 @@ td.pkd{font-family:var(--mono,monospace);font-size:12px;color:#cfcce0}
       <button type="button" class="tabbtn" role="tab" data-tab="report" aria-selected="false">Report</button>
       <button type="button" class="tabbtn" role="tab" data-tab="group" aria-selected="false">Results</button>
       <button type="button" class="tabbtn" role="tab" data-tab="tier" aria-selected="false">Tier List</button>
+      <button type="button" class="tabbtn" role="tab" data-tab="prep" aria-selected="false">Draft prep</button>
     </div>
     <div id="detail"></div>
   </section>
@@ -2177,7 +2178,8 @@ function loadStored(){
 }
 function loadDb(){const s=store.get('tvt:db');if(s){try{const o=JSON.parse(s);if(o&&o.teams)return o}catch(e){}}return DB_DEFAULT}
 function loadSel(){const s=store.get('tvt:sel');if(s){try{return JSON.parse(s)}catch(e){}}return {}}
-function saveSel(){store.set('tvt:sel',JSON.stringify({a:sel.a,b:sel.b,maps:sel.maps}))}
+let SEL_KEEP=null;
+function saveSel(){if(SEL_KEEP)return;store.set('tvt:sel',JSON.stringify({a:sel.a,b:sel.b,maps:sel.maps}))}
 
 // the page works only with the 18 maps of the rotation (MAP18): sets on any other map are left out everywhere; the Data check lists them
 function onlyMap18(d){if(!d||!d.matches||d._m18)return d;const ex={};
@@ -2226,8 +2228,12 @@ function setup(){
   const opts=D.off.map((t,i)=>`<option value="${i}">${esc(t)} · ${num(DESC.tot[t].n)} sets</option>`).join('');
   $('selA').innerHTML=opts;$('selB').innerHTML=opts;
   const idx=n=>D.off.indexOf(n);
-  let a=saved.a!=null&&D.off.includes(saved.a)?idx(saved.a):(idx('TEAM HERETICS')>=0?idx('TEAM HERETICS'):0);
-  let b=saved.b!=null&&D.off.includes(saved.b)?idx(saved.b):(idx('NAVI')>=0?idx('NAVI'):Math.min(1,D.off.length-1));
+  // rev145: if the saved teams are not in this data yet (data still loading, a team renamed in Picks…), keep them saved and do not overwrite them with other teams
+  const miss=(saved.a&&!D.off.includes(saved.a))||(saved.b&&!D.off.includes(saved.b));SEL_KEEP=miss?{a:saved.a,b:saved.b,maps:saved.maps}:null;
+  let selT=[];try{selT=(JSON.parse(store.get('tvt:selT')||'[]')||[]).filter(t=>D.off.includes(t))}catch(e){}
+  const pickA=()=>saved.a&&D.off.includes(saved.a)?idx(saved.a):selT[0]?idx(selT[0]):(idx('TRIBE GAMING')>=0?idx('TRIBE GAMING'):0);
+  let a=pickA();
+  let b=saved.b!=null&&D.off.includes(saved.b)?idx(saved.b):selT[1]&&selT[1]!==D.off[a]?idx(selT[1]):(a===0?Math.min(1,D.off.length-1):0);
   if(a===b)b=(a+1)%D.off.length;
   $('selA').value=a;$('selB').value=b;
   const drawTiles=()=>{['A','B'].forEach(s=>{
@@ -2340,7 +2346,7 @@ function render(){
   document.querySelectorAll('.chip[data-map]').forEach(c=>c.setAttribute('aria-pressed',sel.maps.includes(c.dataset.map)?'true':'false'));
   $('mapcount').innerHTML=`<b>${sel.maps.length}</b> selected`;
   const a=+$('selA').value,b=+$('selB').value,A=D.off[a],B=D.off[b];
-  sel.a=A;sel.b=B;saveSel();
+  sel.a=A;sel.b=B;if(!SEL_KEEP)saveSel();
   document.querySelectorAll('#tilesA .tile').forEach(x=>{const on=+x.dataset.i===a;x.className='tile'+(on?' selA':(+x.dataset.i===b?' other':''));x.setAttribute('aria-checked',on?'true':'false')});
   document.querySelectorAll('#tilesB .tile').forEach(x=>{const on=+x.dataset.i===b;x.className='tile'+(on?' selB':(+x.dataset.i===a?' other':''));x.setAttribute('aria-checked',on?'true':'false')});
   const R=$('result');
@@ -3061,7 +3067,7 @@ function tselPaint(){
   });
 }
 function selTeams(){return scope==='one'?[curOne()].filter(Boolean):scope==='pair'?[sel.a,sel.b].filter(Boolean):((poolTeams||(poolTeams=visTeams())).filter(x=>allTeams().includes(x)))}
-function setSelTeams(L){L=[...new Set(L.filter(Boolean))];store.set('tvt:selT',JSON.stringify(L));
+function setSelTeams(L){SEL_KEEP=null;L=[...new Set(L.filter(Boolean))];store.set('tvt:selT',JSON.stringify(L));
   if(L.length===1){scope='one';oneTeam=L[0]}
   else if(L.length===2){scope='pair';sel.a=L[0];sel.b=L[1];focus='A'}
   else{scope='pool';poolTeams=L}}
@@ -4332,7 +4338,197 @@ function scSbPaint(){const A=document.getElementById('sbar');if(!A)return;let bo
   box.innerHTML=`<div class="pr-h"><span class="lbl">Maps</span><button type="button" class="pr-clr${cur?'':' on'}" data-scmappick="">All maps</button></div><p class="pr-hint">${cur?esc(cur)+' · click it again for all maps':'Click a map to scout only that map'}</p>`+
     (MODELIST||[]).map(([md,ms])=>{const ic=IMGS['mode'+mkey(md)];return `<div class="pr-g"><div class="pr-gh">${ic?`<img src="${ic}" alt="">`:''}<b>${esc(md)}</b></div><div class="pr-tiles">${ms.map(m=>{const u=IMGS['bg'+mkey(m)]||IMGS[mkey(m)]||'',o=m===cur;
       return `<button type="button" class="pr-t${o?' on':''}" data-scmappick="${o?'':esc(m)}" title="${esc(m)}"><span class="pr-im"${u?` style="background-image:url('${u}')"`:''}></span><small>${esc(m)}</small></button>`}).join('')}</div></div>`}).join('')}
-document.addEventListener('click',()=>setTimeout(scSbPaint,0));
+document.addEventListener('click',()=>setTimeout(()=>{scSbPaint();try{ppSbPaint()}catch(e){}},0));
+// ===== rev144: DRAFT PREP — plans per map / 1st-last pick / rival, with ban scenarios; saved in the DRAFT PREP tab (KEY | JSON | UPDATED | BY)
+const PP={view:'plan',map:'',side:'1st',riv:'',sc:'A',sel:{p1:'',a:[],focus:''},data:{},st:0,at:0,msg:'',adding:'',conf:null,del:''};
+try{const o=JSON.parse(store.get('tvt:pp')||'{}');for(const k of ['view','map','side','riv'])if(o[k]!=null)PP[k]=o[k]}catch(e){}
+const ppSaveUI=()=>store.set('tvt:pp',JSON.stringify({view:PP.view,map:PP.map,side:PP.side,riv:PP.riv}));
+const ppUser=()=>{try{return (localStorage.getItem('tvt:user')||'').trim()||'someone'}catch(e){return 'someone'}};
+const ppKey=(m,sd,r)=>[m||PP.map,sd||PP.side,r==null?PP.riv:r].join('|');
+const ppMaps=()=>(MODELIST||[]).flatMap(x=>x[1]);
+const ppNew=id=>({id,name:id==='A'?'Main plan':'Scenario '+id,ob:[],tb:[],why:{},p1:[],ans:{},p45:{},last:{},nt:{}});
+const ppBlank=()=>({go:[],gt:[],sc:[ppNew('A')],notes:'',ideas:[],upd:'',by:''});
+function ppGet(k){const d=PP.data[k];if(d&&d.obj)return d.obj;return null}
+function ppGlob(){const k=ppKey(null,'g');if(!PP.data[k])PP.data[k]={obj:{go:[],gt:[],upd:'',by:''},upd:'',by:'',fresh:1};const o=PP.data[k].obj;o.go=o.go||[];o.gt=o.gt||[];
+  // older plans kept the global bans inside the plan: move them once
+  for(const sd of ['1st','last']){const p=ppGet(ppKey(null,sd));if(p&&((p.go||[]).length||(p.gt||[]).length)){p.go.forEach(b=>{if(!o.go.includes(b))o.go.push(b)});p.gt.forEach(b=>{if(!o.gt.includes(b))o.gt.push(b)});p.go=[];p.gt=[]}}return o}
+function ppPlan(){const k=ppKey();if(!PP.data[k])PP.data[k]={obj:ppBlank(),upd:'',by:'',fresh:1};const o=PP.data[k].obj;if(!o.sc||!o.sc.length)o.sc=[ppNew('A')];if(!o.sc.find(x=>x.id===PP.sc))PP.sc=o.sc[0].id;return o}
+const ppScen=o=>(o||ppPlan()).sc.find(x=>x.id===PP.sc);
+const ppPair=(p1,a)=>p1+'>'+[...a].sort().join('+');
+// completeness of a plan: per first pick, answers prepared + our 4-5 prepared
+function ppPct(o){if(!o||!o.sc)return 0;let best=0;for(const s of o.sc){const P=s.p1||[];if(!P.length)continue;let t=0;for(const x of P){const A=(s.ans[x.b]||[]).length>0,F=Object.keys(s.p45||{}).some(k=>k.startsWith(x.b+'>')&&((s.p45[k].A||[]).length||(s.p45[k].B||[]).length));t+=(A?.5:0)+(F?.5:0)}
+  const bans=(s.ob||[]).length?1:0;best=Math.max(best,Math.round(100*(.9*t/P.length+.1*bans)))}return best}
+// ---- load / save (sheet)
+async function ppLoad(force){if(PP.st===1||(!force&&PP.st===2&&Date.now()-PP.at<60000))return;PP.st=1;PP.at=Date.now();
+  try{const rows=await gviz('sheet='+encodeURIComponent('DRAFT PREP')+'&headers=1&tq='+encodeURIComponent('select *'));
+    for(const r of rows.slice(1)){const k=String(r[0]||'').trim();if(!k)continue;let obj=null;try{obj=JSON.parse(r[1]||'null')}catch(e){}if(!obj)continue;
+      const cur=PP.data[k];if(cur&&cur.dirty)continue;if(r[3])obj.by=String(r[3]);if(r[2])obj.upd=String(r[2]);PP.data[k]={obj,upd:String(r[2]||''),by:String(r[3]||'')}}
+    PP.st=2;PP.msg=''}catch(e){PP.st=3;PP.msg=e&&e.code==='gviz_private'?'':'Could not read the DRAFT PREP tab'}
+  try{const L=JSON.parse(store.get('tvt:pplocal')||'{}');for(const k in L){const cur=PP.data[k];if(!cur||String(L[k].upd||'')>String(cur.upd||''))PP.data[k]=Object.assign({},L[k],{dirty:1})}}catch(e){}
+  if(tab==='prep')renderDetail()}
+let _ppT={};
+function ppTouch(k){k=k||ppKey();const d=PP.data[k];d.dirty=1;d.obj.by=ppUser();d.obj.upd=new Date().toISOString();try{const L=JSON.parse(store.get('tvt:pplocal')||'{}');L[k]={obj:d.obj,upd:d.upd,by:d.by};store.set('tvt:pplocal',JSON.stringify(L))}catch(e){}
+  _ppT=_ppT||{};clearTimeout(_ppT[k]);_ppT[k]=setTimeout(()=>ppPush(k),900)}
+async function ppPush(k,force){const d=PP.data[k];if(!d)return;const cfg=drCfg();if(!cfg.url){PP.msg='Saved in this browser only (the sheet is not connected)';ppPaintStatus();return}
+  PP.msg='Saving…';ppPaintStatus();
+  try{const j=await drSend(cfg,{token:cfg.token,action:'prep',key:k,json:JSON.stringify(d.obj),base:force?'':(d.upd||''),by:ppUser()});
+    if(!j.ok&&j.error==='conflict'){PP.conf={k,by:j.by,upd:j.updated,json:j.json};PP.msg='';renderDetail();return}
+    if(!j.ok)throw new Error(j.error==='unknown action'?'paste the new sheet code and update the web app':(j.error||'rejected'));
+    d.upd=j.updated;d.by=ppUser();delete d.dirty;delete d.fresh;try{const L=JSON.parse(store.get('tvt:pplocal')||'{}');delete L[k];store.set('tvt:pplocal',JSON.stringify(L))}catch(e){}
+    PP.msg='';ppPaintStatus()}catch(e){PP.msg='Not saved in the sheet: '+(e.message||e)+' (kept in this browser)';ppPaintStatus()}}
+function ppAgo(iso){if(!iso)return '';const s=(Date.now()-new Date(iso).getTime())/1000;return s<60?'just now':s<3600?Math.round(s/60)+' min ago':s<86400?Math.round(s/3600)+' h ago':new Date(iso).toLocaleDateString()}
+function ppStatusHTML(){const d=PP.data[ppKey()];const o=d&&d.obj;
+  if(PP.msg)return `<span class="pp-msg">${esc(PP.msg)}</span>`;
+  if(!o||!o.upd)return '<span class="pp-msg">Nothing saved yet for this plan</span>';
+  return `<span class="dp-av">${esc((o.by||'?').slice(0,1).toUpperCase())}</span>Last edit by <b>${esc(o.by||'?')}</b> · ${ppAgo(o.upd)}${d.dirty?' · <i>saving…</i>':''}`}
+function ppPaintStatus(){const el=document.getElementById('ppStat');if(el)el.innerHTML=ppStatusHTML()}
+// check every minute if somebody else changed the plan that is open
+setInterval(async()=>{if(typeof tab==='undefined'||tab!=='prep'||document.hidden)return;const k=ppKey(),d=PP.data[k];if(!d||d.dirty)return;
+  try{const rows=await gviz('sheet='+encodeURIComponent('DRAFT PREP')+'&headers=1&tq='+encodeURIComponent("select C, D where A = '"+k.replace(/'/g,"\\'")+"'"));const r=rows[1];
+    if(r&&String(r[0]||'')>String(d.upd||'')&&String(r[1]||'')!==ppUser()){PP.conf={k,by:r[1],upd:r[0],remote:1};renderDetail()}}catch(e){}},60000);
+// ---- data from the page
+function ppStats(map){const S=ds.matches.filter(m=>!m.s&&(m.y===1||m.y===0)&&m.m===map);const st={};S.forEach(m=>[[m.ba,m.y],[m.bb,1-m.y]].forEach(([L,y])=>(L||[]).forEach(b=>{const e=st[b]||(st[b]={n:0,w:0});e.n++;e.w+=y})));return {S,st}}
+function ppCounters(S,b){const c={};S.forEach(m=>{const A=m.ba||[],B=m.bb||[];if(A.includes(b))B.forEach(x=>{const e=c[x]||(c[x]={n:0,w:0});e.n++;e.w+=1-m.y});if(B.includes(b))A.forEach(x=>{const e=c[x]||(c[x]={n:0,w:0});e.n++;e.w+=m.y})});
+  return Object.entries(c).filter(([x,e])=>e.n>=3).sort((p,q)=>q[1].w/q[1].n-p[1].w/p[1].n||q[1].n-p[1].n).slice(0,6)}
+function ppComfort(S,riv){const c={};S.forEach(m=>{if(riv){if(m.a===riv)(m.ba||[]).forEach(b=>c[b]=(c[b]||0)+1);else if(m.b===riv)(m.bb||[]).forEach(b=>c[b]=(c[b]||0)+1)}else[...(m.ba||[]),...(m.bb||[])].forEach(b=>c[b]=(c[b]||0)+1)});return Object.entries(c).sort((a,b)=>b[1]-a[1]).slice(0,6)}
+function ppTheirBans(riv,map){if(!riv)return [];let D=[];try{D=drAll().filter(d=>d.blue===riv||d.red===riv)}catch(e){}const c={};let n=0;D.forEach(d=>{const s=d.blue===riv?'b':'r';n++;(d.bans[s]||[]).forEach(b=>{if(b)c[b]=(c[b]||0)+1})});
+  return Object.entries(c).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([b,k])=>[b,Math.round(100*k/Math.max(1,n))])}
+// ---- view
+function ppBanned(o,s){const g=ppGlob();return new Set([...(g.go||[]),...(g.gt||[]),...(s.ob||[]),...(s.tb||[])].map(x=>String(x).toUpperCase()))}
+const ppPc=v=>v==null?'–':Math.round(v*100)+'%';
+const ppCol=v=>v==null?'#9a97ad':v>=.6?'#4ade80':v>=.53?'#86efac':v>.47?'#facc15':v>.4?'#fca5a5':'#f87171';
+function ppAdd(where,label){return PP.adding===where?`<span class="pp-in"><input list="ppDL" data-ppin="${esc(where)}" placeholder="Type a brawler…" autocomplete="off"><button type="button" data-ppcancel>✕</button></span>`:`<button type="button" class="dp-add" data-ppadd="${esc(where)}">+ ${label||'Add'}</button>`}
+function prepHTML(){
+  if(PP.st===0)ppLoad();
+  const maps=ppMaps();if(!maps.includes(PP.map))PP.map=maps[0]||'';setTimeout(ppSbPaint,0);
+  const off=M.D.off||[];const md=modeOfMap(PP.map)||'',mic=IMGS['mode'+mkey(md)];
+  const top=`<div class="dp-top"><div class="dp-map">${mimg(PP.map,'dp-mi')}<div><small>${mic?`<img src="${mic}" class="dp-mdi">`:''}${esc(md.toUpperCase())}</small><b>${esc(PP.map)}</b></div></div>
+    <div class="dp-seg"><span>View</span><a data-ppview="ov" class="${PP.view==='ov'?'on':''}">Overview</a><a data-ppview="plan" class="${PP.view!=='ov'?'on':''}">Plan</a></div>
+    ${PP.view==='ov'?'':`<div class="dp-seg"><span>We have</span><a data-ppside="1st" class="${PP.side==='1st'?'on':''}">1st pick</a><a data-ppside="last" class="${PP.side==='last'?'on':''}">Last pick</a></div>`}
+    <div class="dp-seg"><span>Prepared for</span><a data-ppriv="" class="${!PP.riv?'on':''}">General</a><select data-pprivsel class="pp-sel">${['',...off].map(t=>`<option value="${esc(t)}"${t===PP.riv&&t?' selected':''}>${t?esc(t):'Rival…'}</option>`).join('')}</select>${PP.riv?`<a class="on">${logo(PP.riv,'dp-lg')}${esc(PP.riv)}</a>`:''}</div>
+    <div class="pp-tools"><button type="button" class="pp-btn" data-ppprint="sc">🖨 Print / PDF</button></div>
+    <div class="dp-saved" id="ppStat">${ppStatusHTML()}</div></div>
+    ${PP.conf&&PP.conf.k===ppKey()?`<div class="pp-conf">⚠ <b>${esc(PP.conf.by||'Someone')}</b> changed this plan ${ppAgo(PP.conf.upd)}. <button type="button" data-ppconf="load">Load their version</button><button type="button" data-ppconf="keep">Keep mine (overwrite)</button></div>`:''}
+    <datalist id="ppDL">${drNames().map(n=>`<option value="${esc(n)}">`).join('')}</datalist>`;
+  if(PP.view==='ov')return `<div class="pp">${top}${ppOverview()}</div>`;
+  const o=ppPlan(),s=ppScen(o),B=ppBanned(o,s),{S,st}=ppStats(PP.map),first=PP.side==='1st';
+  const wr=b=>st[b]&&st[b].n?st[b].w/st[b].n:null,nn=b=>st[b]?st[b].n:0;
+  const card=(b,where,o2)=>{o2=o2||{};const ban=B.has(String(b).toUpperCase());return `<div class="dp-c${o2.on?' on':''}${ban?' ban':''}" ${o2.click?`data-ppsel="${esc(o2.click)}"`:''}>${bimg(b,'dp-bi')}<div><b>${esc(b)}</b><small>${ban?'<span style="color:#f87171">banned in this scenario</span>':`<span style="color:${ppCol(wr(b))}">${ppPc(wr(b))}</span> · ${nn(b)} sets`}</small>${o2.tag||''}</div>${o2.cnt!=null?`<span class="dp-cnt ${o2.cnt?'ok':'no'}" title="${o2.cnt?o2.cnt+' prepared':'nothing prepared yet'}">${o2.cnt||'!'}</span>`:''}<span class="pp-ops">${o2.star!=null?`<button type="button" data-ppstar="${esc(b)}" title="Mark as Plan A">${o2.star?'★':'☆'}</button>`:''}<button type="button" data-ppdel="${esc(where+'::'+b)}" title="Remove">✕</button></span></div>`};
+  // scenarios
+  const scC=x=>`<div class="sc-c${x.id===s.id?' on':''}" data-ppsc="${esc(x.id)}"><div class="sc-h"><em>${esc(x.id)}</em><b ${x.id===s.id?'contenteditable="true" data-ppname spellcheck="false"':''}>${esc(x.name)}</b><span class="sc-p">${ppPct({sc:[x]})}%</span>${o.sc.length>1&&x.id===s.id?`<button type="button" class="sc-del" data-ppscdel="${esc(x.id)}" title="Delete this scenario">${PP.del===x.id?'sure?':'✕'}</button>`:''}</div>
+    <div class="sc-b"><small>We ban</small>${(x.ob||[]).length?x.ob.map(b=>`<span class="sc-i">${bimg(b,'sc-bi')}<i></i></span>`).join(''):'<span class="sc-any">–</span>'}</div><div class="sc-b"><small>They ban</small>${(x.tb||[]).length?x.tb.map(b=>`<span class="sc-i">${bimg(b,'sc-bi')}<i></i></span>`).join(''):'<span class="sc-any">any</span>'}</div></div>`;
+  const scStrip=`<section class="sc"><div class="sc-t"><h4>Ban scenarios <i>each one has its own draft plan</i></h4><span class="sc-hint">Click a scenario to open it · click its name to rename it</span></div><div class="sc-row">${o.sc.map(scC).join('')}<button type="button" class="sc-c sc-new" data-ppscnew="copy"><span>+</span><b>New scenario</b><small>copy of ${esc(s.id)}</small></button><button type="button" class="sc-c sc-new" data-ppscnew="empty"><span>+</span><b>Empty scenario</b></button></div></section>`;
+  // bans band
+  const xs='<svg class="bn-x" viewBox="0 0 70 70"><line x1="4" y1="66" x2="66" y2="4" stroke="#ff4d55" stroke-width="4" stroke-linecap="round"/></svg>';
+  const bb=(b,where,o2)=>{o2=o2||{};return `<div class="bn-c${o2.alt?' alt':''}">${bimg(b,'bn-i')}${xs}<b>${esc(b)}</b>${o2.why!=null?`<small contenteditable="true" spellcheck="false" data-ppwhy="${esc(b)}" data-ph="why?">${esc(o2.why)}</small>`:o2.sub?`<small>${o2.sub}</small>`:''}<button type="button" class="bn-del" data-ppdel="${esc(where+'::'+b)}" title="Remove">✕</button></div>`};
+  const slot=where=>PP.adding===where?`<div class="bn-c">${ppAdd(where)}</div>`:`<button type="button" class="bn-c bn-empty" data-ppadd="${esc(where)}"><span>+</span><b>Add</b></button>`;
+  const tbD=ppTheirBans(PP.riv,PP.map).filter(([b])=>!(s.tb||[]).includes(b)).slice(0,3);
+  const band=`<section class="bn"><div class="bn-g"><h4>Global bans <i>ours</i></h4><div class="bn-r">${ppGlob().go.map(b=>bb(b,'go')).join('')}${slot('go')}</div></div>
+    <div class="bn-g"><h4>Global bans ${PP.riv?logo(PP.riv,'dp-lg'):''} <i>${PP.riv?esc(PP.riv):'rival'}</i></h4><div class="bn-r">${ppGlob().gt.map(b=>bb(b,'gt')).join('')}${slot('gt')}</div></div>
+    <div class="bn-g bn-main"><h4>Scenario ${esc(s.id)} · our bans <i>${first?'with 1st pick':'with last pick'} · click under a ban to write why</i></h4><div class="bn-r">${s.ob.map(b=>bb(b,'ob',{why:(s.why||{})[b]||''})).join('')}${slot('ob')}</div></div>
+    <div class="bn-g"><h4>${PP.riv?logo(PP.riv,'dp-lg'):''} Scenario ${esc(s.id)} · their bans <i>our prediction</i></h4><div class="bn-r">${s.tb.map(b=>bb(b,'tb',{alt:1})).join('')}${slot('tb')}</div>${tbD.length?`<div class="bn-sug"><small>From their saved drafts:</small>${tbD.map(([b,p])=>`<button type="button" data-ppquick="${esc('tb::'+b)}">${bimg(b,'dp-bs')}${esc(b)} <i>${p}%</i></button>`).join('')}</div>`:''}</div></section>`;
+  // tree
+  const p1=s.p1||[],sel1=p1.find(x=>x.b===PP.sel.p1)?PP.sel.p1:(p1.find(x=>x.a)||p1[0]||{}).b||'';
+  const ans=sel1?(s.ans[sel1]||[]):[],selA=PP.sel.a.filter(b=>ans.some(x=>x.b===b)).slice(0,2);
+  const pk=sel1&&selA.length?ppPair(sel1,selA):'',f45=pk?(s.p45[pk]||{A:[],B:[]}):null,lst=pk?(s.last[pk]||[]):[];
+  const cntAns=b=>(s.ans[b]||[]).length,cnt45=(b,a)=>{const k=ppPair(sel1,[a]);return Object.keys(s.p45).filter(x=>x.startsWith(sel1+'>')&&x.split('>')[1].split('+').includes(a)).reduce((t,x)=>t+((s.p45[x].A||[]).length+(s.p45[x].B||[]).length),0)};
+  const L1=first?['1','Our 1st pick']:['1','Their 1st pick'],L2=first?['2-3','Their answers']:['2-3','Our answers'],L3=first?['4-5','Our picks']:['4-5','Their picks'],L4=first?['6','Their last pick']:['6','Our last pick'];
+  const roles=['Supports','Mids','Agro','Other'];
+  const col1=p1.map(x=>card(x.b,'p1',{on:x.b===sel1,click:'p1::'+x.b,cnt:cntAns(x.b),star:!!x.a,tag:x.a?'<i class="dp-tag">Plan A</i>':''})).join('')+ppAdd('p1');
+  const col2=sel1?roles.map(r=>{const L=ans.filter(x=>(x.r||'Other')===r);if(!L.length&&r==='Other')return `<div class="dp-role">${r}</div>`+ppAdd('ans:'+r);return `<div class="dp-role">${r}</div>`+L.map(x=>card(x.b,'ans',{on:selA.includes(x.b),click:'a::'+x.b,cnt:cnt45(sel1,x.b)})).join('')+ppAdd('ans:'+r)}).join(''):'<p class="dp-m">Add a first pick on the left, then click it.</p>';
+  const col3=!sel1?'<p class="dp-m">–</p>':!selA.length?'<p class="dp-m">Click one or two answers to prepare the next picks.</p>':(selA.length===2?['A','B']:['A']).map((c,i)=>{const so=[...selA].sort();return `<div class="dp-pair"><small>${selA.length===2?`If <b>${esc(so[i])}</b> comes first`:`Against <b>${esc(selA[0])}</b>`}</small>${(f45[c]||[]).map(b=>card(b,'p45:'+c)).join('')}${ppAdd('p45:'+c)}</div>`}).join('');
+  const col4=!pk?'<p class="dp-m">–</p>':lst.map(b=>card(b,'last')).join('')+ppAdd('last');
+  const path=[sel1,...selA,...(f45?[...(f45.A||[]),...(f45.B||[])]:[])].filter(Boolean);
+  const nk=pk||sel1;
+  const tree=`<main class="dp-tree"><div class="dp-prog"><b>Plan ready: ${ppPct({sc:[s]})}%</b><span><i style="width:${ppPct({sc:[s]})}%"></i></span><small>${p1.length} first picks · ${p1.filter(x=>cntAns(x.b)).length} with answers</small></div>
+    <div class="dp-steps">${[[L1,col1,''],[L2,col2,sel1?`to <b>${esc(sel1)}</b>`:''],[L3,col3,pk?`${esc(sel1)} vs <b>${esc(selA.join(' + '))}</b>`:''],[L4,col4,'']].map(([[k,t],body,sub],i)=>`<div class="dp-col${i?' lk':''}"><h3><em>${k}</em>${t} <i>${sub}</i></h3>${body}</div>`).join('')}</div>
+    ${nk?`<div class="dp-path"><b>Branch:</b> ${path.map(b=>bimg(b,'dp-bs')).join('<span>→</span>')}<textarea data-ppnote="${esc(nk)}" placeholder="Notes for this branch…" rows="2">${esc((s.nt||{})[nk]||'')}</textarea></div>`:''}</main>`;
+  // side panels
+  const foc=PP.sel.focus||selA[selA.length-1]||sel1;const ctr=foc?ppCounters(S,foc):[];const cf=ppComfort(S,PP.riv);
+  const left=`<aside class="dp-side"><section><h4>${PP.riv?logo(PP.riv,'dp-lg')+' ':''}${PP.riv?'Enemy comfort':'Most picked on this map'} <i>from the data</i></h4>${cf.map(([b,k])=>`<div class="dp-cr${B.has(b)?' ban':''}">${bimg(b,'dp-bs')}<b>${esc(b)}</b><small>${B.has(b)?'banned':k+' sets'}</small></div>`).join('')||'<p class="dp-m">No sets on this map.</p>'}</section></aside>`;
+  const right=`<aside class="dp-side"><section><h4>Counters to <b>${esc(foc||'–')}</b> <i>on ${esc(PP.map)}</i></h4>${ctr.map(([b,e])=>`<div class="dp-cr${B.has(b)?' ban':''}">${bimg(b,'dp-bs')}<b>${esc(b)}</b><small style="color:${ppCol(e.w/e.n)}">${B.has(b)?'banned':ppPc(e.w/e.n)+' · '+e.n+' sets'}</small></div>`).join('')||'<p class="dp-m">Click a brawler of the plan to see what beats it (3+ sets).</p>'}</section>
+    <section><h4>Map notes</h4><textarea class="pp-ta" data-ppmapnote rows="5" placeholder="Timings, positions, plan of the map…">${esc(o.notes||'')}</textarea></section>
+    <section><h4>Draft ideas</h4>${(o.ideas||[]).map((x,i)=>`<div class="dp-idea">${(x.bs||[]).map(b=>bimg(b,'dp-bs')).join('')}<small contenteditable="true" spellcheck="false" data-ppidea="${i}" data-ph="what is it for?">${esc(x.t||'')}</small><button type="button" class="pp-x" data-ppideadel="${i}">✕</button></div>`).join('')}
+      ${PP.adding==='idea'?`<span class="pp-in pp-in3"><input data-ppidea3 placeholder="Brawler, brawler, brawler" list="ppDL"><button type="button" data-ppcancel>✕</button></span>`:'<button type="button" class="dp-add" data-ppadd="idea">+ Add idea</button>'}</section></aside>`;
+  return `<div class="pp">${top}${scStrip}${band}<div class="dp-grid pp-g2">${tree}<div class="pp-rc">${left}${right}</div></div></div>`}
+function ppOverview(){const off=M.D.off||[];const rivs=['',...new Set([...off.filter(t=>Object.keys(PP.data).some(k=>k.endsWith('|'+t))),...(PP.riv?[PP.riv]:[])])];
+  const st=k=>{const o=ppGet(k);const p=ppPct(o);return p>=80?'full':p>0?'half':'none'};
+  return `<div class="dp-ov"><div class="dp-leg"><span class="dp-q full">ready</span><span class="dp-q half">started</span><span class="dp-q none">empty</span><i>Click a square to open that plan · pick a rival above to add its column</i></div>
+  <table><thead><tr><th></th>${rivs.map(r=>`<th>${r?logo(r,'dp-lg')+'<small>'+esc(r)+'</small>':'<b>General</b>'}</th>`).join('')}</tr></thead><tbody>
+  ${(MODELIST||[]).map(([md,ms])=>`<tr class="dp-md"><td colspan="${rivs.length+1}">${IMGS['mode'+mkey(md)]?`<img src="${IMGS['mode'+mkey(md)]}" class="dp-mdi">`:''}${esc(md)}</td></tr>`+ms.map(m=>`<tr><th class="dp-mn">${mimg(m,'dp-mt')}<span>${esc(m)}</span></th>${rivs.map(r=>`<td>${['1st','last'].map(sd=>`<button type="button" class="dp-q ${st(ppKey(m,sd,r))}" data-ppopen="${esc(m+'|'+sd+'|'+r)}">${sd==='1st'?'1st':'Last'} <i>${ppPct(ppGet(ppKey(m,sd,r)))||''}${ppPct(ppGet(ppKey(m,sd,r)))?'%':''}</i></button>`).join('')}</td>`).join('')}</tr>`).join('')).join('')}</tbody></table></div>`}
+// maps in the side panel
+function ppSbPaint(){const A=document.getElementById('sbar');if(!A)return;let box=document.getElementById('ppSb');const on=typeof view!=='undefined'&&view==='stats'&&tab==='prep';
+  if(!on){if(box)box.style.display='none';document.body.classList.remove('pp-sb');return}
+  if(!box){box=document.createElement('div');box.id='ppSb';box.className='pr-sb';A.appendChild(box)}box.style.display='';document.body.classList.add('pp-sb');
+  box.innerHTML=`<div class="pr-h"><span class="lbl">Map to prepare</span></div><p class="pr-hint">Green dot = something prepared</p>`+(MODELIST||[]).map(([md,ms])=>{const ic=IMGS['mode'+mkey(md)];return `<div class="pr-g"><div class="pr-gh">${ic?`<img src="${ic}" alt="">`:''}<b>${esc(md)}</b></div><div class="pr-tiles">${ms.map(m=>{const u=IMGS['bg'+mkey(m)]||IMGS[mkey(m)]||'',has=['1st','last'].some(sd=>ppPct(ppGet(ppKey(m,sd,PP.riv)))>0);
+    return `<button type="button" class="pr-t${m===PP.map?' on':''}" data-ppmap="${esc(m)}" title="${esc(m)}"><span class="pr-im"${u?` style="background-image:url('${u}')"`:''}>${has?'<b class="pp-dot"></b>':''}</span><small>${esc(m)}</small></button>`}).join('')}</div></div>`}).join('')}
+// ---- editing
+function ppAddB(where,b){b=String(b||'').trim().toUpperCase();const names=drNames();if(!names.includes(b)){const f=names.find(n=>n.startsWith(b));if(!f)return false;b=f}
+  const o=ppPlan(),s=ppScen(o);const push=(L)=>{if(!L.includes(b))L.push(b)};
+  if(where==='go'||where==='gt'){push(ppGlob()[where]);ppTouch(ppKey(null,'g'));return true}else if(where==='ob')push(s.ob);else if(where==='tb')push(s.tb);
+  else if(where==='p1'){if(!s.p1.some(x=>x.b===b))s.p1.push({b,a:!s.p1.length});PP.sel.p1=b;PP.sel.a=[]}
+  else if(where.startsWith('ans:')){const p1=PP.sel.p1||((s.p1.find(x=>x.a)||s.p1[0]||{}).b);if(!p1)return false;const L=s.ans[p1]||(s.ans[p1]=[]);if(!L.some(x=>x.b===b))L.push({b,r:where.slice(4)})}
+  else if(where.startsWith('p45:')){const k=ppCurPair();if(!k)return false;const e=s.p45[k]||(s.p45[k]={A:[],B:[]});push(e[where.slice(4)]||(e[where.slice(4)]=[]))}
+  else if(where==='last'){const k=ppCurPair();if(!k)return false;push(s.last[k]||(s.last[k]=[]))}
+  ppTouch();return true}
+function ppCurPair(){const o=ppPlan(),s=ppScen(o);const p1=PP.sel.p1||((s.p1.find(x=>x.a)||s.p1[0]||{}).b);const ans=s.ans[p1]||[];const a=PP.sel.a.filter(b=>ans.some(x=>x.b===b)).slice(0,2);return p1&&a.length?ppPair(p1,a):''}
+function ppDel(where,b){const o=ppPlan(),s=ppScen(o);const rm=L=>{const i=L.indexOf(b);if(i>=0)L.splice(i,1)};
+  if(where==='go'||where==='gt'){rm(ppGlob()[where]);ppTouch(ppKey(null,'g'));return}else if(where==='ob'){rm(s.ob);if(s.why)delete s.why[b]}else if(where==='tb')rm(s.tb);
+  else if(where==='p1'){s.p1=s.p1.filter(x=>x.b!==b);delete s.ans[b];for(const k of Object.keys(s.p45))if(k.startsWith(b+'>'))delete s.p45[k];for(const k of Object.keys(s.last))if(k.startsWith(b+'>'))delete s.last[k];if(PP.sel.p1===b)PP.sel.p1=''}
+  else if(where==='ans'){const p1=PP.sel.p1||((s.p1.find(x=>x.a)||s.p1[0]||{}).b);s.ans[p1]=(s.ans[p1]||[]).filter(x=>x.b!==b);PP.sel.a=PP.sel.a.filter(x=>x!==b)}
+  else if(where.startsWith('p45:')){const k=ppCurPair();if(k&&s.p45[k])rm(s.p45[k][where.slice(4)]||[])}
+  else if(where==='last'){const k=ppCurPair();if(k&&s.last[k])rm(s.last[k])}
+  ppTouch()}
+document.addEventListener('click',e=>{if(typeof tab==='undefined'||tab!=='prep')return;const t=e.target.closest&&e.target.closest('[data-ppview],[data-ppside],[data-ppriv],[data-ppmap],[data-ppsc],[data-ppscnew],[data-ppscdel],[data-ppadd],[data-ppcancel],[data-ppdel],[data-ppstar],[data-ppsel],[data-ppquick],[data-ppopen],[data-ppconf],[data-ppideadel],[data-ppprint]');if(!t)return;const d=t.dataset;
+  if(d.ppname!=null||e.target.closest('[contenteditable]'))return;
+  if(d.ppview){PP.view=d.ppview;ppSaveUI();renderDetail();return}
+  if(d.ppside){PP.side=d.ppside;PP.sel={p1:'',a:[],focus:''};ppSaveUI();renderDetail();return}
+  if(d.ppriv!=null){PP.riv=d.ppriv;ppSaveUI();renderDetail();return}
+  if(d.ppmap){PP.map=d.ppmap;PP.view='plan';PP.sel={p1:'',a:[],focus:''};ppSaveUI();renderDetail();return}
+  if(d.ppopen){const [m,sd,r]=d.ppopen.split('|');PP.map=m;PP.side=sd;PP.riv=r||'';PP.view='plan';ppSaveUI();renderDetail();return}
+  if(d.ppscdel){if(PP.del!==d.ppscdel){PP.del=d.ppscdel;renderDetail();return}const o=ppPlan();o.sc=o.sc.filter(x=>x.id!==d.ppscdel);PP.del='';PP.sc=o.sc[0].id;ppTouch();renderDetail();return}
+  if(d.ppsc){if(PP.sc!==d.ppsc){PP.sc=d.ppsc;PP.del='';PP.sel={p1:'',a:[],focus:''};renderDetail()}return}
+  if(d.ppscnew){const o=ppPlan(),ids=o.sc.map(x=>x.id);let id='A';for(let i=0;i<26;i++){id=String.fromCharCode(65+i);if(!ids.includes(id))break}
+    const n=d.ppscnew==='copy'?Object.assign(JSON.parse(JSON.stringify(ppScen(o))),{id,name:'Scenario '+id}):ppNew(id);o.sc.push(n);PP.sc=id;ppTouch();renderDetail();return}
+  if(d.ppadd){PP.adding=d.ppadd;renderDetail();setTimeout(()=>{const i=document.querySelector('[data-ppin],[data-ppidea3]');if(i)i.focus()},0);return}
+  if(d.ppcancel!=null){PP.adding='';renderDetail();return}
+  if(d.ppdel){e.stopPropagation();const [w,b]=d.ppdel.split('::');ppDel(w,b);renderDetail();return}
+  if(d.ppstar){e.stopPropagation();const s=ppScen();s.p1.forEach(x=>x.a=x.b===d.ppstar?!x.a:false);ppTouch();renderDetail();return}
+  if(d.ppquick){const [w,b]=d.ppquick.split('::');ppAddB(w,b);renderDetail();return}
+  if(d.ppsel){const [w,b]=d.ppsel.split('::');PP.sel.focus=b;if(w==='p1'){if(PP.sel.p1!==b){PP.sel.p1=b;PP.sel.a=[]}}else if(w==='a'){const i=PP.sel.a.indexOf(b);if(i>=0)PP.sel.a.splice(i,1);else{PP.sel.a.push(b);if(PP.sel.a.length>2)PP.sel.a.shift()}}renderDetail();return}
+  if(d.ppconf){const c=PP.conf;PP.conf=null;if(!c){renderDetail();return}if(d.ppconf==='load'){PP.data[c.k]=null;delete PP.data[c.k];PP.st=0;ppLoad(true)}else ppPush(c.k,true);renderDetail();return}
+  if(d.ppideadel){const o=ppPlan();o.ideas.splice(+d.ppideadel,1);ppTouch();renderDetail();return}
+  if(d.ppprint){ppPrint();return}
+});
+document.addEventListener('change',e=>{if(typeof tab==='undefined'||tab!=='prep')return;const t=e.target;
+  if(t.matches('[data-pprivsel]')){if(t.value){PP.riv=t.value;ppSaveUI();renderDetail()}return}
+  if(t.matches('[data-ppin]')){if(ppAddB(t.dataset.ppin,t.value)){t.value='';renderDetail();setTimeout(()=>{const i=document.querySelector('[data-ppin]');if(i)i.focus()},0)}return}});
+document.addEventListener('keydown',e=>{if(typeof tab==='undefined'||tab!=='prep')return;const t=e.target;
+  if(t.matches&&t.matches('[data-ppin]')){if(e.key==='Enter'){e.preventDefault();if(ppAddB(t.dataset.ppin,t.value)){t.value='';renderDetail();setTimeout(()=>{const i=document.querySelector('[data-ppin]');if(i)i.focus()},0)}}else if(e.key==='Escape'){PP.adding='';renderDetail()}}
+  if(t.matches&&t.matches('[data-ppidea3]')&&e.key==='Enter'){e.preventDefault();const names=drNames();const bs=t.value.split(/[,;+]/).map(x=>x.trim().toUpperCase()).map(x=>names.includes(x)?x:names.find(n=>n.startsWith(x))).filter(Boolean).slice(0,3);if(bs.length){ppPlan().ideas.push({bs,t:''});ppTouch();PP.adding='';renderDetail()}}
+  if(t.matches&&t.matches('[contenteditable][data-ppname],[contenteditable][data-ppwhy],[contenteditable][data-ppidea]')&&e.key==='Enter'){e.preventDefault();t.blur()}});
+document.addEventListener('focusout',e=>{if(typeof tab==='undefined'||tab!=='prep')return;const t=e.target;if(!t.matches)return;const o=ppPlan(),s=ppScen(o);
+  if(t.matches('[data-ppname]')){const v=t.textContent.trim().slice(0,40);if(v&&v!==s.name){s.name=v;ppTouch()}}
+  else if(t.matches('[data-ppwhy]')){const v=t.textContent.trim().slice(0,60);s.why=s.why||{};if((s.why[t.dataset.ppwhy]||'')!==v){s.why[t.dataset.ppwhy]=v;ppTouch()}}
+  else if(t.matches('[data-ppidea]')){const v=t.textContent.trim().slice(0,80),x=o.ideas[+t.dataset.ppidea];if(x&&x.t!==v){x.t=v;ppTouch()}}
+  else if(t.matches('[data-ppnote]')){const v=t.value.slice(0,1500);s.nt=s.nt||{};if((s.nt[t.dataset.ppnote]||'')!==v){s.nt[t.dataset.ppnote]=v;ppTouch()}}
+  else if(t.matches('[data-ppmapnote]')){const v=t.value.slice(0,4000);if((o.notes||'')!==v){o.notes=v;ppTouch()}}});
+// ---- print / PDF: every scenario of the open plan, on white paper
+function ppPrint(){const o=ppPlan(),first=PP.side==='1st',md=modeOfMap(PP.map)||'';
+  const X='<svg class="pq-x" viewBox="0 0 40 40"><line x1="3" y1="37" x2="37" y2="3" stroke="#e5484d" stroke-width="3.5" stroke-linecap="round"/></svg>';
+  const ban=b=>`<span class="pq-b">${bimg(b,'pq-bi')}${X}<b>${esc(b)}</b></span>`,pk=b=>`<span class="pq-p">${bimg(b,'pq-pi')}<b>${esc(b)}</b></span>`;
+  const L1=first?'Our 1st pick':'Their 1st pick',L2=first?'Their answers':'Our answers',L3=first?'Our 4-5':'Their 4-5',L4=first?'Their last pick':'Our last pick';
+  const scen=s=>{const rows=(s.p1||[]).map(x=>{const A=s.ans[x.b]||[];const keys=Object.keys(s.p45||{}).concat(Object.keys(s.last||{})).filter((k,i,a)=>k.startsWith(x.b+'>')&&a.indexOf(k)===i);
+      return `<div class="pq-br"><div class="pq-h">${pk(x.b)}${x.a?'<em>Plan A</em>':''}</div><div class="pq-a"><small>${L2}:</small> ${A.map(y=>pk(y.b)+`<i>${esc(y.r||'')}</i>`).join(' ')||'–'}</div>
+      ${keys.map(k=>{const v=k.split('>')[1].split('+'),f=s.p45[k]||{},la=s.last[k]||[];return `<div class="pq-k"><div class="pq-kh">vs ${v.map(pk).join(' + ')}</div>${v.length===2?`<div><small>If ${esc(v[0])} first → ${L3}:</small> ${(f.A||[]).map(pk).join(' ')||'–'}</div><div><small>If ${esc(v[1])} first → ${L3}:</small> ${(f.B||[]).map(pk).join(' ')||'–'}</div>`:`<div><small>${L3}:</small> ${(f.A||[]).map(pk).join(' ')||'–'}</div>`}<div><small>${L4}:</small> ${la.map(pk).join(' ')||'–'}</div>${(s.nt||{})[k]?`<p class="pq-n">${esc(s.nt[k])}</p>`:''}</div>`}).join('')}${(s.nt||{})[x.b]?`<p class="pq-n">${esc(s.nt[x.b])}</p>`:''}</div>`}).join('');
+    return `<section class="pq-s"><h2>Scenario ${esc(s.id)} · ${esc(s.name)}</h2><div class="pq-bans"><div><small>We ban</small>${(s.ob||[]).map(b=>ban(b)+((s.why||{})[b]?`<i class="pq-w">${esc(s.why[b])}</i>`:'')).join('')||'–'}</div><div><small>They ban (prediction)</small>${(s.tb||[]).map(ban).join('')||'any'}</div></div><h3>${L1}</h3>${rows||'<p>–</p>'}</section>`};
+  const html=`<div class="pq-head">${mimg(PP.map,'pq-mi')}<div><small>${esc(md)}</small><h1>${esc(PP.map)}</h1><p>${first?'We have 1st pick':'We have last pick'} · ${PP.riv?'vs '+esc(PP.riv):'General plan'} · printed ${new Date().toLocaleDateString()}</p></div></div>
+    <div class="pq-g"><div><small>Global bans ours</small>${ppGlob().go.map(ban).join('')||'–'}</div><div><small>Global bans ${PP.riv?esc(PP.riv):'rival'}</small>${ppGlob().gt.map(ban).join('')||'–'}</div></div>
+    ${o.sc.map(scen).join('')}${o.notes?`<section class="pq-s"><h2>Map notes</h2><p class="pq-n" style="white-space:pre-wrap">${esc(o.notes)}</p></section>`:''}
+    ${(o.ideas||[]).length?`<section class="pq-s"><h2>Draft ideas</h2>${o.ideas.map(x=>`<div class="pq-i">${(x.bs||[]).map(pk).join(' ')} <i>${esc(x.t||'')}</i></div>`).join('')}</section>`:''}`;
+  let el=document.getElementById('ppPrint');if(!el){el=document.createElement('div');el.id='ppPrint';document.body.appendChild(el)}el.innerHTML=html;
+  const imgs=[...el.querySelectorAll('img')];Promise.all(imgs.map(i=>i.complete?1:new Promise(r=>{i.onload=i.onerror=r;setTimeout(r,1500)}))).then(()=>{document.body.classList.add('pp-printing');setTimeout(()=>{window.print();setTimeout(()=>document.body.classList.remove('pp-printing'),500)},50)})}
+
 // ===== easier to use: top bar, share, scouting index, team stats tabs, data check =====
 (function(){const ft=$('fType'),host=$('uxGamesHost');if(ft&&host)host.appendChild(ft);
   const cal=$('uxCal'),pg=$('rcal')&&$('rcal').closest('.pgrp');if(cal){const x=document.createElement('button');x.type='button';x.id='uxCalX';x.title='Close';x.textContent='✕';cal.appendChild(x)}if(pg&&cal)cal.appendChild(pg);
@@ -4657,9 +4853,9 @@ window.__uxState=()=>{let tm='';try{if(view==='stats'){if(tab==='report')tm=RP.t
 function renderDetail(){
   uxApplyHash();if(tab==='scout')uxSyncScout();
   document.querySelectorAll('.tabbtn').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===tab?'true':'false'));
-  $('statsscope').innerHTML=(tab==='scout'||tab==='report'||tab==='match'||tab==='caster'||tab==='tier')?'':scopeWithMaps();$('statsscope').hidden=view!=='stats'||tab==='scout'||tab==='report'||tab==='match'||tab==='caster'||tab==='tier';tselPaint();
-  const nd=tab!=='drafts'&&tab!=='scout'&&tab!=='report'&&tab!=='match'&&tab!=='caster'&&tab!=='tier'&&((scope==='one'&&!M.D.off.includes(curOne()))||(scope==='pool'&&poolTeams&&!poolTeams.some(t=>M.D.off.includes(t))));
-  $('detail').innerHTML=nd?'<div class="nodata">NO DATA</div>':tab==='stats'?statsTab():tab==='players'?playersTab():tab==='drafts'?draftsTab():tab==='card'?cardTab():tab==='scout'?scoutHTML():tab==='report'?reportHTML():tab==='group'?groupTab():tab==='caster'?casterTab():tab==='tier'?tierTab():datesTab();
+  $('statsscope').innerHTML=(tab==='scout'||tab==='report'||tab==='match'||tab==='caster'||tab==='tier'||tab==='prep')?'':scopeWithMaps();$('statsscope').hidden=view!=='stats'||tab==='scout'||tab==='report'||tab==='match'||tab==='caster'||tab==='tier'||tab==='prep';tselPaint();
+  const nd=tab!=='drafts'&&tab!=='scout'&&tab!=='report'&&tab!=='match'&&tab!=='caster'&&tab!=='tier'&&tab!=='prep'&&((scope==='one'&&!M.D.off.includes(curOne()))||(scope==='pool'&&poolTeams&&!poolTeams.some(t=>M.D.off.includes(t))));
+  $('detail').innerHTML=nd?'<div class="nodata">NO DATA</div>':tab==='stats'?statsTab():tab==='players'?playersTab():tab==='drafts'?draftsTab():tab==='card'?cardTab():tab==='scout'?scoutHTML():tab==='report'?reportHTML():tab==='group'?groupTab():tab==='caster'?casterTab():tab==='tier'?tierTab():tab==='prep'?prepHTML():datesTab();
   applyView();decorateTiles();tselPaint();if(tab==='caster')requestAnimationFrame(casFit);uxPost();
 }
 $('statsscope').addEventListener('click',e=>{
@@ -4738,8 +4934,8 @@ function howText(){
   </ul>
   <p class="note"><b>What it does not use.</b> Brawlers and combos (they did not improve the prediction with this data), individual players, the draft and recent form. A 70% means that team would win 7 times out of 10 in those conditions, not that it will surely win. With more sets the model improves and the map adjustment gains weight.</p>`;
 }
-$('selA').addEventListener('change',render);$('selB').addEventListener('change',render);
-$('swap').addEventListener('click',()=>{const x=$('selA').value;$('selA').value=$('selB').value;$('selB').value=x;render()});
+$('selA').addEventListener('change',()=>{SEL_KEEP=null;render()});$('selB').addEventListener('change',()=>{SEL_KEEP=null;render()});
+$('swap').addEventListener('click',()=>{SEL_KEEP=null;const x=$('selA').value;$('selA').value=$('selB').value;$('selB').value=x;render()});
 $('mapAll').addEventListener('click',()=>{if(M){sel.maps=PICKMAPS.slice();render()}});
 $('mapNone').addEventListener('click',()=>{sel.maps=[];render()});
 function ingest(text,name){
@@ -7404,7 +7600,7 @@ body{padding-bottom:50px}
   // [label, main section, Team Stats tab]
   const T=[['Team Stats','stats','stats','Brawlers, bans, players, comps and drafts of one team, two teams compared or several together'],['Match Selector','stats','match','Every scrim and match played, set by set, with bans, picks and player stats'],['Results','stats','group','Results of the selected teams: head to head, matches by team, regions, weekly win rate, top picks and maps'],
            ['Scouting','stats','scout','Full report of a rival: what they practise now, what they hide, bans, maps, how to beat them and their players'],['Card','stats','card','One-page summary of a team to download and share as an image'],['Balance','bal','','How each balance patch changed what teams pick and ban'],
-           ['Tier List','stats','tier','Meta score of every brawler (S to E) from the drafts of the teams you choose'],['Draft','draft','','Save drafts, get draft suggestions, practise against a bot or follow a live draft'],['Team Predictor','pred','','Win chance between two teams, map by map'],
+           ['Tier List','stats','tier','Meta score of every brawler (S to E) from the drafts of the teams you choose'],['Draft','draft','','Save drafts, get draft suggestions, practise against a bot or follow a live draft'],['Draft prep','stats','prep','Prepare every draft situation: bans, first picks, answers and last picks, by map, 1st/last pick and rival'],['Team Predictor','pred','','Win chance between two teams, map by map'],
            ['Worlds bracket','worlds','','Simulation of the Worlds bracket with the model'],null,['Data check','check','','Problems found in the data (missing tags, odd rows…) to fix in the sheet']];
   const bar=document.getElementById('sheetbar');if(!bar)return;
   bar.innerHTML=T.map((t,i)=>t?`<button type="button" class="sb-t" data-sb="${i}" data-tip="${t[3]||''}">${t[0]}</button>`:'<span class="sb-sep"></span>').join('');
@@ -8797,6 +8993,113 @@ body{font-variant-numeric:tabular-nums}
 .tc-row5 .rank.tiny td.ic{overflow:hidden!important}.tc-row5 .rank.tiny td.ic .bi{flex:none}
 
 .tc-row5 .rank.tiny td.ic.tcomp{justify-content:flex-start!important;flex-direction:column;align-items:flex-start!important}
+
+/* rev144: Draft prep */
+
+.dp-top{display:flex;align-items:center;gap:18px;background:#121118;border:1px solid #24222f;border-radius:14px;padding:12px 16px;margin-bottom:16px}
+.dp-map{display:flex;align-items:center;gap:12px}.dp-mi{width:72px;height:46px;object-fit:cover;border-radius:8px}.dp-map small{color:#c4b5fd;font-size:10px;letter-spacing:.1em;font-weight:800;display:block}.dp-map b{font-size:18px}
+.dp-seg{display:flex;align-items:center;gap:4px;background:#0f0e15;border:1px solid #24222f;border-radius:10px;padding:3px}.dp-seg span{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#6e6a85;font-weight:800;padding:0 8px}
+.dp-seg a{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;font-size:13px;color:#b9b5cc;font-weight:600}.dp-seg a.on{background:#a855f7;color:#fff}.dp-lg{width:18px;height:18px;object-fit:contain}
+.dp-saved{margin-left:auto;color:#9a97ad;font-size:11.5px;line-height:1.6;text-align:right}.dp-saved b{color:#e5e3f0}.dp-av{display:inline-flex;width:18px;height:18px;border-radius:50%;background:#a855f7;color:#fff;font-weight:800;font-size:10px;align-items:center;justify-content:center;margin-right:6px}.dp-warn{color:#facc15}
+.dp-grid{display:grid;grid-template-columns:260px 1fr 260px;gap:16px;align-items:start}
+.dp-side{display:flex;flex-direction:column;gap:12px}.dp-side section{background:#121118;border:1px solid #24222f;border-radius:14px;padding:12px}.pp h4{margin:0 0 8px;font-size:13px;display:flex;align-items:center;gap:6px}.pp h4 i,.pp h3 i{font-style:normal;color:#6e6a85;font-weight:500;font-size:11.5px}
+.dp-chs{display:flex;flex-wrap:wrap;gap:5px}.dp-ch{display:flex;align-items:center;gap:5px;background:#1b1a24;border:1px solid #2e2b3d;border-radius:8px;padding:3px 8px 3px 3px;font-size:11.5px;font-weight:700}.dp-bs{width:24px;height:24px;border-radius:6px}
+.dp-add{display:inline-flex;align-items:center;justify-content:center;border:1px dashed #3b2a5a;color:#a78bfa;border-radius:8px;padding:5px 10px;font-size:11.5px;font-weight:700;margin-top:4px}
+.dp-cr{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #1b1a24}.dp-cr b{font-size:12.5px;flex:1}.dp-cr small{font-size:11.5px;color:#9a97ad;font-weight:700}.dp-cr.ban{opacity:.45}.dp-cr.ban b{text-decoration:line-through}
+.dp-tree{background:#121118;border:1px solid #24222f;border-radius:14px;padding:14px}
+.dp-prog{display:flex;align-items:center;gap:12px;margin-bottom:12px;font-size:12.5px}.dp-prog span{flex:0 0 200px;height:7px;background:#24222f;border-radius:5px;overflow:hidden}.dp-prog span i{display:block;height:100%;background:linear-gradient(90deg,#a855f7,#4ade80)}.dp-prog small{color:#9a97ad}
+.dp-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:26px}
+.dp-col{background:#0f0e15;border:1px solid #1f1d29;border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:6px;position:relative}
+.dp-col.lk::before{content:'';position:absolute;left:-27px;top:62px;width:26px;height:2px;background:#a855f7;box-shadow:0 0 8px #a855f7}.dp-col.lk::after{content:'';position:absolute;left:-6px;top:58px;border:5px solid transparent;border-left-color:#a855f7}
+.dp-col h3{margin:0 0 4px;font-size:13px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}.dp-col h3 em{font-style:normal;background:#a855f7;color:#fff;border-radius:6px;padding:1px 7px;font-size:11px}.dp-col h3 i b{color:#c4b5fd}
+.dp-c{position:relative;display:flex;align-items:center;gap:10px;background:#16151e;border:1px solid #24222f;border-radius:10px;padding:6px 8px}.dp-c.on{border-color:#a855f7;box-shadow:0 0 0 1px #a855f7,0 0 14px rgba(168,85,247,.25)}
+.dp-c.ban{opacity:.4}.dp-c.ban b{text-decoration:line-through}
+.dp-bi{width:36px;height:36px;border-radius:8px}.dp-c b{display:block;font-size:13px}.dp-c small{font-size:11px;color:#9a97ad}.dp-tag{font-style:normal;font-size:9.5px;font-weight:800;color:#facc15;border:1px solid #facc15;border-radius:5px;padding:0 5px;margin-left:4px}
+.dp-cnt{position:absolute;right:8px;top:50%;transform:translateY(-50%);min-width:20px;height:20px;border-radius:10px;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center}.dp-cnt.ok{background:rgba(74,222,128,.15);color:#4ade80;border:1px solid rgba(74,222,128,.4)}.dp-cnt.no{background:rgba(250,204,21,.12);color:#facc15;border:1px solid rgba(250,204,21,.45)}
+.dp-role{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#c4b5fd;font-weight:800;margin-top:4px}.dp-or{text-align:center;color:#6e6a85;font-size:11px}
+.dp-pair{border:1px dashed #2e2b3d;border-radius:10px;padding:6px;display:flex;flex-direction:column;gap:5px}.dp-pair small{font-size:11px;color:#9a97ad}.dp-pair small b{color:#c4b5fd}
+.dp-path{margin-top:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:#16151e;border:1px solid #2e2b3d;border-radius:10px;padding:10px 12px;font-size:12.5px}.dp-path span{color:#6e6a85}.dp-path em{flex-basis:100%;font-style:normal;color:#cfcbe6;margin-top:4px}
+.dp-note{font-size:12.5px;line-height:1.6;color:#cfcbe6;background:#0f0e15;border-radius:8px;padding:8px 10px}.dp-idea{display:flex;align-items:center;gap:4px;padding:5px 0;border-bottom:1px solid #1b1a24}.dp-idea small{margin-left:8px;color:#9a97ad;font-size:11.5px}.dp-m{color:#6e6a85;font-size:11.5px;margin:6px 0 0}
+.bn{display:flex;gap:14px;align-items:stretch;background:linear-gradient(180deg,rgba(229,72,77,.08),#121118);border:1px solid #3a2230;border-radius:14px;padding:14px 16px;margin-bottom:16px}
+.bn-g{display:flex;flex-direction:column;gap:8px;padding-right:14px;border-right:1px solid #2a2433}.bn-g:last-child{border-right:0}.bn-main{flex:1}
+.pp .bn h4{margin:0}.bn-r{display:flex;align-items:flex-start;gap:10px}
+.bn-c{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;width:78px}
+.bn-i{width:66px;height:66px;border-radius:12px;border:2px solid #e5484d;box-shadow:0 0 14px rgba(229,72,77,.35);filter:saturate(.75) brightness(.85)}
+.bn-x{position:absolute;left:4px;top:-1px;width:70px;height:70px;pointer-events:none;background:linear-gradient(to top right,transparent calc(50% - 2px),#ff4d55 calc(50% - 2px),#ff4d55 calc(50% + 2px),transparent calc(50% + 2px))}
+.bn-c b{font-size:12px;text-align:center}.bn-c small{font-size:10.5px;color:#9a97ad;text-align:center;line-height:1.25}
+.bn-c.alt .bn-i{border-color:#6e4a52;box-shadow:none;opacity:.7}.bn-c.alt .bn-x{opacity:.55}
+.bn-empty span{width:66px;height:66px;border-radius:12px;border:2px dashed #4b3a4a;display:flex;align-items:center;justify-content:center;color:#a78bfa;font-size:26px}.bn-empty b{color:#a78bfa}
+.bn-or{align-self:center;color:#9a97ad;font-size:12px;font-weight:700;padding:0 4px;margin-top:-20px}
+.sc{background:#121118;border:1px solid #24222f;border-radius:14px;padding:12px 14px;margin-bottom:12px}.sc-t{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.sc-t h4{margin:0}.sc-hint{color:#6e6a85;font-size:11.5px}.sc-hint b{color:#c4b5fd}
+.sc-row{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.sc-c{background:#0f0e15;border:1px solid #24222f;border-radius:12px;padding:9px 10px;display:flex;flex-direction:column;gap:6px;cursor:pointer}.sc-c.on{border-color:#a855f7;box-shadow:0 0 0 1px #a855f7,0 0 16px rgba(168,85,247,.25)}
+.sc-h{display:flex;align-items:center;gap:7px}.sc-h em{font-style:normal;background:#a855f7;color:#fff;border-radius:6px;padding:1px 7px;font-size:11px;font-weight:800}.sc-h b{font-size:12.5px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc-p{font-size:11px;font-weight:800;color:#4ade80}.sc-c:not(.on) .sc-p{color:#9a97ad}
+.sc-b{display:flex;align-items:center;gap:4px}.sc-b small{width:52px;font-size:10px;color:#6e6a85;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+.sc-i{position:relative;display:inline-block}.sc-bi{width:28px;height:28px;border-radius:6px;border:1.5px solid #e5484d;filter:brightness(.85)}.sc-i i{position:absolute;inset:0;background:linear-gradient(to top right,transparent calc(50% - 1px),#ff4d55 calc(50% - 1px),#ff4d55 calc(50% + 1px),transparent calc(50% + 1px))}
+.sc-any{font-size:11px;color:#9a97ad;border:1px dashed #3a3448;border-radius:6px;padding:4px 8px}
+.sc-new{align-items:center;justify-content:center;border-style:dashed;border-color:#3b2a5a;color:#a78bfa}.sc-new span{font-size:24px;line-height:1}.sc-new b{font-size:12.5px}.sc-new small{color:#6e6a85;font-size:11px}
+.dp-ov{background:#121118;border:1px solid #24222f;border-radius:14px;padding:16px}.dp-ov table{width:100%;border-collapse:separate;border-spacing:4px}.dp-ov th{font-size:11px;color:#9a97ad;font-weight:600;text-align:center}.dp-ov th small{display:block;margin-top:3px}.dp-ov th .dp-lg{width:24px;height:24px}
+.dp-ov td{background:#16151e;border-radius:8px;text-align:center;padding:6px}.dp-md td{background:none;text-align:left;color:#c4b5fd;font-weight:800;font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:10px 0 2px}.dp-mdi{width:16px;height:16px;vertical-align:middle;margin-right:6px}
+.dp-mn{display:flex;align-items:center;gap:8px;text-align:left!important;color:#e5e3f0!important;font-size:12.5px!important}.dp-mt{width:48px;height:30px;object-fit:cover;border-radius:6px}
+.dp-q{display:inline-block;min-width:42px;margin:0 2px;border-radius:6px;padding:3px 6px;font-size:10.5px;font-weight:800}.dp-q.full{background:rgba(74,222,128,.18);color:#4ade80;border:1px solid rgba(74,222,128,.45)}.dp-q.half{background:rgba(250,204,21,.12);color:#facc15;border:1px solid rgba(250,204,21,.45)}.dp-q.none{background:#1b1a24;color:#6e6a85;border:1px solid #2e2b3d}
+.dp-leg{display:flex;align-items:center;gap:6px;margin-bottom:8px}.dp-leg i{font-style:normal;color:#6e6a85;font-size:12px;margin-left:10px}
+.pp{color:#e5e3f0}.pp h4{margin:0 0 8px;font-size:13px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.dp-mdi{width:14px;height:14px;vertical-align:-2px;margin-right:4px}
+.pp-sel{background:#0f0e15;color:#b9b5cc;border:0;font:600 13px Inter,sans-serif;padding:6px 8px;border-radius:8px;outline:none;cursor:pointer}
+.dp-seg a{cursor:pointer}.pp-tools{display:flex;gap:6px}.pp-btn{background:#1b1a24;border:1px solid #3b2a5a;color:#e5e3f0;border-radius:10px;padding:8px 12px;font:600 13px Inter,sans-serif;cursor:pointer}.pp-btn:hover{border-color:#a855f7}
+.pp-msg{color:#9a97ad}.pp-conf{display:flex;align-items:center;gap:10px;background:rgba(250,204,21,.08);border:1px solid rgba(250,204,21,.45);color:#fde68a;border-radius:12px;padding:10px 14px;margin:-6px 0 14px;font-size:13px}
+.pp-conf button{background:#1b1a24;border:1px solid #4b4568;color:#fff;border-radius:8px;padding:5px 10px;cursor:pointer;font:600 12px Inter,sans-serif}
+.dp-c{cursor:pointer}.dp-c:hover{border-color:#4b3a6a}.pp-ops{position:absolute;right:6px;top:4px;display:none;gap:2px}.dp-c:hover .pp-ops{display:flex}.dp-c:hover .dp-cnt{display:none}
+.pp-ops button,.pp-x,.bn-del,.sc-del{background:#24222f;border:0;color:#cfcbe6;border-radius:6px;width:20px;height:20px;font-size:11px;cursor:pointer;padding:0}.pp-ops button:hover,.pp-x:hover,.bn-del:hover,.sc-del:hover{background:#e5484d;color:#fff}
+.sc-del{width:auto;padding:0 6px}
+.dp-add{background:none;cursor:pointer;font-family:inherit}.dp-add:hover{border-color:#a855f7;color:#fff}
+.pp-in{display:flex;gap:4px;margin-top:4px}.pp-in input{flex:1;min-width:0;background:#0d0c12;border:1px solid #a855f7;color:#fff;border-radius:8px;padding:6px 8px;font:600 12.5px Inter,sans-serif;outline:none;width:120px}.pp-in button{background:#24222f;border:0;color:#cfcbe6;border-radius:8px;width:28px;cursor:pointer}
+.bn-c .pp-in{flex-direction:column;width:130px}.bn-c .pp-in input{width:auto}
+.bn-c{background:none;border:0;color:inherit;font-family:inherit;padding:0}.bn-del{position:absolute;top:-6px;right:2px;display:none}.bn-c:hover .bn-del{display:block}
+svg.bn-x{position:absolute;left:6px;top:0;width:66px;height:66px;pointer-events:none;background:none}
+.bn-c small[contenteditable]{outline:none;border-bottom:1px dashed transparent;min-width:40px;min-height:13px}.bn-c small[contenteditable]:hover,.bn-c small[contenteditable]:focus{border-bottom-color:#4b4568;color:#e5e3f0}
+[contenteditable]:empty::before{content:attr(data-ph);color:#5b5670}
+.bn-empty{cursor:pointer}.bn-sug{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-top:2px}.bn-sug small{font-size:10.5px;color:#6e6a85;width:100%}.bn-sug button{display:flex;align-items:center;gap:4px;background:#1b1a24;border:1px solid #3a2a38;color:#e5e3f0;border-radius:8px;padding:2px 7px 2px 2px;font:700 11px Inter,sans-serif;cursor:pointer}.bn-sug button i{font-style:normal;color:#9a97ad;font-weight:600}
+.bn-r{flex-wrap:wrap}
+.sc-c{font-family:inherit;color:inherit;text-align:left}.sc-h b[contenteditable]{outline:none;border-bottom:1px dashed #4b4568}
+.sc-row{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))!important}
+.dp-path textarea,.pp-ta{flex-basis:100%;width:100%;box-sizing:border-box;background:#0f0e15;border:1px solid #24222f;border-radius:8px;color:#e5e3f0;font:500 12.5px/1.5 Inter,sans-serif;padding:8px 10px;resize:vertical;outline:none;margin-top:6px}.dp-path textarea:focus,.pp-ta:focus{border-color:#a855f7}
+.dp-idea small[contenteditable]{outline:none;flex:1}.dp-idea .pp-x{margin-left:auto}
+.pp-in3 input{width:100%}
+.dp-q{cursor:pointer;font-family:inherit}.dp-q i{font-style:normal;opacity:.8;font-weight:600}
+.pp-dot{position:absolute;top:4px;right:4px;width:9px;height:9px;border-radius:50%;background:#4ade80;box-shadow:0 0 6px #4ade80}
+body.pp-sb:not(.sb-off) #detail .pp{}
+@media (max-width:1400px){.dp-grid{grid-template-columns:220px 1fr!important}.dp-grid>.dp-side:last-child{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,1fr)}}
+#ppPrint{display:none}
+@media print{
+ body.pp-printing>*:not(#ppPrint){display:none!important}html,body.pp-printing{background:#fff!important;padding:0!important;margin:0!important}body.pp-printing::before,body.pp-printing::after{display:none!important}
+ body.pp-printing #ppPrint{display:block!important;color:#111;font-family:Inter,Arial,sans-serif;font-size:12px}
+ #ppPrint .pq-head{display:flex;align-items:center;gap:14px;border-bottom:2px solid #7c3aed;padding-bottom:8px;margin-bottom:10px}#ppPrint .pq-mi{width:90px;height:56px;object-fit:cover;border-radius:6px}
+ #ppPrint h1{margin:0;font-size:20px}#ppPrint .pq-head small{color:#7c3aed;font-weight:800;letter-spacing:.08em;text-transform:uppercase}#ppPrint .pq-head p{margin:2px 0 0;color:#555}
+ #ppPrint .pq-g,#ppPrint .pq-bans{display:flex;gap:26px;margin:6px 0 10px}#ppPrint .pq-g small,#ppPrint .pq-bans small,#ppPrint .pq-a small,#ppPrint .pq-k small{display:block;color:#666;font-weight:700;text-transform:uppercase;font-size:9px;letter-spacing:.06em;margin-bottom:3px}
+ #ppPrint .pq-b{position:relative;display:inline-flex;flex-direction:column;align-items:center;margin-right:8px;width:52px}#ppPrint .pq-bi{width:40px;height:40px;border-radius:6px;border:2px solid #e5484d}#ppPrint .pq-x{position:absolute;top:0;left:6px;width:40px;height:40px}#ppPrint .pq-b b{font-size:9px}
+ #ppPrint .pq-w{display:inline-block;font-size:9px;color:#555;margin-right:10px;vertical-align:top;max-width:80px}
+ #ppPrint .pq-s{break-inside:avoid-page;border:1px solid #ddd;border-radius:8px;padding:10px 12px;margin-bottom:10px}#ppPrint h2{margin:0 0 6px;font-size:14px;color:#4c1d95}#ppPrint h3{margin:8px 0 4px;font-size:11px;text-transform:uppercase;color:#666}
+ #ppPrint .pq-br{border-left:3px solid #7c3aed;padding:4px 0 4px 10px;margin:6px 0;break-inside:avoid}#ppPrint .pq-h em{font-style:normal;font-size:9px;font-weight:800;color:#a16207;border:1px solid #a16207;border-radius:4px;padding:0 4px;margin-left:6px}
+ #ppPrint .pq-p{display:inline-flex;align-items:center;gap:3px;margin-right:6px}#ppPrint .pq-pi{width:20px;height:20px;border-radius:4px}#ppPrint .pq-p b{font-size:10.5px}
+ #ppPrint .pq-a i{font-style:normal;color:#888;font-size:9px;margin-right:8px}#ppPrint .pq-k{margin:4px 0 4px 14px;padding:4px 8px;background:#f6f3ff;border-radius:6px}#ppPrint .pq-k small{display:inline;margin-right:4px}#ppPrint .pq-kh{font-weight:700;margin-bottom:2px}
+ #ppPrint .pq-n{margin:4px 0 0;color:#333;font-style:italic}#ppPrint .pq-i{margin:3px 0}#ppPrint .pq-i i{color:#555;margin-left:6px}
+ @page{margin:12mm}
+}
+
+/* rev144b: Draft prep layout */
+.pp .dp-grid.pp-g2{grid-template-columns:minmax(0,1fr) 270px!important}
+.pp-rc{display:flex;flex-direction:column;gap:12px}
+.pp .dp-top{flex-wrap:wrap;row-gap:10px}.pp .dp-map b,.pp .dp-seg a,.pp .pp-btn{white-space:nowrap}
+.pp .dp-steps{grid-template-columns:repeat(4,minmax(0,1fr));gap:22px}
+.pp .dp-c{padding-right:30px;min-width:0}.pp .dp-c>div{min-width:0}.pp .dp-c b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pp .dp-c small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pp .dp-tag{display:inline-block;margin:2px 0 0}
+.pp .dp-cnt{right:6px}
+.pp .sc-new{min-height:96px}
+@media (max-width:1500px){.pp .dp-grid.pp-g2{grid-template-columns:minmax(0,1fr)!important}.pp-rc{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+.pp .dp-ov table{width:auto!important;min-width:520px}.pp .dp-ov td{min-width:130px}.pp .dp-mn{width:230px}
 </style>
 <script>
 /* rev142: explanations behind an (i) icon + context bar */
@@ -8828,7 +9131,7 @@ body{font-variant-numeric:tabular-nums}
 
 <script>
 /* rev143: tabs in three groups */
-(function(){const G=[['Team',['Team Stats','Scouting','Card','Match Selector']],['Meta',['Tier List','Balance','Draft']],['Competition',['Results','Team Predictor','Worlds bracket']]];
+(function(){const G=[['Team',['Team Stats','Scouting','Card','Match Selector']],['Meta',['Tier List','Balance','Draft','Draft prep']],['Competition',['Results','Team Predictor','Worlds bracket']]];
   function go(){const sb=document.getElementById('sheetbar');if(!sb||sb.querySelector('.sb-grp'))return !!sb;const B=[...sb.querySelectorAll('.sb-t')];if(!B.length)return false;const by={};B.forEach(b=>by[b.textContent.trim()]=b);
     const D=G.map(([g,L])=>{const d=document.createElement('div');d.className='sb-grp';d.innerHTML='<i>'+g+'</i>';L.forEach(n=>{if(by[n])d.appendChild(by[n])});return d});sb.prepend(...D);
     sb.querySelectorAll(':scope>.sb-sep').forEach(x=>x.remove());return true}
