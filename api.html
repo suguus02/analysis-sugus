@@ -2198,7 +2198,22 @@ function loadStored(){
   return null;
 }
 function loadDb(){const s=store.get('tvt:db');if(s){try{const o=JSON.parse(s);if(o&&o.teams)return o}catch(e){}}return DB_DEFAULT}
-function loadSel(){const s=store.get('tvt:sel');if(s){try{return JSON.parse(s)}catch(e){}}return {}}
+function loadSel(){let o={};const s=store.get('tvt:sel');if(s){try{o=JSON.parse(s)||{}}catch(e){}}
+  // rev155: the two teams of this page come from its own save (tvt:apisel); tvt:sel is shared with the other page of the site and may hold other teams
+  try{const H=window.__UXH,p=JSON.parse(store.get('tvt:apisel')||'null');if(p&&p.a&&p.b&&!(H&&(H.a||H.b))){o.a=p.a;o.b=p.b}}catch(e){}return o}
+// ===== rev155: TEAM SELECTION — saved after every repaint, restored once at start. What the user chose is never replaced by a default.
+let SEL_READY=false;
+function selRestore(){if(SEL_READY||typeof M==='undefined'||!M)return;SEL_READY=true;
+  if(window.__UXH&&window.__UXH.one)return; // a shared link chooses the team this one time
+  let o=null;try{o=JSON.parse(store.get('tvt:apisel')||'null')}catch(e){}
+  if(o&&o.scope){if(o.one)oneTeam=o.one;if(Array.isArray(o.pool))poolTeams=o.pool.slice();
+    scope=o.scope==='pool'&&Array.isArray(o.pool)?'pool':o.scope==='pair'?'pair':'one';return}
+  // saves made before rev155
+  try{const L=JSON.parse(store.get('tvt:selT')||'null');if(L&&L.length){if(L.length===1){scope='one';oneTeam=L[0]}else if(L.length===2){scope='pair'}else{scope='pool';poolTeams=L.slice()}}}catch(e){}}
+function selPersist(){if(!SEL_READY||typeof M==='undefined'||!M)return;
+  try{let p=null;try{p=JSON.parse(store.get('tvt:apisel')||'null')}catch(e){}p=p||{};
+    const o={scope,one:oneTeam||p.one||'',pool:scope==='pool'&&poolTeams?poolTeams.slice():(p.pool||null),a:SEL_KEEP?(p.a||''):(sel.a||p.a||''),b:SEL_KEEP?(p.b||''):(sel.b||p.b||'')};
+    const t=JSON.stringify(o);if(t!==selPersist.last){selPersist.last=t;store.set('tvt:apisel',t)}}catch(e){}}
 let SEL_KEEP=null;
 function saveSel(){if(SEL_KEEP)return;store.set('tvt:sel',JSON.stringify({a:sel.a,b:sel.b,maps:sel.maps}))}
 
@@ -2448,10 +2463,8 @@ function teamLabel(r,cls,size){ // named rival (with logo) or 'Mixed lineup' wit
 function mapsFilter(){return statMaps.length?statMaps.slice():null}
 function filterLabel(){return !statMaps.length?'all maps':statMaps.length===1?statMaps[0]:plural(statMaps.length,'selected map')}
 const allTeams=()=>SELECTED?[...new Set([...SELECTED,...M.D.off.filter(t=>SELECTED.includes(t))])]:[...new Set([...LCQ,...WORLDS,...M.D.off])];
-function curOne(){const off=M.D.off;if(!curOne.r){curOne.r=1;try{const L=JSON.parse(store.get('tvt:selT')||'null');if(L&&L.length&&!(window.__UXH&&window.__UXH.one)){const ok=L.filter(t=>allTeams().includes(t));if(ok.length)setSelTeams(ok)}}catch(e){}}// rev152: a team missing for a moment (data still loading, another period…) no longer replaces the chosen team with TEAM HERETICS / the first team
+function curOne(){const off=M.D.off;selRestore();// rev152: a team missing for a moment (data still loading, another period…) no longer replaces the chosen team with TEAM HERETICS / the first team
   const T=allTeams();if(oneTeam&&T.includes(oneTeam))return oneTeam;
-  let saved=[];try{saved=JSON.parse(store.get('tvt:selT')||'[]')||[]}catch(e){}
-  const s1=saved.length===1&&T.includes(saved[0])?saved[0]:'';if(s1){oneTeam=s1;return s1}
   return (oneTeam&&off.includes(oneTeam))?oneTeam:T.includes(sel.a)?sel.a:T.includes('TRIBE GAMING')?'TRIBE GAMING':(T[0]||off[0])}
 const wrBar=p=>{p=Math.max(0,Math.min(1,+p||0));const c=p>=.6?'#4ade80':p>=.53?'#86efac':p>.47?'#facc15':p>.4?'#fca5a5':'#f87171';return `<span class="wrb"><i style="width:${Math.round(100*p)}%;background:${c}"></i></span>`};
 function rankTable(arr,cls,kind,mapCols,wrl,slim,hl){
@@ -3104,7 +3117,7 @@ function tselPaint(){
     el.style.background=`linear-gradient(115deg,${stops.join(',')})`;if(el.classList.contains('tstrip')||el.classList.contains('phead'))el.style.borderColor=`hsl(${hs[0]},50%,42%)`;
   });
 }
-function selTeams(){return scope==='one'?[curOne()].filter(Boolean):scope==='pair'?[sel.a,sel.b].filter(Boolean):((poolTeams||(poolTeams=visTeams())).filter(x=>allTeams().includes(x)))}
+function selTeams(){selRestore();return scope==='one'?[curOne()].filter(Boolean):scope==='pair'?[sel.a,sel.b].filter(Boolean):((poolTeams||(poolTeams=visTeams())).filter(x=>allTeams().includes(x)))}
 function setSelTeams(L){SEL_KEEP=null;L=[...new Set(L.filter(Boolean))];store.set('tvt:selT',JSON.stringify(L));
   if(L.length===1){scope='one';oneTeam=L[0]}
   else if(L.length===2){scope='pair';sel.a=L[0];sel.b=L[1];focus='A'}
@@ -4989,12 +5002,12 @@ document.addEventListener('change',e=>{const t=e.target;if(!t.closest)return;con
 window.__uxState=()=>{let tm='';try{if(view==='stats'){if(tab==='report')tm=RP.team;else if(tab==='stats'||tab==='card'||tab==='scout'){if(scope==='one')tm=curOne();else if(poolTeams&&poolTeams.length)tm=poolTeams.slice(0,4).join(' + ')}}}catch(e){}return {view,tab,team:tm||''}};
 function renderDetail(){
   if(tab==='ideas')tab='prep';
-  uxApplyHash();if(tab==='scout')uxSyncScout();
+  selRestore();uxApplyHash();if(tab==='scout')uxSyncScout();
   document.querySelectorAll('.tabbtn').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===tab?'true':'false'));
   $('statsscope').innerHTML=(tab==='scout'||tab==='report'||tab==='match'||tab==='caster'||tab==='tier'||tab==='prep'||tab==='ideas')?'':scopeWithMaps();$('statsscope').hidden=view!=='stats'||tab==='scout'||tab==='report'||tab==='match'||tab==='caster'||tab==='tier'||tab==='prep'||tab==='ideas';tselPaint();
   const nd=tab!=='drafts'&&tab!=='scout'&&tab!=='report'&&tab!=='match'&&tab!=='caster'&&tab!=='tier'&&tab!=='prep'&&tab!=='ideas'&&((scope==='one'&&!M.D.off.includes(curOne()))||(scope==='pool'&&poolTeams&&!poolTeams.some(t=>M.D.off.includes(t))));
   $('detail').innerHTML=nd?'<div class="nodata">NO DATA<small>No sets for this team in the selected period. Widen the period (top left) or choose another team.</small></div>':tab==='stats'?statsTab():tab==='players'?playersTab():tab==='drafts'?draftsTab():tab==='card'?cardTab():tab==='scout'?scoutHTML():tab==='report'?reportHTML():tab==='group'?groupTab():tab==='caster'?casterTab():tab==='tier'?tierTab():tab==='prep'?prepHTML():datesTab();
-  applyView();decorateTiles();tselPaint();if(tab==='caster')requestAnimationFrame(casFit);uxPost();
+  applyView();decorateTiles();tselPaint();if(tab==='caster')requestAnimationFrame(casFit);uxPost();selPersist();
 }
 $('statsscope').addEventListener('click',e=>{
   const rs=()=>{clrF();renderDetail()};
@@ -6450,7 +6463,7 @@ document.addEventListener('click',e=>{const t=e.target;if(!t.closest)return;
 function scoutHTML(){
   scInit();setTimeout(scSbPaint,0);
   const D=M.D,R=SC.rival,U=SC.us,T=allTeams();
-  const ctl=`<div class="sc-ctl" data-noexport="1">${grpBarHTML()}<div class="uxpicks">${tpChips('scus','Our team',U,t=>{SC.us=t;renderDetail()},{excl:[R],cls:'A'})}${tpChips('scrival','Rival to scout',R,t=>{SC.rival=t;if(allTeams().includes(t)){oneTeam=t;SC._one=t}renderDetail()},{excl:[U],cls:'B'})}</div></div>`+uxMapList(SC.map);
+  const ctl=`<div class="sc-ctl" data-noexport="1">${grpBarHTML()}<div class="uxpicks">${tpChips('scus','Our team',U,t=>{SC.us=t;renderDetail()},{excl:[R],cls:'A'})}${tpChips('scrival','Rival to scout',R,t=>{SC.rival=t;renderDetail()},{excl:[U],cls:'B'})}</div></div>`+uxMapList(SC.map);
   if(!R||!D.off.includes(R))return ctl+'<p class="msg" style="margin:14px 0">Choose a rival with data in the period selected above.</p>';
   const setsA=scSets(R),MAPN=SC.map?setsA.filter(x=>x.m===SC.map).length:0,mapOn=!!SC.map,useMap=mapOn&&MAPN>=5,mf=useMap?[SC.map]:null;
   const sets=useMap?setsA.filter(x=>x.m===SC.map):setsA,n=sets.length,w=sets.filter(x=>x.win===1).length,wr=n?w/n:0;
