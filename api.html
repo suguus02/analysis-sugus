@@ -24,24 +24,45 @@ window.API_SHEET_ID="1GCtGBZN25X8Smw7nftKooS-uM-afwLIA3P6OPB9YNnk";
   var get=function(){try{return localStorage.getItem(KEY)||''}catch(e){return ''}},set=function(v){try{if(v)localStorage.setItem(KEY,v);else localStorage.removeItem(KEY)}catch(e){}};
   var norm=function(x){return String(x||'').trim().toLowerCase()};
   function csv(t){var rows=[],r=[],f='',q=false;for(var i=0;i<t.length;i++){var c=t[i];if(q){if(c==='"'){if(t[i+1]==='"'){f+='"';i++}else q=false}else f+=c}else if(c==='"')q=true;else if(c===','){r.push(f);f=''}else if(c==='\n'||c==='\r'){if(c==='\r'&&t[i+1]==='\n')i++;r.push(f);rows.push(r);r=[];f=''}else f+=c}if(f!==''||r.length){r.push(f);rows.push(r)}return rows}
-  var list=fetch('https://docs.google.com/spreadsheets/d/'+window.API_SHEET_ID+'/gviz/tq?tqx=out:csv&sheet='+encodeURIComponent(TAB)+'&range=A1:A1000&headers=0',{cache:'no-store'})
+  // ---- rev149: accounts with username + password (checked by the Apps Script). Old list (USUARIOS) only while the new code is not in the sheet yet.
+  var SK='tvt:sess',RK='tvt:role';
+  var gs=function(k){try{return localStorage.getItem(k)||''}catch(e){return ''}},ss=function(k,v){try{if(v)localStorage.setItem(k,v);else localStorage.removeItem(k)}catch(e){}};
+  var oldList=function(){return fetch('https://docs.google.com/spreadsheets/d/'+window.API_SHEET_ID+'/gviz/tq?tqx=out:csv&sheet='+encodeURIComponent(TAB)+'&range=A1:A1000&headers=0',{cache:'no-store'})
     .then(function(r){return r.text()}).then(function(t){if(/^\s*</.test(t))throw 0;var R=csv(t);if(!R.length||!/^(usuarios?|users?|username)$/i.test(String(R[0][0]||'').trim()))throw 0;
-      var S={};R.slice(1).forEach(function(x){var n=norm(x[0]);if(n)S[n]=String(x[0]).trim()});return S});
-  function open_(name){set(name);H.classList.remove('gated');var g=document.getElementById('gate');if(g)g.remove();window.__USER=name;try{track(name)}catch(e){}
-    var put=function(){var host=document.querySelector('header.hero .herotext');if(!host){setTimeout(put,500);return}if(document.getElementById('userBadge'))return;var u=document.createElement('div');u.id='userBadge';
-      u.style.cssText='margin-top:6px;font-size:12px;color:#9a97ad';u.innerHTML='👤 '+name.replace(/</g,'&lt;')+' · <a href="#" style="color:#c4b5fd">log out</a>';u.querySelector('a').onclick=function(e){e.preventDefault();window.uxLogout()};host.appendChild(u)};put()}
-  function show(){var g=document.createElement('div');g.id='gate';
-    g.innerHTML='<form class="gbox" autocomplete="off"><h1>ANALYSIS SUGUS</h1><p>Enter your username to continue</p><input type="text" name="u" placeholder="Username" spellcheck="false" autocapitalize="off"><button type="submit">Enter</button><div class="gerr"></div></form>';
-    document.body.appendChild(g);var f=g.querySelector('form'),inp=f.querySelector('input'),err=f.querySelector('.gerr'),btn=f.querySelector('button');
-    var saved=get();
-    if(saved){f.innerHTML='<h1>ANALYSIS SUGUS</h1><p class="gwait">Checking access…</p>'}
-    list.then(function(S){if(saved&&S[norm(saved)]){open_(S[norm(saved)]);return}
-        if(saved){set('');location.reload();return}
-        setTimeout(function(){inp.focus()},50);
-        f.onsubmit=function(e){e.preventDefault();var n=norm(inp.value);if(!n)return;if(S[n])open_(S[n]);else{err.textContent='Access denied: this username is not on the list.';inp.select()}}},
-      function(){f.innerHTML='<h1>ANALYSIS SUGUS</h1><p>The access list could not be read.</p><div class="gerr">Ask the admin to check the USUARIOS tab of the sheet.</div>'})}
+      var S={};R.slice(1).forEach(function(x){var n=norm(x[0]);if(n)S[n]=String(x[0]).trim()});return S})};
+  var cfgP=function(){return new Promise(function(res){var n=0;(function w(){var c=null;try{c=window.__uxCfg&&window.__uxCfg()}catch(e){}if(c&&c.url)res(c);else if(++n>150)res(null);else setTimeout(w,100)})()})};
+  var call=function(o){return cfgP().then(function(c){if(!c)throw new Error('nocfg');o.token=c.token;return fetch(c.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(o)}).then(function(r){return r.json()})})};
+  window.__accCall=function(action,o){o=o||{};o.action=action;o.session=gs(SK);return call(o)};
+  var tokExp=function(t){try{var p=atob(String(t).split('.')[0].replace(/-/g,'+').replace(/_/g,'/'));return +p.split('|')[2]||0}catch(e){return 0}};
+  var legacy=function(o){return o&&(o.error==='setup'||o.error==='unknown action')};
+  function open_(name,role){set(name);ss(RK,role||'');H.classList.remove('gated');var g=document.getElementById('gate');if(g)g.remove();window.__USER=name;window.__ROLE=role||'';try{track(name)}catch(e){}
+    var put=function(){var host=document.querySelector('header.hero .herotext');if(!host){setTimeout(put,500);return}var u=document.getElementById('userBadge');if(!u){u=document.createElement('div');u.id='userBadge';host.appendChild(u)}
+      u.style.cssText='margin-top:6px;font-size:12px;color:#9a97ad';
+      u.innerHTML='👤 '+String(window.__USER).replace(/</g,'&lt;')+(window.__ROLE==='Admin'?' · <a href="#" data-acc style="color:#c4b5fd">Accounts</a>':'')+' · <a href="#" data-out style="color:#c4b5fd">log out</a>';
+      u.querySelector('[data-out]').onclick=function(e){e.preventDefault();window.uxLogout()};var A=u.querySelector('[data-acc]');if(A)A.onclick=function(e){e.preventDefault();if(window.accOpen)window.accOpen()}};put();window.__badge=put}
+  function show(){var g=document.createElement('div');g.id='gate';document.body.appendChild(g);
+    var form=function(msg){g.innerHTML='<form class="gbox" autocomplete="on"><h1>ANALYSIS SUGUS</h1><p>Sign in to continue</p><input type="text" name="username" autocomplete="username" placeholder="Username" spellcheck="false" autocapitalize="off"><input type="password" name="password" autocomplete="current-password" placeholder="Password" style="margin-top:10px"><button type="submit">Sign in</button><div class="gerr">'+(msg||'')+'</div></form>';
+      var f=g.querySelector('form'),u=f.querySelector('[name=username]'),pw=f.querySelector('[name=password]'),err=f.querySelector('.gerr'),btn=f.querySelector('button');
+      u.value=get();setTimeout(function(){(u.value?pw:u).focus()},50);
+      f.onsubmit=function(e){e.preventDefault();var n=u.value.trim();if(!n){u.focus();return}btn.disabled=true;err.textContent='';btn.textContent='Checking…';
+        call({action:'login',user:n,pass:pw.value}).then(function(o){
+          if(o&&o.ok){ss(SK,o.token);open_(o.user,o.role);return}
+          if(legacy(o))return oldList().then(function(S){if(S[norm(n)])open_(S[norm(n)],'');else throw 1});
+          err.textContent=o&&o.error==='wait'?'Too many wrong tries. Wait 10 minutes and try again.':'Wrong username or password.';pw.select()})
+        .catch(function(){err.textContent='Access denied or no connection. Try again.'})
+        .then(function(){btn.disabled=false;btn.textContent='Sign in'})}};
+    var tok=gs(SK),saved=get();
+    // signed in before: enter straight away and check the session in the background
+    if(tok&&tokExp(tok)>Date.now()&&saved){open_(saved,gs(RK));
+      call({action:'me',session:tok}).then(function(o){if(o&&o.ok){set(o.user);ss(RK,o.role);window.__USER=o.user;window.__ROLE=o.role;if(window.__badge)window.__badge()}
+        else if(o&&o.error==='session'){ss(SK,'');ss(RK,'');location.reload()}}).catch(function(){});return}
+    if(tok)ss(SK,'');
+    // old access (username only) while the sheet has no accounts yet
+    if(saved){g.innerHTML='<div class="gbox"><h1>ANALYSIS SUGUS</h1><p class="gwait">Checking access…</p></div>';
+      call({action:'me',session:''}).then(function(o){if(legacy(o))return oldList().then(function(S){if(S[norm(saved)])open_(S[norm(saved)],'');else{set('');form()}});form()}).catch(function(){form()});return}
+    form()}
   if(document.body)show();else document.addEventListener('DOMContentLoaded',show);
-  window.uxLogout=function(){set('');location.reload()};
+  window.uxLogout=function(){set('');ss(SK,'');ss(RK,'');location.reload()};
   // ---- visits: who uses the page, when, for how long and which tabs/teams (ACCESOS tab of the sheet)
   function track(name){
     var dev=/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)?'Móvil':'Ordenador';
@@ -9394,4 +9415,72 @@ body.pp-sb:not(.sb-off) #detail .pp{}
     const D=G.map(([g,L])=>{const d=document.createElement('div');d.className='sb-grp';d.innerHTML='<i>'+g+'</i>';L.forEach(n=>{if(by[n])d.appendChild(by[n])});return d});sb.prepend(...D);
     sb.querySelectorAll(':scope>.sb-sep').forEach(x=>x.remove());return true}
   if(!go()){const t=setInterval(()=>{if(go())clearInterval(t)},200)}})();
+</script>
+<script>
+/* rev149: Accounts — only admins (the Apps Script checks the role on every action) */
+(function(){
+  var A={users:[],me:'',busy:false,msg:'',err:'',ask:null,pw:null,newOpen:false};
+  var e_=function(x){return String(x==null?'':x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
+  var css='#accOv{position:fixed;inset:0;z-index:99990;background:#0b0a10;display:none;overflow:auto;padding:40px 20px;font-family:Inter,sans-serif;color:#e5e3f0}#accOv.on{display:block}'+
+  '#accOv .ac-w{max-width:1240px;margin:0 auto}#accOv .ac-top{display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap}#accOv h2{margin:0;font-size:20px}#accOv .ac-top small{color:#9a97ad;font-size:13px}'+
+  '#accOv .ac-new{margin-left:auto;background:#a855f7;color:#fff;border:0;border-radius:10px;padding:10px 16px;font:700 13px Inter,sans-serif;cursor:pointer}#accOv .ac-x{background:none;border:1px solid #2e2b3d;color:#c4b5fd;border-radius:10px;padding:9px 13px;font:600 13px Inter,sans-serif;cursor:pointer}'+
+  '#accOv .ac-card{background:#121118;border:1px solid #24222f;border-radius:14px;overflow:auto}#accOv table{width:100%;border-collapse:collapse;min-width:900px}'+
+  '#accOv th{text-align:left;font-size:10.5px;letter-spacing:.09em;color:#6e6a85;font-weight:800;padding:14px 18px;border-bottom:1px solid #1f1d29}#accOv td{padding:14px 18px;border-bottom:1px solid #1b1a24;font-size:13.5px;vertical-align:middle}#accOv tr:last-child td{border-bottom:0}'+
+  '#accOv .u{display:flex;align-items:center;gap:12px}#accOv .av{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;position:relative;flex:0 0 auto}'+
+  '#accOv .av i{position:absolute;right:-2px;bottom:-2px;width:11px;height:11px;border-radius:50%;background:#4ade80;border:2px solid #121118}#accOv .u b{font-size:14.5px;display:block}#accOv .u small,#accOv td small{color:#8e8ab0;font-size:12px;display:block}#accOv .you{color:#8e8ab0;font-weight:500}'+
+  '#accOv select{border:1px solid #2e2b3d;background:#0f0e15;border-radius:9px;padding:8px 10px;font:600 13px Inter,sans-serif}#accOv .r-Admin{color:#f87171}#accOv .r-Coach{color:#c4b5fd}#accOv .r-Player{color:#4ade80}'+
+  '#accOv .on{display:inline-flex;align-items:center;gap:7px;color:#4ade80;font-weight:800;font-size:11.5px;letter-spacing:.06em;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.25);border-radius:7px;padding:4px 9px}#accOv .on:before{content:"";width:7px;height:7px;border-radius:50%;background:#4ade80}'+
+  '#accOv td b{font-size:13.5px}#accOv .acts{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}#accOv .btn{border:1px solid #2e2b3d;background:#0f0e15;color:#e5e3f0;border-radius:9px;padding:8px 13px;font:600 12.5px Inter,sans-serif;cursor:pointer}#accOv .del{color:#f87171}#accOv .yes{background:#f87171;color:#120808;border-color:#f87171}#accOv .btn:disabled{opacity:.5}'+
+  '#accOv .ac-note{color:#6e6a85;font-size:12px;margin-top:12px}#accOv .ac-msg{margin:0 0 12px;padding:10px 14px;border-radius:10px;font-size:13px}#accOv .ac-msg.ok{background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.25);color:#86efac}#accOv .ac-msg.bad{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);color:#fca5a5}'+
+  '#accOv .ac-box{background:#121118;border:1px solid #3b2a5a;border-radius:14px;padding:18px 20px;max-width:440px;margin:0 0 16px}#accOv .ac-box h3{margin:0 0 4px;font-size:15px}#accOv .ac-box p{margin:0 0 14px;color:#8e8ab0;font-size:12.5px}'+
+  '#accOv .f{display:block;margin-bottom:10px}#accOv .f span{display:block;font-size:10.5px;letter-spacing:.08em;color:#6e6a85;font-weight:800;margin-bottom:5px}#accOv .f input,#accOv .f select{width:100%;box-sizing:border-box;border:1px solid #2e2b3d;background:#0d0c12;border-radius:9px;padding:10px 12px;font:14px Inter,sans-serif;color:#e5e3f0}'+
+  '#accOv .pw{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#1a1426;border:1px solid #a855f7;border-radius:9px;padding:10px 12px;font:15px ui-monospace,monospace;letter-spacing:.05em;color:#fff}#accOv .pw button{background:none;border:0;color:#c4b5fd;font:700 12.5px Inter,sans-serif;cursor:pointer}'+
+  '#accOv .ok2{background:#a855f7;color:#fff;border:0;border-radius:9px;padding:10px 16px;font:700 13px Inter,sans-serif;cursor:pointer;margin-top:6px}';
+  var st=document.createElement('style');st.textContent=css;document.head.appendChild(st);
+  var COL=['#a855f7,#ec4899','#6366f1,#a855f7','#22c55e,#14b8a6','#f59e0b,#ef4444','#06b6d4,#3b82f6','#e11d48,#f97316'];
+  var ov=function(){var o=document.getElementById('accOv');if(!o){o=document.createElement('div');o.id='accOv';document.body.appendChild(o)}return o};
+  var dd=function(iso){if(!iso)return '';var d=new Date(iso);return isNaN(d)?'':d};
+  var hm=function(d){return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)};
+  var whenTxt=function(iso){var d=dd(iso);if(!d)return ['Never','no visits yet'];var now=new Date(),t0=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime(),day=864e5;
+    var lab=d.getTime()>=t0?'Today, '+hm(d):d.getTime()>=t0-day?'Yesterday, '+hm(d):d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+', '+hm(d);
+    var s=(now-d)/1000,ago=s<3600?Math.max(1,Math.round(s/60))+' min ago':s<86400?Math.round(s/3600)+' h ago':Math.round(s/86400)+' days ago';return [lab,ago]};
+  var dur=function(m){m=+m||0;if(!m)return '< 1 min';var h=Math.floor(m/60);return h?h+' h'+(m%60?' '+(m%60)+' min':''):m+' min'};
+  var joined=function(iso){var d=dd(iso);return d?'joined '+d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):''};
+  function row(u,i){var me=u.name.toLowerCase()===String(A.me).toLowerCase(),w=whenTxt(u.last),ask=A.ask&&A.ask.name===u.name?A.ask.what:'';
+    var roleSel='<select class="r-'+e_(u.role)+'" data-accrole="'+e_(u.name)+'"'+(me?' disabled title="You cannot change your own role"':'')+'>'+['Admin','Coach','Player'].map(function(r){return '<option'+(r===u.role?' selected':'')+'>'+r+'</option>'}).join('')+'</select>';
+    var acts=ask?'<span style="color:#9a97ad;font-size:12.5px;align-self:center">'+(ask==='del'?'Delete this account?':'Give a new password? The old one stops working.')+'</span><button class="btn yes" data-accyes>'+(ask==='del'?'Delete':'Yes')+'</button><button class="btn" data-accno>Cancel</button>'
+      :'<button class="btn" data-accpass="'+e_(u.name)+'">Password</button>'+(me?'':'<button class="btn del" data-accdel="'+e_(u.name)+'">Delete</button>');
+    return '<tr><td><div class="u"><div class="av" style="background:linear-gradient(135deg,'+COL[i%COL.length]+')">'+e_(u.name.charAt(0).toUpperCase())+(u.online?'<i></i>':'')+'</div><div><b>'+e_(u.name)+(me?' <span class="you">(you)</span>':'')+'</b><small>'+e_(joined(u.joined))+'</small></div></div></td>'+
+      '<td>'+roleSel+'</td><td>'+(u.online?'<span class="on">ONLINE NOW</span>':'<b>'+e_(w[0])+'</b><small>'+e_(w[1])+'</small>')+'</td>'+
+      '<td>'+(u.last?'<b>'+dur(u.mins)+'</b><small>'+(u.online&&u.start?'since '+hm(dd(u.start))+' · ':'')+e_([u.tabs,u.dev].filter(Boolean).join(' · '))+'</small>':'<b>–</b>')+'</td>'+
+      '<td>'+(u.wVis?'<b>'+dur(u.wMins)+'</b><small>'+u.wVis+' visit'+(u.wVis>1?'s':'')+'</small>':'<b>–</b><small>no visits</small>')+'</td><td><div class="acts">'+acts+'</div></td></tr>'}
+  function paint(){var o=ov();
+    var pw=A.pw?'<div class="ac-box"><h3>'+(A.pw.isNew?'Account created':'New password')+' · '+e_(A.pw.name)+'</h3><p>Give it to the person now: it is not shown again. They can sign in on any device.</p><div class="pw"><span>'+e_(A.pw.pass)+'</span><button data-acccopy>Copy</button></div><button class="ok2" data-accpwok>Done</button></div>':'';
+    var nb=A.newOpen&&!A.pw?'<div class="ac-box"><h3>New account</h3><p>The page creates the password for you.</p><label class="f"><span>USERNAME</span><input data-accnewname autocomplete="off" spellcheck="false"></label><label class="f"><span>ROLE</span><select data-accnewrole><option>Player</option><option>Coach</option><option>Admin</option></select></label><button class="ok2" data-acccreate>Create account</button> <button class="btn" data-accnewno>Cancel</button></div>':'';
+    o.innerHTML='<div class="ac-w"><div class="ac-top"><h2>Accounts</h2><small>only admins see this · '+A.users.length+' account'+(A.users.length===1?'':'s')+'</small><button class="ac-new" data-accnew>+ New account</button><button class="ac-x" data-accclose>Close</button></div>'+
+      (A.err?'<div class="ac-msg bad">'+e_(A.err)+'</div>':A.msg?'<div class="ac-msg ok">'+e_(A.msg)+'</div>':'')+pw+nb+
+      '<div class="ac-card"><table><tr><th>USER</th><th>ROLE</th><th>LAST CONNECTED</th><th>LAST SESSION</th><th>THIS WEEK</th><th></th></tr>'+(A.users.length?A.users.map(row).join(''):'<tr><td colspan="6" style="color:#8e8ab0">'+(A.busy?'Loading…':'No accounts')+'</td></tr>')+'</table></div>'+
+      '<p class="ac-note">Everyone sees the whole page. Only admins see Accounts. Times are in your time zone. A minute counts when the page is open and used.</p></div>';
+    var n=o.querySelector('[data-accnewname]');if(n)n.focus()}
+  var errTxt=function(o){var x=o&&o.error;return x==='not admin'?'Only admins can do this.':x==='session'?'Your session ended. Sign in again.':x==='unknown action'||x==='setup'?'Paste the new code in Apps Script, deploy a new version and use the menu "8. Cuentas de la página" first.':x||'No connection. Try again.'};
+  function load(){A.busy=true;paint();window.__accCall('acc_list').then(function(o){A.busy=false;if(o&&o.ok){A.users=o.users||[];A.me=o.me||window.__USER;A.err=''}else A.err=errTxt(o);paint()}).catch(function(){A.busy=false;A.err=errTxt(null);paint()})}
+  function act(action,data,ok){A.err='';A.msg='Saving…';paint();window.__accCall(action,data).then(function(o){A.msg='';if(o&&o.ok){ok(o);load()}else{A.err=errTxt(o);paint()}}).catch(function(){A.msg='';A.err=errTxt(null);paint()})}
+  window.accOpen=function(){A.msg='';A.err='';A.pw=null;A.ask=null;A.newOpen=false;ov().classList.add('on');document.body.style.overflow='hidden';load()};
+  var close=function(){ov().classList.remove('on');document.body.style.overflow=''};
+  document.addEventListener('keydown',function(ev){if(ev.key==='Escape'&&document.getElementById('accOv')&&ov().classList.contains('on'))close();if(ev.key==='Enter'&&ev.target.matches&&ev.target.matches('[data-accnewname]')){var b=document.querySelector('[data-acccreate]');if(b)b.click()}});
+  document.addEventListener('change',function(ev){var t=ev.target;if(!t.matches||!t.matches('[data-accrole]'))return;var name=t.dataset.accrole,role=t.value;act('acc_role',{name:name,role:role},function(){A.msg=name+' is now '+role})});
+  document.addEventListener('click',function(ev){var t=ev.target.closest&&ev.target.closest('#accOv [data-accclose],#accOv [data-accnew],#accOv [data-accnewno],#accOv [data-acccreate],#accOv [data-accpass],#accOv [data-accdel],#accOv [data-accyes],#accOv [data-accno],#accOv [data-acccopy],#accOv [data-accpwok]');
+    if(!t){if(ev.target&&ev.target.id==='accOv')close();return}var d=t.dataset;
+    if(d.accclose!=null){close();return}
+    if(d.accnew!=null){A.newOpen=true;A.pw=null;A.err='';A.msg='';paint();return}
+    if(d.accnewno!=null){A.newOpen=false;paint();return}
+    if(d.acccreate!=null){var n=(document.querySelector('[data-accnewname]')||{}).value||'',r=(document.querySelector('[data-accnewrole]')||{}).value||'Player';if(!n.trim()){A.err='Write a username.';paint();return}
+      act('acc_create',{name:n.trim(),role:r},function(o){A.newOpen=false;A.pw={name:o.name,pass:o.pass,isNew:true}});return}
+    if(d.accpass!=null){A.ask={name:d.accpass,what:'pass'};paint();return}
+    if(d.accdel!=null){A.ask={name:d.accdel,what:'del'};paint();return}
+    if(d.accno!=null){A.ask=null;paint();return}
+    if(d.accyes!=null&&A.ask){var q=A.ask;A.ask=null;if(q.what==='del')act('acc_delete',{name:q.name},function(){A.msg=q.name+' deleted'});else act('acc_pass',{name:q.name},function(o){A.pw={name:o.name,pass:o.pass}});return}
+    if(d.acccopy!=null&&A.pw){try{navigator.clipboard.writeText(A.pw.pass);t.textContent='Copied'}catch(x){}return}
+    if(d.accpwok!=null){A.pw=null;paint();return}});
+})();
 </script>
