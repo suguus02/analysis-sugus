@@ -2437,7 +2437,11 @@ function teamLabel(r,cls,size){ // named rival (with logo) or 'Mixed lineup' wit
 function mapsFilter(){return statMaps.length?statMaps.slice():null}
 function filterLabel(){return !statMaps.length?'all maps':statMaps.length===1?statMaps[0]:plural(statMaps.length,'selected map')}
 const allTeams=()=>SELECTED?[...new Set([...SELECTED,...M.D.off.filter(t=>SELECTED.includes(t))])]:[...new Set([...LCQ,...WORLDS,...M.D.off])];
-function curOne(){const off=M.D.off;if(!curOne.r){curOne.r=1;try{const L=JSON.parse(store.get('tvt:selT')||'null');if(L&&L.length&&!(window.__UXH&&window.__UXH.one)){const ok=L.filter(t=>allTeams().includes(t));if(ok.length)setSelTeams(ok)}}catch(e){}}if(!oneTeam||!allTeams().includes(oneTeam))oneTeam=off.includes(sel.a)?sel.a:off[0];return oneTeam}
+function curOne(){const off=M.D.off;if(!curOne.r){curOne.r=1;try{const L=JSON.parse(store.get('tvt:selT')||'null');if(L&&L.length&&!(window.__UXH&&window.__UXH.one)){const ok=L.filter(t=>allTeams().includes(t));if(ok.length)setSelTeams(ok)}}catch(e){}}// rev152: a team missing for a moment (data still loading, another period…) no longer replaces the chosen team with TEAM HERETICS / the first team
+  const T=allTeams();if(oneTeam&&T.includes(oneTeam))return oneTeam;
+  let saved=[];try{saved=JSON.parse(store.get('tvt:selT')||'[]')||[]}catch(e){}
+  const s1=saved.length===1&&T.includes(saved[0])?saved[0]:'';if(s1){oneTeam=s1;return s1}
+  return (oneTeam&&off.includes(oneTeam))?oneTeam:T.includes(sel.a)?sel.a:T.includes('TRIBE GAMING')?'TRIBE GAMING':(T[0]||off[0])}
 const wrBar=p=>{p=Math.max(0,Math.min(1,+p||0));const c=p>=.6?'#4ade80':p>=.53?'#86efac':p>.47?'#facc15':p>.4?'#fca5a5':'#f87171';return `<span class="wrb"><i style="width:${Math.round(100*p)}%;background:${c}"></i></span>`};
 function rankTable(arr,cls,kind,mapCols,wrl,slim,hl){
   const kic=k=>String(k).split(' + ').length===2?duoH(String(k).split(' + ')):String(k).split(' + ').map(n=>`<span class="bnc${hl&&hl.has(n)?' hlb':''}"${hl&&hl.has(n)?' title="Played by both teams"':''}>${bimg(n,'bi')||''}<span class="bnm">${esc(n)}</span></span>`).join('<span class="pl">+</span>');
@@ -4662,7 +4666,9 @@ function uxShare(){const q=new URLSearchParams();q.set('v',view);if(view==='stat
   if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(url).then(done,()=>{window.prompt('Copy this link:',url)});else window.prompt('Copy this link:',url)}
 let uxHashDone=false;
 function uxApplyHash(){if(uxHashDone||!window.__UXH||!M)return;uxHashDone=true;const H=window.__UXH;
-  if(H.t)tab=H.t;if(H.one&&allTeams().includes(H.one)){oneTeam=H.one;scope='one'}if(H.r)SC.rival=H.r;if(H.u)SC.us=H.u;if(H.m!=null)SC.map=H.m;SC._one=curOne()}
+  if(H.t)tab=H.t;if(H.one&&allTeams().includes(H.one)){oneTeam=H.one;scope='one'}if(H.r)SC.rival=H.r;if(H.u)SC.us=H.u;if(H.m!=null)SC.map=H.m;SC._one=curOne();
+  // rev152: a shared link applies its teams once; the link is then cleaned so reloading keeps what the user chooses afterwards
+  try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}}
 // teams by tournament / region (like the caster page)
 const GRP=(()=>{const d={by:'tour',v:''};try{return Object.assign(d,JSON.parse(store.get('tvt:grp')||'{}'))}catch(e){return d}})();
 function grpVals(){const T=allTeams(),f=GRP.by==='reg'?(t=>REGION[t]||''):(t=>TOUR[t]||'');let vs=[...new Set(T.map(f).filter(Boolean))];if(GRP.by==='reg')vs.sort();return {T,f,vs}}
@@ -6342,7 +6348,8 @@ document.addEventListener('click',e=>{const t=e.target;if(!t.closest)return;
   const pk=t.closest('[data-drmappick]');if(pk){const v=pk.dataset.drmappick;if(pk.dataset.drk==='f'){DR.fMap=v;const o=$('mapov');if(o)o.remove();drRender()}else{DR.sMap=v;const o=$('mapov');if(o)o.remove();renderDetail()}}});
 
 // ===== Global ban prediction: maps of the series -> brawlers each team is likely to global-ban =====
-SC.gbMaps=[];
+SC.gbMaps=[];try{SC.mdA=store.get('tvt:mdA')!=='B'}catch(e){SC.mdA=true}
+document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-mdab]');if(!t)return;SC.mdA=t.dataset.mdab==='A';try{store.set('tvt:mdA',SC.mdA?'A':'B')}catch(x){}renderDetail()});
 function gbRates(team,ms){const c={};let n=0;for(const m of ds.matches){if(m.s||m.y===0.5)continue;if(ms&&!ms.has(m.m))continue;const mine=m.a===team;if(!mine&&m.b!==team)continue;n++;for(const b of new Set(((mine?m.ba:m.bb)||[]).filter(Boolean).map(mkey)))c[b]=(c[b]||0)+1}return {n,c}}
 function gbPredict(team,opp,maps){
   const fb={};let ms=maps&&maps.length?new Set(maps):null;
@@ -6522,6 +6529,39 @@ function scoutHTML(){
   const mrow=x=>{const v=x.pu==null?'':(x.pu>=.55?'<span class="sc-v g">Take</span>':x.pu<=.45?'<span class="sc-v r">Avoid</span>':'<span class="sc-v o">Even</span>');
     return `<tr><td class="ic">${mimg(x.m,'th')}<span class="nmx">${esc(x.m)}</span></td><td class="num">${pcs(x.wr)} <small>[${x.n}]</small></td><td class="num">${x.u?pcs(x.u.w/x.u.n)+' <small>['+x.u.n+']</small>':'<span class="msg">–</span>'}</td><td class="num">${x.pu==null?'–':pcs(x.pu)}</td><td class="num">${Math.round(x.pp*100)}%${x.pk?` <small title="times it was chosen by this team in saved drafts">· ${x.pk} real</small>`:''}</td><td>${v}</td></tr>`};
   const mapTbl=`<div class="tablewrap"><table class="rank tiny sc-mt"><thead><tr><th>Map</th><th class="num">${esc(R)}</th><th class="num">${esc(U)}</th><th class="num" title="Model: chance that ${esc(U)} wins this map">Model: us</th><th class="num" title="Estimated chance that ${esc(R)} picks it">They pick</th><th></th></tr></thead><tbody>${mapRows.slice(0,14).map(mrow).join('')}</tbody></table></div>`;
+  // rev153: map draft — a harder verdict (model + real sets of both teams), the likely draft (Team A picks 1 & 3, Team B 2 & 4, decider = mode nobody picked) and the best groups of 5 maps (one per mode)
+  const mdOK=D.off.includes(U)&&U!==R&&Object.keys(pU).length>0;
+  const mdHTML=()=>{const K=6,pool=D.maps.filter(m=>MAP18.has(mkey(m))&&modeOfMap(m));
+    const rows=pool.map(m=>{const r=byR[m]||{n:0,w:0},u=byU[m]||{n:0,w:0},pu=pU[m]!=null?pU[m]:.5,pp=predP[m]||0;
+      const our=(u.w+K*pu)/(u.n+K),riv=(r.w+K*(1-pu))/(r.n+K),f=.6*our+.4*(1-riv),wr=u.n?u.w/u.n:null,rec=`${u.w}–${u.n-u.w}`;let v,why;
+      if(f>=.56&&u.n>=5&&wr<.45){v='Even';why=`they are weak here, but we are only ${rec}`}
+      else if(f>=.56){v=u.n<5?'Risky':'Take';why=u.n<5?`looks good, but only ${u.n} ${u.n===1?'set':'sets'} of ours`:`${rec} for us${r.n?` · ${Math.round(100*r.w/r.n)}% for them`:''}`}
+      else if(f<=.45){v='Avoid';why=pu>=.53?`model says ${Math.round(pu*100)}%, but we are ${rec} here`:`${rec} for us${r.n&&r.w/r.n>=.55?' · strong map for them':''}`}
+      else if(u.n>=4&&wr<.35){v='Risky';why=`model likes it, but we are ${rec} here`}
+      else{v='Even';why=`${rec} for us${r.n?` · ${Math.round(100*r.w/r.n)}% for them`:''}`}
+      return {m,md:modeOfMap(m),r,u,pu,pp,f,v,why}}).sort((a,b)=>b.f-a.f);
+    if(!rows.length)return '';
+    const VC={Take:'#4ade80',Even:'#facc15',Risky:'#fb923c',Avoid:'#f87171'},pc=x=>Math.round(x*100)+'%',cl=x=>x>=.6?'#4ade80':x>=.53?'#86efac':x>.47?'#facc15':x>.4?'#fca5a5':'#f87171';
+    const A=SC.mdA!==false,used=new Set(),seq=[];
+    (A?['us','them','us','them']:['them','us','them','us']).forEach((who,i)=>{const L=rows.filter(x=>!used.has(x.md));if(!L.length)return;
+      const x=who==='us'?L.slice().sort((a,b)=>b.f-a.f)[0]:L.slice().sort((a,b)=>b.pp-a.pp||a.f-b.f)[0];used.add(x.md);seq.push({n:i+1,who,x})});
+    const decM=[...new Set(rows.map(x=>x.md))].filter(m=>!used.has(m));
+    const step=s=>`<div class="md-s ${s.who}"><em>${s.n}</em><small>${s.who==='us'?'We pick':'They pick (likely)'}</small>${mimg(s.x.m,'md-si')}<b>${esc(s.x.m)}</b><span>${esc(s.x.md)} · our chance <i style="color:${cl(s.x.f)}">${pc(s.x.f)}</i></span></div>`;
+    const dec=`<div class="md-s dec"><em>5</em><small>Decider · ${esc(decM.join(' or '))||'–'}</small><div class="md-dm">${rows.filter(x=>decM.includes(x.md)).map(x=>`<span>${mimg(x.m,'md-di')}<b>${esc(x.m)}</b><i style="color:${cl(x.f)}">${pc(x.f)}</i></span>`).join('')}</div></div>`;
+    const sim=`<div class="md-sim">${seq.map(step).join('<span class="md-ar">→</span>')}<span class="md-ar">→</span>${dec}</div>`;
+    // best groups: 5 different modes, one map each
+    const byMd={};rows.forEach(x=>{(byMd[x.md]=byMd[x.md]||[]).push(x)});const ms=Object.keys(byMd),combos=[];
+    const rec=(i,acc)=>{if(acc.length===5){combos.push(acc.slice());return}if(i>=ms.length||acc.length+ms.length-i<5)return;for(const x of byMd[ms[i]]){acc.push(x);rec(i+1,acc);acc.pop()}rec(i+1,acc)};rec(0,[]);
+    combos.forEach(c=>c.avg=c.reduce((t,x)=>t+x.f,0)/c.length);combos.sort((a,b)=>b.avg-a.avg);
+    const groups=[];for(const c of combos){if(groups.length>=3)break;if(groups.some(g=>g.filter(x=>c.includes(x)).length>=4))continue;groups.push(c)}
+    const grp=(g,i)=>`<div class="md-g"><div class="md-gh"><b>Group ${'ABC'[i]}</b><span style="color:${cl(g.avg)}">${pc(g.avg)} average</span><small>leaves out ${esc(ms.filter(m=>!g.some(x=>x.md===m)).join(', ')||'–')}</small></div><div class="md-gr">${g.slice().sort((a,b)=>b.f-a.f).map(x=>`<div class="md-gm">${mimg(x.m,'md-gi')}<b>${esc(x.m)}</b><small>${esc(x.md)}</small><i style="color:${cl(x.f)}">${pc(x.f)}</i></div>`).join('')}</div></div>`;
+    const tbl=`<div class="tablewrap"><table class="md-t"><thead><tr><th>Map</th><th class="num">${esc(R)}</th><th class="num">${esc(U)}</th><th class="num" title="Model: chance that ${esc(U)} wins this map">Model</th><th class="num">Our chance</th><th class="num" title="Estimated chance that ${esc(R)} picks it">They pick</th><th></th></tr></thead><tbody>${rows.map(x=>`<tr><td><div class="md-m">${mimg(x.m,'md-i')}<div><b>${esc(x.m)}</b><small>${esc(x.md)}</small></div></div></td>
+      <td class="num">${x.r.n?`<span style="color:${cl(x.r.w/x.r.n)}">${pc(x.r.w/x.r.n)}</span> <small>[${x.r.n}]</small>`:'<small>–</small>'}</td><td class="num">${x.u.n?`<span style="color:${cl(x.u.w/x.u.n)}">${pc(x.u.w/x.u.n)}</span> <small>[${x.u.n}]</small>`:'<small>–</small>'}</td>
+      <td class="num" style="color:#9a97ad">${pc(x.pu)}</td><td class="num" style="color:${cl(x.f)};font-weight:800">${pc(x.f)}</td><td class="num">${Math.round(x.pp*100)}%</td><td><span class="md-v" style="color:${VC[x.v]};border-color:${VC[x.v]}">${x.v}</span><small class="md-why">${esc(x.why)}</small></td></tr>`).join('')}</tbody></table></div>`;
+    return `<div class="md-top" data-noexport="1"><div class="md-seg"><span>We are</span><a class="${A?'on':''}" data-mdab="A">Team A <small>picks 1 & 3</small></a><a class="${A?'':'on'}" data-mdab="B">Team B <small>picks 2 & 4</small></a></div></div>
+      <div class="md-box"><h4>Likely draft <i>we take our best map of a free mode, they take the map they pick the most · the decider is the mode nobody picked</i></h4>${sim}</div>
+      <div class="md-box"><h4>Best groups of 5 maps <i>one per mode · the maps to prepare and pick from</i></h4><div class="md-gs">${groups.map(grp).join('')}</div></div>
+      <div class="md-box"><h4>All maps <i>“Our chance” mixes the model with our real sets and theirs on the map: the more sets, the more the real results count</i></h4>${tbl}</div>`};
   const modes=Object.values(byMode).sort((a,b)=>b.n-a.n).map(x=>{const ic=IMGS['mode'+mkey(x.m)]?`<img class="mico2" src="${IMGS['mode'+mkey(x.m)]}" alt="">`:'';return `<div class="tc-md">${ic}<b>${esc(x.m)}</b><span class="heat" style="${bd(x.w/x.n)}">${Math.round(100*x.w/x.n)}%</span><small>${x.w}–${x.n-x.w} [${x.n}]</small></div>`}).join('');
   // draft tables
   const brc=b=>bimg(b,'bi')||'';
@@ -6608,7 +6648,7 @@ function scoutHTML(){
     ${sec('What they hide',SI.s2)}
     ${matchupH}
     ${gbSectionHTML(R,U,hasM,sec)}
-    ${sec('Maps',`<div class="tc-cols2" style="grid-template-columns:minmax(0,2.2fr) minmax(0,1fr)"><div>${mapTbl}</div><div class="tc-mds">${modes}</div></div><p class="msg" style="font-size:11.5px;margin:4px 0 0">Win rates are from each team's own sets. “Model: us” is the model's chance that ${esc(U)} wins that map against ${esc(R)}. “They pick” is an estimate of how likely ${esc(R)} is to pick it (it uses how often they play the map and how they do on it, mixed with the maps they really picked when the saved drafts record “Map picked by”: “· N real” shows how many).</p>`)}
+    ${mdOK?sec('Maps · map draft',mdHTML()+`<div class="tc-mds md-modes">${modes}</div>`):sec('Maps',`<div class="tc-cols2" style="grid-template-columns:minmax(0,2.2fr) minmax(0,1fr)"><div>${mapTbl}</div><div class="tc-mds">${modes}</div></div><p class="msg" style="font-size:11.5px;margin:4px 0 0">Win rates are from each team's own sets. “Model: us” is the model's chance that ${esc(U)} wins that map against ${esc(R)}. “They pick” is an estimate of how likely ${esc(R)} is to pick it (it uses how often they play the map and how they do on it, mixed with the maps they really picked when the saved drafts record “Map picked by”: “· N real” shows how many).</p>`)}
     ${sec('How to beat them',`<div class="tc-cols2"><div>${bt('Weakest picks · top 10 (6+ picks)',lowp)}</div><div>${bt('Brawlers that beat them · top 10 (6+ faced)',faced,'Faced')}</div></div>`)}
     ${sec('Players',SI.s5)}
     ${hasM?sec('Against us',h2h+`<div class="lbl" style="margin:10px 0 4px;text-align:center">Common opponents</div>`+common):''}
@@ -9292,6 +9332,24 @@ body.pp-sb:not(.sb-off) #detail .pp{}
 .rp-gb{margin:0 0 14px;max-width:520px}
 .sc-gb{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:4px 0 10px;font-size:12px}.sc-gb>b{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#c4b5fd;margin-right:4px}.sc-gb small{color:#8e8ab0}.sc-gbc{display:inline-flex;align-items:center;gap:5px;background:#16151e;border:1px solid #3a2530;border-radius:8px;padding:2px 8px 2px 2px;font-weight:700}.sc-gbc i{font-style:normal;color:#9a97ad;font-weight:600}.sc-gbc .dp-bs{width:24px;height:24px;border-radius:6px}
 .bn-g .bn-sug{max-width:250px}.bn-main{min-width:300px}
+
+/* rev153: map draft (Scouting) */
+.md-top{display:flex;align-items:center;gap:14px;margin:0 0 10px}
+.md-seg{display:flex;align-items:center;gap:4px;background:#0f0e15;border:1px solid #24222f;border-radius:10px;padding:3px}.md-seg>span{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#6e6a85;font-weight:800;padding:0 8px}
+.md-seg a{padding:6px 12px;border-radius:8px;font-size:13px;color:#b9b5cc;font-weight:600;cursor:pointer}.md-seg a small{font-weight:500;opacity:.8;margin-left:4px;font-size:11px}.md-seg a.on{background:#a855f7;color:#fff}
+.md-box{background:#121118;border:1px solid #24222f;border-radius:14px;padding:14px;margin-bottom:12px}.md-box h4{margin:0 0 12px;font-size:14px}.md-box h4 i{font-style:normal;color:#6e6a85;font-weight:500;font-size:12px;margin-left:6px}
+.md-sim{display:flex;align-items:stretch;gap:8px}.md-ar{align-self:center;color:#6e6a85}
+.md-s{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;background:#0f0e15;border:1px solid #2e2b3d;border-radius:12px;padding:10px;text-align:center;position:relative}.md-s.us{border-color:#a855f7;box-shadow:0 0 0 1px rgba(168,85,247,.4)}.md-s.dec{border-style:dashed;flex:1.4}
+.md-s em{position:absolute;top:6px;left:8px;font-style:normal;background:#2a2838;border-radius:6px;padding:0 6px;font-size:11px;font-weight:800}.md-s.us em{background:#a855f7;color:#fff}
+.md-s small{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#9a97ad;font-weight:800}.md-s b{font-size:13px}.md-s>span{font-size:11.5px;color:#9a97ad}.md-s span i{font-style:normal;font-weight:800}
+.md-si{width:96px;height:62px;object-fit:cover;border-radius:8px}.md-dm{display:flex;flex-direction:column;gap:4px;width:100%}.md-dm span{display:flex;align-items:center;gap:6px;font-size:12px;color:#e5e3f0}.md-dm b{flex:1;text-align:left;font-size:12px}.md-dm i{font-style:normal;font-weight:800}.md-di{width:40px;height:26px;object-fit:cover;border-radius:5px}
+.md-gs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.md-g{background:#0f0e15;border:1px solid #2e2b3d;border-radius:12px;padding:10px}.md-g:first-child{border-color:#a855f7}
+.md-gh{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:8px}.md-gh b{font-size:14px}.md-gh span{font-weight:800;font-size:13px}.md-gh small{color:#6e6a85;font-size:11px;flex-basis:100%}
+.md-gr{display:flex;flex-direction:column;gap:5px}.md-gm{display:grid;grid-template-columns:44px minmax(0,1fr) auto auto;align-items:center;gap:8px;font-size:12.5px}.md-gm b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.md-gm small{color:#9a97ad;font-size:11px}.md-gm i{font-style:normal;font-weight:800;min-width:34px;text-align:right}.md-gi{width:44px;height:28px;object-fit:cover;border-radius:5px}
+.md-t{width:100%;border-collapse:collapse}.md-t th{text-align:left;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#6e6a85;padding:8px;border-bottom:1px solid #24222f}.md-t th.num,.md-t td.num{text-align:right}.md-t td{padding:7px 8px;border-bottom:1px solid #1b1a24;font-size:13px;font-weight:700}.md-t td small{color:#6e6a85;font-weight:500}
+.md-m{display:flex;align-items:center;gap:10px}.md-m small{display:block;color:#9a97ad;font-size:11px;font-weight:500}.md-i{width:44px;height:28px;object-fit:cover;border-radius:5px}
+.md-v{font-size:10.5px;font-weight:800;border:1px solid;border-radius:6px;padding:1px 7px;text-transform:uppercase;letter-spacing:.06em}.md-why{display:block;color:#9a97ad!important;font-size:11px;margin-top:3px;font-weight:500}
+.md-modes{margin-top:4px}
 </style>
 <script>
 /* rev142: explanations behind an (i) icon + context bar */
