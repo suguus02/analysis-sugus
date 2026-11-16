@@ -1520,6 +1520,7 @@ td.pkd{font-family:var(--mono,monospace);font-size:12px;color:#cfcce0}
       <button type="button" class="tabbtn" role="tab" data-tab="group" aria-selected="false">Results</button>
       <button type="button" class="tabbtn" role="tab" data-tab="tier" aria-selected="false">Tier List</button>
       <button type="button" class="tabbtn" role="tab" data-tab="prep" aria-selected="false">Draft prep</button>
+      <button type="button" class="tabbtn" role="tab" data-tab="ideas" aria-selected="false">Draft ideas</button>
     </div>
     <div id="detail"></div>
   </section>
@@ -4366,7 +4367,7 @@ async function ppLoad(force){if(PP.st===1||(!force&&PP.st===2&&Date.now()-PP.at<
       const cur=PP.data[k];if(cur&&cur.dirty)continue;if(r[3])obj.by=String(r[3]);if(r[2])obj.upd=String(r[2]);PP.data[k]={obj,upd:String(r[2]||''),by:String(r[3]||'')}}
     PP.st=2;PP.msg=''}catch(e){PP.st=3;PP.msg=e&&e.code==='gviz_private'?'':'Could not read the DRAFT PREP tab'}
   try{const L=JSON.parse(store.get('tvt:pplocal')||'{}');for(const k in L){const cur=PP.data[k];if(!cur||String(L[k].upd||'')>String(cur.upd||''))PP.data[k]=Object.assign({},L[k],{dirty:1})}}catch(e){}
-  if(tab==='prep')renderDetail()}
+  if(tab==='prep'||tab==='ideas')renderDetail()}
 let _ppT={};
 function ppTouch(k){k=k||ppKey();const d=PP.data[k];d.dirty=1;d.obj.by=ppUser();d.obj.upd=new Date().toISOString();try{const L=JSON.parse(store.get('tvt:pplocal')||'{}');L[k]={obj:d.obj,upd:d.upd,by:d.by};store.set('tvt:pplocal',JSON.stringify(L))}catch(e){}
   _ppT=_ppT||{};clearTimeout(_ppT[k]);_ppT[k]=setTimeout(()=>ppPush(k),900)}
@@ -4581,6 +4582,138 @@ document.addEventListener('click',e=>{const t=e.target;if(!t||!t.closest||!MGB)r
   if(t.closest('[data-mgbclr]')&&MGB.pop>=0){const s=MGB.pop,G=mgbGet();G[s][MGB.slot]='';MGB.pop=-1;MGB.q='';mgbSet(s,G[s]);return}
   if(t.closest('[data-mgbclose]')){MGB.pop=-1;MGB.q='';mgbPaint();return}
   const p=t.closest('[data-mgbpick]');if(p&&!p.disabled&&MGB.pop>=0){const s=MGB.pop,G=mgbGet();G[s][MGB.slot]=p.dataset.mgbpick;MGB.pop=-1;MGB.q='';mgbSet(s,G[s]);return}});
+
+// ===== rev148: DRAFT IDEAS — automatic draft plans (ours and what the rival would do) from the data =====
+const DI={map:'',side:'1st',us:'',riv:'',who:'us',plans:[],mapsOpen:true,naAdd:false,naEdit:false};
+try{const o=JSON.parse(store.get('tvt:di')||'{}');for(const k of ['map','side','us','riv','who'])if(o[k]!=null)DI[k]=o[k]}catch(e){}
+const diSave=()=>store.set('tvt:di',JSON.stringify({map:DI.map,side:DI.side,us:DI.us,riv:DI.riv,who:DI.who}));
+const DI_NA_KEY='CONFIG|notallowed',DI_NA_DEF=['VINCE','RUBY','REY'];
+function diNAList(){const d=PP.data[DI_NA_KEY];return d&&d.obj&&Array.isArray(d.obj.list)?d.obj.list.map(x=>String(x).toUpperCase()):DI_NA_DEF.slice()}
+const diNA=()=>new Set(diNAList());
+function diNASet(L){let d=PP.data[DI_NA_KEY];if(!d)d=PP.data[DI_NA_KEY]={obj:{list:[]},upd:'',by:'',fresh:1};d.obj.list=L;ppTouch(DI_NA_KEY)}
+function diTeams(){const off=(M&&M.D&&M.D.off)||[];if(!DI.us||!off.includes(DI.us))DI.us=(typeof sel!=='undefined'&&off.includes(sel.a)?sel.a:(off.find(t=>/TRIBE/.test(t))||off[0]||''));
+  if(DI.riv&&(DI.riv===DI.us||!off.includes(DI.riv)))DI.riv='';if(!DI.riv)DI.riv=(typeof sel!=='undefined'&&sel.b&&sel.b!==DI.us&&off.includes(sel.b))?sel.b:(off.find(t=>t!==DI.us)||'');return off}
+function diMaps(){return (MODELIST||[]).flatMap(x=>x[1])}
+// ---- data
+function diCalc(){
+  const NA=diNA(),map=DI.map,us=DI.us,riv=DI.riv,first=DI.side==='1st';
+  const S=ds.matches.filter(m=>!m.s&&(m.y===1||m.y===0)&&m.m===map);
+  const all={},own={};
+  const bump=(o,b,y,wt)=>{const e=o[b]||(o[b]={n:0,w:0,wn:0,ww:0});e.n++;e.w+=y;e.wn+=wt;e.ww+=y*wt};
+  S.forEach(m=>{const wt=m.ty==='tournament'?2:1;[[m.ba,m.y],[m.bb,1-m.y]].forEach(([L,y])=>(L||[]).forEach(b=>{if(b)bump(all,b,y,wt)}))});
+  let OI=[],RI=[];try{OI=Engine.setList(ds,DB,us,[map]).filter(x=>!x.s&&(x.win===0||x.win===1));if(riv)RI=Engine.setList(ds,DB,riv,[map]).filter(x=>!x.s&&(x.win===0||x.win===1))}catch(e){}
+  OI.forEach(x=>{const wt=x.ty==='tournament'?2:1;x.mine.forEach(b=>{if(b)bump(own,b,x.win,wt)})});
+  const wrAll=b=>all[b]?all[b].w/all[b].n:null,wrOwn=b=>own[b]?own[b].w/own[b].n:null;
+  const est=b=>{const a=all[b],o=own[b],pr=a?(a.ww+1)/(a.wn+2):.5;return o?(o.ww+4*pr)/(o.wn+4):pr};
+  const sc=b=>{const a=all[b]?all[b].n:0,o=own[b]?own[b].n:0;return est(b)-.35/Math.sqrt(a+2*o+1)};
+  const names=Object.keys(all).filter(b=>!NA.has(b)&&all[b].n>=2).sort((a,b)=>sc(b)-sc(a));
+  // who beats b on this map (all teams)
+  const ctrOf=b=>{const c={};S.forEach(m=>{const A=m.ba||[],B=m.bb||[];if(A.includes(b))B.forEach(x=>{if(!x||NA.has(x))return;const e=c[x]||(c[x]={n:0,w:0});e.n++;e.w+=1-m.y});if(B.includes(b))A.forEach(x=>{if(!x||NA.has(x))return;const e=c[x]||(c[x]={n:0,w:0});e.n++;e.w+=m.y})});
+    return Object.entries(c).filter(([x,e])=>e.n>=2&&x!==b).sort((p,q)=>(q[1].w+1)/(q[1].n+2)-(p[1].w+1)/(p[1].n+2)||q[1].n-p[1].n).map(([x,e])=>({b:x,n:e.n,wr:e.w/e.n}))};
+  // rival habits on this map (else all maps)
+  let RA=RI,rscope='this map';if(riv&&RA.length<3){try{RA=Engine.setList(ds,DB,riv,null).filter(x=>!x.s&&(x.win===0||x.win===1))}catch(e){RA=[]}rscope='all maps'}
+  const rc={};RA.forEach(x=>x.mine.forEach(b=>{if(b&&!NA.has(b))rc[b]=(rc[b]||0)+1}));
+  const rcomf=Object.entries(rc).sort((a,b)=>b[1]-a[1]).map(([b,k])=>({b,k}));
+  let rb=[];if(riv){try{rb=ppTheirBans(riv,map).filter(([b])=>!NA.has(String(b).toUpperCase()))}catch(e){rb=[]}}
+  // what beats us overall on this map
+  const hurt={};OI.filter(x=>x.win===0).forEach(x=>x.theirs.forEach(b=>{if(b&&!NA.has(b))hurt[b]=(hurt[b]||0)+1}));
+  const hurtL=Object.entries(hurt).sort((a,b)=>b[1]-a[1]).map(([b])=>b);
+  const ownTop=Object.keys(own).filter(b=>!NA.has(b)).sort((a,b)=>own[b].n-own[a].n||sc(b)-sc(a));
+  return {S,OI,RA,all,own,names,ctrOf,rcomf,rb,hurtL,ownTop,wrAll,wrOwn,est,sc,rscope,rn:RA.length,NA,first,map,us,riv}}
+function diPlans(D){
+  const used=new Set(),uniq=(L,n,ex)=>{const o=[];for(const b of L){if(!b||o.includes(b)||(ex&&ex.includes(b)))continue;o.push(b);if(o.length>=n)break}return o};
+  const top=D.names;if(!top.length)return [];
+  const P=[];
+  const tagOf=(b)=>{const on=D.own[b]?D.own[b].n:0,an=D.all[b]?D.all[b].n:0;const t=[];t.push(on>=3?['We already do this','#4ade80']:['New for us','#c4b5fd']);if(on+an<8)t.push(['Few sets','#facc15']);return t};
+  if(D.first){
+    // our 1st pick ideas: the best-rated brawlers on this map (one close to what we do, one new, one for when our favourite is banned)
+    const fav=D.ownTop.filter(b=>D.sc(b)>=D.sc(top[Math.min(6,top.length-1)]))[0]||top[0];
+    const fresh=top.find(b=>b!==fav&&(!D.own[b]||D.own[b].n<2));
+    const alt=top.find(b=>b!==fav&&b!==fresh);
+    const cand=[[fav,(D.own[fav]&&D.own[fav].n>=3)?'Lean on what works':'Best-rated first pick here'],[fresh,'Try something new'],[alt,'If the first one gets banned']].filter(x=>x[0]);
+    cand.forEach(([p1,title],i)=>{
+      const ct=D.ctrOf(p1),bans=uniq(ct.map(x=>x.b),3,[p1]);
+      const rest=ct.filter(x=>!bans.includes(x.b));
+      let ans=uniq(rest.map(x=>x.b),2,[p1]);if(ans.length<2)ans=uniq([...ans,...D.rcomf.map(x=>x.b)],2,[p1,...bans]);
+      const mine=uniq(ans.length?D.ctrOf(ans[0]).map(x=>x.b):[],2,[p1,...bans,...ans]);
+      const mineF=mine.length?mine:uniq(top,2,[p1,...bans,...ans]);
+      const gb=uniq([...D.hurtL,...top],2,[p1,...bans]);
+      const gbr=i===2?uniq([fav,...D.ownTop],2,[p1]):uniq(D.ownTop.filter(b=>b!==p1),2).concat(uniq(top,2,[p1])).filter((b,k,a)=>a.indexOf(b)===k).slice(0,2);
+      const on=D.own[p1]?D.own[p1].n:0,an=D.all[p1]?D.all[p1].n:0,e=D.est(p1);
+      const why=`${p1} is rated ${Math.round(e*100)}% on ${D.map} (${on?on+' set'+(on>1?'s':'')+' of ours, ':'never played by us, '}${an} of all teams). ${bans.length?'Banning '+bans.join(', ')+' removes what beats it most. ':''}${ans.length?'If they still answer with '+ans.join(' or ')+', we play '+mineF.join(' + ')+'. ':''}`;
+      P.push({title,p1,tags:tagOf(p1),gb,gbr,bans,ans,mine:mineF,why,wr:e,on,an})});
+  }else{
+    // we pick last: expect their likely 1st picks and prepare our answers
+    const likely=uniq([...D.rcomf.map(x=>x.b),...top],3);
+    likely.forEach((r,i)=>{
+      const ct=D.ctrOf(r),ans=uniq(ct.map(x=>x.b),2,[r]);
+      const bans=uniq([...D.rcomf.map(x=>x.b),...D.hurtL],3,[r,...ans]);
+      const mine=uniq(ans.length?D.ctrOf(ans[0]).map(x=>x.b):[],2,[r,...bans,...ans]);
+      const gb=uniq([...D.hurtL,...top],2,[r,...ans]);const gbr=uniq(D.ownTop,2,[r]);
+      const k=(D.rcomf.find(x=>x.b===r)||{}).k||0,an=D.all[r]?D.all[r].n:0;
+      const why=`${r} is ${k?'one of their most used first picks ('+k+' of '+D.rn+' sets, '+D.rscope+')':'a strong first pick on this map'}. ${ans.length?'Best answers we found: '+ans.join(', ')+'. ':'No clear answer in the data. '}`;
+      P.push({title:i===0?'Their most likely start':i===1?'If they open differently':'Another way they could start',p1:r,tags:[[k?'From their history':'From the map data',k?'#4ade80':'#facc15']].concat(an<8?[['Few sets','#facc15']]:[]),gb,gbr,bans,ans,mine:mine.length?mine:uniq(top,2,[r,...bans,...ans]),why,wr:D.est(r),on:0,an})})}
+  return P}
+function diRival(D){
+  if(!D.riv)return '<p class="di-w">Choose a rival to see what they would do.</p>';
+  const k=D.rn,f=D.rcomf[0];
+  if(!k)return `<p class="di-w">No sets of ${esc(D.riv)} found${D.rscope==='all maps'?'':' on this map'}: there is no data to predict them.</p>`;
+  const gb=D.rb.slice(0,2).map(x=>x[0]),bv=D.rb.slice(2,5).map(x=>x[0]);
+  const real=D.rb.length>0;
+  const gbE=gb.length?gb:D.ownTop.slice(0,2),bvE=bv.length?bv:D.ownTop.slice(0,3);
+  const chip=(b,x)=>`<span class="di-ch">${bimg(b,'di-bs')}<b>${esc(b)}</b>${x?`<small>${x}</small>`:''}</span>`;
+  const top3=D.rcomf.slice(0,3);
+  return `<div class="di-p"><div class="di-g">
+    <div><h5>Likely 1st picks</h5><div class="di-r">${top3.map(x=>chip(x.b,x.k+' of '+k+' sets')).join('')||'<small class="di-m">no data</small>'}</div></div>
+    <div><h5>Likely global bans ${real?'':'<i class="di-est">estimate</i>'}</h5><div class="di-r">${gbE.map(b=>chip(b)).join('')||'<small class="di-m">no data</small>'}</div></div>
+    <div><h5>Likely bans against us ${real?'':'<i class="di-est">estimate</i>'}</h5><div class="di-r">${bvE.map(b=>chip(b)).join('')||'<small class="di-m">no data</small>'}</div></div></div>
+    <p class="di-w">${esc(D.riv)}: ${plural(k,'set')} used (${D.rscope}). ${real?'Bans come from their saved drafts.':'We have no saved drafts of theirs with bans, so their bans are a guess: our most used brawlers.'} ${f?`Be ready for <b>${esc(f.b)}</b> first. `:''}${D.first?'':''}</p></div>`}
+// ---- view
+function ideasHTML(){
+  const off=diTeams();try{ppLoad()}catch(e){}
+  if(!DI.map||!diMaps().includes(DI.map))DI.map=diMaps()[0]||'';
+  const D=diCalc();DI.plans=diPlans(D);const NAL=diNAList();
+  const chip=(b,x)=>`<span class="di-ch">${bimg(b,'di-bs')}<b>${esc(b)}</b>${x?`<small>${x}</small>`:''}</span>`;
+  const stat=p=>`<small style="color:${ppCol(p.wr)}">${ppPc(p.wr)} · ${p.on} ours · ${p.an} all</small>`;
+  const L=D.first?{p1:'1st pick',gb:'Global bans · ours',gbr:'Global bans · '+(DI.riv||'rival'),b:'Our bans',a:'If they answer with…',m:'Then we play'}:{p1:'Their likely 1st pick',gb:'Global bans · ours',gbr:'Global bans · '+(DI.riv||'rival'),b:'Our bans',a:'We answer with…',m:'Then we play'};
+  const plan=(p,i)=>`<div class="di-p"><div class="di-ph"><span class="di-n">${i+1}</span><b>${esc(p.title)}</b>${p.tags.map(t=>`<em class="di-tg" style="color:${t[1]};border-color:${t[1]}">${esc(t[0])}</em>`).join('')}<button type="button" class="di-send" data-disend="${i}">Send to Draft prep →</button></div>
+   <div class="di-g"><div><h5>${L.gb} <i class="di-est">idea</i></h5><div class="di-r">${p.gb.map(b=>chip(b)).join('')}</div></div><div><h5>${L.gbr} <i class="di-est">estimate</i></h5><div class="di-r">${p.gbr.map(b=>chip(b)).join('')}</div></div><div><h5>${L.b}</h5><div class="di-r">${p.bans.map(b=>chip(b)).join('')}</div></div>
+   <div><h5>${L.p1}</h5><div class="di-r">${chip(p.p1,stat(p))}</div></div><div><h5>${L.a}</h5><div class="di-r">${p.ans.map(b=>chip(b)).join('')||'<small class="di-m">no clear answer</small>'}</div></div><div><h5>${L.m}</h5><div class="di-r">${p.mine.map(b=>chip(b)).join('')}</div></div></div><p class="di-w">${esc(p.why)}</p></div>`;
+  const mapTiles=(MODELIST||[]).map(([md,ms])=>{const ic=IMGS['mode'+mkey(md)];return `<div class="pr-g"><div class="pr-gh">${ic?`<img src="${ic}" alt="">`:''}<b>${esc(md)}</b></div><div class="pr-tiles">${ms.map(m=>{const u=IMGS['bg'+mkey(m)]||IMGS[mkey(m)]||'';return `<button type="button" class="pr-t${m===DI.map?' on':''}" data-dimap="${esc(m)}" title="${esc(m)}"><span class="pr-im"${u?` style="background-image:url('${u}')"`:''}></span><small>${esc(m)}</small></button>`}).join('')}</div></div>`}).join('');
+  const mode=modeOfMap(DI.map)||'';
+  const seg=(k,v,l)=>`<a class="${DI[k]===v?'on':''}" data-diset="${k}:${v}">${l}</a>`;
+  const team=(k,lab)=>`<label class="di-sel"><span>${lab}</span><select data-disel="${k}">${off.filter(t=>k==='us'||t!==DI.us).map(t=>`<option${t===DI[k]?' selected':''}>${esc(t)}</option>`).join('')}</select></label>`;
+  return `<div id="dideas"><div class="di-top"><div class="di-map">${mimg(DI.map,'di-mi')}<div><small>${esc(String(mode).toUpperCase())}</small><b>${esc(DI.map)}</b></div></div>${team('us','Our team')}${team('riv','Rival')}
+   <div class="di-seg"><span>We pick</span>${seg('side','1st','1st')}${seg('side','last','Last')}</div><div class="di-seg"><span>Ideas about</span>${seg('who','us','Us')}${seg('who','them','Rival')}${seg('who','both','Both')}</div>
+   <button type="button" class="di-mapbtn" data-dimaps>${DI.mapsOpen?'Hide maps':'Change map'}</button></div>
+   ${DI.mapsOpen?`<div class="di-maps">${mapTiles}</div>`:''}
+   <div class="di-na"><b>Not allowed in this tournament</b><span class="di-m">never suggested in any idea</span>${NAL.map(b=>`<span class="di-ch na">${bimg(b,'di-bs')}<b>${esc(b)}</b>${DI.naEdit?`<button type="button" class="di-nx" data-dinadel="${esc(b)}" title="Remove">✎ ✕</button>`:''}</span>`).join('')}
+    ${DI.naAdd?`<input list="ppDL" class="di-nain" data-dinain placeholder="Brawler + Enter" autocomplete="off" spellcheck="false"><datalist id="ppDL">${drNames().map(n=>`<option value="${esc(n)}">`).join('')}</datalist>`:''}
+    <button type="button" class="di-nab" data-dinaadd>${DI.naAdd?'Done':'+ Add'}</button><button type="button" class="di-nab" data-dinaedit title="Edit the list">✎</button>${PP.data[DI_NA_KEY]&&PP.data[DI_NA_KEY].dirty?'<em class="di-est">saving…</em>':''}</div>
+   ${DI.who!=='them'?`<div class="di-col"><h3>Ideas for us <i>to try in scrims · ${esc(DI.us)} on ${esc(DI.map)}</i></h3>${DI.plans.length?DI.plans.map(plan).join(''):'<p class="di-w">Not enough sets on this map to suggest anything.</p>'}</div>`:''}
+   ${DI.who!=='us'?`<div class="di-col"><h3>What ${esc(DI.riv||'the rival')} would do <i>from their own sets and drafts</i></h3>${diRival(D)}</div>`:''}
+   <p class="di-foot">Ideas come from every set in the data on this map (tournament sets count double). They are ideas to test in scrims, not rules. “idea” and “estimate” mean there is no saved global-ban data behind them.</p></div>`}
+function diSend(i){const p=DI.plans[i];if(!p)return;
+  PP.map=DI.map;PP.side=DI.side;PP.riv=DI.riv;ppSaveUI();
+  const o=ppPlan(),ids=o.sc.map(x=>x.id);let id='A';for(const c of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'){if(!ids.includes(c)){id=c;break}}
+  const s=ppNew(id);s.name='Idea: '+p.title;s.ob=p.bans.slice();s.p1=[{b:p.p1,a:!o.sc.some(x=>x.p1&&x.p1.length)}];s.ans[p.p1]=p.ans.map(b=>({b,r:'Other'}));
+  o.sc.push(s);PP.sc=id;
+  const g=ppGlob();p.gb.forEach(b=>{if(!g.go.includes(b))g.go.push(b)});p.gbr.forEach(b=>{if(!g.gt.includes(b))g.gt.push(b)});
+  ppTouch(ppKey(null,'g'));ppTouch();
+  const bt=[...document.querySelectorAll('#sheetbar .sb-t')].find(x=>x.textContent.trim()==='Draft prep');if(bt)bt.click()}
+document.addEventListener('click',e=>{if(typeof tab==='undefined'||tab!=='ideas')return;const t=e.target.closest&&e.target.closest('[data-dimap],[data-diset],[data-dimaps],[data-disend],[data-dinaadd],[data-dinaedit],[data-dinadel]');if(!t)return;
+  if(t.dataset.dimap!=null){DI.map=t.dataset.dimap;DI.mapsOpen=false;diSave();renderDetail();return}
+  if(t.dataset.diset){const [k,v]=t.dataset.diset.split(':');DI[k]=v;diSave();renderDetail();return}
+  if(t.dataset.dimaps!=null){DI.mapsOpen=!DI.mapsOpen;renderDetail();return}
+  if(t.dataset.disend!=null){diSend(+t.dataset.disend);return}
+  if(t.dataset.dinaadd!=null){DI.naAdd=!DI.naAdd;renderDetail();if(DI.naAdd)setTimeout(()=>{const i=document.querySelector('[data-dinain]');if(i)i.focus()},30);return}
+  if(t.dataset.dinaedit!=null){DI.naEdit=!DI.naEdit;renderDetail();return}
+  if(t.dataset.dinadel!=null){diNASet(diNAList().filter(b=>b!==t.dataset.dinadel));renderDetail();return}});
+document.addEventListener('change',e=>{if(typeof tab==='undefined'||tab!=='ideas')return;const t=e.target;if(t.matches&&t.matches('[data-disel]')){DI[t.dataset.disel]=t.value;diSave();renderDetail()}});
+document.addEventListener('keydown',e=>{if(typeof tab==='undefined'||tab!=='ideas')return;const t=e.target;if(!t.matches||!t.matches('[data-dinain]')||e.key!=='Enter')return;
+  e.preventDefault();let b=String(t.value||'').trim().toUpperCase();if(!b)return;const names=drNames();if(!names.includes(b)){const f=names.find(n=>n.startsWith(b));if(f)b=f}
+  // new brawlers that are not in the game yet are allowed in this list too
+  const L=diNAList();if(!L.includes(b))L.push(b);diNASet(L);renderDetail();setTimeout(()=>{const i=document.querySelector('[data-dinain]');if(i)i.focus()},30)});
 
 // ===== easier to use: top bar, share, scouting index, team stats tabs, data check =====
 (function(){const ft=$('fType'),host=$('uxGamesHost');if(ft&&host)host.appendChild(ft);
@@ -4910,9 +5043,9 @@ window.__uxState=()=>{let tm='';try{if(view==='stats'){if(tab==='report')tm=RP.t
 function renderDetail(){
   uxApplyHash();if(tab==='scout')uxSyncScout();
   document.querySelectorAll('.tabbtn').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===tab?'true':'false'));
-  $('statsscope').innerHTML=(tab==='scout'||tab==='report'||tab==='match'||tab==='caster'||tab==='tier'||tab==='prep')?'':scopeWithMaps();$('statsscope').hidden=view!=='stats'||tab==='scout'||tab==='report'||tab==='match'||tab==='caster'||tab==='tier'||tab==='prep';tselPaint();
-  const nd=tab!=='drafts'&&tab!=='scout'&&tab!=='report'&&tab!=='match'&&tab!=='caster'&&tab!=='tier'&&tab!=='prep'&&((scope==='one'&&!M.D.off.includes(curOne()))||(scope==='pool'&&poolTeams&&!poolTeams.some(t=>M.D.off.includes(t))));
-  $('detail').innerHTML=nd?'<div class="nodata">NO DATA</div>':tab==='stats'?statsTab():tab==='players'?playersTab():tab==='drafts'?draftsTab():tab==='card'?cardTab():tab==='scout'?scoutHTML():tab==='report'?reportHTML():tab==='group'?groupTab():tab==='caster'?casterTab():tab==='tier'?tierTab():tab==='prep'?prepHTML():datesTab();
+  $('statsscope').innerHTML=(tab==='scout'||tab==='report'||tab==='match'||tab==='caster'||tab==='tier'||tab==='prep'||tab==='ideas')?'':scopeWithMaps();$('statsscope').hidden=view!=='stats'||tab==='scout'||tab==='report'||tab==='match'||tab==='caster'||tab==='tier'||tab==='prep'||tab==='ideas';tselPaint();
+  const nd=tab!=='drafts'&&tab!=='scout'&&tab!=='report'&&tab!=='match'&&tab!=='caster'&&tab!=='tier'&&tab!=='prep'&&tab!=='ideas'&&((scope==='one'&&!M.D.off.includes(curOne()))||(scope==='pool'&&poolTeams&&!poolTeams.some(t=>M.D.off.includes(t))));
+  $('detail').innerHTML=nd?'<div class="nodata">NO DATA</div>':tab==='stats'?statsTab():tab==='players'?playersTab():tab==='drafts'?draftsTab():tab==='card'?cardTab():tab==='scout'?scoutHTML():tab==='report'?reportHTML():tab==='group'?groupTab():tab==='caster'?casterTab():tab==='tier'?tierTab():tab==='prep'?prepHTML():tab==='ideas'?ideasHTML():datesTab();
   applyView();decorateTiles();tselPaint();if(tab==='caster')requestAnimationFrame(casFit);uxPost();
 }
 $('statsscope').addEventListener('click',e=>{
@@ -7657,7 +7790,7 @@ body{padding-bottom:50px}
   // [label, main section, Team Stats tab]
   const T=[['Team Stats','stats','stats','Brawlers, bans, players, comps and drafts of one team, two teams compared or several together'],['Match Selector','stats','match','Every scrim and match played, set by set, with bans, picks and player stats'],['Results','stats','group','Results of the selected teams: head to head, matches by team, regions, weekly win rate, top picks and maps'],
            ['Scouting','stats','scout','Full report of a rival: what they practise now, what they hide, bans, maps, how to beat them and their players'],['Card','stats','card','One-page summary of a team to download and share as an image'],['Balance','bal','','How each balance patch changed what teams pick and ban'],
-           ['Tier List','stats','tier','Meta score of every brawler (S to E) from the drafts of the teams you choose'],['Draft','draft','','Save drafts, get draft suggestions, practise against a bot or follow a live draft'],['Draft prep','stats','prep','Prepare every draft situation: bans, first picks, answers and last picks, by map, 1st/last pick and rival'],['Team Predictor','pred','','Win chance between two teams, map by map'],
+           ['Tier List','stats','tier','Meta score of every brawler (S to E) from the drafts of the teams you choose'],['Draft','draft','','Save drafts, get draft suggestions, practise against a bot or follow a live draft'],['Draft ideas','stats','ideas','Automatic draft ideas for a map and a rival: global bans, bans, picks and what the rival would do'],['Draft prep','stats','prep','Prepare every draft situation: bans, first picks, answers and last picks, by map, 1st/last pick and rival'],['Team Predictor','pred','','Win chance between two teams, map by map'],
            ['Worlds bracket','worlds','','Simulation of the Worlds bracket with the model'],null,['Data check','check','','Problems found in the data (missing tags, odd rows…) to fix in the sheet']];
   const bar=document.getElementById('sheetbar');if(!bar)return;
   bar.innerHTML=T.map((t,i)=>t?`<button type="button" class="sb-t" data-sb="${i}" data-tip="${t[3]||''}">${t[0]}</button>`:'<span class="sb-sep"></span>').join('');
@@ -9202,6 +9335,29 @@ body.pp-sb:not(.sb-off) #detail .pp{}
 .mgb-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:6px;max-height:260px;overflow:auto}
 .mgb-o{display:flex;flex-direction:column;align-items:center;gap:3px;background:#1b1a24;border:1px solid #24222f;border-radius:9px;padding:6px 4px;color:#e5e3f0;font:600 10.5px Inter,sans-serif;cursor:pointer}.mgb-o:hover{border-color:#a855f7}.mgb-o[disabled]{opacity:.3;cursor:default}
 .mgb-oi{width:36px;height:36px;border-radius:7px}.mgb-o span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* rev148: Draft ideas */
+#dideas{padding:2px 0 24px}
+.di-top{display:flex;align-items:center;gap:14px;background:#121118;border:1px solid #24222f;border-radius:14px;padding:12px 16px;margin-bottom:12px;flex-wrap:wrap}
+.di-map{display:flex;align-items:center;gap:12px}.di-mi{width:72px;height:46px;object-fit:cover;border-radius:8px}.di-map small{color:#c4b5fd;font-size:10px;letter-spacing:.1em;font-weight:800;display:block}.di-map b{font-size:18px}
+.di-sel{display:flex;align-items:center;gap:6px;background:#0f0e15;border:1px solid #24222f;border-radius:10px;padding:3px 3px 3px 10px}.di-sel span{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#6e6a85;font-weight:800}.di-sel select{background:#a855f7;color:#fff;border:0;border-radius:8px;padding:6px 10px;font:600 13px Inter,sans-serif;max-width:190px}
+.di-seg{display:flex;align-items:center;gap:4px;background:#0f0e15;border:1px solid #24222f;border-radius:10px;padding:3px}.di-seg span{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#6e6a85;font-weight:800;padding:0 8px}.di-seg a{padding:6px 12px;border-radius:8px;font-size:13px;color:#b9b5cc;font-weight:600;cursor:pointer}.di-seg a.on{background:#a855f7;color:#fff}
+.di-mapbtn{margin-left:auto;border:1px dashed #3b2a5a;background:transparent;color:#a78bfa;border-radius:9px;padding:7px 12px;font:700 12px Inter,sans-serif;cursor:pointer}
+.di-maps{background:#121118;border:1px solid #24222f;border-radius:14px;padding:12px;margin-bottom:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
+.di-na{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#121118;border:1px solid #24222f;border-radius:14px;padding:10px 14px;margin-bottom:12px}.di-na>b{font-size:13px}.di-m{color:#6e6a85;font-size:11.5px}
+.di-ch{display:flex;align-items:center;gap:6px;background:#16151e;border:1px solid #2e2b3d;border-radius:9px;padding:3px 10px 3px 3px;font-size:12px}.di-ch.na{border-color:#3a2530}.di-ch b{font-weight:700}.di-ch small{font-size:11px}.di-bs{width:30px;height:30px;border-radius:7px}
+.di-nx{background:none;border:0;color:#f87171;font-size:11px;cursor:pointer;padding:0 0 0 4px}
+.di-nab{border:1px dashed #3b2a5a;background:transparent;color:#a78bfa;border-radius:9px;padding:6px 11px;font:700 12px Inter,sans-serif;cursor:pointer}
+.di-nain{background:#0d0c12;border:1px solid #2a2838;border-radius:8px;color:#e5e3f0;padding:6px 10px;font:13px Inter,sans-serif;width:170px}
+.di-col h3{margin:16px 2px 10px;font-size:15px}.di-col h3 i{font-style:normal;color:#6e6a85;font-weight:500;font-size:12px}
+.di-p{background:#121118;border:1px solid #24222f;border-radius:14px;padding:14px;margin-bottom:12px}
+.di-ph{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}.di-ph b{font-size:15px}.di-n{background:#a855f7;color:#fff;border-radius:6px;padding:1px 8px;font-size:12px;font-weight:800}
+.di-tg{font-style:normal;font-size:10px;font-weight:800;border:1px solid;border-radius:6px;padding:1px 7px;text-transform:uppercase;letter-spacing:.06em}
+.di-send{margin-left:auto;border:1px dashed #3b2a5a;background:transparent;color:#a78bfa;border-radius:9px;padding:6px 12px;font:700 12px Inter,sans-serif;cursor:pointer}.di-send:hover{border-color:#a855f7;color:#c4b5fd}
+.di-g{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+#dideas h5{margin:0 0 6px;color:#6e6a85;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:800}.di-est{font-style:normal;color:#facc15;font-size:9px;letter-spacing:.06em;border:1px solid #facc15;border-radius:5px;padding:0 4px;margin-left:4px;text-transform:uppercase}
+.di-r{display:flex;flex-wrap:wrap;gap:6px}.di-w{margin:10px 0 0;font-size:12.5px;color:#cfcbe6;line-height:1.5}.di-foot{color:#6e6a85;font-size:11.5px;margin:14px 2px 0}
+@media(max-width:900px){.di-g{grid-template-columns:1fr 1fr}}
 </style>
 <script>
 /* rev142: explanations behind an (i) icon + context bar */
@@ -9233,7 +9389,7 @@ body.pp-sb:not(.sb-off) #detail .pp{}
 
 <script>
 /* rev143: tabs in three groups */
-(function(){const G=[['Team',['Team Stats','Scouting','Card','Match Selector']],['Meta',['Tier List','Balance','Draft','Draft prep']],['Competition',['Results','Team Predictor','Worlds bracket']]];
+(function(){const G=[['Team',['Team Stats','Scouting','Card','Match Selector']],['Meta',['Tier List','Balance','Draft','Draft ideas','Draft prep']],['Competition',['Results','Team Predictor','Worlds bracket']]];
   function go(){const sb=document.getElementById('sheetbar');if(!sb||sb.querySelector('.sb-grp'))return !!sb;const B=[...sb.querySelectorAll('.sb-t')];if(!B.length)return false;const by={};B.forEach(b=>by[b.textContent.trim()]=b);
     const D=G.map(([g,L])=>{const d=document.createElement('div');d.className='sb-grp';d.innerHTML='<i>'+g+'</i>';L.forEach(n=>{if(by[n])d.appendChild(by[n])});return d});sb.prepend(...D);
     sb.querySelectorAll(':scope>.sb-sep').forEach(x=>x.remove());return true}
