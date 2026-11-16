@@ -6266,12 +6266,19 @@ document.addEventListener('click',async e=>{
   const t0=b.textContent;b.disabled=true;b.textContent='Preparing…';
   const mob=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||(window.matchMedia('(pointer:coarse)').matches&&navigator.maxTouchPoints>1);
   const name=(b.dataset.cardn||'team').replace(/[^A-Za-z0-9]+/g,'-')+'-card.png';
-  const render=sc=>window.html2canvas(el,{backgroundColor:'#14131f',scale:sc,useCORS:true,logging:false,imageTimeout:8000,windowWidth:mob?1150:undefined,ignoreElements:n=>n.hasAttribute&&n.hasAttribute('data-noexport')});
+  const render=(sc,safe)=>window.html2canvas(el,{backgroundColor:'#14131f',scale:sc,useCORS:true,logging:false,imageTimeout:8000,windowWidth:mob?1150:undefined,ignoreElements:n=>n.hasAttribute&&n.hasAttribute('data-noexport'),
+    // rev156: a gradient on something 0 px wide (the lines beside a long section title, an empty bar…) made the export fail: those get a plain colour / no image in the copy that is drawn
+    onclone:doc=>{try{const st=doc.createElement('style');st.textContent='*::before,*::after{background-image:none!important}.lbl::before,.lbl::after{background-color:#2e2b3d!important}';doc.head.appendChild(st);
+      const W=doc.defaultView,px=v=>parseFloat(v)||0;doc.querySelectorAll('#'+(el.id||'x')+', #'+(el.id||'x')+' *').forEach(n=>{const cs=W.getComputedStyle(n);if(!cs.backgroundImage||cs.backgroundImage==='none')return;
+        const r=n.getBoundingClientRect(),w=r.width-px(cs.borderLeftWidth)-px(cs.borderRightWidth),h=r.height-px(cs.borderTopWidth)-px(cs.borderBottomWidth);
+        // last try (safe): no gradients at all, so the image is always created
+        if(w<1||h<1||(safe&&/gradient/.test(cs.backgroundImage))){const c=cs.backgroundColor;n.style.backgroundImage='none';if(safe&&(!c||c==='rgba(0, 0, 0, 0)'))n.style.backgroundColor='#16151e'}})}catch(e){}}});
   try{
     await new Promise(r=>setTimeout(r,50));
     let blob=null;
-    for(const sc of (mob?[1.5,1]:[2,1])){
-      try{const cv=await render(sc);blob=await new Promise(res=>cv.toBlob(res,'image/png'));cv.width=cv.height=0;if(blob)break}catch(er){if(sc===1)throw er}
+    const tries=mob?[[1.5,false],[1,false],[1,true]]:[[2,false],[1,false],[1,true]];
+    for(let i=0;i<tries.length;i++){const [sc,safe]=tries[i];
+      try{const cv=await render(sc,safe);blob=await new Promise(res=>cv.toBlob(res,'image/png'));cv.width=cv.height=0;if(blob)break}catch(er){console.warn('export try '+(i+1)+' failed',er);if(i===tries.length-1)throw er}
     }
     if(!blob)throw new Error('The image could not be created');
     if(!mob){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000)}
