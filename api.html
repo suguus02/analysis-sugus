@@ -19,7 +19,7 @@ window.API_SHEET_ID="1GCtGBZN25X8Smw7nftKooS-uM-afwLIA3P6OPB9YNnk";
     '#gate h1{margin:0 0 4px;font-size:20px;letter-spacing:.08em}#gate p{margin:0 0 18px;color:#8e8ab0;font-size:13px}'+
     '#gate input{width:100%;box-sizing:border-box;padding:11px 12px;border-radius:10px;border:1px solid #3a3650;background:#0d0c12;color:#fff;font-size:15px;outline:none}#gate input:focus{border-color:#a855f7}'+
     '#gate button{margin-top:12px;width:100%;padding:11px;border:0;border-radius:10px;background:#a855f7;color:#fff;font-weight:700;font-size:14px;cursor:pointer}#gate button:disabled{opacity:.5;cursor:default}'+
-    '#gate .gerr{min-height:18px;margin-top:10px;font-size:12.5px;color:#f87171}#gate .gwait{color:#8e8ab0;font-size:13px}';
+    '#gate .gerr{min-height:18px;margin-top:10px;font-size:12.5px;color:#f87171}#gate .ghelp{margin-top:6px;font-size:12px;color:#6e6a85}#gate p{line-height:1.5}#gate .gwait{color:#8e8ab0;font-size:13px}';
   document.head.appendChild(st);
   var get=function(){try{return localStorage.getItem(KEY)||''}catch(e){return ''}},set=function(v){try{if(v)localStorage.setItem(KEY,v);else localStorage.removeItem(KEY)}catch(e){}};
   var norm=function(x){return String(x||'').trim().toLowerCase()};
@@ -41,7 +41,7 @@ window.API_SHEET_ID="1GCtGBZN25X8Smw7nftKooS-uM-afwLIA3P6OPB9YNnk";
       u.innerHTML='👤 '+String(window.__USER).replace(/</g,'&lt;')+(window.__ROLE==='Admin'?' · <a href="#" data-acc style="color:#c4b5fd">Accounts</a>':'')+' · <a href="#" data-out style="color:#c4b5fd">log out</a>';
       u.querySelector('[data-out]').onclick=function(e){e.preventDefault();window.uxLogout()};var A=u.querySelector('[data-acc]');if(A)A.onclick=function(e){e.preventDefault();if(window.accOpen)window.accOpen()}};put();window.__badge=put}
   function show(){var g=document.createElement('div');g.id='gate';document.body.appendChild(g);
-    var form=function(msg){g.innerHTML='<form class="gbox" autocomplete="on"><h1>ANALYSIS SUGUS</h1><p>Sign in to continue</p><input type="text" name="username" autocomplete="username" placeholder="Username" spellcheck="false" autocapitalize="off"><input type="password" name="password" autocomplete="current-password" placeholder="Password" style="margin-top:10px"><button type="submit">Sign in</button><div class="gerr">'+(msg||'')+'</div></form>';
+    var form=function(msg){g.innerHTML='<form class="gbox" autocomplete="on"><h1>ANALYSIS SUGUS</h1><p>Brawl Stars scouting and draft analysis for the team.<br>Sign in with the account your admin gave you.</p><input type="text" name="username" autocomplete="username" placeholder="Username" spellcheck="false" autocapitalize="off"><input type="password" name="password" autocomplete="current-password" placeholder="Password" style="margin-top:10px"><button type="submit">Sign in</button><div class="gerr">'+(msg||'')+'</div><div class="ghelp">No account or lost password? Ask your team admin for one.</div></form>';
       var f=g.querySelector('form'),u=f.querySelector('[name=username]'),pw=f.querySelector('[name=password]'),err=f.querySelector('.gerr'),btn=f.querySelector('button');
       u.value=get();setTimeout(function(){(u.value?pw:u).focus()},50);
       f.onsubmit=function(e){e.preventDefault();var n=u.value.trim();if(!n){u.focus();return}btn.disabled=true;err.textContent='';btn.textContent='Checking…';
@@ -49,7 +49,7 @@ window.API_SHEET_ID="1GCtGBZN25X8Smw7nftKooS-uM-afwLIA3P6OPB9YNnk";
           if(o&&o.ok){ss(SK,o.token);open_(o.user,o.role);return}
           if(legacy(o))return oldList().then(function(S){if(S[norm(n)])open_(S[norm(n)],'');else throw 1});
           err.textContent=o&&o.error==='wait'?'Too many wrong tries. Wait 10 minutes and try again.':'Wrong username or password.';pw.select()})
-        .catch(function(){err.textContent='Access denied or no connection. Try again.'})
+        .catch(function(){err.textContent='Could not check your account (no connection, or this username is not on the list). Try again.'})
         .then(function(){btn.disabled=false;btn.textContent='Sign in'})}};
     var tok=gs(SK),saved=get();
     // signed in before: enter straight away and check the session in the background
@@ -111,7 +111,7 @@ window.API_SHEET_ID="1GCtGBZN25X8Smw7nftKooS-uM-afwLIA3P6OPB9YNnk";
   try{var H=window.__UXH;if(H){if(H.f!=null)localStorage.setItem('tvt:from',H.f);if(H.to!=null)localStorage.setItem('tvt:to',H.to);if(H.ty)localStorage.setItem('tvt:type',H.ty)}}catch(e){}
   document.addEventListener('DOMContentLoaded',function(){pinta();setInterval(pinta,120000)});
 })();
-</script><meta charset="utf-8"><meta name="viewport" content="width=1280, user-scalable=yes"><title>ANALYSIS SUGUS · API</title>
+</script><meta charset="utf-8"><meta name="viewport" content="width=1280, user-scalable=yes"><title>ANALYSIS SUGUS · Brawl Stars team analysis</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23c084fc'/%3E%3Cstop offset='1' stop-color='%237c3aed'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='%2315121f'/%3E%3Crect x='1.5' y='1.5' width='61' height='61' rx='12.5' fill='none' stroke='%23a855f7' stroke-opacity='.45' stroke-width='3'/%3E%3Ctext x='32' y='43' font-family='Arial Black%2CArial%2Csans-serif' font-weight='900' font-size='30' text-anchor='middle' fill='url%28%23g%29'%3EAS%3C/text%3E%3Crect x='12' y='49' width='40' height='4' rx='2' fill='%23a855f7'/%3E%3C/svg%3E">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2426,6 +2426,17 @@ function render(){
 
 // ---------- detail: brawlers, combos, rivals, matches by date ----------
 let tfs={own:{n:1,k:''},enemy:{n:1,k:''}};
+/* ===== STATE MAP (read this before changing how the page remembers things) =====
+   1. ACCESS      (first <script>)   no session -> form -> signed in (token in tvt:sess, name tvt:user, role tvt:role) -> background check "me" -> ok | session ended (reload to form).
+                                      While the sheet has no accounts ("setup" / "unknown action") it falls back to the old USUARIOS list.
+   2. TEAMS       scope = one | pair | pool  with oneTeam / sel.a + sel.b / poolTeams. Saved in tvt:selT (and tvt:sel). Only setSelTeams() and the pickers may change it:
+                  a team that is missing for a moment must NOT overwrite the choice (see SEL_KEEP and curOne()). A shared link (#v=…) is applied once and then removed from the address.
+   3. WHERE       view (stats, draft, pred, suggest, check, bal, worlds) + tab (Team Stats tabs) + per-tab sub state (TSS, PP.view, SC.*). renderDetail() is the single repaint.
+   4. SHEET SAVES every saved thing follows: edit -> dirty (+ copy in localStorage) -> debounce -> push -> saved | conflict (ask) | failed (stays dirty, kept in the browser, sent again after the next load).
+                  Draft prep: PP.data[key] + tvt:pplocal + ppTouch/ppPush.  Global bans of a match: MGBD.rows[key] + tvt:mgblocal + mgbSet/mgbPush.
+   5. SHEET LOADS PP.st / MGBD.st: 0 never, 1 loading, 2 ok, 3 failed; reloaded at most once a minute; a load never replaces a dirty entry and never repaints while the user types (uxTyping()).
+   6. WINDOWS     #gmOv (match / set), #mapov (map pickers), #accOv (accounts, admins): one at a time, Esc or the backdrop closes them.
+   ============================================================================== */
 let view=['stats','draft','pred','suggest','check','bal','worlds'].includes(store.get('tvt:view'))?store.get('tvt:view'):'stats',tab='stats',statMaps=[],oneTeam=null,comboKind='duos',focus='A',scope='one',poolTeams=null,subject='own',flt={own:['','',''],enemy:['','','']},onlyRepeat=false,comboRes='all',showSingles=true,matchView='cards',dateTeam='A',dateSel=null,rivalSel=0,calMonth=null,calOpen=false,msPop='';
 const teamOf=s=>s==='A'?sel.a:sel.b;
 const ALL='__all__',SEL='__sel__';
@@ -4396,7 +4407,11 @@ async function ppLoad(force){if(PP.st===1||(!force&&PP.st===2&&Date.now()-PP.at<
       const cur=PP.data[k];if(cur&&cur.dirty)continue;if(r[3])obj.by=String(r[3]);if(r[2])obj.upd=String(r[2]);PP.data[k]={obj,upd:String(r[2]||''),by:String(r[3]||'')}}
     PP.st=2;PP.msg=''}catch(e){PP.st=3;PP.msg=e&&e.code==='gviz_private'?'':'Could not read the DRAFT PREP tab'}
   try{const L=JSON.parse(store.get('tvt:pplocal')||'{}');for(const k in L){const cur=PP.data[k];if(!cur||String(L[k].upd||'')>String(cur.upd||''))PP.data[k]=Object.assign({},L[k],{dirty:1})}}catch(e){}
-  if(tab==='prep'||tab==='ideas')renderDetail()}
+  // rev154: edits that could not reach the sheet earlier (offline, old sheet code…) are sent again, at most once every 5 minutes
+  if(PP.st===2&&Date.now()-(PP.retryAt||0)>300000){PP.retryAt=Date.now();Object.keys(PP.data).filter(k=>PP.data[k]&&PP.data[k].dirty&&!(_ppT&&_ppT[k])).forEach((k,i)=>setTimeout(()=>ppPush(k),1500+i*1200))}
+  if(tab==='prep'&&!uxTyping())renderDetail()}
+// true while the user is writing inside the page: a background refresh must not repaint and lose the text
+function uxTyping(){const a=document.activeElement;return !!(a&&a.closest&&a.closest('#detail')&&(a.tagName==='TEXTAREA'||(a.tagName==='INPUT'&&a.type!=='checkbox'&&a.type!=='radio')||a.isContentEditable))}
 let _ppT={};
 function ppTouch(k){k=k||ppKey();const d=PP.data[k];d.dirty=1;d.obj.by=ppUser();d.obj.upd=new Date().toISOString();try{const L=JSON.parse(store.get('tvt:pplocal')||'{}');L[k]={obj:d.obj,upd:d.upd,by:d.by};store.set('tvt:pplocal',JSON.stringify(L))}catch(e){}
   _ppT=_ppT||{};clearTimeout(_ppT[k]);_ppT[k]=setTimeout(()=>ppPush(k),900)}
@@ -4607,8 +4622,11 @@ async function mgbLoad(force){if(MGBD.st===1||(!force&&MGBD.st&&Date.now()-MGBD.
   try{const L=JSON.parse(store.get('tvt:mgblocal')||'{}');for(const k in L){const c=MGBD.rows[k];if(!c||String(L[k].upd||'')>String(c.upd||''))MGBD.rows[k]=Object.assign({},L[k],{dirty:1})}}catch(e){}
   mgbPaint();
   // rev151: pages that predict global bans from these matches repaint once the data is in
-  if(Object.keys(MGBD.rows).length!==n0&&typeof tab!=='undefined'&&typeof view!=='undefined'&&view==='stats'&&(tab==='prep'||tab==='report'||tab==='scout'))renderDetail()}
-let _mgbT=null;
+  // rev154: global bans kept only in this browser (the save failed earlier) are sent again, at most once every 5 minutes
+  if(MGBD.st===2&&Date.now()-(MGBD.retryAt||0)>300000){MGBD.retryAt=Date.now();Object.keys(MGBD.rows).filter(k=>MGBD.rows[k].dirty&&!_mgbT[k]).forEach((k,i)=>{const r=MGBD.rows[k];let ids=Object.keys(r.names||{});if(!ids.length)ids=Object.keys(r.bans||{});ids=ids.slice(0,2);if(!ids.length)return;
+    setTimeout(()=>mgbPush(k,ids,[0,1].map(j=>ids[j]?((r.names||{})[ids[j]]||ids[j]):'')),2000+i*1200)})}
+  if(Object.keys(MGBD.rows).length!==n0&&typeof tab!=='undefined'&&typeof view!=='undefined'&&view==='stats'&&(tab==='prep'||tab==='report'||tab==='scout')&&!uxTyping())renderDetail()}
+let _mgbT={};
 // global bans a team put in its matches (entered by hand in the match window): [[brawler, matches], …], newest matches weigh a bit more on ties
 function mgbTeam(team){if(!team)return {n:0,L:[]};const c={},last={};let n=0;
   for(const k in MGBD.rows){const r=MGBD.rows[k],L=((r.bans||{})[team]||[]).filter(Boolean);if(!L.length)continue;n++;const d=k.split('|')[0];
@@ -4617,9 +4635,9 @@ function mgbTeam(team){if(!team)return {n:0,L:[]};const c={},last={};let n=0;
 function mgbSet(side,arr){if(!MGB)return;const k=mgbFind()||MGB.key,r=MGBD.rows[k]||(MGBD.rows[k]={bans:{},t0:MGB.t0});
   r.bans[MGB.ids[side]]=arr;r.t0=r.t0==null?MGB.t0:r.t0;r.dirty=1;r.upd=new Date().toISOString();r.by=ppUser();r.names={[MGB.ids[0]]:MGB.names[0],[MGB.ids[1]]:MGB.names[1]};r.d=MGB.d;
   try{const L=JSON.parse(store.get('tvt:mgblocal')||'{}');L[k]=r;store.set('tvt:mgblocal',JSON.stringify(L))}catch(e){}
-  clearTimeout(_mgbT);const ids=MGB.ids.slice(),names=MGB.names.slice();_mgbT=setTimeout(()=>mgbPush(k,ids,names),700);mgbPaint()}
+  clearTimeout(_mgbT[k]);const ids=MGB.ids.slice(),names=MGB.names.slice();_mgbT[k]=setTimeout(()=>{delete _mgbT[k];mgbPush(k,ids,names)},700);mgbPaint()}
 async function mgbPush(k,ids,names){const r=MGBD.rows[k];if(!r)return;const cfg=drCfg();if(!cfg.url){MGBD.msg='Saved in this browser only';mgbPaint();return}
-  MGBD.msg='Saving…';mgbPaint();
+  if(!r.t0&&r.t0!==0)r.t0=null;MGBD.msg='Saving…';mgbPaint();
   try{const j=await drSend(cfg,{token:cfg.token,action:'gban',key:k,date:r.d||k.split('|')[0],t1:names[0],b1:(r.bans[ids[0]]||[]).filter(Boolean).join(', '),t2:names[1],b2:(r.bans[ids[1]]||[]).filter(Boolean).join(', '),json:JSON.stringify({t0:r.t0,bans:r.bans}),by:ppUser()});
     if(!j.ok)throw new Error(j.error==='unknown action'?'paste the new sheet code and update the web app':(j.error||'rejected'));
     r.upd=j.updated||r.upd;delete r.dirty;try{const L=JSON.parse(store.get('tvt:mgblocal')||'{}');delete L[k];store.set('tvt:mgblocal',JSON.stringify(L))}catch(e){}
@@ -4975,7 +4993,7 @@ function renderDetail(){
   document.querySelectorAll('.tabbtn').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===tab?'true':'false'));
   $('statsscope').innerHTML=(tab==='scout'||tab==='report'||tab==='match'||tab==='caster'||tab==='tier'||tab==='prep'||tab==='ideas')?'':scopeWithMaps();$('statsscope').hidden=view!=='stats'||tab==='scout'||tab==='report'||tab==='match'||tab==='caster'||tab==='tier'||tab==='prep'||tab==='ideas';tselPaint();
   const nd=tab!=='drafts'&&tab!=='scout'&&tab!=='report'&&tab!=='match'&&tab!=='caster'&&tab!=='tier'&&tab!=='prep'&&tab!=='ideas'&&((scope==='one'&&!M.D.off.includes(curOne()))||(scope==='pool'&&poolTeams&&!poolTeams.some(t=>M.D.off.includes(t))));
-  $('detail').innerHTML=nd?'<div class="nodata">NO DATA</div>':tab==='stats'?statsTab():tab==='players'?playersTab():tab==='drafts'?draftsTab():tab==='card'?cardTab():tab==='scout'?scoutHTML():tab==='report'?reportHTML():tab==='group'?groupTab():tab==='caster'?casterTab():tab==='tier'?tierTab():tab==='prep'?prepHTML():datesTab();
+  $('detail').innerHTML=nd?'<div class="nodata">NO DATA<small>No sets for this team in the selected period. Widen the period (top left) or choose another team.</small></div>':tab==='stats'?statsTab():tab==='players'?playersTab():tab==='drafts'?draftsTab():tab==='card'?cardTab():tab==='scout'?scoutHTML():tab==='report'?reportHTML():tab==='group'?groupTab():tab==='caster'?casterTab():tab==='tier'?tierTab():tab==='prep'?prepHTML():datesTab();
   applyView();decorateTiles();tselPaint();if(tab==='caster')requestAnimationFrame(casFit);uxPost();
 }
 $('statsscope').addEventListener('click',e=>{
@@ -9350,6 +9368,7 @@ body.pp-sb:not(.sb-off) #detail .pp{}
 .md-m{display:flex;align-items:center;gap:10px}.md-m small{display:block;color:#9a97ad;font-size:11px;font-weight:500}.md-i{width:44px;height:28px;object-fit:cover;border-radius:5px}
 .md-v{font-size:10.5px;font-weight:800;border:1px solid;border-radius:6px;padding:1px 7px;text-transform:uppercase;letter-spacing:.06em}.md-why{display:block;color:#9a97ad!important;font-size:11px;margin-top:3px;font-weight:500}
 .md-modes{margin-top:4px}
+.nodata small{display:block;margin-top:10px;font:500 13px/1.5 Inter,sans-serif;letter-spacing:0;color:#8e8ab0;text-transform:none}
 </style>
 <script>
 /* rev142: explanations behind an (i) icon + context bar */
@@ -9407,6 +9426,7 @@ body.pp-sb:not(.sb-off) #detail .pp{}
   '#accOv .f{display:block;margin-bottom:10px}#accOv .f span{display:block;font-size:10.5px;letter-spacing:.08em;color:#6e6a85;font-weight:800;margin-bottom:5px}#accOv .f input,#accOv .f select{width:100%;box-sizing:border-box;border:1px solid #2e2b3d;background:#0d0c12;border-radius:9px;padding:10px 12px;font:14px Inter,sans-serif;color:#e5e3f0}'+
   '#accOv .pw{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#1a1426;border:1px solid #a855f7;border-radius:9px;padding:10px 12px;font:15px ui-monospace,monospace;letter-spacing:.05em;color:#fff}#accOv .pw button{background:none;border:0;color:#c4b5fd;font:700 12.5px Inter,sans-serif;cursor:pointer}'+
   '#accOv .ok2{background:#a855f7;color:#fff;border:0;border-radius:9px;padding:10px 16px;font:700 13px Inter,sans-serif;cursor:pointer;margin-top:6px}';
+  css+='#helloBar{display:flex;align-items:center;gap:16px;background:linear-gradient(90deg,rgba(168,85,247,.14),#121118);border:1px solid #3b2a5a;border-radius:14px;padding:14px 18px;margin:0 0 14px;font:13.5px/1.6 Inter,sans-serif;color:#e5e3f0}#helloBar div{flex:1}#helloBar span{display:block;color:#cfcbe6}#helloBar small{display:block;color:#8e8ab0;margin-top:4px}#helloBar button{background:#a855f7;color:#fff;border:0;border-radius:9px;padding:9px 16px;font:700 13px Inter,sans-serif;cursor:pointer;white-space:nowrap}';
   var st=document.createElement('style');st.textContent=css;document.head.appendChild(st);
   var COL=['#a855f7,#ec4899','#6366f1,#a855f7','#22c55e,#14b8a6','#f59e0b,#ef4444','#06b6d4,#3b82f6','#e11d48,#f97316'];
   var ov=function(){var o=document.getElementById('accOv');if(!o){o=document.createElement('div');o.id='accOv';document.body.appendChild(o)}return o};
@@ -9423,7 +9443,7 @@ body.pp-sb:not(.sb-off) #detail .pp{}
       :'<button class="btn" data-accpass="'+e_(u.name)+'">Password</button>'+(me?'':'<button class="btn del" data-accdel="'+e_(u.name)+'">Delete</button>');
     return '<tr><td><div class="u"><div class="av" style="background:linear-gradient(135deg,'+COL[i%COL.length]+')">'+e_(u.name.charAt(0).toUpperCase())+(u.online?'<i></i>':'')+'</div><div><b>'+e_(u.name)+(me?' <span class="you">(you)</span>':'')+'</b><small>'+e_(joined(u.joined))+'</small></div></div></td>'+
       '<td>'+roleSel+'</td><td>'+(u.online?'<span class="on">ONLINE NOW</span>':'<b>'+e_(w[0])+'</b><small>'+e_(w[1])+'</small>')+'</td>'+
-      '<td>'+(u.last?'<b>'+dur(u.mins)+'</b><small>'+(u.online&&u.start?'since '+hm(dd(u.start))+' · ':'')+e_([u.tabs,u.dev].filter(Boolean).join(' · '))+'</small>':'<b>–</b>')+'</td>'+
+      '<td>'+(u.last?'<b>'+dur(u.mins)+'</b><small>'+(u.online&&u.start?'since '+hm(dd(u.start))+' · ':'')+e_([u.tabs,({'Ordenador':'Computer','Móvil':'Phone'})[u.dev]||u.dev].filter(Boolean).join(' · '))+'</small>':'<b>–</b>')+'</td>'+
       '<td>'+(u.wVis?'<b>'+dur(u.wMins)+'</b><small>'+u.wVis+' visit'+(u.wVis>1?'s':'')+'</small>':'<b>–</b><small>no visits</small>')+'</td><td><div class="acts">'+acts+'</div></td></tr>'}
   function paint(){var o=ov();
     var pw=A.pw?'<div class="ac-box"><h3>'+(A.pw.isNew?'Account created':'New password')+' · '+e_(A.pw.name)+'</h3><p>Give it to the person now: it is not shown again. They can sign in on any device.</p><div class="pw"><span>'+e_(A.pw.pass)+'</span><button data-acccopy>Copy</button></div><button class="ok2" data-accpwok>Done</button></div>':'';
@@ -9436,6 +9456,10 @@ body.pp-sb:not(.sb-off) #detail .pp{}
   var errTxt=function(o){var x=o&&o.error;return x==='not admin'?'Only admins can do this.':x==='session'?'Your session ended. Sign in again.':x==='unknown action'||x==='setup'?'Paste the new code in Apps Script, deploy a new version and use the menu "8. Cuentas de la página" first.':x||'No connection. Try again.'};
   function load(){A.busy=true;paint();window.__accCall('acc_list').then(function(o){A.busy=false;if(o&&o.ok){A.users=o.users||[];A.me=o.me||window.__USER;A.err=''}else A.err=errTxt(o);paint()}).catch(function(){A.busy=false;A.err=errTxt(null);paint()})}
   function act(action,data,ok){A.err='';A.msg='Saving…';paint();window.__accCall(action,data).then(function(o){A.msg='';if(o&&o.ok){ok(o);load()}else{A.err=errTxt(o);paint()}}).catch(function(){A.msg='';A.err=errTxt(null);paint()})}
+  // first visit: three lines on what this page is and where to start (closed for good with "Got it")
+  (function hello(n){try{var u=window.__USER;if(!u){if(n<60)setTimeout(function(){hello(n+1)},1000);return}if(localStorage.getItem('tvt:hello:'+u))return;var d=document.getElementById('detail');if(!d||!d.parentNode){if(n<60)setTimeout(function(){hello(n+1)},1000);return}
+    var b=document.createElement('div');b.id='helloBar';b.innerHTML='<div><b>Welcome, '+e_(u)+'.</b> This page turns every scrim and tournament set of the teams into stats. <span>1 · Pick a team and a period in the left panel</span><span>2 · <b>Team Stats</b> shows how a team plays, <b>Scouting</b> prepares a rival</span><span>3 · <b>Results</b> and <b>Match Selector</b> open any match set by set</span><small>Hover a tab to see what it does. Everything counts sets, not single games.</small></div><button type="button">Got it</button>';
+    b.querySelector('button').onclick=function(){try{localStorage.setItem('tvt:hello:'+u,'1')}catch(x){}b.remove()};d.parentNode.insertBefore(b,d)}catch(x){}})(0);
   window.accOpen=function(){A.msg='';A.err='';A.pw=null;A.ask=null;A.newOpen=false;ov().classList.add('on');document.body.style.overflow='hidden';load()};
   var close=function(){ov().classList.remove('on');document.body.style.overflow=''};
   document.addEventListener('keydown',function(ev){if(ev.key==='Escape'&&document.getElementById('accOv')&&ov().classList.contains('on'))close();if(ev.key==='Enter'&&ev.target.matches&&ev.target.matches('[data-accnewname]')){var b=document.querySelector('[data-acccreate]');if(b)b.click()}});
@@ -9450,7 +9474,7 @@ body.pp-sb:not(.sb-off) #detail .pp{}
     if(d.accpass!=null){A.ask={name:d.accpass,what:'pass'};paint();return}
     if(d.accdel!=null){A.ask={name:d.accdel,what:'del'};paint();return}
     if(d.accno!=null){A.ask=null;paint();return}
-    if(d.accyes!=null&&A.ask){var q=A.ask;A.ask=null;if(q.what==='del')act('acc_delete',{name:q.name},function(){A.msg=q.name+' deleted'});else act('acc_pass',{name:q.name},function(o){A.pw={name:o.name,pass:o.pass}});return}
+    if(d.accyes!=null&&A.ask){var q=A.ask;A.ask=null;if(q.what==='del')act('acc_delete',{name:q.name},function(){A.msg=q.name+' deleted'});else act('acc_pass',{name:q.name},function(o){if(o.token){try{localStorage.setItem('tvt:sess',o.token)}catch(x){}}A.pw={name:o.name,pass:o.pass}});return}
     if(d.acccopy!=null&&A.pw){try{navigator.clipboard.writeText(A.pw.pass);t.textContent='Copied'}catch(x){}return}
     if(d.accpwok!=null){A.pw=null;paint();return}});
 })();
