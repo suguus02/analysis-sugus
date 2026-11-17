@@ -4336,6 +4336,11 @@ const casTog=(id,opts,def)=>{const s=CAS.sort[id]||def;return `<span class="cas-
 const casTitle=(t,sub,tog,col)=>`<div class="cas-ch"${col?` style="--c:${col}"`:''}><div class="cas-ln"><span>${t}</span></div><div class="cas-cs"><small>${sub}</small>${tog||''}</div></div>`;
 const casPc=(w,n)=>n?Math.round(100*w/n)+'%':'–';
 // P (Team Predictor): {A,B,maps,p,src,extra,ban} — the two teams and the maps come from the predictor, several maps at once
+// rev168: map tiles (pictures only), grouped by mode, the mode title centred over its maps
+function mapTilesHTML(cur,attr,av){const S=Array.isArray(cur)?cur:(cur?[cur]:[]),multi=Array.isArray(cur);
+  return (MODELIST||[]).map(([md,ms])=>[md,av?ms.filter(m=>av.has(m)):ms]).filter(x=>x[1].length).map(([md,ms])=>{const ic=IMGS['mode'+mkey(md)];
+    return `<div class="mt-g"><div class="mt-gh">${ic?`<img src="${ic}" alt="">`:''}<b>${esc(md)}</b></div><div class="mt-ts">${ms.map(m=>{const k=S.indexOf(m),on=k>=0,u=IMGS['bg'+mkey(m)]||IMGS[mkey(m)]||'';
+      return `<button type="button" class="mt-t${on?' on':''}" ${attr}="${!multi&&on?'':esc(m)}" title="${esc(m)}${multi?(on?' · map '+(k+1)+' · click to remove':' · click to add'):(on?' · click again for all maps':'')}"><span class="mt-im"${u?` style="background-image:url('${u}')"`:''}></span>${multi&&on?`<b class="mt-n">${k+1}</b>`:''}</button>`}).join('')}</div></div>`}).join('')}
 function casterTab(P){
   const teams=casTeams();if(!teams.length)return '<p class="msg" style="margin:14px 0">No teams yet: the teams come from the list SELECTED TEAMS of the Picks sheet.</p>';
   let G=casGroup(teams,!!P);if(!G.length)G=teams;
@@ -4369,7 +4374,7 @@ function casterTab(P){
   if(p==null){const sh=(w,n)=>(w+3)/(n+6),all=t=>{const L=rows.filter(x=>x.t===t);return sh(L.reduce((a,x)=>a+x.win,0),L.length)},hh=(t,o)=>{const L=rows.filter(x=>x.t===t&&x.o===o);return sh(L.reduce((a,x)=>a+x.win,0),L.length)};
     const sA=.4*sh(hA.w,hA.n)+.35*all(A)+.25*hh(A,B),sB=.4*sh(hB.w,hB.n)+.35*all(B)+.25*hh(B,A);p=1/(1+Math.exp(-6*(sA-sB)));src='the win rate of each team on this map, its form on every map and their head to head (sets)'}
   const pa=Math.round(100*p);
-  const mid=`<div class="cas-mid${MAPS.length>4?' many':''}" style="--m:${MC}">${many?`<div class="cas-mthumbs${MAPS.length>12?' xs':MAPS.length>6?' sm':''}">${MAPS.map((m,k)=>{const u=IMGS['bg'+mkey(m)]||IMGS[mkey(m)]||'';return u?`<span><img src="${u}" alt="" title="${esc(m)}"><b>${k+1}</b></span>`:''}).join('')}</div>`:mimg?`<img class="cas-mimg" src="${mimg}" alt="">`:''}<div class="cas-mwp"><div class="cas-mt"><span>${IMGS['mode'+mkey(MD)]?`<img class="cas-mi" src="${IMGS['mode'+mkey(MD)]}" alt="">`:''}${many?'':esc(MD)}</span><b>${many?'Series of '+MAPS.length+' maps':esc(MAP)}</b></div>
+  const mid=`<div class="cas-mid${MAPS.length>4?' many':''}" style="--m:${MC}"${P?' data-caspop="m" title="Click to choose the maps of the series"':''}>${many?`<div class="cas-mthumbs${MAPS.length>12?' xs':MAPS.length>6?' sm':''}">${MAPS.map((m,k)=>{const u=IMGS['bg'+mkey(m)]||IMGS[mkey(m)]||'';return u?`<span><img src="${u}" alt="" title="${esc(m)}"><b>${k+1}</b></span>`:''}).join('')}</div>`:mimg?`<img class="cas-mimg" src="${mimg}" alt="">`:''}<div class="cas-mwp"><div class="cas-mt"><span>${IMGS['mode'+mkey(MD)]?`<img class="cas-mi" src="${IMGS['mode'+mkey(MD)]}" alt="">`:''}${many?'':esc(MD)}</span><b>${many?'Series of '+MAPS.length+' maps':esc(MAP)}</b></div>
     <div class="cas-wpt" title="Win chance from ${src}">${many?'Series win chance':'Win chance'}</div><div class="cas-wpr"><b style="color:${tcA}">${pa}%</b><div class="cas-wpb"><i style="flex:${pa};background:${tcA}"></i><i style="flex:${100-pa};background:${tcB}"></i></div><b style="color:${tcB}">${100-pa}%</b></div></div></div>`;
   // tables
   const head=(t,tog,col,tip)=>`<div class="cas-ch"${col?` style="--c:${col}"`:''}><div class="cas-ln" title="${esc(tip||'')}"><span>${t}</span></div>${tog||''}</div>`;
@@ -4394,8 +4399,8 @@ function casterTab(P){
     const o_=t===A?B:A,Hh=o_?rows.filter(x=>x.t===t&&x.o===o_):[],Hm=Hh.filter(onMap),hc=(L,lb)=>{const w=L.reduce((a,x)=>a+x.win,0);return `<div class="h2c"><small>${lb}</small><b>${L.length?w+'–'+(L.length-w):'–'}</b><em${L.length?` style="${casWr(w/L.length,L.length)}"`:''}>${L.length?casPc(w,L.length):'no sets'}</em></div>`};
     const h2h=o_?`<div class="cas-h2h" title="Sets between ${esc(t)} and ${esc(o_)} in these dates"><div class="h2t">Head to head <span>vs ${logo(o_,'l20')} ${esc(o_)}</span></div><div class="h2r">${hc(Hm,many?'These maps':'This map')}${hc(Hh,'All maps')}</div></div>`:'';
     return `<div class="cas-sub" style="--c:${col}">${head(`${logo(t,'l20')} Rivals`,casTog(id,[['n','Sets'],['wr','Win rate']],'n'),col,'the 5 rivals '+t+' played the most sets against (every map); rivals that are not in the list are shown by their 3 players')}${h2h}<table class="cas-t"><tbody>${rs||'<tr><td colspan="4" class="msg">No sets.</td></tr>'}</tbody></table></div>`};
-  return `<div class="cas${P?' cas-p':''}" title="">${top}${maps_}<div class="cas-head cas-headp">${hdr(A,hA,tcA)}${mid}${hdr(B,hB,tcB,1)}${CAS.pop==='a'?`<div class="cas-pop cas-pop-a"><div class="cas-pt">Team A</div>${chips(A,'casa')}</div>`:CAS.pop==='b'?`<div class="cas-pop cas-pop-b"><div class="cas-pt">Team B</div>${chips(B,'casb')}</div>`:''}</div>${P&&P.extra?P.extra:''}
-    <div class="cas-g4">${pkT('pkA',`${logo(A,'l20')} ${esc(A)}`,RA,tcA)}${pkT('pkG',(many?'Selected maps':'Selected map')+' · total picks',RG,'var(--accent,#d63a50)')}${duoT()}${pkT('pkB',`${logo(B,'l20')} ${esc(B)}`,RB,tcB)}</div>
+  return `<div class="cas${P?' cas-p':''}" title="">${top}${P?`${P.extra||''}<div class="cas-g4 cas-g7">${CAS.pop==='a'?`<div class="cas-pop cas-pop-a"><div class="cas-pt">Team A</div>${chips(A,'casa')}</div>`:CAS.pop==='b'?`<div class="cas-pop cas-pop-b"><div class="cas-pt">Team B</div>${chips(B,'casb')}</div>`:CAS.pop==='m'?`<div class="cas-pop cas-pop-m"><div class="cas-pt">Maps of the series <small>${MAPS.length?MAPS.length+' chosen · click them in the order they are played':'click them in the order they are played'}</small>${MAPS.length?'<button type="button" class="btn quiet" data-prclr>Clear</button>':''}</div><div class="mt-row">${mapTilesHTML(MAPS.slice(),'data-prmap',new Set((M&&M.D&&M.D.maps)||[]))}</div></div>`:''}<div class="cas-grp" style="--c:${tcA}">${pkT('pkA',`${logo(A,'l20')} ${esc(A)}`,RA,tcA)}${hdr(A,hA,tcA)}</div>${pkT('pkG',(many?'Selected maps':'Selected map')+' · total picks',RG,'var(--accent,#d63a50)')}${mid}${duoT()}<div class="cas-grp cas-grpb" style="--c:${tcB}">${hdr(B,hB,tcB,1)}${pkT('pkB',`${logo(B,'l20')} ${esc(B)}`,RB,tcB)}</div></div>`:`${maps_}<div class="cas-head cas-headp">${hdr(A,hA,tcA)}${mid}${hdr(B,hB,tcB,1)}${CAS.pop==='a'?`<div class="cas-pop cas-pop-a"><div class="cas-pt">Team A</div>${chips(A,'casa')}</div>`:CAS.pop==='b'?`<div class="cas-pop cas-pop-b"><div class="cas-pt">Team B</div>${chips(B,'casb')}</div>`:''}</div>
+    <div class="cas-g4">${pkT('pkA',`${logo(A,'l20')} ${esc(A)}`,RA,tcA)}${pkT('pkG',(many?'Selected maps':'Selected map')+' · total picks',RG,'var(--accent,#d63a50)')}${duoT()}${pkT('pkB',`${logo(B,'l20')} ${esc(B)}`,RB,tcB)}</div>`}
     <div class="cas-g5"><div class="cas-card cas-rv">${rivT(A,tcA)}</div>${teamT('wMap',many?'Win rate · these maps':'Win rate · '+esc(MAP),onMap,'sets on '+(many?MAPS.join(', '):MAP))}${teamT('wMode',MDS.size>1?'Win rate · their modes':'Win rate · '+esc(MD),x=>MDS.has(x.md),'sets on every map of '+[...MDS].join(', '))}${teamT('wAll','Win rate · all maps',()=>true,'sets on every map and mode')}<div class="cas-card cas-rv">${rivT(B,tcB)}</div></div>
     <p class="cas-foot">Sets from ${fmtDate(R.from)} to ${fmtDate(R.to)} (single games and draws left out) · pick rate = share of the sets with that brawler · Team A in blue, Team B in red${BAN.size?' · global bans left out of the brawler and duo tables: '+esc([...BAN].join(', ')):''}</p></div>`}
 // the caster page fits the whole tab in the window (smaller screens: everything a bit smaller)
@@ -4439,7 +4444,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')casPopClose()});
 function mrowPlace(box,host,cls){if(host){if(box.parentNode!==host.parentNode||box.previousElementSibling!==host)host.after(box);box.className='pr-sb mrow '+cls;return true}return false}
 // ===== rev139: Team Predictor maps chosen in the side panel (like Team Stats)
 function prSbPaint(){const A=document.getElementById('sbar');if(!A)return;let box=document.getElementById('prSb');
-  const on=typeof view!=='undefined'&&view==='pred'&&M&&M.D;
+  const on=false; // rev168: maps are chosen from the map box
   if(!on){if(box)box.style.display='none';document.body.classList.remove('pr-sb');return}
   if(!box){box=document.createElement('div');box.id='prSb';box.className='pr-sb'}
   if(!mrowPlace(box,document.querySelector('#predview .cas .cas-top'),'mrow-pr'))A.appendChild(box);
@@ -4453,6 +4458,7 @@ document.addEventListener('click',e=>{const c=e.target.closest&&e.target.closest
 // rev141: Scouting map chosen in the side panel too (one map or all maps)
 function scSbPaint(){const A=document.getElementById('sbar');if(!A)return;let box=document.getElementById('scSb');
   const on=typeof view!=='undefined'&&view==='stats'&&typeof tab!=='undefined'&&tab==='scout'&&M&&M.D;
+  if(on){if(box)box.style.display='none';document.body.classList.add('sc-sb');return}
   if(!on){if(box)box.style.display='none';document.body.classList.remove('sc-sb');return}
   if(!box){box=document.createElement('div');box.id='scSb';box.className='pr-sb'}
   if(!mrowPlace(box,document.querySelector('#detail .sc-ctl'),'mrow-sc'))A.appendChild(box);
@@ -6574,11 +6580,14 @@ function scMapOpen(R){
   (document.querySelector('.wrap')||document.body).appendChild(el)}
 document.addEventListener('click',e=>{const t=e.target;if(!t.closest)return;
   if(t.closest('[data-scmapopen]')){scMapOpen(SC.rival);return}
-  const pk=t.closest('[data-scmappick]');if(pk){SC.map=pk.dataset.scmappick;const o=$('mapov');if(o)o.remove();renderDetail()}});
+  const pk=t.closest('[data-scmappick]');if(pk){const v=pk.dataset.scmappick;if(v===SC.map&&!t.closest('#mapov'))return;SC.map=v;const o=$('mapov');if(o)o.remove();
+    // show the choice at once, then build the report (it takes a moment with a lot of data)
+    document.querySelectorAll('.mt-sc .mt-t,.mt-sc .mt-all').forEach(b=>b.classList.toggle('on',b.title.split(' · ')[0]===v||(!v&&b.classList.contains('mt-all'))));document.body.classList.add('sc-busy');
+    requestAnimationFrame(()=>setTimeout(()=>{renderDetail();document.body.classList.remove('sc-busy')},0))}});
 function scoutHTML(){
   scInit();setTimeout(scSbPaint,0);
   const D=M.D,R=SC.rival,U=SC.us,T=allTeams();
-  const ctl=`<div class="sc-ctl" data-noexport="1">${grpBarHTML()}<div class="uxpicks">${tpChips('scus','Our team',U,t=>{SC.us=t;renderDetail()},{excl:[R],cls:'A'})}${tpChips('scrival','Rival to scout',R,t=>{SC.rival=t;renderDetail()},{excl:[U],cls:'B'})}</div></div>`+uxMapList(SC.map);
+  const ctl=`<div class="sc-ctl" data-noexport="1">${grpBarHTML()}<div class="uxpicks">${tpChips('scus','Our team',U,t=>{SC.us=t;renderDetail()},{excl:[R],cls:'A'})}${tpChips('scrival','Rival to scout',R,t=>{SC.rival=t;renderDetail()},{excl:[U],cls:'B'})}</div></div>`+uxMapList(SC.map)+`<div class="mt-row mt-sc" data-noexport="1">${mapTilesHTML(SC.map||'','data-scmappick')}<button type="button" class="mt-all${SC.map?'':' on'}" data-scmappick="">All maps</button></div>`;
   if(!R||!D.off.includes(R))return ctl+'<p class="msg" style="margin:14px 0">Choose a rival with data in the period selected above.</p>';
   const setsA=scSets(R),MAPN=SC.map?setsA.filter(x=>x.m===SC.map).length:0,mapOn=!!SC.map,useMap=mapOn&&MAPN>=5,mf=useMap?[SC.map]:null;
   const sets=useMap?setsA.filter(x=>x.m===SC.map):setsA,n=sets.length,w=sets.filter(x=>x.win===1).length,wr=n?w/n:0;
@@ -9829,4 +9838,106 @@ html body .mx-wrap:not(#_):not(#__){border:1px solid #2e2a3d;border-radius:14px!
 /* Team Stats: every table box with coloured corners */
 html body .u-ts :is(.u-panel,.pdcol,.bpop,.u-blk.uxdr):not(#_){position:relative}
 html body .u-ts :is(.u-panel,.pdcol,.bpop,.u-blk.uxdr)::after{content:'';position:absolute;inset:-1px;pointer-events:none;background-image:linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7);background-repeat:no-repeat;background-size:14px 2px,2px 14px,14px 2px,2px 14px,14px 2px,2px 14px,14px 2px,2px 14px;background-position:top left,top left,top right,top right,bottom left,bottom left,bottom right,bottom right}
+</style>
+
+<style id="rev168">
+/* map tiles: pictures only, all the same size, the border on the picture */
+.mt-row{display:flex;flex-wrap:nowrap;justify-content:center;align-items:flex-end;gap:14px;overflow-x:auto}
+.mt-sc{margin:12px 0;padding:10px 12px;background:#121118;border:1px solid #24222f}
+.mt-g{display:flex;flex-direction:column;align-items:center;gap:6px;flex:0 0 auto}
+.mt-gh{display:flex;align-items:center;justify-content:center;gap:5px;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#c4b5fd;white-space:nowrap}
+.mt-gh img{width:14px;height:14px}
+.mt-ts{display:flex;gap:5px}
+.mt-t{position:relative;display:block;width:58px;height:92px;padding:0;margin:0;border:0;background:none;cursor:pointer;flex:0 0 58px}
+.mt-im{position:absolute;inset:0;display:block;background-size:cover;background-position:center;box-shadow:inset 0 0 0 2px #2a2736;filter:saturate(.8) brightness(.8)}
+.mt-t:hover .mt-im{filter:none;box-shadow:inset 0 0 0 2px #7c5cc4}
+.mt-t.on .mt-im{filter:none;box-shadow:inset 0 0 0 3px #a855f7}
+.mt-n{position:absolute;top:4px;left:4px;background:#a855f7;color:#fff;font-size:11px;font-weight:800;line-height:1;padding:3px 5px}
+.mt-all{align-self:center;font:inherit;font-size:11.5px;font-weight:700;padding:6px 12px;background:#1f1b2b;border:1px solid #2e2a3d;color:#e5e3f0;cursor:pointer;white-space:nowrap}
+.mt-all.on{background:#a855f7;border-color:#a855f7;color:#fff}
+body.sc-busy #detail{cursor:progress}body.sc-busy #detail .tcard{opacity:.55;transition:opacity .1s}
+/* Team Predictor laid out like the caster page */
+html body .cas .cas-g7:not(#_):not(#__){position:relative;display:grid!important;grid-template-columns:minmax(0,1.75fr) minmax(0,1fr) 150px minmax(0,1fr) minmax(0,1.75fr)!important;gap:8px;align-items:stretch!important}
+html body .cas .cas-grp{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 112px;gap:6px;padding:7px;border:1px solid #2a2736;background:#0f0e15;min-width:0}
+html body .cas .cas-grpb{grid-template-columns:112px minmax(0,1fr)}
+html body .cas .cas-grp::after{content:'';position:absolute;inset:-1px;pointer-events:none;background-image:linear-gradient(var(--c),var(--c)),linear-gradient(var(--c),var(--c)),linear-gradient(var(--c),var(--c)),linear-gradient(var(--c),var(--c)),linear-gradient(var(--c),var(--c)),linear-gradient(var(--c),var(--c)),linear-gradient(var(--c),var(--c)),linear-gradient(var(--c),var(--c));background-repeat:no-repeat;background-size:18px 2px,2px 18px,18px 2px,2px 18px,18px 2px,2px 18px,18px 2px,2px 18px;background-position:top left,top left,top right,top right,bottom left,bottom left,bottom right,bottom right}
+html body .cas .cas-g7 .cas-card:not(#_):not(#__){min-width:0}
+html body .cas .cas-g7 .cas-ht:not(#_):not(#__){display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;text-align:center!important;gap:8px;padding:20px 6px!important;background:linear-gradient(180deg,#18171f,#121118)!important;border:1px solid #26232f!important;box-shadow:none!important;min-width:0;cursor:pointer}
+html body .cas .cas-g7 .cas-ht:hover:not(#_):not(#__){border-color:#a855f7!important}
+html body .cas .cas-g7 .cas-ht img.l52:not(#_):not(#__){width:62px!important;height:62px!important}
+html body .cas .cas-g7 .cas-hn:not(#_):not(#__){display:flex!important;flex-direction:column;align-items:center;gap:4px;min-width:0;max-width:100%}
+html body .cas .cas-g7 .cas-hn b:not(#_):not(#__){font-size:15px;font-weight:800;color:#fff;line-height:1.15;white-space:normal;overflow-wrap:anywhere}
+html body .cas .cas-g7 .cas-hn small:not(#_):not(#__){font-size:12px;color:#a8a3b8}
+html body .cas .cas-g7 .cas-hw:not(#_):not(#__){display:flex!important;flex-direction:column;align-items:center;gap:6px;margin:16px 0 0!important;text-align:center}
+html body .cas .cas-g7 .cas-hw span:not(#_):not(#__){font-size:30px!important;font-weight:800;background:none!important;padding:0!important;line-height:1}
+html body .cas .cas-g7 .cas-hw small:not(#_):not(#__){font-size:11.5px;color:#a8a3b8}
+html body .cas .cas-g7 .cas-mid:not(#_):not(#__){display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:12px;padding:18px 10px!important;background:linear-gradient(180deg,color-mix(in srgb,var(--m) 24%,#16151f),#141219)!important;border:1px solid color-mix(in srgb,var(--m) 75%,#2c2a3a)!important;text-align:center;min-width:0;cursor:pointer;grid-column:auto!important;grid-row:auto!important}
+html body .cas .cas-g7 .cas-mid:hover:not(#_):not(#__){border-color:#fff!important}
+html body .cas .cas-g7 .cas-mthumbs:not(#_):not(#__){display:flex!important;flex-wrap:wrap;justify-content:center;gap:5px}
+html body .cas .cas-g7 .cas-mthumbs span:not(#_):not(#__){position:relative;width:40px!important;height:64px!important}
+html body .cas .cas-g7 .cas-mthumbs img:not(#_):not(#__){width:40px!important;height:64px!important;object-fit:cover}
+html body .cas .cas-g7 .cas-mimg:not(#_):not(#__){width:88px!important;height:auto!important;max-height:none!important}
+html body .cas .cas-g7 .cas-mwp:not(#_):not(#__){display:flex!important;flex-direction:column;align-items:center;gap:8px;width:100%;flex:0 0 auto!important}
+html body .cas .cas-g7 .cas-mt:not(#_):not(#__){display:flex!important;flex-direction:column;align-items:center;gap:4px}
+html body .cas .cas-g7 .cas-mt b:not(#_):not(#__){font-size:17px;font-weight:800;color:#fff}
+html body .cas .cas-g7 .cas-wpt:not(#_):not(#__){font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#a8a3c0;font-weight:700}
+html body .cas .cas-g7 .cas-wpr:not(#_):not(#__){display:grid!important;grid-template-columns:1fr 1fr;gap:6px 8px;width:100%;align-items:center}
+html body .cas .cas-g7 .cas-wpr b:not(#_):not(#__){font-size:22px;font-weight:800}
+html body .cas .cas-g7 .cas-wpr b:first-child:not(#_):not(#__){grid-column:1;grid-row:1;text-align:left}
+html body .cas .cas-g7 .cas-wpr b:last-child:not(#_):not(#__){grid-column:2;grid-row:1;text-align:right}
+html body .cas .cas-g7 .cas-wpb:not(#_):not(#__){grid-column:1/3;grid-row:2;height:10px;display:flex;gap:2px;width:100%}
+html body .cas .cas-g7 .cas-pop:not(#_):not(#__){position:absolute;top:44px;z-index:30}
+html body .cas .cas-g7 .cas-pop-a:not(#_):not(#__){left:8px}html body .cas .cas-g7 .cas-pop-b:not(#_):not(#__){right:8px;left:auto}
+html body .cas .cas-g7 .cas-pop-m:not(#_):not(#__){left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100% - 16px)}
+html body .cas .cas-pop-m .cas-pt{display:flex;align-items:center;gap:12px}html body .cas .cas-pop-m .cas-pt small{font-weight:500;letter-spacing:0;text-transform:none;color:#8a86a0}html body .cas .cas-pop-m .cas-pt .btn{margin-left:auto;padding:3px 10px;font-size:11px}
+html body .cas .cas-g7 .cas-hn:not(#_):not(#__){flex:0 0 auto!important}html body .cas .cas-g7 .cas-hw:not(#_):not(#__){flex:0 0 auto!important}
+html body .cas .cas-g7 :is(th,td).rk:not(#_):not(#__){width:18px!important;padding-left:4px!important;padding-right:2px!important}
+html body .cas .cas-g7 th.cw:not(#_):not(#__){width:38px!important}html body .cas .cas-g7 th.cw2:not(#_):not(#__){width:40px!important}
+html body .cas .cas-g7 table.cas-t td:not(#_):not(#__){padding-left:4px!important;padding-right:4px!important}
+html body .cas .cas-g7 .cas-br:not(#_):not(#__){gap:6px!important}
+html body .cas .cas-g7 .cas-ch:not(#_):not(#__){flex-wrap:wrap;justify-content:center}
+html body .cas .cas-g7 .cas-hw small:not(#_):not(#__){white-space:normal!important;line-height:1.25}
+/* only one corner frame on nested boxes (Team Stats) */
+html body .u-ts :is(.u-panel,.pdcol,.bpop,.u-blk.uxdr) :is(.u-panel,.pdcol,.bpop,.u-blk.uxdr)::after{display:none!important}
+/* Team Stats comps: bans at the outer side of each team, in one line */
+html body .u-crow .u-cside:not(#_):not(#__){flex-direction:row!important;align-items:center!important;gap:10px!important}
+html body .u-crow .u-cside.l .u-cbn:not(#_):not(#__){order:0!important}html body .u-crow .u-cside.r .u-cbn:not(#_):not(#__){order:2!important}
+html body .u-crow .u-cbn:not(#_):not(#__){align-self:center!important;min-height:0;flex-direction:row;gap:3px}
+html body .u-crow .u-cbn .u-sb:not(#_){width:24px;height:24px}
+/* Match Selector: matches box with coloured corners, centred column titles */
+html body .mx-wrap:not(#_):not(#__):not(#___){position:relative;border-radius:0!important;border:1px solid #2a2736;background:#121118}
+html body .mx-wrap::after{content:'';position:absolute;inset:-1px;pointer-events:none;background-image:linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7);background-repeat:no-repeat;background-size:16px 2px,2px 16px,16px 2px,2px 16px,16px 2px,2px 16px,16px 2px,2px 16px;background-position:top left,top left,top right,top right,bottom left,bottom left,bottom right,bottom right}
+html body .mx-t th:not(#_){text-align:center!important}
+html body .mx-t td:not(#_){text-align:center}
+html body .mx-t td.mx-ta:not(#_):not(#__),html body .mx-t td.mx-tb:not(#_):not(#__){text-align:center;justify-content:center}
+html body .mx-t td.mx-mds:not(#_){text-align:center}
+/* Practice vs bot: compact, so the suggestions fit on the same screen */
+html body .dz-turn:not(#_){padding:6px 10px!important;margin:6px 0!important;font-size:13px}
+html body .dz-order:not(#_){margin:4px 0 8px!important}
+html body .dz-order .dz-o:not(#_){width:26px!important;height:26px!important;font-size:12px}
+html body .dz-board:not(#_):not(#__){gap:10px!important;align-items:stretch}
+html body .dz-side:not(#_):not(#__){padding:10px 12px!important}
+html body .dz-th:not(#_){margin-bottom:6px!important}
+html body .dz-bans:not(#_):not(#__){margin-bottom:8px!important;gap:6px!important}
+html body .dz-ban2:not(#_){padding:3px 5px;min-width:50px}
+html body .dz-ban2 .dz-bx:not(#_){width:36px;height:36px}
+html body .dz-ban2.f .dz-bx img:not(#_){width:34px;height:34px}
+html body .dz-col:not(#_):not(#__){gap:6px!important}
+html body .dz-c:not(#_):not(#__){min-height:0!important;height:64px!important;flex-direction:row!important;gap:10px!important;padding:6px 10px!important;justify-content:flex-start!important}
+html body .dz-c .dz-ci:not(#_):not(#__){width:48px!important;height:48px!important}
+html body .dz-c .dz-plus:not(#_){width:40px;height:40px;margin:0}
+html body .dz-c .dz-n:not(#_){position:static!important}
+html body .dz-mid:not(#_):not(#__){padding:10px!important;gap:8px!important}
+html body .dz-map:not(#_):not(#__){height:210px!important;max-height:210px;display:flex!important;align-items:center;justify-content:center;background:#0d0c12!important;overflow:hidden}
+html body .dz-map .dz-mi:not(#_):not(#__){height:100%!important;max-height:none!important;width:auto!important;object-fit:contain;position:static!important}
+html body .dz-set:not(#_):not(#__){padding:6px 10px!important;margin-bottom:6px!important}html body .dz-set summary:not(#_){padding:0!important;min-height:0!important}html body .dz-set summary .ttl:not(#_){margin:0!important;padding:4px 12px!important;font-size:13px!important}
+html body .dz-low2 .dz-sug:not(#_):not(#__){padding:8px 10px!important}
+html body .dz-low2 .dz-sug>.dz-sg:not(#_){width:calc(16.66% - 8px);padding:5px 8px!important;margin:0 6px 6px 0}
+html body .dz-low2 .dz-sg .dz-si:not(#_){width:34px!important;height:34px!important}
+html body .dz-low2 .dz-sg small:not(#_){display:none}
+html body .dz-low2 .sx-grid:not(#_){grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:8px}
+html body .dz-sgh:not(#_){margin:0 0 4px}
+/* period calendar: centred inside the side panel, never cut on the right */
+html body .uxcal:not(#_):not(#__){left:8px!important;right:8px!important;width:auto!important;max-width:none!important;box-sizing:border-box;transform:none!important;overflow:visible}
+html body .uxcal table:not(#_),html body .uxcal .cal:not(#_){margin:0 auto}
 </style>
