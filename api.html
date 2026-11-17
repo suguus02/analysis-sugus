@@ -2489,10 +2489,10 @@ const kdOf=(KD,names)=>{if(!KD)return null;const L=names.map(mkey);const e=L.len
 // the K/D + damage line under a name (like in Players)
 const kdLine=e=>SHOWKD?`<small class="u-kdl">${e?`${e.d?(e.k/e.d).toFixed(2):e.k+'/0'} K/D · ${fmtK(e.dm/e.g)} dmg`:'no game stats'}</small>`:'';
 // rows for the Brawlers tab (one team, two teams or several): same design as the overview
-function brRows(arr,KD){if(!arr||!arr.length)return '<p class="msg u-none">No sets</p>';
+function brRows(arr,KD,hl){if(!arr||!arr.length)return '<p class="msg u-none">No sets</p>';
   const pc=(w,n)=>n?Math.round(100*w/n):0,col=p=>p>=60?'#4ade80':p>=53?'#86efac':p>47?'#facc15':p>40?'#fca5a5':'#f87171';
   const bar=(w,n)=>{const p=pc(w,n);return `<div class="u-wr"><b style="color:${col(p)}">${p}%</b><span><i style="width:${p}%;background:${col(p)}"></i></span></div>`};
-  return arr.map((x,i)=>{const L=String(x.k).split(' + ');const ic=L.length===1?bimg(L[0],'u-ic'):`<span class="u-duo${L.length>2?' u-trio':''}">${L.map(n=>bimg(n,'u-ic')).join('')}</span>`;
+  return arr.map((x,i)=>{const L=String(x.k).split(' + ');const ic=L.length===1?`<span class="${hl&&hl.has(L[0])?'hlb':''}">${bimg(L[0],'u-ic')}</span>`:`<span class="u-duo${L.length>2?' u-trio':''}">${L.map(n=>bimg(n,'u-ic')).join('')}</span>`;
     const nm=L.length===1?`<b>${esc(L[0])}</b>`:L.length===2?`<b class="u-dn">${L.map(esc).join('<br>')}</b>`:`<b class="u-dn u-tn">${L.map(esc).join(' · ')}</b>`;
     return `<div class="u-row u-r6"><span class="u-rk">${i+1}</span>${ic}<div class="u-nm">${nm}${kdLine(kdOf(KD,L))}</div><span class="u-n">${x.n}<small>sets</small></span><span class="u-n u-nw">${x.w}<small>wins</small></span>${bar(x.w,x.n)}</div>`}).join('')}
 function rankTable(arr,cls,kind,mapCols,wrl,slim,hl){
@@ -2542,7 +2542,7 @@ function typesHTML(sub,subject,team,cls,wrl,mapCols,active){
     const br=(own?x.mine:x.theirs).filter(Boolean);
     if(br.length===3){const k=br.map(typeOf).sort(tSort).join(' + ');const e=tc[k]||(tc[k]={n:0,w:0});e.n++;e.w+=x.win}}
   const list=Object.entries(tc).map(([k,e])=>({k,n:e.n,w:e.w})).sort((a,b)=>b.n-a.n||b.w-a.w||(a.k<b.k?-1:1)).slice(0,25);
-  const rows=list.map((x,i)=>`<tr><td class="rk">${i+1}</td><td class="tcs">${x.k.split(' + ').map(tChip).join('<span class="pl">+</span>')}</td><td class="num">${x.n}</td><td class="num">${x.w}</td><td class="num heat" style="${wrHeat(x.w/x.n)}">${Math.round(x.w/x.n*100)}%${wrBar(x.w/x.n)}</td></tr>`).join('');
+  const rows=list.map((x,i)=>`<tr><td class="rk">${i+1}</td><td class="tcs tcs-v">${x.k.split(' + ').map(tChip).join('')}</td><td class="num">${x.n}</td><td class="num">${x.w}</td><td class="num heat" style="${wrHeat(x.w/x.n)}">${Math.round(x.w/x.n*100)}%${wrBar(x.w/x.n)}</td></tr>`).join('');
   return `<section class="u-panel u-types"><header><span class="u-hd">Full-team type combinations</span><small>top 25 · 3 brawlers of the same set</small></header>
     <div class="tablewrap"><table class="rank typet" style="min-width:480px"><thead><tr><th class="rk"></th><th>Types</th><th class="num">Picks</th><th class="num">Wins</th><th class="num">Win rate<small class="wrl">${wrl}</small></th></tr></thead><tbody>${rows||'<tr><td colspan="5" class="msg">No data</td></tr>'}</tbody></table></div></section>`;
 }
@@ -2871,7 +2871,7 @@ function tsOne(team,cls,D,o){
 const tsU={pc:(w,n)=>n?Math.round(100*w/n):0,col:p=>p>=60?'#4ade80':p>=53?'#86efac':p>47?'#facc15':p>40?'#fca5a5':'#f87171'};
 tsU.bar=(w,n)=>{const p=tsU.pc(w,n),c=tsU.col(p);return `<div class="u-wr"><b style="color:${c}">${p}%</b><span><i style="width:${p}%;background:${c}"></i></span></div>`};
 tsU.inc=(O,k,y)=>{const e=O[k]||(O[k]={k,n:0,w:0});e.n++;if(y===1)e.w++;return e};tsU.top=O=>Object.values(O).sort((a,b)=>b.n-a.n||b.w-a.w);
-tsU.row=(i,ic,name,n,w,b)=>`<div class="u-row u-r6"><span class="u-rk">${i}</span>${ic}<div class="u-nm"><b>${name}</b></div><span class="u-n">${n}<small>sets</small></span><span class="u-n u-nw">${w}<small>wins</small></span>${b}</div>`;
+tsU.row=(i,ic,name,n,w,b,kd)=>`<div class="u-row u-r6"><span class="u-rk">${i}</span>${ic}<div class="u-nm"><b>${name}</b>${kd===undefined?'':kdLine(kd)}</div><span class="u-n">${n}<small>sets</small></span><span class="u-n u-nw">${w}<small>wins</small></span>${b}</div>`;
 tsU.none='<p class="msg u-none">No sets</p>';
 tsU.tile=(l,v,sub,c)=>`<div class="u-tile"><small>${l}</small><b${c?` style="color:${c}"`:''}>${v}</b><i>${sub}</i></div>`;
 function tsAgg(items){const its=(items||[]).filter(x=>!x.s&&x.win!==.5),{inc,top}=tsU;let W=0,gw=0,gl=0;const B={},DU={},OP={},MP={},TM={};
@@ -2885,8 +2885,8 @@ function tsTiles(C,small){const {pc,col}=tsU,{N,W,L,gw,gl,mp,fav}=C;
   const mapT=(lab,e,c)=>{if(!e)return t(lab,'–','3+ sets needed');const md=modeOfMap(e.k),mi=IMGS['mode'+mkey(md)];return t(lab,`${mi?`<img class="u-tmi" src="${mi}" alt="" title="${esc(md)}">`:''}<span>${esc(e.k)}</span>`,`${pc(e.w,e.n)}% · ${plural(e.n,'set')}`,c,`<span class="u-tmed map">${mimg(e.k,'u-tmimg')}</span>`)};
   return `<div class="u-tiles${small?' sm':''}">${t('Sets · win rate',N?pc(W,N)+'%':'–',`${W}W · ${L}L`,N?col(pc(W,N)):'')}${t('Games · win rate',gw+gl?pc(gw,gw+gl)+'%':'–',`${gw}W · ${gl}L`,gw+gl?col(pc(gw,gw+gl)):'')}${fav?t('Most picked',`<span>${esc(fav.k)}</span>`,`${plural(fav.n,'set')} · <em style="color:${col(pc(fav.w,fav.n))}">${pc(fav.w,fav.n)}%</em>`,'',`<span class="u-tmed">${bimg(fav.k,'u-tbimg')}</span>`):t('Most picked','–','')}${mapT('Best map',mp[0],'#4ade80')}${mapT('Worst map',mp.length>1?mp[mp.length-1]:null,'#f87171')}</div>`}
 function tsSub(L){const k=L.some(x=>x[0]===TSS)?TSS:'overview';return [k,`<div class="u-sub" role="tablist">${L.map(([a,l])=>`<button type="button" role="tab" data-tss="${a}" class="${k===a?'on':''}" aria-selected="${k===a}">${l}</button>`).join('')}</div>`]}
-function tsBrRows(C,hl,n){const {row,bar,top,none}=tsU;return top(C.B).slice(0,n||8).map((e,i)=>row(i+1,`<span class="${hl&&hl.has(e.k)?'hlb':''}">${bimg(e.k,'u-ic')}</span>`,esc(e.k),e.n,e.w,bar(e.w,e.n))).join('')||none}
-function tsDuoRows(C,n){const {row,bar,top,none}=tsU;return top(C.DU).slice(0,n||8).map((e,i)=>{const [a,b]=e.k.split('|');return row(i+1,`<span class="u-duo">${bimg(a,'u-ic')}${bimg(b,'u-ic')}</span>`,`<span class="u-dn">${esc(a)}<br>${esc(b)}</span>`,e.n,e.w,bar(e.w,e.n))}).join('')||none}
+function tsBrRows(C,hl,n,KD){const {row,bar,top,none}=tsU;return top(C.B).slice(0,n||8).map((e,i)=>row(i+1,`<span class="${hl&&hl.has(e.k)?'hlb':''}">${bimg(e.k,'u-ic')}</span>`,esc(e.k),e.n,e.w,bar(e.w,e.n),KD?kdOf(KD,[e.k]):undefined)).join('')||none}
+function tsDuoRows(C,n,KD){const {row,bar,top,none}=tsU;return top(C.DU).slice(0,n||8).map((e,i)=>{const [a,b]=e.k.split('|');return row(i+1,`<span class="u-duo">${bimg(a,'u-ic')}${bimg(b,'u-ic')}</span>`,`<span class="u-dn">${esc(a)}<br>${esc(b)}</span>`,e.n,e.w,bar(e.w,e.n),KD?kdOf(KD,[a,b]):undefined)}).join('')||none}
 function tsOppRows(C,n){const {row,bar,top,none}=tsU;return top(C.OP).filter(e=>e.k&&e.k!=='?').slice(0,n||8).map((e,i)=>row(i+1,logo(e.k,'u-lg'),esc(e.k),e.n,e.w,bar(e.w,e.n))).join('')||none}
 // all maps by mode; one win rate per team (1, 2 or the pooled one)
 function tsMaps(Cs,names){const {pc,col}=tsU,maps=new Set();Cs.forEach(C=>Object.keys(C.MP).forEach(m=>maps.add(m)));if(!maps.size)return tsU.none;
@@ -2910,9 +2910,9 @@ function tsPair(){const A=ddBuild(sel.a,'a','A',false),B=ddBuild(sel.b,'b','B',f
   let body='';
   if(k==='overview'){
     const two=f=>`<div class="u-grid2">${DD.map((D,i)=>f(D,CC[i])).join('')}</div>`;
-    body=nxTop(DD.map(D=>D.team),t=>(DD.find(D=>D.team===t)||{}).items0)+two(D=>dwChart(D.items0,D.team,1))+two((D,C)=>`<section class="u-panel"><header><span class="u-hd">${logo(D.team,'l20')} Most picked · ${esc(D.team)}</span> <button type="button" class="u-lnk" data-tss="brawlers">See all →</button></header>${tsBrRows(C,both)}</section>`)
+    body=nxTop(DD.map(D=>D.team),t=>(DD.find(D=>D.team===t)||{}).items0)+two(D=>dwChart(D.items0,D.team,1))+two((D,C)=>`<section class="u-panel"><header><span class="u-hd">${logo(D.team,'l20')} Most picked · ${esc(D.team)}</span> <button type="button" class="u-lnk" data-tss="brawlers">See all →</button></header>${tsBrRows(C,both,8,SHOWKD?kdIndex(D.items0,true):null)}</section>`)
       +`<p class="u-note" style="margin:-6px 0 0"><span class="hlb-k">Gold frame</span> = brawler picked by both teams</p>`
-      +two((D,C)=>`<section class="u-panel"><header><span class="u-hd">${logo(D.team,'l20')} Best duos · ${esc(D.team)}</span></header>${tsDuoRows(C,6)}</section>`)
+      +two((D,C)=>`<section class="u-panel"><header><span class="u-hd">${logo(D.team,'l20')} Best duos · ${esc(D.team)}</span></header>${tsDuoRows(C,6,SHOWKD?kdIndex(D.items0,true):null)}</section>`)
       +`<section class="u-panel"><header>All maps <small>by mode · win rate of each team · pick maps in the side panel to filter the page</small></header>${tsMaps(CC,names)}</section>`
       +two((D,C)=>{const BC=bnCalc(D.team,D,true,false);return `<section class="u-panel"><header><span class="u-hd">${logo(D.team,'l20')} Most banned by ${esc(D.team)}</span></header>${tsBanTiles(BC.T,BC.tot)}</section>`})}
   else if(k==='brawlers'){const subjSeg=`<div class="seg2" role="group" aria-label="Which side"><button type="button" data-subj="own" aria-pressed="${own}">Brawlers of each team</button><button type="button" data-subj="enemy" aria-pressed="${!own}">Brawlers used against each team</button></div>`;
@@ -2920,8 +2920,8 @@ function tsPair(){const A=ddBuild(sel.a,'a','A',false),B=ddBuild(sel.b,'b','B',f
     const ckS=D=>{const o=CKX[D.key]||{},q=o.k||comboKind,r=o.r!=null?o.r:onlyRepeat;return `<div class="seg2" role="group" aria-label="Combo size"><button type="button" data-ck="duos" data-ckk="${D.key}" aria-pressed="${q==='duos'}">Duos</button><button type="button" data-ck="trios" data-ckk="${D.key}" aria-pressed="${q==='trios'}">Full Combo</button></div><label class="chk"><input type="checkbox" data-rep="1" data-ckk="${D.key}"${r?' checked':''}> Only repeated</label>`};
     const ckOf=D=>((CKX[D.key]||{}).k||comboKind);
     body=`<div class="u-tg">${subjSeg}<span class="u-note">Win rate is always the one of the team of each column · <span class="hlb-k">gold frame</span> = picked by both teams</span></div>
-      <div class="u-grid2">${DD.map(D=>`<div class="u-tcol">${tsHead(D.team)}<div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0">${own?'Brawlers':'Used against'}${D.active?' (filtered)':''} · ${D.CS.picks.length}</div></div><div class="scroll pds">${rankTable(D.CS.picks,D.cls,'Brawler',[],'',0,hb)}</div></div></div>`).join('')}</div>
-      <div class="u-grid2">${DD.map(D=>`<div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0">${logo(D.team,'l20')} ${ckOf(D)==='duos'?'Duos':'Full combo'} · ${D.combos.length}</div>${ckS(D)}</div><div class="scroll pds">${rankTable(D.combos,D.cls,ckOf(D)==='duos'?'Duo':'Full Combo',[],'',0)}</div></div>`).join('')}</div>
+      <div class="u-grid2">${DD.map(D=>`<div class="u-tcol">${tsHead(D.team)}<div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0">${own?'Brawlers':'Used against'}${D.active?' (filtered)':''} · ${D.CS.picks.length}</div></div><div class="scroll pds u-pds">${brRows(D.CS.picks,SHOWKD?kdIndex(D.items0,own):null,hb)}</div></div></div>`).join('')}</div>
+      <div class="u-grid2">${DD.map(D=>`<div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0">${logo(D.team,'l20')} ${ckOf(D)==='duos'?'Duos':'Full combo'} · ${D.combos.length}</div>${ckS(D)}</div><div class="scroll pds u-pds">${brRows(D.combos,SHOWKD?kdIndex(D.items0,own):null)}</div></div>`).join('')}</div>
       <div class="u-grid2">${DD.map(D=>`<div>${D.np}</div>`).join('')}</div>
       <div class="u-grid2">${DD.map(D=>`<div>${D.types}</div>`).join('')}</div>`}
   else if(k==='bans')body=bnToggles('Bans of each team','Bans against each team')+`<div class="u-grid6">${DD.map(D=>`<div class="u-g6h">${tsHead(D.team)}</div>`).join('')}${DD.map(D=>bansHTML(D.team,D.cls,D,3)).join('')}</div>`;
@@ -2943,8 +2943,8 @@ function tsPool(pt,label,cls,D,o){const C=tsAgg(D.items0),{pc,col,bar,top,row,no
   if(k==='overview'){
     const tm=top(C.TM).sort((a,b)=>b.w/b.n-a.w/a.n).map((e,i)=>row(i+1,logo(e.k,'u-lg'),esc(e.k),e.n,e.w,bar(e.w,e.n))).join('')||none;
     const BS=bnSum(true,false);
-    body=nxPoolNote(pt,D.items0)+nxTop(pt,t=>(D.items0||[]).filter(x=>(x.team||x.myTeam)===t))+dwChart(D.items0,'')+`<div class="u-grid3"><section class="u-panel"><header>Most picked brawlers <button type="button" class="u-lnk" data-tss="brawlers">See all ${Object.keys(C.B).length} →</button></header>${tsBrRows(C)}</section>
-      <section class="u-panel"><header>Best duos <button type="button" class="u-lnk" data-tss="brawlers">See all →</button></header>${tsDuoRows(C)}</section>
+    body=nxPoolNote(pt,D.items0)+nxTop(pt,t=>(D.items0||[]).filter(x=>(x.team||x.myTeam)===t))+dwChart(D.items0,'')+`<div class="u-grid3"><section class="u-panel"><header>Most picked brawlers <button type="button" class="u-lnk" data-tss="brawlers">See all ${Object.keys(C.B).length} →</button></header>${tsBrRows(C,null,8,SHOWKD?kdIndex(D.items0,true):null)}</section>
+      <section class="u-panel"><header>Best duos <button type="button" class="u-lnk" data-tss="brawlers">See all →</button></header>${tsDuoRows(C,8,SHOWKD?kdIndex(D.items0,true):null)}</section>
       <section class="u-panel"><header>Teams <small>win rate in the period</small></header>${tm}</section></div>
       <section class="u-panel"><header>All maps <small>by mode · the selected teams together · pick maps in the side panel to filter the page</small></header>${tsMaps([C],[label])}</section>
       <section class="u-panel"><header>Most banned by the selected teams <button type="button" class="u-lnk" data-tss="bans">See all in Bans →</button></header>${tsBanTiles(BS.T,BS.tot)}</section>`}
@@ -3476,7 +3476,7 @@ function cdBanSum(picks,rows){if(!CDL.length)return rows?[]:'';const C=[{},{}],W
     [x.L?A_:B_,x.L?B_:A_].forEach((L,i)=>{for(const b of L||[])if(b){C[i][b]=(C[i][b]||0)+1;W[i][b]=(W[i][b]||0)+((i===0?ya:1-ya)===1?1:0)}})}
   if(!n)return rows?[]:'';const m0=CDL[0].m,L0=CDL[0].L,nm=g=>sheetName(g,(ds.names||{})[g])||g;
   const tn=i=>{const t=i===0?(L0?m0.a:m0.b):(L0?m0.b:m0.a);return t?logo(t,'l20')+`<b>${esc(t)}</b>`:`<b>${esc(((i===0)===L0?m0.ta:m0.tb||[]).map(nm).slice(0,3).join(' / ')||'Rival')}</b>`};
-  const row=i=>{const E=Object.entries(C[i]).sort((a,b)=>b[1]-a[1]||(a[0]<b[0]?-1:1));return `<div class="cd-bs"><div class="cd-bt">${tn(i)}<small>${picks?'picks':'bans'} · ${n} sets</small></div><div class="cd-bl">${E.map(([b,c],k)=>picks?`<span class="cd-bi cdpk${k>=10?' cdmore':''}" title="${esc(b)} · picked in ${c} of ${n} sets · won ${W[i][b]||0}"><span class="cd-pk">${bimg(b,'mx-bni')}</span><small>${c}× <i>${W[i][b]||0}W</i></small></span>`:`<span class="cd-bi" title="${esc(b)} · banned in ${c} of ${n} sets"><span class="bz-b">${bimg(b,'mx-bni')}</span><small>${c}×</small></span>`).join('')||`<span class="msg">no ${picks?'picks':'bans'}</span>`}${picks&&E.length>10?`<button type="button" class="cd-mb" data-cdmore>+${E.length-10} more</button>`:''}</div></div>`};
+  const row=i=>{const E=Object.entries(C[i]).sort((a,b)=>b[1]-a[1]||(a[0]<b[0]?-1:1));return `<div class="cd-bs"><div class="cd-bt">${tn(i)}<small>${picks?'picks':'bans'} · ${n} sets</small></div><div class="cd-bl">${E.map(([b,c],k)=>picks?`<span class="cd-bi cdpk${k>=10?' cdmore':''}" title="${esc(b)} · picked in ${c} of ${n} sets · won ${W[i][b]||0}"><span class="cd-pk">${bimg(b,'mx-bni')}</span><small>${c}× · <i>${Math.round(100*(W[i][b]||0)/c)}% WR</i></small></span>`:`<span class="cd-bi" title="${esc(b)} · banned in ${c} of ${n} sets"><span class="bz-b">${bimg(b,'mx-bni')}</span><small>${c}×</small></span>`).join('')||`<span class="msg">no ${picks?'picks':'bans'}</span>`}${picks&&E.length>10?`<button type="button" class="cd-mb" data-cdmore>+${E.length-10} more</button>`:''}</div></div>`};
   if(rows)return [row(0),row(1)];return `<div class="cd-bsum${picks?' cdpk':''}">${row(0)}${row(1)}</div>`}
 // one box per team: its bans, then its picks
 function cdTeamSum(){const B=cdBanSum(false,true),P=cdBanSum(true,true);if(!B.length&&!P.length)return '';return `<div class="cd-bsum">${[0,1].map(i=>`<div class="cd-team">${B[i]||''}${P[i]||''}</div>`).join('')}</div>`}
@@ -9537,6 +9537,13 @@ html body .u-tycol .tablewrap:not(#_){overflow:visible}html body .u-tycol table.
 .u-nm .u-dn{font-size:11.5px;line-height:1.25}.u-nm .u-tn{display:block;white-space:normal;font-size:11px;line-height:1.25}
 @media (max-width:1100px){html body .pdgrid.u-br3:not(#_){grid-template-columns:1fr!important}}
 html body .pdgrid.u-br3 .pdhead:not(#_){flex-wrap:wrap;height:auto!important;min-height:44px;row-gap:6px;align-items:center}html body .pdgrid.u-br3 .pdhead .chk:not(#_){position:static}
+
+/* rev165 */
+html body .tcs-v:not(#_){display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding-top:8px!important;padding-bottom:8px!important}
+.sbshow{position:sticky;top:96px;z-index:35}
+html body #ctxbar:not(#_){display:flex;align-items:center;justify-content:center;height:34px;min-height:34px;padding:0 18px!important;line-height:1}
+html body #ctxbar>*:not(#_){line-height:1;display:inline-flex;align-items:center}
+html body table.typet .tchip:not(#_){display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;background:#2d2c44;border:0;padding:3px 8px;white-space:nowrap;color:#e5e3f0}
 </style>
 <script>
 /* rev142: explanations behind an (i) icon + context bar */
