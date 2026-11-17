@@ -2474,6 +2474,16 @@ function curOne(){const off=M.D.off;selRestore();// rev152: a team missing for a
   const T=allTeams();if(oneTeam&&T.includes(oneTeam))return oneTeam;
   return (oneTeam&&off.includes(oneTeam))?oneTeam:T.includes(sel.a)?sel.a:T.includes('TRIBE GAMING')?'TRIBE GAMING':(T[0]||off[0])}
 const wrBar=p=>{p=Math.max(0,Math.min(1,+p||0));const c=p>=.6?'#4ade80':p>=.53?'#86efac':p>.47?'#facc15':p>.4?'#fca5a5':'#f87171';return `<span class="wrb"><i style="width:${Math.round(100*p)}%;background:${c}"></i></span>`};
+// rev162: kills / deaths / damage per brawler and per duo, from the game stats of the API (only sets that have them)
+let SHOWKD=store.get('tvt:showkd')!=='0';
+function kdIndex(items,own){const byI=kdIndex.m&&kdIndex.ds===ds?kdIndex.m:(kdIndex.ds=ds,kdIndex.m=new Map(ds.matches.map(m=>[m.i,m])));const B={},DU={};
+  const add=(o,k,q)=>{const e=o[k]||(o[k]={g:0,k:0,d:0,dm:0});e.g+=q.n;e.k+=q.k;e.d+=q.d;e.dm+=q.dm};
+  for(const x of items||[]){const m=byI.get(x.i);if(!m||!m.gs)continue;const S=setStatsC(m);if(!S)continue;const tg=own?x.myTags:x.opTags,br=own?x.mine:x.theirs;if(!tg||!br)continue;
+    const Q=br.map((b,k)=>b&&S.P[String(tg[k]||'').toUpperCase()]?[b,S.P[String(tg[k]).toUpperCase()]]:null).filter(Boolean);
+    for(const [b,q] of Q)add(B,mkey(b),q);
+    for(let a=0;a<Q.length;a++)for(let c=a+1;c<Q.length;c++){const k=[mkey(Q[a][0]),mkey(Q[c][0])].sort().join('|');add(DU,k,Q[a][1]);add(DU,k,Q[c][1])}}
+  return {B,DU}}
+const kdOf=(KD,names)=>{if(!KD)return null;const L=names.map(mkey);const e=L.length===1?KD.B[L[0]]:L.length===2?KD.DU[L.slice().sort().join('|')]:null;return e&&e.g?e:null};
 function rankTable(arr,cls,kind,mapCols,wrl,slim,hl){
   const kic=k=>String(k).split(' + ').length===2?duoH(String(k).split(' + ')):String(k).split(' + ').map(n=>`<span class="bnc${hl&&hl.has(n)?' hlb':''}"${hl&&hl.has(n)?' title="Played by both teams"':''}>${bimg(n,'bi')||''}<span class="bnm">${esc(n)}</span></span>`).join('<span class="pl">+</span>');
   const cols=mapCols||[];
@@ -2805,13 +2815,17 @@ function tsOne(team,cls,D,o){
   const reg=REGION[team]||'';
   const hero=`<section class="u-hero">${logo(team,'u-hlogo')}<div class="u-ht"><h1>${esc(team)}</h1><p>${reg?esc(reg)+' · ':''}${plural(N,'set')} in the period${D.luAct?' · lineup filter on':''}</p></div>${tiles}${luHero(team,D)}</section>`;
   const sub=`<div class="u-sub" role="tablist">${TSS_L.map(([k,l])=>`<button type="button" role="tab" data-tss="${k}" class="${TSS===k?'on':''}" aria-selected="${TSS===k}">${l}</button>`).join('')}</div>`;
-  const row=(i,ic,name,r,n,unit,b,w)=>`<div class="u-row u-r6"><span class="u-rk">${i}</span>${ic}<div class="u-nm"><b>${name}</b></div><span class="u-n">${n}<small>${unit}</small></span><span class="u-n u-nw">${w}<small>wins</small></span>${b}</div>`;
+  const KDo=SHOWKD?kdIndex(D.items0,true):null,kdc=e=>SHOWKD?(e?`<span class="u-n u-kd">${e.d?(e.k/e.d).toFixed(2):e.k+'/0'}<small>K/D</small></span><span class="u-n u-dm">${fmtK(e.dm/e.g)}<small>dmg</small></span>`:'<span class="u-n u-kd">–<small>K/D</small></span><span class="u-n u-dm">–<small>dmg</small></span>'):'';
+  const row=(i,ic,name,r,n,unit,b,w,kd)=>`<div class="u-row u-r6${SHOWKD&&kd!==false?' u-r8':''}"><span class="u-rk">${i}</span>${ic}<div class="u-nm"><b>${name}</b></div><span class="u-n">${n}<small>${unit}</small></span><span class="u-n u-nw">${w}<small>wins</small></span>${kd===false?'':kdc(kd)}${b}</div>`;
+  // the Brawlers tab uses the same rows as the overview (same picture size and row height)
+  const uList=(arr,KD)=>arr.length?arr.map((x,i)=>{const L=String(x.k).split(' + ');const ic=L.length===1?bimg(L[0],'u-ic'):`<span class="u-duo${L.length>2?' u-trio':''}">${L.map(n=>bimg(n,'u-ic')).join('')}</span>`;
+    const nm=L.length===1?esc(L[0]):`<span class="u-dn">${L.map(esc).join('<br>')}</span>`;return row(i+1,ic,nm,'',x.n,'sets',bar(x.w,x.n),x.w,kdOf(KD,L))}).join(''):none;
   const none='<p class="msg u-none">No sets</p>';
   let body='';
   if(TSS==='overview'){
-    const br=top(B).slice(0,8).map((e,i)=>row(i+1,bimg(e.k,'u-ic'),esc(e.k),rec(e.w,e.n),e.n,'sets',bar(e.w,e.n),e.w)).join('')||none;
-    const du=top(DU).slice(0,8).map((e,i)=>{const [a,b]=e.k.split('|');return row(i+1,`<span class="u-duo">${bimg(a,'u-ic')}${bimg(b,'u-ic')}</span>`,`<span class="u-dn">${esc(a)}<br>${esc(b)}</span>`,rec(e.w,e.n),e.n,'sets',bar(e.w,e.n),e.w)}).join('')||none;
-    const op=top(OP).filter(e=>e.k&&e.k!=='?').slice(0,8).map((e,i)=>row(i+1,logo(e.k,'u-lg'),esc(e.k),rec(e.w,e.n),e.n,'sets',bar(e.w,e.n),e.w)).join('')||none;
+    const br=top(B).slice(0,8).map((e,i)=>row(i+1,bimg(e.k,'u-ic'),esc(e.k),rec(e.w,e.n),e.n,'sets',bar(e.w,e.n),e.w,kdOf(KDo,[e.k]))).join('')||none;
+    const du=top(DU).slice(0,8).map((e,i)=>{const [a,b]=e.k.split('|');return row(i+1,`<span class="u-duo">${bimg(a,'u-ic')}${bimg(b,'u-ic')}</span>`,`<span class="u-dn">${esc(a)}<br>${esc(b)}</span>`,rec(e.w,e.n),e.n,'sets',bar(e.w,e.n),e.w,kdOf(KDo,[a,b]))}).join('')||none;
+    const op=top(OP).filter(e=>e.k&&e.k!=='?').slice(0,8).map((e,i)=>row(i+1,logo(e.k,'u-lg'),esc(e.k),rec(e.w,e.n),e.n,'sets',bar(e.w,e.n),e.w,false)).join('')||none;
     const modes=MODELIST.map(([md])=>md).filter(md=>Object.values(MP).some(e=>modeOfMap(e.k)===md));
     const other=Object.values(MP).filter(e=>!modeOfMap(e.k));
     const mcol=(md,L)=>{const mi=IMGS['mode'+mkey(md)],tw=L.reduce((a,e)=>a+e.w,0),tn=L.reduce((a,e)=>a+e.n,0);
@@ -2827,12 +2841,12 @@ function tsOne(team,cls,D,o){
       `}
   else if(TSS==='brawlers')body=`<div class="u-blk"><div class="toolrow">${o.subjSeg}</div>
     <p class="msg" style="margin:0 0 10px">${o.desc}</p>
-    <div class="pdgrid p3"><div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0" title="${D.what}">${o.own?'Brawlers':'Brawlers used against'}${D.active?' (filtered)':''} · ${D.CS.picks.length}</div></div>
-      <div class="scroll pickscroll pds">${rankTable(D.CS.picks,cls,'Brawler',[],D.wrl)}</div></div>
+    <div class="pdgrid p3 u-br2"><div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0" title="${D.what}">${o.own?'Brawlers':'Brawlers used against'}${D.active?' (filtered)':''} · ${D.CS.picks.length}</div></div>
+      <div class="scroll pickscroll pds u-pds">${uList(D.CS.picks,SHOWKD?kdIndex(D.items0,o.own):null)}</div></div>
     <div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0" title="${D.what2}">${o.own?'Combos':'Combos used against'} · ${D.combos.length} ${comboKind==='duos'?'duos':'full'}</div>
       <div class="seg2" role="group" aria-label="Combo size"><button type="button" data-ck="duos" aria-pressed="${comboKind==='duos'}">Duos</button><button type="button" data-ck="trios" aria-pressed="${comboKind==='trios'}">Full Combo</button></div>
       <label class="chk" title="Only combos used more than once"><input type="checkbox" data-rep="1"${onlyRepeat?' checked':''}> Only repeated</label></div>
-      <div class="scroll pds">${rankTable(D.combos,cls,comboKind==='duos'?'Duo':'Full Combo',[],D.wrl)}</div></div>${rivCol(team,cls,D)}</div>${D.np}${D.types}</div>`;
+      <div class="scroll pds u-pds">${uList(D.combos,SHOWKD?kdIndex(D.items0,o.own):null)}</div></div>${rivCol(team,cls,D)}</div>${D.np}${D.types}</div>`;
   else if(TSS==='bans')body=bansHTML(team,cls,D,1);
   else if(TSS==='players')body=plCards(team);
   else if(TSS==='comps')body=`<section class="u-panel"><header><span class="u-hd">Comps</span><small>${esc(D.logTitle.replace(/^Comps · /,''))}</small></header>
@@ -3530,8 +3544,11 @@ function mxDayTable(d,team){let AL=[];try{AL=mxMatches(d,'')}catch(e){return ''}
   for(const e of AL){add(e.a,e.w,e.l,e.tour,e.b||'');add(e.b,e.l,e.w,e.tour,e.a||'')}
   const R=Object.values(T).sort((a,b)=>b.w/(b.w+b.l||1)-a.w/(a.w+a.l||1)||(b.w+b.l)-(a.w+a.l));if(!R.length)return '';
   const pc=(w,n)=>n?Math.round(100*w/n)+'%':'–',cl=(w,n)=>{const v=n?w/n:.5;return v>=.6?'#4ade80':v>=.53?'#86efac':v>.47?'#facc15':v>.4?'#fca5a5':'#f87171'};
-  return `<div class="mxd-wrap"><div class="lbl">Win rate on ${fmtDate(d)} · ${plural(R.length,'team')}</div><table class="mxd"><thead><tr><th></th><th>Team</th><th class="num">Sets</th><th class="num">W–L</th><th class="num">Win rate</th><th class="num">Tournament</th><th>Played against</th></tr></thead><tbody>${R.map((e,i)=>{const n=e.w+e.l,tn=e.tw+e.tl;
+  const open=store.get('tvt:mxd')!=='0';
+  if(!open)return `<div class="mxd-wrap"><button type="button" class="mxd-tg" data-mxdtg>▸ Win rate on ${fmtDate(d)} · ${plural(R.length,'team')}</button></div>`;
+  return `<div class="mxd-wrap"><button type="button" class="mxd-tg on" data-mxdtg>▾ Win rate on ${fmtDate(d)} · ${plural(R.length,'team')}</button><table class="mxd"><thead><tr><th></th><th>Team</th><th class="num">Sets</th><th class="num">W–L</th><th class="num">Win rate</th><th class="num">Tournament</th><th>Played against</th></tr></thead><tbody>${R.map((e,i)=>{const n=e.w+e.l,tn=e.tw+e.tl;
     return `<tr class="${e.t===team?'on':''}" data-mt="${e.t===team?'':esc(e.t)}" title="${e.t===team?'Show all the matches again':'Show only the matches of '+esc(e.t)}"><td class="rk">${i+1}</td><td><span class="mxd-t">${logo(e.t,'l28')}<b>${esc(e.t)}</b></span></td><td class="num">${n}</td><td class="num">${e.w}–${e.l}</td><td class="num"><b style="color:${cl(e.w,n)}">${pc(e.w,n)}</b></td><td class="num">${tn?`${e.tw}–${e.tl}`:'<small>–</small>'}</td><td class="mxd-r">${[...e.riv].map(r=>off.includes(r)?logo(r,'l20'):'').join('')||'<small>other rivals</small>'}</td></tr>`}).join('')}</tbody></table></div>`}
+document.addEventListener('click',e=>{if(!e.target.closest||!e.target.closest('[data-mxdtg]'))return;store.set('tvt:mxd',store.get('tvt:mxd')==='0'?'1':'0');renderDetail()});
 function datesTab(){
   const IX=msIndex(),dates=Object.keys(IX).sort().reverse().map(d=>({d,n:Object.keys(IX[d]).length,rivals:0}));
   if(!dates.length)return '<p class="msg" style="margin-top:12px">There are no sets in the data for this period.</p>';
@@ -4850,11 +4867,11 @@ function groupTab(){
   let regH='';
   if(regs.length){
     const pc1=(w,n)=>n?Math.round(100*w/n)+'%':'–';
-    const mx=regs.map(r=>{let tw=0,tn=0;const cells=allR.map(c=>{if(c===r)return '<td class="hh-c"><i class="hh-x"></i></td>';let w=0,n=0;for(const t of T){if(RG(t)!==r)continue;for(const x of per[t]){if(x.m.sh)continue;if(x.op&&x.op!==t&&RG(x.op)===c){n++;w+=x.win}}}tw+=w;tn+=n;
-      return n?`<td class="hh-c" title="${esc(r)} ${w}-${n-w} vs ${esc(c)}"><i style="${gtHeat(w/n,n)}"><small>Sets: ${n}</small><b>WR: ${pc1(w,n)}</b></i></td>`:'<td class="hh-c"></td>'}).join('');
+    const mx=regs.map(r=>{let tw=0,tn=0;const cells=allR.map(c=>{if(c===r)return '<td class="hh-c"><span class="h2-x">/</span></td>';let w=0,n=0;for(const t of T){if(RG(t)!==r)continue;for(const x of per[t]){if(x.m.sh)continue;if(x.op&&x.op!==t&&RG(x.op)===c){n++;w+=x.win}}}tw+=w;tn+=n;
+      const k=w/n>.5?'g':w/n<.5?'r':'e';return n?`<td class="hh-c" title="${esc(r)} ${w}-${n-w} vs ${esc(c)}"><span class="h2 ${k}"><b>${pc1(w,n)}</b><small>${w}-${n-w} · ${n} sets${n<10?'*':''}</small></span></td>`:'<td class="hh-c"><span class="h2-no">–</span></td>'}).join('');
       return `<tr><td class="hh-tot"><small>Sets: ${tn}</small><b style="color:${tn?(tw/tn>=.55?'#7ee2a0':tw/tn<.45?'#ff8a80':'#ffc861'):'inherit'}">WR: ${pc1(tw,tn)}</b></td><td class="hh-who hh-rg"><i class="gt-rd" style="background:${REGC[r]}"></i><span>${esc(r)}</span></td>${cells}</tr>`}).join('');
     const tb=regs.map(r=>{const ts=T.filter(t=>RG(t)===r);let w=0,n=0;for(const t of ts)for(const x of per[t]){n++;w+=x.win}return {r,ts,w,n}}).sort((a,b)=>(b.n?b.w/b.n:0)-(a.n?a.w/a.n:0));
-    regH=sec('Region head to head',`<div class="hh-wrap"><table class="hh-t"><thead><tr><th class="hh-tot hh-tot2" colspan="2">Sets and WR vs other regions</th>${allR.map(c=>`<th class="hh-c hh-ch hh-rgh"><i class="gt-rd" style="background:${REGC[c]}"></i><span>vs ${esc(c)}</span></th>`).join('')}</tr></thead><tbody>${mx}</tbody></table></div>
+    regH=sec('Region head to head',`<div class="hh-wrap"><table class="hh-t h2t"><thead><tr><th class="hh-tot hh-tot2" colspan="2">Sets and WR vs other regions</th>${allR.map(c=>`<th class="hh-c hh-ch hh-rgh"><i class="gt-rd" style="background:${REGC[c]}"></i><span>vs ${esc(c)}</span></th>`).join('')}</tr></thead><tbody>${mx}</tbody></table></div>
       <div class="gt-scroll" style="margin-top:12px"><table class="gt-t"><thead><tr><th class="gt-c">Region</th><th class="gt-c">Win rate</th><th class="gt-c">Average sets played</th><th class="gt-c">Sets played</th><th class="gt-c">Sets won</th><th class="gt-c">Teams</th></tr></thead><tbody>${tb.map(x=>`<tr><td class="gt-c"><span class="gt-tn"><i class="gt-rd" style="background:${REGC[x.r]}"></i><b>${esc(x.r)}</b></span></td><td class="gt-c gt-big" style="${gtHeat(x.n?x.w/x.n:.5)}">${pc(x.w,x.n)}</td><td class="gt-c">${x.ts.length?Math.round(x.n/x.ts.length):0}</td><td class="gt-c">${x.n}</td><td class="gt-c">${x.w}</td><td class="gt-c gt-tl">${x.ts.map(t=>logo(t,'l20')).join('')}</td></tr>`).join('')}</tbody></table></div>`,
       'Top: sets and win rate of the selected teams of each region against teams of each other region (rivals in the Picks sheet with a region); a region against itself is left dark. Bottom: all the sets of the selected teams of that region; Average sets played = sets per team.')}
   // 4) win rate per week: one block per week from the start date to the end date, each sorted by win rate
@@ -9454,6 +9471,49 @@ html body #detail table.mx-t tr.mx-tr.tour td:not(#_){box-shadow:none!important}
 #detail table.mx-t tr.mx-tr.tour td:first-child::after{content:'';position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15);background-repeat:no-repeat;background-size:12px 2px,2px 12px,12px 2px,2px 12px;background-position:top left,top left,bottom left,bottom left}
 #detail table.mx-t tr.mx-tr.tour td:last-child::after{content:'';position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15);background-repeat:no-repeat;background-size:12px 2px,2px 12px,12px 2px,2px 12px;background-position:top right,top right,bottom right,bottom right}
 html body .gm.tour .mgb:not(#_){border-color:#24222f}
+
+/* rev162: Brawlers tab with the overview rows; optional K/D + damage */
+.u-pds{padding:0!important}
+.u-trio .u-ic{width:28px!important;height:28px!important}
+html body .u-row.u-r8:not(#_){grid-template-columns:16px auto minmax(0,1fr) 36px 36px 40px 40px 56px!important}
+.u-kd,.u-dm{color:#cfcbe6}
+.mxd-tg{display:block;background:none;border:0;padding:6px 0;margin:0 0 4px;font:800 11px Inter,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#a78bfa;cursor:pointer}.mxd-tg:hover{color:#c4b5fd}
+html body .pdgrid.u-br2:not(#_){grid-template-columns:repeat(2,minmax(0,1fr))!important}html body .pdgrid.u-br2>.pdcol:nth-child(n+3):not(#_){grid-column:1/-1}
+
+/* ===== rev163 ===== */
+/* week tables: the colour of the week only in the corners (title in neutral) */
+html body .gt-wb:not(#_){border-color:#2a2838;position:relative}
+html body .gt-wh:not(#_){background:#1b1a26;color:#e5e3f0}
+.gt-wb::after{content:'';position:absolute;inset:0;pointer-events:none;z-index:2;background-image:linear-gradient(var(--wc),var(--wc)),linear-gradient(var(--wc),var(--wc)),linear-gradient(var(--wc),var(--wc)),linear-gradient(var(--wc),var(--wc)),linear-gradient(var(--wc),var(--wc)),linear-gradient(var(--wc),var(--wc)),linear-gradient(var(--wc),var(--wc)),linear-gradient(var(--wc),var(--wc));background-repeat:no-repeat;background-size:16px 2px,2px 16px,16px 2px,2px 16px,16px 2px,2px 16px,16px 2px,2px 16px;background-position:top left,top left,top right,top right,bottom left,bottom left,bottom right,bottom right}
+/* timeline: a line between the win rate of each team and the first day */
+.tl2-n,.tl2-h>span:first-child{box-shadow:inset -1px 0 0 #3a3650}
+/* context bar: centred */
+html body #ctxbar:not(#_){justify-content:center;align-items:center;min-height:34px;padding-top:6px;padding-bottom:6px}
+/* K/D and damage: a darker grey, less important than sets and wins */
+html body .u-kd:not(#_),html body .u-dm:not(#_){color:#77738f;font-weight:600}
+html body .u-kd small:not(#_),html body .u-dm small:not(#_){color:#4f4b63}
+/* every table with brawlers: the same pictures and row height as the overview (38 px brawler, 32 px each in a duo, 62 px rows) */
+html body :is(table.rank,table.rp-t,table.cas-t,table.bal-tbl) td img.bi:not(#_):not(#__){width:38px!important;height:38px!important;flex:none;border-radius:8px}
+html body :is(table.rank,table.rp-t,table.cas-t,table.bal-tbl) td .duoh img.bi:not(#_):not(#__){width:32px!important;height:32px!important}
+html body :is(table.rank,table.rp-t,table.cas-t,table.bal-tbl) tbody tr:has(img.bi)>td:not(#_){height:62px;padding-top:0!important;padding-bottom:0!important}
+html body .duoh .amp:not(#_){display:none}html body .duoh:not(#_){gap:3px}
+html body .u-row:not(#_):not(#__){height:62px!important;min-height:62px!important;max-height:62px}
+/* Card: tables wrap when the card is narrow (two cards side by side), so pictures and rivals stay inside */
+.tcard{container-type:inline-size;container-name:tcard}
+@container tcard (max-width:1250px){html body .tc-row5:not(#_){grid-template-columns:repeat(3,minmax(0,1fr))!important}}
+@container tcard (max-width:800px){html body .tc-row5:not(#_){grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+html body .tc-row5 .tc-box:not(#_){min-width:0;overflow:hidden}
+
+/* Team Predictor: everything centred in the series box; head to head with the brawlers in a row */
+html body .cas-mid:not(#_){justify-content:center;text-align:center}
+html body .cas-mid .cas-mt:not(#_),html body .cas-mid .cas-mwp:not(#_){text-align:center;justify-content:center;align-items:center}
+html body .cas-mid .cas-mt:not(#_){display:flex;flex-direction:column;align-items:center}
+html body .cas-mid .cas-mthumbs:not(#_){justify-content:center}
+html body .ltbl td.bn:not(#_){display:table-cell}
+
+html body .gt-wd:not(#_){background:#16151f}
+html body .gt-wd b:not(#_),html body .gt-wd span:not(#_){background:transparent}
+html body .tc-row5 .rank.tiny td.num:not(#_),html body .tc-row5 .rank.tiny td.heat:not(#_){overflow:visible;text-overflow:clip;white-space:nowrap}
 </style>
 <script>
 /* rev142: explanations behind an (i) icon + context bar */
