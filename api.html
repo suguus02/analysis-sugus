@@ -2202,7 +2202,9 @@ function loadSel(){let o={};const s=store.get('tvt:sel');if(s){try{o=JSON.parse(
   // rev155: the two teams of this page come from its own save (tvt:apisel); tvt:sel is shared with the other page of the site and may hold other teams
   try{const H=window.__UXH,p=JSON.parse(store.get('tvt:apisel')||'null');if(p&&p.a&&p.b&&!(H&&(H.a||H.b))){o.a=p.a;o.b=p.b}}catch(e){}return o}
 // ===== rev155: TEAM SELECTION — saved after every repaint, restored once at start. What the user chose is never replaced by a default.
-let SEL_READY=false;
+let SEL_READY=false,OVMORE=store.get('tvt:ovmore')==='1',PRMORE=store.get('tvt:prmore')==='1';
+document.addEventListener('click',e=>{if(!e.target.closest||!e.target.closest('[data-prmore]'))return;PRMORE=!PRMORE;store.set('tvt:prmore',PRMORE?'1':'0');renderDetail()});
+document.addEventListener('click',e=>{if(!e.target.closest||!e.target.closest('[data-ovmore]'))return;OVMORE=!OVMORE;store.set('tvt:ovmore',OVMORE?'1':'0');renderDetail()});
 function selRestore(){if(SEL_READY||typeof M==='undefined'||!M)return;SEL_READY=true;
   if(window.__UXH&&window.__UXH.one)return; // a shared link chooses the team this one time
   let o=null;try{o=JSON.parse(store.get('tvt:apisel')||'null')}catch(e){}
@@ -2243,6 +2245,11 @@ function addShadows(d){
   const all=base.concat(out).sort((x,y)=>x.d<y.d?-1:x.d>y.d?1:(x.t-y.t)||(x.i-y.i));
   return Object.assign({},d,{matches:all});
 }
+// rev161: the slow first opening of Worlds bracket (~0.8 s) and Scouting (~0.5 s) is prepared in the background
+// while nobody touches the page, one piece at a time; if the user clicks first, nothing changes (the tab just computes it then)
+function warmCaches(){const idle=f=>(window.requestIdleCallback?requestIdleCallback(f,{timeout:4000}):setTimeout(f,300));
+  const steps=[()=>wbRatings(),()=>wbHistory(),()=>{const R=wbRatings(),key=_wbK+'|'+JSON.stringify(WB_RES);if(key!==_wbSK){_wbS=wbSim(R.r,WB_RES,5,7,20000);_wbSK=key}},()=>sgPairs('a'),()=>sgPairs('p')];
+  let i=0;const next=d=>{if(i>=steps.length)return;if(d&&d.timeRemaining&&d.timeRemaining()<8&&!d.didTimeout){idle(next);return}try{steps[i]()}catch(e){}i++;idle(next)};setTimeout(()=>idle(next),2500)}
 function build(newDs,isCustom){
   newDs=addShadows(onlyMap18(applyOvr(newDs)));
   busy=true;setStatus('Calculating the model…');const my=++gen;setBg('');
@@ -2252,7 +2259,7 @@ function build(newDs,isCustom){
       FULL=newDs;ds=f;custom=isCustom;applyTeamMeta(FULL);
       M=Engine.buildModel(noSh(ds),{lamT:LAM_T,lamTM:LAM_TM,boots:0});M.pending=true;VAL=null;
       DESC=Engine.describe(noSh(ds),M);
-      setup();syncFilterUI();updateSheetInfo();setStatus('');render();deferModel(my);shTick();if(view==='worlds')renderWB();
+      setup();syncFilterUI();updateSheetInfo();setStatus('');render();deferModel(my);shTick();if(view==='worlds')renderWB();try{warmCaches()}catch(e){}
     }catch(err){setStatus('The model could not be calculated: '+err.message,true)}
     busy=false;
   },30);
@@ -2813,10 +2820,11 @@ function tsOne(team,cls,D,o){
     const BC=bnCalc(team,D,true,false),bn=Object.entries(BC.T).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([k,n])=>({k,n}));nb=BC.tot;
     body=nxTop([team],()=>D.items0)+dwChart(D.items0,team)+`<div class="u-grid3">
       <section class="u-panel"><header>Most picked brawlers <button type="button" class="u-lnk" data-tss="brawlers">See all ${Object.keys(B).length} →</button></header>${br}</section>
-      <section class="u-panel"><header>Best duos <button type="button" class="u-lnk" data-tss="brawlers">See all →</button></header>${du}</section>
-      <section class="u-panel"><header>Opponents <small>${plural(Object.keys(OP).length,'rival')}</small></header>${op}</section></div>
-      <section class="u-panel"><header>All maps <small>by mode · best → worst inside each mode · pick maps in the side panel to filter the page</small></header>${maps?`<div class="u-allmaps" style="grid-template-columns:repeat(${Math.max(1,modes.length+(other.length?1:0))},minmax(0,1fr))">${maps}</div>`:none}</section>
-      <section class="u-panel"><header>Most banned by ${esc(team)} <button type="button" class="u-lnk" data-tss="bans">See all in Bans →</button></header>${bn.length?`<div class="u-bans">${bn.map(e=>`<div class="u-bn"><span class="bz-b">${bimg(e.k,'mx-bni')}</span><b>${esc(e.k)}</b><small>${e.n}× · ${pc(e.n,nb)}%</small></div>`).join('')}</div>`:'<p class="msg u-none">No bans known for these sets</p>'}</section>`}
+      <section class="u-panel"><header>Best duos <button type="button" class="u-lnk" data-tss="brawlers">See all →</button></header>${du}</section></div>
+      <div class="nx-mores"><button type="button" class="nx-more${OVMORE?' on':''}" data-ovmore>${OVMORE?'▾ Hide':'▸ Show'} opponents, all maps and bans</button></div>${OVMORE?`<div class="u-grid2 ov-more"><section class="u-panel"><header>Opponents <small>${plural(Object.keys(OP).length,'rival')}</small></header>${op}</section>
+      <section class="u-panel"><header>Most banned by ${esc(team)} <button type="button" class="u-lnk" data-tss="bans">See all in Bans →</button></header>${bn.length?`<div class="u-bans">${bn.map(e=>`<div class="u-bn"><span class="bz-b">${bimg(e.k,'mx-bni')}</span><b>${esc(e.k)}</b><small>${e.n}× · ${pc(e.n,nb)}%</small></div>`).join('')}</div>`:'<p class="msg u-none">No bans known for these sets.</p>'}</section></div>
+      <section class="u-panel"><header>All maps <small>by mode · best → worst inside each mode · pick maps in the side panel to filter the page</small></header>${maps?`<div class="u-allmaps" style="grid-template-columns:repeat(${Math.max(1,modes.length+(other.length?1:0))},minmax(0,1fr))">${maps}</div>`:none}</section>`:''}
+      `}
   else if(TSS==='brawlers')body=`<div class="u-blk"><div class="toolrow">${o.subjSeg}</div>
     <p class="msg" style="margin:0 0 10px">${o.desc}</p>
     <div class="pdgrid p3"><div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0" title="${D.what}">${o.own?'Brawlers':'Brawlers used against'}${D.active?' (filtered)':''} · ${D.CS.picks.length}</div></div>
@@ -3516,6 +3524,14 @@ function mxMatches(d,team){const T=new Set(allTeams()),G={},nm=g=>sheetName(g,(d
   // a draw: alphabetical order from left to right (A–Z); a rival that is not on the list stays on the right
   for(const e of GG)if(e.l>e.w||(e.l===e.w&&e.a&&e.b&&e.b.localeCompare(e.a)<0)){e.ap=e.bp;e.bp=new Set();const a=e.a;e.a=e.b;e.b=a;const w=e.w;e.w=e.l;e.l=w;for(const x of e.sets)x.L=!x.L}
   return GG.map(e=>{e.sets.sort((p,q)=>p.m.t-q.m.t);e.t0=e.sets[0].m.t;e.t1=Math.max(...e.sets.map(x=>x.m.last||x.m.t));return e}).sort((p,q)=>p.t0-q.t0)}
+// rev159: win rate of every team on the chosen day (sets), above the list of matches
+function mxDayTable(d,team){let AL=[];try{AL=mxMatches(d,'')}catch(e){return ''}const T={},off=M.D.off;
+  const add=(t,w,l,tour,riv)=>{if(!t||!off.includes(t))return;const e=T[t]||(T[t]={t,w:0,l:0,tw:0,tl:0,riv:new Set(),m:0});e.w+=w;e.l+=l;e.m++;if(tour){e.tw+=w;e.tl+=l}if(riv)e.riv.add(riv)};
+  for(const e of AL){add(e.a,e.w,e.l,e.tour,e.b||'');add(e.b,e.l,e.w,e.tour,e.a||'')}
+  const R=Object.values(T).sort((a,b)=>b.w/(b.w+b.l||1)-a.w/(a.w+a.l||1)||(b.w+b.l)-(a.w+a.l));if(!R.length)return '';
+  const pc=(w,n)=>n?Math.round(100*w/n)+'%':'–',cl=(w,n)=>{const v=n?w/n:.5;return v>=.6?'#4ade80':v>=.53?'#86efac':v>.47?'#facc15':v>.4?'#fca5a5':'#f87171'};
+  return `<div class="mxd-wrap"><div class="lbl">Win rate on ${fmtDate(d)} · ${plural(R.length,'team')}</div><table class="mxd"><thead><tr><th></th><th>Team</th><th class="num">Sets</th><th class="num">W–L</th><th class="num">Win rate</th><th class="num">Tournament</th><th>Played against</th></tr></thead><tbody>${R.map((e,i)=>{const n=e.w+e.l,tn=e.tw+e.tl;
+    return `<tr class="${e.t===team?'on':''}" data-mt="${e.t===team?'':esc(e.t)}" title="${e.t===team?'Show all the matches again':'Show only the matches of '+esc(e.t)}"><td class="rk">${i+1}</td><td><span class="mxd-t">${logo(e.t,'l28')}<b>${esc(e.t)}</b></span></td><td class="num">${n}</td><td class="num">${e.w}–${e.l}</td><td class="num"><b style="color:${cl(e.w,n)}">${pc(e.w,n)}</b></td><td class="num">${tn?`${e.tw}–${e.tl}`:'<small>–</small>'}</td><td class="mxd-r">${[...e.riv].map(r=>off.includes(r)?logo(r,'l20'):'').join('')||'<small>other rivals</small>'}</td></tr>`}).join('')}</tbody></table></div>`}
 function datesTab(){
   const IX=msIndex(),dates=Object.keys(IX).sort().reverse().map(d=>({d,n:Object.keys(IX[d]).length,rivals:0}));
   if(!dates.length)return '<p class="msg" style="margin-top:12px">There are no sets in the data for this period.</p>';
@@ -3532,6 +3548,7 @@ function datesTab(){
 `}).join('');
   return `<div class="mpickrow msrow" style="margin-top:14px"><div class="dbox msdate"><button type="button" class="dbtn${calOpen?' open':''}" data-calopen="1" aria-expanded="${calOpen}"><span class="dl">Date</span><b>${fmtDate(dateSel)}</b><small>${plural(dayT.length,'team')} played</small><span class="dcar">▾</span></button>${calOpen?`<div class="calpop">${calendarHTML(played,dates)}</div>`:''}</div>
     <div class="dbox msteam"><button type="button" class="dbtn${msPop==='team'?' open':''}" data-mspop="team" aria-expanded="${msPop==='team'}"><span class="dl">Team</span><b class="msb">${team?logo(team,'l28')+`<span>${esc(team)}</span>`:'<span>All teams</span>'}</b><small>optional filter · click to change</small><span class="dcar">▾</span></button>${msPop==='team'?`<div class="calpop mspop"><div class="lbl">Teams that played on ${fmtDate(dateSel)} · ${dayT.length}</div><div class="mtcs">${tcards}</div></div>`:''}</div></div>
+    ${mxDayTable(dateSel,team)}
     <div class="mx-wrap">${L.length?`<div class="lbl">${team?esc(team)+' · ':''}Matches on ${fmtDate(dateSel)} · ${L.length}</div>
     <table class="mx-t"><thead><tr><th>Time</th><th>Team</th><th>Score</th><th>Rival</th><th class="num">Sets</th><th>Modes</th><th></th></tr></thead><tbody>${rows}</tbody></table>
     <p class="msg" style="font-size:11.5px;margin-top:8px">Click a match to open it · click a set to see the players and the map · single games are not shown</p>`:'<p class="msg">No matches this day.</p>'}</div>
@@ -4800,13 +4817,13 @@ function groupTab(){
   let h2h='';
   if(T.length>=2){
     const wr_=t=>TT[t].n?TT[t].w/TT[t].n:-1,TO=T.slice().sort((a,b)=>wr_(b)-wr_(a)||TT[b].n-TT[a].n);
-    const pc0=(w,n)=>n?Math.round(100*w/n)+'%':'–',ros=t=>gtRoster(t).map(esc).join('<br>');
+    const pc0=(w,n)=>n?Math.round(100*w/n)+'%':'–',ros=t=>gtRoster(t).map(esc).join('<br>'),rosT=t=>{const L=gtRoster(t).map(g=>typeof nmOf==='function'?nmOf(g):g);return esc(t)+(L.length?' · '+L.join(', '):'')};
     const rows=TO.map(r=>{const tt=TT[r];
-      return `<tr><td class="hh-tot"><small>Sets: ${tt.n}</small><b style="color:${tt.n?(tt.w/tt.n>=.55?'#7ee2a0':tt.w/tt.n<.45?'#ff8a80':'#ffc861'):'inherit'}">WR: ${pc0(tt.w,tt.n)}</b></td><td class="hh-who"><span>${ros(r)||esc(r)}</span>${logo(r,'l28')}</td>${TO.map(c=>{
+      return `<tr><td class="hh-tot"><small>Sets: ${tt.n}</small><b style="color:${tt.n?(tt.w/tt.n>=.55?'#7ee2a0':tt.w/tt.n<.45?'#ff8a80':'#ffc861'):'inherit'}">WR: ${pc0(tt.w,tt.n)}</b></td><td class="hh-who" title="${rosT(r)}">${logo(r,'l28')}<b class="hh-nm">${esc(r)}</b></td>${TO.map(c=>{
         if(r===c)return '<td class="hh-c"><span class="h2-x">/</span></td>';const w=HH[r][c].w,n=HH[r][c].n,p=n?w/n:0,k=p>.5?'g':p<.5?'r':'e';
         return n?`<td class="hh-c" title="${esc(r)} ${w}-${n-w} ${esc(c)}"><span class="h2 ${k}"><b>${pc0(w,n)}</b><small>${w}-${n-w} · ${n} sets${n<10?'*':''}</small></span></td>`:'<td class="hh-c"><span class="h2-no">–</span></td>'}).join('')}</tr>`}).join('');
     const regSw=`<div class="gt-sw"><span class="seg2"><button type="button" data-gtreg="1" aria-pressed="${gtReg}">Only the registered players</button><button type="button" data-gtreg="0" aria-pressed="${!gtReg}">Full team (with pick-ups)</button></span></div>`;
-    h2h=sec('Head to head',regSw+`<div class="hh-wrap"><table class="hh-t h2t"><thead><tr><th class="hh-tot hh-tot2" colspan="2">Total sets and WR</th>${TO.map(c=>`<th class="hh-c hh-ch">${logo(c,'l28')}<span>${ros(c)||esc(c)}</span></th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><p class="h2-leg"><i class="g"></i>Winning record <i class="r"></i>Losing record <span>–</span> No sets <span>*</span> Under 10 sets</p>`,
+    h2h=sec('Head to head',regSw+`<div class="hh-wrap"><table class="hh-t h2t"><thead><tr><th class="hh-tot hh-tot2" colspan="2">Total sets and WR</th>${TO.map(c=>`<th class="hh-c hh-ch" title="${rosT(c)}">${logo(c,'l28')}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><p class="h2-leg"><i class="g"></i>Winning record <i class="r"></i>Losing record <span>–</span> No sets <span>*</span> Under 10 sets</p>`,
       'Each square: sets played and win rate of the team in the row against the team in the column (hover it for the score). An empty square: they did not play each other. '+(gtReg?'Only the registered players: a set counts only when both teams play with their own players of the Picks sheet (all 3, or the 2 / 1 listed there); sets with pick-ups are left out. Total = all the sets of the team with its own players in the period (against everybody).':'Full team: every set of the team counts, pick-ups included. Total = all the sets of the team in the period (against everybody).'))}
   // 2) every scrim / match of each team, one column per team
   const pl=(tags,team)=>tags.filter(Boolean).map(g=>{const sub=team&&isSub(team,g);return `<span class="gt-p${sub?' sub':''}"${sub?` title="${SUBT}"`:''}>${esc(nmOf(g))}</span>`}).join('');
@@ -4866,7 +4883,8 @@ function groupTab(){
     'Picks: sets of the selected teams where the brawler (or the duo) was used, each team counted on its own. Pick rate = % of those sets. Maps: sets played on each of the 18 rotation maps, with the icon of their mode.');
   const tlH=sec('Timeline',nxTimeline(T,per),'One row per team, one column per day: every square is a set (green won, red lost, yellow border = tournament), in the order they were played. Click a day to open it in Match Selector.');
   const prH=sec('Under pressure',nxPressure(T,per),'Comebacks = sets won after losing the first game · Closing out = sets won after winning the first game · Deciders = sets that went to a 3rd game. Only sets where the order of the games is known.');
-  return `<div class="gt">${tlH}${prH}${h2h}${matches}${regH}${weekH}${pmH}</div>`}
+  const prF=`<div class="nx-mores gt-prf"><button type="button" class="nx-more${PRMORE?' on':''}" data-prmore>${PRMORE?'▾ Hide':'▸ Show'} Under pressure <small>comebacks, closing out, deciders</small></button></div>`+(PRMORE?prH:'');
+  return `<div class="gt">${matches}${tlH}${h2h}${prF}${regH}${weekH}${pmH}</div>`}
 // ===== Tier List: meta score of every brawler from the drafts of the chosen teams
 const TL={teams:null,map:'',since:'patch',from:'',to:'',open:null,view:'tier'};try{if(store.get('tvt:tlview')==='mu')TL.view='mu'}catch(e){}
 try{const x=JSON.parse(store.get('tvt:tier')||'null');if(x){TL.teams=x.teams||null;TL.map=x.map||'';TL.since=x.since||'patch';TL.from=x.from||'';TL.to=x.to||''}}catch(e){}
@@ -4989,7 +5007,8 @@ function tierTab(){tlDef();const C=tlCalc();TLC=C;const off=M.D.off,sel=new Set(
     <div class="tl-opts"><span class="seg2 tl-vw"><button type="button" data-tlview="tier" aria-pressed="${TL.view!=='mu'}">Tier list</button><button type="button" data-tlview="mu" aria-pressed="${TL.view==='mu'}">Matchups</button></span><label class="lbl">Map <select data-tlmap><option value="">All maps</option>${maps.map(m=>`<option${m===TL.map?' selected':''}>${esc(m)}</option>`).join('')}</select></label>
       ${TL.since==='custom'?(()=>{const b=FULL&&FULL.matches&&FULL.matches.length?rangeOf(FULL):{mn:'',mx:''};return `<span class="tl-dates"><label>From <input type="date" data-tlfrom value="${esc(TL.from||'')}" min="${b.mn}" max="${b.mx}"></label><label>To <input type="date" data-tlto value="${esc(TL.to||'')}" min="${b.mn}" max="${b.mx}"></label>${TL.from||TL.to?'<button type="button" class="chip" data-tlclr>Clear</button>':''}</span>`})():''}</div>
     <p class="msg tl-src">${plural(C.nSets,'set')} of ${all?'all the teams':plural(C.teams.length,'team')}${TL.map?' on '+esc(TL.map):''}${TL.since==='custom'?' · '+(TL.from?fmtDate(TL.from):'start')+' – '+(TL.to?fmtDate(TL.to):'today'):''} · meta score = presence (pick + ban rate) 50% + adjusted win rate 30% + pick priority 20% · recent sets and stronger teams weigh more · hover a brawler for the details · ▲▼ = pick rate of the last 7 days vs before · faded = fewer than 5 sets</p></div>
-    ${TL.view==='mu'?nxMatchups(C.SRC||tlSrc(),sel,TL.map):rows}${TL.view!=='mu'&&unseen.length?`<div class="tl-row tl-n"><div class="tl-lab"><span class="tl-k">–</span><small>not picked</small><small>${unseen.length} brawlers</small></div><div class="tl-g">${unseen.map(n=>`<div class="tl-t few">${bimg(n,'tl-i')}<b>${esc(n)}</b><span class="tl-sc">–</span></div>`).join('')}</div></div>`:''}</div>`}
+    ${TL.view==='mu'?`<article class="tcard mu-card" id="tc-mu"><header class="tc-head"><div class="tc-id"><div><h3>Brawler matchups</h3><small>${all?'All teams':esc(C.teams.slice(0,4).join(', '))+(C.teams.length>4?' +'+(C.teams.length-4):'')} · ${TL.map?esc(TL.map):'All maps'} · ${TL.since==='custom'?(TL.from?fmtDate(TL.from):'start')+' – '+(TL.to?fmtDate(TL.to):'today'):esc(periodLabel())} · ${plural(C.nSets,'set')}</small></div></div>
+      <button type="button" class="btn quiet" data-cardx="mu" data-cardn="matchups-${esc(TL.map||'all-maps')}" data-noexport="1">Download image</button></header>${nxMatchups(C.SRC||tlSrc(),sel,TL.map)}</article>`:rows}${TL.view!=='mu'&&unseen.length?`<div class="tl-row tl-n"><div class="tl-lab"><span class="tl-k">–</span><small>not picked</small><small>${unseen.length} brawlers</small></div><div class="tl-g">${unseen.map(n=>`<div class="tl-t few">${bimg(n,'tl-i')}<b>${esc(n)}</b><span class="tl-sc">–</span></div>`).join('')}</div></div>`:''}</div>`}
 document.addEventListener('click',e=>{const t=e.target;if(!t.closest||tab!=='tier')return;
   const a=t.closest('[data-tlall]');if(a){TL.teams=null;tlSave();renderDetail();return}
   const b=t.closest('[data-tlt]');if(b){const x=b.dataset.tlt;let L=TL.teams&&TL.teams.length?TL.teams.slice():[];const i=L.indexOf(x);if(i>=0)L.splice(i,1);else L.push(x);TL.teams=L.length?L:null;tlSave();renderDetail();return}
@@ -6258,7 +6277,7 @@ function periodLabel(){const f=FULL?bounds(FULL):null,a=ds.matches[0]&&ds.matche
 function cardTab(){
   const T=scope==='one'?[curOne()]:scope==='pool'?(poolTeams||[]).filter(t=>M.D.off.includes(t)):[sel.a,sel.b].filter(Boolean);
   if(!T.length)return '<p class="msg" style="margin:14px 0">Choose a team above.</p>';
-  return `<p class="msg" style="margin:10px 0">One card per team, using the date range, game type and maps you have selected. Use <b>Download image</b> on a card to save it as a PNG.</p><div class="tcards">${T.map((t,i)=>teamCardHTML(t,i)).join('')}</div>`}
+  return `<p class="msg cd-intro" style="margin:10px 0">One card per team, using the date range, game type and maps you have selected. Use <b>Download image</b> on a card to save it as a PNG.</p><div class="tcards">${T.map((t,i)=>teamCardHTML(t,i)).join('')}</div>`}
 document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-cardx]');if(!b)return;
   const el=document.getElementById('tc-'+b.dataset.cardx);if(!el)return;
@@ -6273,6 +6292,10 @@ document.addEventListener('click',async e=>{
         const r=n.getBoundingClientRect(),w=r.width-px(cs.borderLeftWidth)-px(cs.borderRightWidth),h=r.height-px(cs.borderTopWidth)-px(cs.borderBottomWidth);
         // last try (safe): no gradients at all, so the image is always created
         if(w<1||h<1||(safe&&/gradient/.test(cs.backgroundImage))){const c=cs.backgroundColor;n.style.backgroundImage='none';if(safe&&(!c||c==='rgba(0, 0, 0, 0)'))n.style.backgroundColor='#16151e'}})}catch(e){}}});
+  // rev157: a table wider than the screen (Matchups) is drawn whole: the card grows to its full width for the export only
+  const wide=[...el.querySelectorAll('.mu-w,.tablewrap')].some(w=>w.scrollWidth>w.clientWidth+2),old=el.getAttribute('style')||'';
+  if(wide){const W=Math.max(...[...el.querySelectorAll('.mu-w,.tablewrap')].map(w=>w.scrollWidth+60),el.scrollWidth);el.style.width=W+'px';el.style.maxWidth='none';el.classList.add('x-wide')}
+  const unwide=()=>{if(wide){el.setAttribute('style',old);el.classList.remove('x-wide')}};
   try{
     await new Promise(r=>setTimeout(r,50));
     let blob=null;
@@ -6280,10 +6303,10 @@ document.addEventListener('click',async e=>{
     for(let i=0;i<tries.length;i++){const [sc,safe]=tries[i];
       try{const cv=await render(sc,safe);blob=await new Promise(res=>cv.toBlob(res,'image/png'));cv.width=cv.height=0;if(blob)break}catch(er){console.warn('export try '+(i+1)+' failed',er);if(i===tries.length-1)throw er}
     }
-    if(!blob)throw new Error('The image could not be created');
+    unwide();if(!blob)throw new Error('The image could not be created');
     if(!mob){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000)}
     else showCardImg(blob,name);
-  }catch(err){b.textContent='Could not export';console.error(err);alert('Could not create the image: '+(err&&err.message||err));setTimeout(()=>{b.textContent=t0;b.disabled=false},2500);return}
+  }catch(err){unwide();b.textContent='Could not export';console.error(err);alert('Could not create the image: '+(err&&err.message||err));setTimeout(()=>{b.textContent=t0;b.disabled=false},2500);return}
   b.textContent=t0;b.disabled=false});
 function showCardImg(blob,name){
   const old=document.getElementById('cardov');if(old)old.remove();
@@ -7533,6 +7556,10 @@ window.CTXINFO=function(){const P=[];const ex=x=>esc(x);let teams='';
   const ty=(flt2&&flt2.type)||'all';P.push(ty==='all'?'All games':ty==='tournament'?'Tournament':'Friendly');
   if(view==='stats'&&tab!=='scout'&&tab!=='tier')P.push(ex(filterLabel()));
   if(view==='pred'&&sel&&sel.maps)P.push(sel.maps.length?sel.maps.length+(sel.maps.length===1?' map':' maps'):'No maps chosen');
+  // rev159: the newest set in the data, so everyone knows how fresh the numbers are
+  try{const A=(typeof FULL!=='undefined'&&FULL&&FULL.matches&&FULL.matches.length?FULL:ds).matches;let d='',t=-1;for(const m of A){if(m.d>d||(m.d===d&&(m.t||0)>t)){d=m.d;t=m.t||0}}
+    if(d){const today=new Date(),iso=x=>x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'),y=new Date(today);y.setDate(y.getDate()-1);
+      const lab=d===iso(today)?'today':d===iso(y)?'yesterday':fmtDate(d);P.push(`<span class="cx-up" title="Newest set in the sheet: ${esc(fmtDate(d))}${t>0?' '+mxHM(t):''}">Data updated ${esc(lab)}${t>0?' '+mxHM(t):''}</span>`)}}catch(e){}
   return P};
 function renderCheck(){const el=$('checkview');if(el)el.innerHTML=checkHTML()}
 
@@ -9389,6 +9416,44 @@ body.pp-sb:not(.sb-off) #detail .pp{}
 .md-v{font-size:10.5px;font-weight:800;border:1px solid;border-radius:6px;padding:1px 7px;text-transform:uppercase;letter-spacing:.06em}.md-why{display:block;color:#9a97ad!important;font-size:11px;margin-top:3px;font-weight:500}
 .md-modes{margin-top:4px}
 .nodata small{display:block;margin-top:10px;font:500 13px/1.5 Inter,sans-serif;letter-spacing:0;color:#8e8ab0;text-transform:none}
+.mu-card{margin-top:12px}.mu-card .tc-head{margin-bottom:10px}
+.x-wide .mu-w,.x-wide .tablewrap{overflow:visible!important;max-width:none!important}
+/* rev158: team H2H — names only in the rows, players on hover */
+.h2t td.hh-who{text-align:left;white-space:nowrap}.h2t td.hh-who .hh-nm{display:inline-block;vertical-align:middle;margin-left:8px;font-size:12.5px;font-weight:700;color:#e5e3f0;max-width:170px;overflow:hidden;text-overflow:ellipsis}.h2t td.hh-who img{vertical-align:middle}
+.h2t th.hh-ch{cursor:help}.h2t td.hh-who{cursor:help}
+.h2t .h2,.h2t .h2-x,.h2t .h2-no{min-width:80px}.h2t .h2 small{font-size:9.5px}.h2t th.hh-ch{width:auto;padding:4px 2px!important}.h2t th.hh-ch img{margin:0 auto}
+
+/* rev159: Match Selector — win rate of the day */
+.mxd-wrap{margin:14px 0 4px}.mxd{width:100%;border-collapse:collapse}.mxd th{text-align:left;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#6e6a85;padding:7px 8px;border-bottom:1px solid #24222f}
+.mxd th.num,.mxd td.num{text-align:right}.mxd td{padding:6px 8px;border-bottom:1px solid #1b1a24;font-size:13px}.mxd tbody tr{cursor:pointer}.mxd tbody tr:hover td{background:#16151e}.mxd tr.on td{background:rgba(168,85,247,.10)}
+.mxd .rk{color:#6e6a85;width:24px}.mxd-t{display:flex;align-items:center;gap:8px}.mxd-t b{font-size:13px}.mxd-r img{margin-right:4px;vertical-align:middle}.mxd small{color:#6e6a85}
+.cx-up{color:#8e8ab0}
+.gt-prf .nx-more small{color:#6e6a85;font-weight:500;margin-left:6px}
+
+/* ===== rev159: straight corners everywhere; small purple corner marks on the main boxes ===== */
+html body *:not(#_):not(img):not(svg),html body *:not(#_)::before,html body *:not(#_)::after{border-radius:0!important}
+html body :is(#sheetbar,#gate,#accOv,#gmOv,#teamov,#mapov,#ctxbar,#helloBar,#userBadge) *:not(#_){border-radius:0!important}
+html body :is(.ph,.wk,.tchip i,.spin,.tdot,.tleg i,.dr-dot,.dr-tc .bi,.dr-coin,.dr-no,.dr-x,.gbx,.tcard .tchip i,.sc-pb .bi,.pk,.bal-i,.bal-two .tchip i,.todaybtn i,.ds-meta,#apiBadge.api-st i,.dr-ed,.wb-hero:before,.fs-n,.rp-n,.sx-a,#ctxbar .cx-d,.dp-av,.pp-dot,#accOv .av i,#accOv .on:before,.ix-i,.gt-rd,.lg i,.dw-dot):not(#_):not(#__){border-radius:50%!important}
+.u-hero,.tcard,.gm,header.hero{position:relative}
+.u-hero::after,.tcard::after,.gm::after,header.hero::after{content:'';position:absolute;inset:-1px;pointer-events:none;z-index:3;
+  background-image:linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7);background-repeat:no-repeat;
+  background-size:16px 2px,2px 16px,16px 2px,2px 16px,16px 2px,2px 16px,16px 2px,2px 16px;
+  background-position:top left,top left,top right,top right,bottom left,bottom left,bottom right,bottom right}
+.gm.tour::after{background-image:linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15)}
+
+/* ===== rev160: tournament = yellow corner marks only (no full yellow frame) ===== */
+.mb1-r.tour{box-shadow:none!important;position:relative}
+html body .mx-s.tour:not(#_),html body .set.cd.tour:not(#_),html body .lsc.tour:not(#_){border-color:var(--pro-bd,#2a2838)!important;box-shadow:none!important}
+html body .mx-s.tour.open:not(#_){border-color:#3a3650!important}
+html body .gm.tour:not(#_){border-color:#3b2a52!important;box-shadow:0 20px 60px rgba(0,0,0,.6)!important}
+html body #detail table.mx-t tr.mx-tr.tour td:not(#_){box-shadow:none!important}
+.mb1-r.tour,.mx-s.tour,.set.cd.tour,.lsc.tour{position:relative}
+.mb1-r.tour::after,.mx-s.tour::after,.set.cd.tour::after,.lsc.tour::after{content:'';position:absolute;inset:0;pointer-events:none;z-index:2;background-image:linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15);background-repeat:no-repeat;background-size:12px 2px,2px 12px,12px 2px,2px 12px,12px 2px,2px 12px,12px 2px,2px 12px;background-position:top left,top left,top right,top right,bottom left,bottom left,bottom right,bottom right}
+.gm.tour::after{background-image:linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15);background-repeat:no-repeat;background-size:18px 2px,2px 18px,18px 2px,2px 18px,18px 2px,2px 18px,18px 2px,2px 18px;background-position:top left,top left,top right,top right,bottom left,bottom left,bottom right,bottom right}
+#detail table.mx-t tr.mx-tr.tour td{position:relative}
+#detail table.mx-t tr.mx-tr.tour td:first-child::after{content:'';position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15);background-repeat:no-repeat;background-size:12px 2px,2px 12px,12px 2px,2px 12px;background-position:top left,top left,bottom left,bottom left}
+#detail table.mx-t tr.mx-tr.tour td:last-child::after{content:'';position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15),linear-gradient(#facc15,#facc15);background-repeat:no-repeat;background-size:12px 2px,2px 12px,12px 2px,2px 12px;background-position:top right,top right,bottom right,bottom right}
+html body .gm.tour .mgb:not(#_){border-color:#24222f}
 </style>
 <script>
 /* rev142: explanations behind an (i) icon + context bar */
@@ -9398,7 +9463,7 @@ body.pp-sb:not(.sb-off) #detail .pp{}
     tip.style.left=Math.max(8,Math.min(innerWidth-372,r.left-170))+'px';tip.style.top=(r.bottom+8+300>innerHeight?r.top-8-Math.min(300,tip.offsetHeight||120):r.bottom+8)+'px';tip.classList.add('on')});
   document.addEventListener('mouseout',e=>{if(e.target.closest&&e.target.closest('.ix-i'))tip.classList.remove('on')});
   document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('.ix-i');if(b){e.preventDefault();e.stopPropagation();tip.classList.toggle('on')}},true);
-  const NOTES='p.foot,.wb-note,.cas-foot,p.msg.tl-src,.u-note,.gt-sec>p.msg,.mu-w+p.msg,p.msg.cx-note,.tc-sec>p.msg.dw-note';
+  const NOTES='p.foot,.wb-note,.cas-foot,p.msg.tl-src,.u-note,.gt-sec>p.msg,.mu-w+p.msg,p.msg.cx-note,.tc-sec>p.msg.dw-note,.tc-sec>p.msg,.sc-fix>.msg,p.si-p,p.msg.cd-intro';
   const HEADS='.lbl,.u-hd,.cas-ln span,h2,h3,h4,.pr-h .lbl';
   function headFor(n){let box=n.closest('.tc-sec,.u-panel,.cas-card,.gt-sec,section,.tl-wrap,.panel');let p=n.previousElementSibling;
     while(p){if(p.matches&&p.matches(HEADS))return p;const h=p.querySelector&&p.querySelector(':scope '+HEADS.split(',').join(',:scope '));if(h&&p.matches('.tl-ctl,.u-panel>header,header,.cas-ch'))return h;p=p.previousElementSibling}
