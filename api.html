@@ -2476,14 +2476,25 @@ function curOne(){const off=M.D.off;selRestore();// rev152: a team missing for a
 const wrBar=p=>{p=Math.max(0,Math.min(1,+p||0));const c=p>=.6?'#4ade80':p>=.53?'#86efac':p>.47?'#facc15':p>.4?'#fca5a5':'#f87171';return `<span class="wrb"><i style="width:${Math.round(100*p)}%;background:${c}"></i></span>`};
 // rev162: kills / deaths / damage per brawler and per duo, from the game stats of the API (only sets that have them)
 let SHOWKD=store.get('tvt:showkd')!=='0';
-function kdIndex(items,own){const byI=kdIndex.m&&kdIndex.ds===ds?kdIndex.m:(kdIndex.ds=ds,kdIndex.m=new Map(ds.matches.map(m=>[m.i,m])));const B={},DU={};
-  const add=(o,k,q)=>{const e=o[k]||(o[k]={g:0,k:0,d:0,dm:0});e.g+=q.n;e.k+=q.k;e.d+=q.d;e.dm+=q.dm};
+function kdIndex(items,own){const byI=kdIndex.m&&kdIndex.ds===ds?kdIndex.m:(kdIndex.ds=ds,kdIndex.m=new Map(ds.matches.map(m=>[m.i,m])));const B={},DU={},TR={};
+  // one brawler: its kills, deaths and damage per game · a duo / full combo: the TOTAL of its 2 / 3 brawlers per game
+  const add=(o,k,L)=>{const e=o[k]||(o[k]={g:0,k:0,d:0,dm:0});e.g+=L[0].n;for(const q of L){e.k+=q.k;e.d+=q.d;e.dm+=q.dm}};
   for(const x of items||[]){const m=byI.get(x.i);if(!m||!m.gs)continue;const S=setStatsC(m);if(!S)continue;const tg=own?x.myTags:x.opTags,br=own?x.mine:x.theirs;if(!tg||!br)continue;
-    const Q=br.map((b,k)=>b&&S.P[String(tg[k]||'').toUpperCase()]?[b,S.P[String(tg[k]).toUpperCase()]]:null).filter(Boolean);
-    for(const [b,q] of Q)add(B,mkey(b),q);
-    for(let a=0;a<Q.length;a++)for(let c=a+1;c<Q.length;c++){const k=[mkey(Q[a][0]),mkey(Q[c][0])].sort().join('|');add(DU,k,Q[a][1]);add(DU,k,Q[c][1])}}
-  return {B,DU}}
-const kdOf=(KD,names)=>{if(!KD)return null;const L=names.map(mkey);const e=L.length===1?KD.B[L[0]]:L.length===2?KD.DU[L.slice().sort().join('|')]:null;return e&&e.g?e:null};
+    const Q=br.map((b,k)=>b&&S.P[String(tg[k]||'').toUpperCase()]?[mkey(b),S.P[String(tg[k]).toUpperCase()]]:null).filter(Boolean);
+    for(const [b,q] of Q)add(B,b,[q]);
+    for(let a=0;a<Q.length;a++)for(let c=a+1;c<Q.length;c++)add(DU,[Q[a][0],Q[c][0]].sort().join('|'),[Q[a][1],Q[c][1]]);
+    if(Q.length===3)add(TR,Q.map(z=>z[0]).sort().join('|'),Q.map(z=>z[1]))}
+  return {B,DU,TR}}
+const kdOf=(KD,names)=>{if(!KD)return null;const L=names.map(mkey);const e=L.length===1?KD.B[L[0]]:L.length===2?KD.DU[L.slice().sort().join('|')]:L.length===3?KD.TR[L.slice().sort().join('|')]:null;return e&&e.g?e:null};
+// the K/D + damage line under a name (like in Players)
+const kdLine=e=>SHOWKD?`<small class="u-kdl">${e?`${e.d?(e.k/e.d).toFixed(2):e.k+'/0'} K/D · ${fmtK(e.dm/e.g)} dmg`:'no game stats'}</small>`:'';
+// rows for the Brawlers tab (one team, two teams or several): same design as the overview
+function brRows(arr,KD){if(!arr||!arr.length)return '<p class="msg u-none">No sets</p>';
+  const pc=(w,n)=>n?Math.round(100*w/n):0,col=p=>p>=60?'#4ade80':p>=53?'#86efac':p>47?'#facc15':p>40?'#fca5a5':'#f87171';
+  const bar=(w,n)=>{const p=pc(w,n);return `<div class="u-wr"><b style="color:${col(p)}">${p}%</b><span><i style="width:${p}%;background:${col(p)}"></i></span></div>`};
+  return arr.map((x,i)=>{const L=String(x.k).split(' + ');const ic=L.length===1?bimg(L[0],'u-ic'):`<span class="u-duo${L.length>2?' u-trio':''}">${L.map(n=>bimg(n,'u-ic')).join('')}</span>`;
+    const nm=L.length===1?`<b>${esc(L[0])}</b>`:L.length===2?`<b class="u-dn">${L.map(esc).join('<br>')}</b>`:`<b class="u-dn u-tn">${L.map(esc).join(' · ')}</b>`;
+    return `<div class="u-row u-r6"><span class="u-rk">${i+1}</span>${ic}<div class="u-nm">${nm}${kdLine(kdOf(KD,L))}</div><span class="u-n">${x.n}<small>sets</small></span><span class="u-n u-nw">${x.w}<small>wins</small></span>${bar(x.w,x.n)}</div>`}).join('')}
 function rankTable(arr,cls,kind,mapCols,wrl,slim,hl){
   const kic=k=>String(k).split(' + ').length===2?duoH(String(k).split(' + ')):String(k).split(' + ').map(n=>`<span class="bnc${hl&&hl.has(n)?' hlb':''}"${hl&&hl.has(n)?' title="Played by both teams"':''}>${bimg(n,'bi')||''}<span class="bnm">${esc(n)}</span></span>`).join('<span class="pl">+</span>');
   const cols=mapCols||[];
@@ -2815,8 +2826,8 @@ function tsOne(team,cls,D,o){
   const reg=REGION[team]||'';
   const hero=`<section class="u-hero">${logo(team,'u-hlogo')}<div class="u-ht"><h1>${esc(team)}</h1><p>${reg?esc(reg)+' · ':''}${plural(N,'set')} in the period${D.luAct?' · lineup filter on':''}</p></div>${tiles}${luHero(team,D)}</section>`;
   const sub=`<div class="u-sub" role="tablist">${TSS_L.map(([k,l])=>`<button type="button" role="tab" data-tss="${k}" class="${TSS===k?'on':''}" aria-selected="${TSS===k}">${l}</button>`).join('')}</div>`;
-  const KDo=SHOWKD?kdIndex(D.items0,true):null,kdc=e=>SHOWKD?(e?`<span class="u-n u-kd">${e.d?(e.k/e.d).toFixed(2):e.k+'/0'}<small>K/D</small></span><span class="u-n u-dm">${fmtK(e.dm/e.g)}<small>dmg</small></span>`:'<span class="u-n u-kd">–<small>K/D</small></span><span class="u-n u-dm">–<small>dmg</small></span>'):'';
-  const row=(i,ic,name,r,n,unit,b,w,kd)=>`<div class="u-row u-r6${SHOWKD&&kd!==false?' u-r8':''}"><span class="u-rk">${i}</span>${ic}<div class="u-nm"><b>${name}</b></div><span class="u-n">${n}<small>${unit}</small></span><span class="u-n u-nw">${w}<small>wins</small></span>${kd===false?'':kdc(kd)}${b}</div>`;
+  const KDo=SHOWKD?kdIndex(D.items0,true):null;
+  const row=(i,ic,name,r,n,unit,b,w,kd)=>`<div class="u-row u-r6"><span class="u-rk">${i}</span>${ic}<div class="u-nm"><b>${name}</b>${kd===false||kd===undefined?'':kdLine(kd)}</div><span class="u-n">${n}<small>${unit}</small></span><span class="u-n u-nw">${w}<small>wins</small></span>${b}</div>`;
   // the Brawlers tab uses the same rows as the overview (same picture size and row height)
   const uList=(arr,KD)=>arr.length?arr.map((x,i)=>{const L=String(x.k).split(' + ');const ic=L.length===1?bimg(L[0],'u-ic'):`<span class="u-duo${L.length>2?' u-trio':''}">${L.map(n=>bimg(n,'u-ic')).join('')}</span>`;
     const nm=L.length===1?esc(L[0]):`<span class="u-dn">${L.map(esc).join('<br>')}</span>`;return row(i+1,ic,nm,'',x.n,'sets',bar(x.w,x.n),x.w,kdOf(KD,L))}).join(''):none;
@@ -2841,12 +2852,12 @@ function tsOne(team,cls,D,o){
       `}
   else if(TSS==='brawlers')body=`<div class="u-blk"><div class="toolrow">${o.subjSeg}</div>
     <p class="msg" style="margin:0 0 10px">${o.desc}</p>
-    <div class="pdgrid p3 u-br2"><div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0" title="${D.what}">${o.own?'Brawlers':'Brawlers used against'}${D.active?' (filtered)':''} · ${D.CS.picks.length}</div></div>
-      <div class="scroll pickscroll pds u-pds">${uList(D.CS.picks,SHOWKD?kdIndex(D.items0,o.own):null)}</div></div>
+    <div class="pdgrid p3 u-br3"><div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0" title="${D.what}">${o.own?'Brawlers':'Brawlers used against'}${D.active?' (filtered)':''} · ${D.CS.picks.length}</div></div>
+      <div class="scroll pickscroll pds u-pds">${brRows(D.CS.picks,SHOWKD?kdIndex(D.items0,o.own):null)}</div></div>
     <div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0" title="${D.what2}">${o.own?'Combos':'Combos used against'} · ${D.combos.length} ${comboKind==='duos'?'duos':'full'}</div>
       <div class="seg2" role="group" aria-label="Combo size"><button type="button" data-ck="duos" aria-pressed="${comboKind==='duos'}">Duos</button><button type="button" data-ck="trios" aria-pressed="${comboKind==='trios'}">Full Combo</button></div>
       <label class="chk" title="Only combos used more than once"><input type="checkbox" data-rep="1"${onlyRepeat?' checked':''}> Only repeated</label></div>
-      <div class="scroll pds u-pds">${uList(D.combos,SHOWKD?kdIndex(D.items0,o.own):null)}</div></div>${rivCol(team,cls,D)}</div>${D.np}${D.types}</div>`;
+      <div class="scroll pds u-pds">${brRows(D.combos,SHOWKD?kdIndex(D.items0,o.own):null)}</div></div><div class="pdcol u-tycol"><div class="scroll pds">${D.types}</div></div>${rivCol(team,cls,D)}</div>${D.np}</div>`;
   else if(TSS==='bans')body=bansHTML(team,cls,D,1);
   else if(TSS==='players')body=plCards(team);
   else if(TSS==='comps')body=`<section class="u-panel"><header><span class="u-hd">Comps</span><small>${esc(D.logTitle.replace(/^Comps · /,''))}</small></header>
@@ -2938,12 +2949,12 @@ function tsPool(pt,label,cls,D,o){const C=tsAgg(D.items0),{pc,col,bar,top,row,no
       <section class="u-panel"><header>All maps <small>by mode · the selected teams together · pick maps in the side panel to filter the page</small></header>${tsMaps([C],[label])}</section>
       <section class="u-panel"><header>Most banned by the selected teams <button type="button" class="u-lnk" data-tss="bans">See all in Bans →</button></header>${tsBanTiles(BS.T,BS.tot)}</section>`}
   else if(k==='brawlers')body=`<div class="u-tg">${o.subjSeg}<span class="u-note">${o.desc}</span></div>
-    <div class="pdgrid" style="grid-template-columns:1fr 1fr"><div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0" title="${D.what}">${o.own?'Brawlers':'Brawlers used against'}${D.active?' (filtered)':''} · ${D.CS.picks.length}</div></div>
-      <div class="scroll pickscroll pds">${rankTable(D.CS.picks,cls,'Brawler',[],D.wrl)}</div></div>
+    <div class="pdgrid u-br3"><div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0" title="${D.what}">${o.own?'Brawlers':'Brawlers used against'}${D.active?' (filtered)':''} · ${D.CS.picks.length}</div></div>
+      <div class="scroll pickscroll pds u-pds">${brRows(D.CS.picks,SHOWKD?kdIndex(D.items0,o.own):null)}</div></div>
     <div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0" title="${D.what2}">${o.own?'Combos':'Combos used against'} · ${D.combos.length} ${comboKind==='duos'?'duos':'full'}</div>
       <div class="seg2" role="group" aria-label="Combo size"><button type="button" data-ck="duos" aria-pressed="${comboKind==='duos'}">Duos</button><button type="button" data-ck="trios" aria-pressed="${comboKind==='trios'}">Full Combo</button></div>
       <label class="chk"><input type="checkbox" data-rep="1"${onlyRepeat?' checked':''}> Only repeated</label></div>
-      <div class="scroll pds">${rankTable(D.combos,cls,comboKind==='duos'?'Duo':'Full Combo',[],D.wrl)}</div></div></div>${D.np}${D.types}`;
+      <div class="scroll pds u-pds">${brRows(D.combos,SHOWKD?kdIndex(D.items0,o.own):null)}</div></div><div class="pdcol u-tycol"><div class="scroll pds">${D.types}</div></div></div>${D.np}`;
   else if(k==='bans')body=bnToggles('Bans of the selected teams','Bans against them')+bansHTML(label,cls,D,2,bnSum(bnSubj==='own',bnKind==='trio'));
   else if(k==='players')body=pt.map(t=>tsHead(t)+plCards(t,'pl:'+t)).join('');
   else if(k==='comps')body=`<section class="u-panel"><header><span class="u-hd">Comps</span><small>${esc(D.logTitle.replace(/^Comps · /,''))}</small></header>
@@ -9514,6 +9525,18 @@ html body .ltbl td.bn:not(#_){display:table-cell}
 html body .gt-wd:not(#_){background:#16151f}
 html body .gt-wd b:not(#_),html body .gt-wd span:not(#_){background:transparent}
 html body .tc-row5 .rank.tiny td.num:not(#_),html body .tc-row5 .rank.tiny td.heat:not(#_){overflow:visible;text-overflow:clip;white-space:nowrap}
+
+/* rev164: Brawlers tab — three tables side by side at the same height; K/D under the name */
+html body .pdgrid.u-br3:not(#_){grid-template-columns:repeat(3,minmax(0,1fr))!important;align-items:stretch}
+html body .pdgrid.u-br3>.pdcol:nth-child(n+4):not(#_){grid-column:1/-1}
+html body .pdgrid.u-br3 .pds:not(#_){height:640px;max-height:640px;overflow:auto}
+html body .u-tycol .pds:not(#_){padding:0}html body .u-tycol .u-types:not(#_){margin:0;border:0;background:transparent}
+html body .u-tycol .tablewrap:not(#_){overflow:visible}html body .u-tycol table.typet:not(#_){min-width:0!important}
+.u-tycol{margin-top:0}
+.u-nm .u-kdl{display:block;margin-top:2px;font-size:10.5px;font-weight:600;color:#6e6a85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.u-nm .u-dn{font-size:11.5px;line-height:1.25}.u-nm .u-tn{display:block;white-space:normal;font-size:11px;line-height:1.25}
+@media (max-width:1100px){html body .pdgrid.u-br3:not(#_){grid-template-columns:1fr!important}}
+html body .pdgrid.u-br3 .pdhead:not(#_){flex-wrap:wrap;height:auto!important;min-height:44px;row-gap:6px;align-items:center}html body .pdgrid.u-br3 .pdhead .chk:not(#_){position:static}
 </style>
 <script>
 /* rev142: explanations behind an (i) icon + context bar */
