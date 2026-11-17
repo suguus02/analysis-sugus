@@ -1674,7 +1674,7 @@ function processRows(rows,db,opts){
     let fl=0;if(B.pl.join('|')<A.pl.join('|')){fl=1;for(const f of ['pl','nm','br','bn']){const x=A[f];A[f]=B[f];B[f]=x}}
     const [dd,mm,yy]=ds0.split('-');const d=yy+'-'+mm.padStart(2,'0')+'-'+dd.padStart(2,'0');
     let y=rr==='VICTORY'?1:rr==='DEFEAT'?0:0.5;if(fl&&y!==0.5)y=1-y;
-    const m={d,ty:(opts.typeCol!=null?t(r[opts.typeCol]).toLowerCase():''),m:t(r[2]),a:sideTeam(A.pl,A.nm,tag2team,dbt,official,alias,rk),xa:LAST_AMB,b:sideTeam(B.pl,B.nm,tag2team,dbt,official,alias,rk),xb:LAST_AMB,y,ba:A.br,bb:B.br,ta:A.pl,tb:B.pl,...(A.bn.some(Boolean)||B.bn.some(Boolean)?{na:A.bn,nb:B.bn}:{}),...(t(r[32])?{gs:[t(r[32])]}:{}),i:idx,t:tm?((s=>s<18000?s+86400:s)(secs(tm))):idx,ht:tm?1:0};
+    const m={d,ty:(opts.typeCol!=null?t(r[opts.typeCol]).toLowerCase():''),m:t(r[2]),a:sideTeam(A.pl,A.nm,tag2team,dbt,official,alias,rk),xa:LAST_AMB,b:sideTeam(B.pl,B.nm,tag2team,dbt,official,alias,rk),xb:LAST_AMB,y,ba:A.br,bb:B.br,ta:A.pl,tb:B.pl,...(A.bn.some(Boolean)||B.bn.some(Boolean)?{na:A.bn,nb:B.bn}:{}),...(t(r[32])?{gs:[t(r[32])]}:{}),...(r[33]?{u:Date.parse(r[33])||0}:{}),i:idx,t:tm?((s=>s<18000?s+86400:s)(secs(tm))):idx,ht:tm?1:0};
     const key=d+'~'+m.m+'~'+A.pl.join('|')+'#'+A.br.join('|')+'~'+B.pl.join('|')+'#'+B.br.join('|'),o=fl;
     let g=groups.get(key);if(!g){g=[[],[]];groups.set(key,g)}g[o].push(m);
   }
@@ -1696,7 +1696,7 @@ function processRows(rows,db,opts){
       if(!newFmt){matches.push(Object.assign({},m,{w:m.y===1?1:0,l:m.y===0?1:0,dr:m.y===0.5?1:0,sc:''}));continue}
       if(!cur||cur.n>=9||cur.w>=2||cur.l>=2||(m.ht&&cur.ht&&m.t-cur.last>900)){ // a set ends when one side has 2 wins (Bo3), after 15 min without a game or after 9 games (draws are replayed): a rematch with the same comps is a new set
       cur=Object.assign({},m,{w:0,l:0,dr:0,n:0,last:m.t});matches.push(cur)}
-      cur.n++;cur.last=m.t;if(cur.n>1&&!cur.na&&m.na){cur.na=m.na;cur.nb=m.nb}if(cur.n>1&&m.gs)cur.gs=(cur.gs||[]).concat(m.gs);cur.q=(cur.q||'')+(m.y===1?'W':m.y===0?'L':'D');if(m.y===1)cur.w++;else if(m.y===0)cur.l++;else cur.dr++;
+      cur.n++;cur.last=m.t;if(cur.n>1&&!cur.na&&m.na){cur.na=m.na;cur.nb=m.nb}if(cur.n>1&&m.gs)cur.gs=(cur.gs||[]).concat(m.gs);if(m.u&&(!cur.u||m.u>cur.u))cur.u=m.u;cur.q=(cur.q||'')+(m.y===1?'W':m.y===0?'L':'D');if(m.y===1)cur.w++;else if(m.y===0)cur.l++;else cur.dr++;
     }
   }
   for(const m of matches){
@@ -1704,7 +1704,7 @@ function processRows(rows,db,opts){
   }
   matches.sort((x,y)=>x.d<y.d?-1:x.d>y.d?1:x.t-y.t||x.i-y.i);
   matches.forEach((m,k)=>{m.i=k});
-  return {v:4,ev:3,official,matches,names,raw,dups,rounds,fmt:newFmt?'rounds':'sets',knownTags:opts.known||{},known:knownNames(db,opts.known),rank:rk};
+  return {v:4,ev:4,official,matches,names,raw,dups,rounds,fmt:newFmt?'rounds':'sets',knownTags:opts.known||{},known:knownNames(db,opts.known),rank:rk};
 }
 // vuelve a etiquetar los equipos de un conjunto ya procesado (por ejemplo al cargar otra tabla de equipos)
 function relabel(ds,db){
@@ -4302,9 +4302,23 @@ function casLast(){let l='';for(const m of ((FULL||ds).matches||[]))if(m.d&&m.d>
 function casRange(){const last=casLast(),to=CAS.to||last,from=CAS.from||balFromDays(balDays(to)-30);return {from,to,last}}
 // one row per team and set (draws left out): team, rival, win, map, mode, brawlers
 let _casK='',_casV=null;
+const _casSt=new WeakMap();
+function casStats(m){if(!m.gs)return null;let v=_casSt.get(m);if(v!==undefined)return v;v=null;
+  const G=m.gs.map(x=>{try{return JSON.parse(x)}catch(e){return null}}).filter(q=>q&&q.p);
+  if(G.length){const P={};for(const q of G)for(const g in q.p){const a=q.p[g],e=P[g.toUpperCase()]||(P[g.toUpperCase()]={n:0,k:0,d:0,dm:0});e.n++;e.k+=+a[0]||0;e.d+=+a[1]||0;e.dm+=+a[2]||0}v={P,games:G.length}}
+  _casSt.set(m,v);return v}
+const casKdAdd=(o,k,L)=>{const e=o[k]||(o[k]={g:0,k:0,d:0,dm:0});e.g+=L[0].n;for(const q of L){e.k+=q.k;e.d+=q.d;e.dm+=q.dm}};
+function casKD(L){const B={},DU={};for(const x of L){const Q=x.kd;if(!Q||!Q.length)continue;for(const [b,q] of Q)casKdAdd(B,b,[q]);
+  for(let a=0;a<Q.length;a++)for(let c=a+1;c<Q.length;c++)casKdAdd(DU,[Q[a][0],Q[c][0]].sort().join(' + '),[Q[a][1],Q[c][1]])}return {B,DU}}
+const casTK=L=>{const e={g:0,k:0,d:0,dm:0};for(const x of L)if(x.tk){e.g+=x.tk.g;e.k+=x.tk.k;e.d+=x.tk.d;e.dm+=x.tk.dm}return e};
+const casKdl=e=>`<small class="cas-kd">${e&&e.g?`${e.d?(e.k/e.d).toFixed(2):e.k+'/0'} K/D · ${fmtK(e.dm/e.g)} dmg`:'no game stats'}</small>`;
 function casRows(){const F=FULL||ds,R=casRange(),k=(F.matches||[]).length+'|'+R.from+'|'+R.to+'|'+(F.matches&&F.matches[0]&&F.matches[0].t);if(_casK===k&&_casV)return _casV;
   const L=[];for(const m of F.matches||[]){if(m.s||m.y===0.5||!m.d||m.d<R.from||m.d>R.to)continue;const md=modeOfMap(m.m),A_=casU(m.a),B_=m.sh?'':casU(m.b);
-    for(const [t,o,win,br,ot,mt] of [[A_,B_,m.y,m.ba,m.tb,m.ta],[B_,A_,1-m.y,m.bb,m.ta,m.tb]]){if(!t)continue;L.push({t,o,win,ot:(ot||[]).filter(Boolean),mt:(mt||[]).filter(Boolean),map:m.m,mk:mkey(m.m),md,br:[...new Set((br||[]).filter(Boolean).map(x=>String(x).toUpperCase()))]})}}
+    const S=casStats(m);
+    for(const [t,o,win,br,ot,mt] of [[A_,B_,m.y,m.ba,m.tb,m.ta],[B_,A_,1-m.y,m.bb,m.ta,m.tb]]){if(!t)continue;
+      let kd=null,tk=null;if(S){kd=(br||[]).map((b,k)=>{const q=b&&S.P[String((mt||[])[k]||'').toUpperCase()];return q?[String(b).toUpperCase(),q]:null}).filter(Boolean);
+        if(kd.length){tk={g:S.games,k:0,d:0,dm:0};for(const [,q] of kd){tk.k+=q.k;tk.d+=q.d;tk.dm+=q.dm}}else kd=null}
+      L.push({t,o,win,ot:(ot||[]).filter(Boolean),mt:(mt||[]).filter(Boolean),map:m.m,mk:mkey(m.m),md,br:[...new Set((br||[]).filter(Boolean).map(x=>String(x).toUpperCase()))],kd,tk})}}
   _casK=k;_casV=L;return L}
 // the teams of the chosen tournament / region / the chosen ones: Team A, Team B and every table of several teams use exactly these
 function casGroup(teams,free){
@@ -4349,7 +4363,7 @@ function casterTab(P){
   const chips=(sel,attr)=>`<div class="cas-chips">${G.map(t=>`<button type="button" class="cas-tc${t===sel?' on':''}" style="--c:${attr==='casa'?tcA:tcB}" data-${P?(attr==='casa'?'pra':'prb'):attr}="${esc(t)}" title="${esc(t)}">${logo(t,'l26')}</button>`).join('')}</div>`;
   const wrOn=L=>{const w=L.reduce((a,x)=>a+x.win,0);return {w,n:L.length}};
   const hA=wrOn(RA),hB=wrOn(RB);
-  const hdr=(t,x,col,r)=>`<div class="cas-ht${r?' r':''}" style="--c:${col}">${logo(t,'l52')}<div class="cas-hn"><b>${esc(t)}</b><small>${esc(casReg(t))}</small></div><div class="cas-hw"><span style="${x.n?casWr(x.w/x.n,x.n):''}">${casPc(x.w,x.n)}</span><small>${x.w}–${x.n-x.w} on ${many?'these maps':'this map'}</small></div></div>`;
+  const hdr=(t,x,col,r)=>`<div class="cas-ht${r?' r':''}" style="--c:${col}" data-caspop="${r?'b':'a'}" title="Click to change the team">${logo(t,'l52')}<div class="cas-hn"><b>${esc(t)}</b><small>${esc(casReg(t))}</small></div><div class="cas-hw"><span style="${x.n?casWr(x.w/x.n,x.n):''}">${casPc(x.w,x.n)}</span><small>${x.w}–${x.n-x.w} on ${many?'these maps':'this map'}</small></div></div>`;
   const mimg=IMGS['bg'+mkey(MAP)]||IMGS[mkey(MAP)]||'';
   let p=P&&P.p!=null?P.p:wpTeamProb(A,B,MAP),src=P&&P.src?P.src:'the Team Predictor model';
   if(p==null){const sh=(w,n)=>(w+3)/(n+6),all=t=>{const L=rows.filter(x=>x.t===t);return sh(L.reduce((a,x)=>a+x.win,0),L.length)},hh=(t,o)=>{const L=rows.filter(x=>x.t===t&&x.o===o);return sh(L.reduce((a,x)=>a+x.win,0),L.length)};
@@ -4359,25 +4373,28 @@ function casterTab(P){
     <div class="cas-wpt" title="Win chance from ${src}">${many?'Series win chance':'Win chance'}</div><div class="cas-wpr"><b style="color:${tcA}">${pa}%</b><div class="cas-wpb"><i style="flex:${pa};background:${tcA}"></i><i style="flex:${100-pa};background:${tcB}"></i></div><b style="color:${tcB}">${100-pa}%</b></div></div></div>`;
   // tables
   const head=(t,tog,col,tip)=>`<div class="cas-ch"${col?` style="--c:${col}"`:''}><div class="cas-ln" title="${esc(tip||'')}"><span>${t}</span></div>${tog||''}</div>`;
-  const pkT=(id,t,L,col)=>{const arr=casSort(casPk(L,BAN),id,'pr').slice(0,10);const N=L.length;
-    const rs=arr.map((x,i)=>`<tr><td class="rk">${i+1}</td><td><div class="cas-br">${bimg(x.k,'bi')}<span>${esc(x.k)}</span></div></td><td class="num">${x.n}</td><td class="num mut">${casPc(x.n,N)}</td><td class="num cas-w" style="${casWr(x.w/x.n,x.n)}">${casPc(x.w,x.n)}</td></tr>`).join('');
+  const pkT=(id,t,L,col)=>{const arr=casSort(casPk(L,BAN),id,'pr').slice(0,10);const N=L.length,KD=casKD(L);
+    const rs=arr.map((x,i)=>`<tr><td class="rk">${i+1}</td><td><div class="cas-br">${bimg(x.k,'bi')}<div class="cas-nm"><span>${esc(x.k)}</span>${casKdl(KD.B[x.k])}</div></div></td><td class="num">${x.n}</td><td class="num mut">${casPc(x.n,N)}</td><td class="num cas-w" style="${casWr(x.w/x.n,x.n)}">${casPc(x.w,x.n)}</td></tr>`).join('');
     return `<div class="cas-card" style="--c:${col}">${head(t,casTog(id,[['pr','Pick rate'],['wr','Win rate']],'pr'),col,`${N} sets on ${mapsLbl}`)}<table class="cas-t"><thead><tr><th class="rk"></th><th>Brawler · ${N} sets</th><th class="num cw">Sets</th><th class="num cw2">Pick</th><th class="num cw2">Win</th></tr></thead><tbody>${rs||'<tr><td colspan="5" class="msg">No sets on this map in these dates.</td></tr>'}</tbody></table></div>`};
-  const duoT=()=>{const arr=casSort(casDuo(RG,BAN),'duo','pr').slice(0,10);const N=RG.length;
-    const rs=arr.map((x,i)=>`<tr><td class="rk">${i+1}</td><td>${duoH(x.k.split(' + '))}</td><td class="num">${x.n}</td><td class="num mut">${casPc(x.n,N)}</td><td class="num cas-w" style="${casWr(x.w/x.n,x.n)}">${casPc(x.w,x.n)}</td></tr>`).join('');
+  const duoT=()=>{const arr=casSort(casDuo(RG,BAN),'duo','pr').slice(0,10);const N=RG.length,KD=casKD(RG);
+    const rs=arr.map((x,i)=>`<tr><td class="rk">${i+1}</td><td><div class="cas-duo">${duoH(x.k.split(' + '))}${casKdl(KD.DU[x.k])}</div></td><td class="num">${x.n}</td><td class="num mut">${casPc(x.n,N)}</td><td class="num cas-w" style="${casWr(x.w/x.n,x.n)}">${casPc(x.w,x.n)}</td></tr>`).join('');
     return `<div class="cas-card">${head('Duos',casTog('duo',[['pr','Pick rate'],['wr','Win rate']],'pr'),null,`${cmpLbl} · ${N} sets on ${mapsLbl}`)}<table class="cas-t"><thead><tr><th class="rk"></th><th>Duo · ${esc(cmpLbl)}</th><th class="num cw">Sets</th><th class="num cw2">Pick</th><th class="num cw2">Win</th></tr></thead><tbody>${rs||'<tr><td colspan="5" class="msg">No sets.</td></tr>'}</tbody></table></div>`};
   const rowAttr=t=>t===A?` class="cas-hl" style="--rc:${tcA}"`:t===B?` class="cas-hl" style="--rc:${tcB}"`:'';
-  const teamT=(id,t,flt,tip)=>{const arr=G.map(tm=>{const L=rows.filter(x=>x.t===tm&&flt(x));return {t:tm,n:L.length,w:L.reduce((a,x)=>a+x.win,0)}}).filter(x=>x.n);
-    const rs=casSort(arr,id,'wr').map((x,i)=>`<tr${rowAttr(x.t)}><td class="rk">${i+1}</td><td><div class="cas-tm">${logo(x.t,'l20')}<span>${esc(x.t)}</span></div></td><td class="num">${x.n}</td><td class="num cas-w" style="${casWr(x.w/x.n,x.n)}">${casPc(x.w,x.n)}</td><td class="num mut">${x.w}–${x.n-x.w}</td></tr>`).join('');
+  const teamT=(id,t,flt,tip)=>{const arr=G.map(tm=>{const L=rows.filter(x=>x.t===tm&&flt(x));return {t:tm,n:L.length,w:L.reduce((a,x)=>a+x.win,0),kd:casTK(L)}}).filter(x=>x.n);
+    const rs=casSort(arr,id,'wr').map((x,i)=>`<tr${rowAttr(x.t)}><td class="rk">${i+1}</td><td><div class="cas-tm">${logo(x.t,'l20')}<div class="cas-nm"><span>${esc(x.t)}</span>${casKdl(x.kd)}</div></div></td><td class="num">${x.n}</td><td class="num cas-w" style="${casWr(x.w/x.n,x.n)}">${casPc(x.w,x.n)}</td><td class="num mut">${x.w}–${x.n-x.w}</td></tr>`).join('');
     return `<div class="cas-card">${head(t,casTog(id,[['wr','Win rate'],['n','Sets']],'wr'),null,tip)}<table class="cas-t"><thead><tr><th class="rk"></th><th>Team</th><th class="num cw">Sets</th><th class="num cw2">Win</th><th class="num cw3">W–L</th></tr></thead><tbody>${rs||'<tr><td colspan="5" class="msg">No sets.</td></tr>'}</tbody></table></div>`};
   // the 5 most played rivals: a team of the list by its name and logo, any other rival by its 3 players (one under the other)
+  const CAS_USR='<svg class="cas-usr" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#6e6a85" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c.6-3.2 3-5 6-5s5.4 1.8 6 5"/><circle cx="17" cy="9" r="2.6"/><path d="M16 14.2c2.6.2 4.4 1.8 5 4.8"/></svg>';
   const nmOf=g=>sheetName(g,((FULL&&FULL.names)||ds.names||{})[g])||g;
   const rivT=(t,col)=>{const id='riv'+(t===A?'A':'B'),c={};for(const x of rows){if(x.t!==t)continue;const isT=x.o&&teams.includes(x.o),k=isT?x.o:'#'+x.ot.slice().sort().join(',');if(k==='#')continue;
       const e=c[k]||(c[k]={k,t:isT?x.o:'',tags:x.ot.slice(),n:0,w:0});e.n++;e.w+=x.win}
     const arr=casSort(Object.values(c),id,'n').slice(0,5);
-    const who=x=>x.t?`<div class="cas-tm">${logo(x.t,'l20')}<span>${esc(x.t)}</span></div>`:`<div class="cas-pl">${x.tags.map(g=>`<span>${esc(nmOf(g))}</span>`).join('')}</div>`;
+    const who=x=>{if(x.t)return `<div class="cas-tm">${logo(x.t,'l20')}<span>${esc(x.t)}</span></div>`;const nn=x.tags.map(g=>nmOf(g));return `<div class="cas-tm cas-mix" title="${esc(nn.join(' · '))}">${CAS_USR}<div class="cas-nm"><span>Mixed roster</span><small class="cas-kd">${esc(nn.join(' · '))}</small></div></div>`};
     const rs=arr.map(x=>`<tr${x.t===A||x.t===B?rowAttr(x.t):''}><td>${who(x)}</td><td class="num">${x.n}</td><td class="num cas-w" style="${casWr(x.w/x.n,x.n)}">${casPc(x.w,x.n)}</td><td class="num mut">${x.w}–${x.n-x.w}</td></tr>`).join('');
-    return `<div class="cas-sub" style="--c:${col}">${head(`${logo(t,'l20')} Most played rivals`,casTog(id,[['n','Sets'],['wr','Win rate']],'n'),col,'the 5 rivals '+t+' played the most sets against (every map); rivals that are not in the list are shown by their 3 players')}<table class="cas-t"><tbody>${rs||'<tr><td colspan="4" class="msg">No sets.</td></tr>'}</tbody></table></div>`};
-  return `<div class="cas${P?' cas-p':''}" title="">${top}${maps_}<div class="cas-head">${chips(A,'casa')}${hdr(A,hA,tcA)}${mid}${hdr(B,hB,tcB,1)}${chips(B,'casb')}</div>${P&&P.extra?P.extra:''}
+    const o_=t===A?B:A,Hh=o_?rows.filter(x=>x.t===t&&x.o===o_):[],Hm=Hh.filter(onMap),hc=(L,lb)=>{const w=L.reduce((a,x)=>a+x.win,0);return `<div class="h2c"><small>${lb}</small><b>${L.length?w+'–'+(L.length-w):'–'}</b><em${L.length?` style="${casWr(w/L.length,L.length)}"`:''}>${L.length?casPc(w,L.length):'no sets'}</em></div>`};
+    const h2h=o_?`<div class="cas-h2h" title="Sets between ${esc(t)} and ${esc(o_)} in these dates"><div class="h2t">Head to head <span>vs ${logo(o_,'l20')} ${esc(o_)}</span></div><div class="h2r">${hc(Hm,many?'These maps':'This map')}${hc(Hh,'All maps')}</div></div>`:'';
+    return `<div class="cas-sub" style="--c:${col}">${head(`${logo(t,'l20')} Rivals`,casTog(id,[['n','Sets'],['wr','Win rate']],'n'),col,'the 5 rivals '+t+' played the most sets against (every map); rivals that are not in the list are shown by their 3 players')}${h2h}<table class="cas-t"><tbody>${rs||'<tr><td colspan="4" class="msg">No sets.</td></tr>'}</tbody></table></div>`};
+  return `<div class="cas${P?' cas-p':''}" title="">${top}${maps_}<div class="cas-head cas-headp">${hdr(A,hA,tcA)}${mid}${hdr(B,hB,tcB,1)}${CAS.pop==='a'?`<div class="cas-pop cas-pop-a"><div class="cas-pt">Team A</div>${chips(A,'casa')}</div>`:CAS.pop==='b'?`<div class="cas-pop cas-pop-b"><div class="cas-pt">Team B</div>${chips(B,'casb')}</div>`:''}</div>${P&&P.extra?P.extra:''}
     <div class="cas-g4">${pkT('pkA',`${logo(A,'l20')} ${esc(A)}`,RA,tcA)}${pkT('pkG',(many?'Selected maps':'Selected map')+' · total picks',RG,'var(--accent,#d63a50)')}${duoT()}${pkT('pkB',`${logo(B,'l20')} ${esc(B)}`,RB,tcB)}</div>
     <div class="cas-g5"><div class="cas-card cas-rv">${rivT(A,tcA)}</div>${teamT('wMap',many?'Win rate · these maps':'Win rate · '+esc(MAP),onMap,'sets on '+(many?MAPS.join(', '):MAP))}${teamT('wMode',MDS.size>1?'Win rate · their modes':'Win rate · '+esc(MD),x=>MDS.has(x.md),'sets on every map of '+[...MDS].join(', '))}${teamT('wAll','Win rate · all maps',()=>true,'sets on every map and mode')}<div class="cas-card cas-rv">${rivT(B,tcB)}</div></div>
     <p class="cas-foot">Sets from ${fmtDate(R.from)} to ${fmtDate(R.to)} (single games and draws left out) · pick rate = share of the sets with that brawler · Team A in blue, Team B in red${BAN.size?' · global bans left out of the brawler and duo tables: '+esc([...BAN].join(', ')):''}</p></div>`}
@@ -4385,8 +4402,8 @@ function casterTab(P){
 function casFit(){const el=document.querySelector('.cas');if(!el||!window.CASTER_ONLY)return;el.style.zoom='';const r=el.getBoundingClientRect(),avH=window.innerHeight-r.top-window.scrollY*0-6,avW=document.documentElement.clientWidth-2*Math.max(8,r.left);
   const z=Math.max(.55,Math.min(1,avH/r.height,avW/r.width));if(z<.995)el.style.zoom=z.toFixed(3)}
 window.addEventListener('resize',()=>{if(tab==='caster')casFit()});
-document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-casa],[data-casb],[data-casmap],[data-cascmp],[data-castrio],[data-cascv],[data-caspick],[data-cassort]');if(!t)return;const d=t.dataset;
-  if(d.casa!=null){CAS.a=d.casa;if(CAS.b===CAS.a)CAS.b=''}else if(d.casb!=null){CAS.b=d.casb;if(CAS.a===CAS.b)CAS.a=''}else if(d.casmap!=null)CAS.map=d.casmap;
+document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-casa],[data-casb],[data-casmap],[data-cascmp],[data-castrio],[data-cascv],[data-caspick],[data-cassort],[data-caspop]');if(!t)return;const d=t.dataset;
+  if(d.caspop!=null)CAS.pop=CAS.pop===d.caspop?null:d.caspop;else if(d.casa!=null){CAS.a=d.casa;if(CAS.b===CAS.a)CAS.b='';CAS.pop=null}else if(d.casb!=null){CAS.b=d.casb;if(CAS.a===CAS.b)CAS.a=''}else if(d.casmap!=null)CAS.map=d.casmap;
   else if(d.cascmp!=null)CAS.cmp=d.cascmp;else if(d.cascv!=null){if(CAS.cmp==='reg')CAS.cvR=d.cascv;else CAS.cvT=d.cascv}
   else if(d.caspick!=null){CAS.pick=CAS.pick||[];const i=CAS.pick.indexOf(d.caspick);if(i>=0)CAS.pick.splice(i,1);else CAS.pick.push(d.caspick)}
   else if(d.castrio!=null)CAS.trio=d.castrio;
@@ -4411,14 +4428,21 @@ function predCas(r,msg){
 document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-pra],[data-prb],[data-prmap]');if(!t||!M||!M.D)return;const d=t.dataset,D=M.D;
   const ix=n=>D.off.findIndex(x=>String(x).toUpperCase()===String(n).toUpperCase());
   if(d.pra!=null||d.prb!=null){const i=ix(d.pra!=null?d.pra:d.prb);if(i<0)return;
-    const other=d.pra!=null?$('selB'):$('selA');if(+other.value===i)other.value=d.pra!=null?$('selA').value:$('selB').value;(d.pra!=null?$('selA'):$('selB')).value=i;render();return}
+    const other=d.pra!=null?$('selB'):$('selA');if(+other.value===i)other.value=d.pra!=null?$('selA').value:$('selB').value;(d.pra!=null?$('selA'):$('selB')).value=i;CAS.pop=null;render();return}
   if(d.prmap!=null){const m=d.prmap,k=sel.maps.indexOf(m);if(k>=0)sel.maps.splice(k,1);else{if(!D.maps.includes(m))return;sel.maps.push(m)}saveSel();render()}});
 
+// rev167: a click outside the open team choice (or Esc) closes it
+const casPopClose=()=>{if(!CAS.pop)return;CAS.pop=null;if(view==='pred')render();else renderDetail()};
+document.addEventListener('click',e=>{if(CAS.pop&&!(e.target.closest&&e.target.closest('.cas-pop,[data-caspop]')))casPopClose()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')casPopClose()});
+// rev167: the map tiles of the Team Predictor and Scouting go in one row at the top of the page (not in the side panel)
+function mrowPlace(box,host,cls){if(host){if(box.parentNode!==host.parentNode||box.previousElementSibling!==host)host.after(box);box.className='pr-sb mrow '+cls;return true}return false}
 // ===== rev139: Team Predictor maps chosen in the side panel (like Team Stats)
 function prSbPaint(){const A=document.getElementById('sbar');if(!A)return;let box=document.getElementById('prSb');
   const on=typeof view!=='undefined'&&view==='pred'&&M&&M.D;
   if(!on){if(box)box.style.display='none';document.body.classList.remove('pr-sb');return}
-  if(!box){box=document.createElement('div');box.id='prSb';box.className='pr-sb';A.appendChild(box)}
+  if(!box){box=document.createElement('div');box.id='prSb';box.className='pr-sb'}
+  if(!mrowPlace(box,document.querySelector('#predview .cas .cas-top'),'mrow-pr'))A.appendChild(box);
   box.style.display='';document.body.classList.add('pr-sb');
   const D=M.D,av=new Set(D.maps||[]),S=sel.maps||[],ML=(MODELIST||[]).map(([md,ms])=>[md,ms.filter(m=>av.has(m))]).filter(x=>x[1].length);
   box.innerHTML=`<div class="pr-h"><span class="lbl">Maps of the series</span>${S.length?`<button type="button" class="pr-clr" data-prclr>Clear</button>`:''}</div><p class="pr-hint">${S.length?`${S.length} ${S.length===1?'map':'maps'} · click them in the order they are played`:'Click the maps in the order they are played'}</p>`+
@@ -4430,7 +4454,8 @@ document.addEventListener('click',e=>{const c=e.target.closest&&e.target.closest
 function scSbPaint(){const A=document.getElementById('sbar');if(!A)return;let box=document.getElementById('scSb');
   const on=typeof view!=='undefined'&&view==='stats'&&typeof tab!=='undefined'&&tab==='scout'&&M&&M.D;
   if(!on){if(box)box.style.display='none';document.body.classList.remove('sc-sb');return}
-  if(!box){box=document.createElement('div');box.id='scSb';box.className='pr-sb';A.appendChild(box)}
+  if(!box){box=document.createElement('div');box.id='scSb';box.className='pr-sb'}
+  if(!mrowPlace(box,document.querySelector('#detail .sc-ctl'),'mrow-sc'))A.appendChild(box);
   box.style.display='';document.body.classList.add('sc-sb');const cur=SC.map||'';
   box.innerHTML=`<div class="pr-h"><span class="lbl">Maps</span><button type="button" class="pr-clr${cur?'':' on'}" data-scmappick="">All maps</button></div><p class="pr-hint">${cur?esc(cur)+' · click it again for all maps':'Click a map to scout only that map'}</p>`+
     (MODELIST||[]).map(([md,ms])=>{const ic=IMGS['mode'+mkey(md)];return `<div class="pr-g"><div class="pr-gh">${ic?`<img src="${ic}" alt="">`:''}<b>${esc(md)}</b></div><div class="pr-tiles">${ms.map(m=>{const u=IMGS['bg'+mkey(m)]||IMGS[mkey(m)]||'',o=m===cur;
@@ -5349,7 +5374,7 @@ async function readPicks(mcp){ // Picks sheet: B = selected teams (+ tournament 
     return Object.keys(off).length>=2?{off,missing,types,tags,players:plr,selected:selT,meta,known,rank}:null;
   }catch(e){return null}
 }
-function convRow(r){const o=new Array(26).fill('');o[0]=r[23]||'';o[1]=r[0]||'';o[2]=r[2]||'';o[3]=r[3]||'';for(let i=4;i<=21;i++)o[i]=r[i]||'';o[22]=r[22]||'';if((r[25]||r[26]||r[27]||r[28]||r[29]||r[30]||r[31])){for(let i=25;i<=30;i++)o[i+1]=r[i]||'';o[32]=r[31]||''}return o}
+function convRow(r){const o=new Array(26).fill('');o[0]=r[23]||'';o[1]=r[0]||'';o[2]=r[2]||'';o[3]=r[3]||'';for(let i=4;i<=21;i++)o[i]=r[i]||'';o[22]=r[22]||'';if((r[25]||r[26]||r[27]||r[28]||r[29]||r[30]||r[31])){for(let i=25;i<=30;i++)o[i+1]=r[i]||'';o[32]=r[31]||''}if(/^\d{4}-\d\d-\d\dT/.test(r[24]||''))o[33]=r[24];return o}
 // sheet rows up to this one are permanent (never edited): they are read once and cached. Everything below (the IMPORTRANGE part) is read again on every refresh, so edits to those rows are picked up.
 const PERM_ROWS=81050; // used only if the CONFIG tab cannot be read
 const sheetBtns=d=>{for(const id of ['sheetGo','sheetAll']){const b=$(id);if(b)b.disabled=d}};
@@ -5603,8 +5628,8 @@ function drEditorHTML(){
     ${d.su&&d.kind!=='mq'?`<p class="msg" style="margin:0 0 6px">Side unknown: put each team's 3 picks on its side in any order (the numbers don't matter) and its bans. This draft counts for picks and bans, and is left out of the 1st / last pick figures.</p>${drCoinEstHTML(d)}`:''}${d.kind?`<p class="msg" style="margin:0">${d.kind==='tr'?'Tournament: the 1st pick side is recorded as usual and the global bans are optional (leave them empty if that tournament has none), and you can tick “Side unknown” if the 1st pick side is not known (then the draft is left out of the 1st/last pick figures). ':''}${d.kind==='mq'?'Monthly qualifier: write the whole draft; the 1st pick side is not recorded, so this draft is left out of the 1st/last pick figures. ':''}“Find the match date” looks for a tournament game with these picks and this map in the month of the date (teams that are not in the Picks sheet are matched by their picks only), and asks you before changing the date.</p>${DR.link?drLinkHTML():''}`:''}
     <div class="dr-btns"><button type="button" class="btn" data-dsave="1"${DR.busy?' disabled':''}>${isSaved?'Update draft':'Save draft'}</button><button type="button" class="btn quiet" data-dnext="1">Next map (keep teams and global bans)</button><button type="button" class="btn quiet" data-dclear="1">Clear draft</button></div></div>
     <p class="dr-msg${DR.bad?' bad':''}" role="status" style="margin-top:8px">${esc(DR.msg)}</p>`;
-  if(DR.sug)return `<section class="panel">${drSubHTML()}<div class="dr-hd"><h2 class="ttl" style="margin:0">Draft Suggestion</h2><div class="seg2" style="margin-top:0" role="group" aria-label="How to choose brawlers"><button type="button" data-dmode="grid" aria-pressed="${DR.mode==='grid'}">Brawler rows</button><button type="button" data-dmode="list" aria-pressed="${DR.mode==='list'}">Pop-up list</button></div></div>
-    ${DR.mode==='grid'?drPoolHTML():''}${head}${stage}${drWPHTML()}<div class="dr-btns" style="margin-top:10px"><button type="button" class="btn quiet" data-dclear="1">Clear draft</button></div></section>`;
+  if(DR.sug)return `<section class="panel">${drSubHTML()}<div class="dr-hd"><h2 class="ttl" style="margin:0">Draft Suggestion</h2><span class="msg" style="font-size:12px">Click a slot to choose its brawler</span></div>
+    ${head}${stage}${drWPHTML()}<div class="dr-btns" style="margin-top:10px"><button type="button" class="btn quiet" data-dclear="1">Clear draft</button></div></section>`;
   return `<section class="panel">${drSubHTML()}${fsBarHTML()}<div class="dr-hd"><h2 class="ttl" style="margin:0">Save Draft</h2><div class="seg2" style="margin-top:0" role="group" aria-label="How to choose brawlers"><button type="button" data-dmode="grid" aria-pressed="${DR.mode==='grid'}">Brawler rows</button><button type="button" data-dmode="list" aria-pressed="${DR.mode==='list'}">Pop-up list</button></div></div>
     ${DR.mode==='grid'?drPoolHTML():''}${head}${stage}${drWPHTML()}${below}</section>`}
 function drTI(n,kind,badge){
@@ -5834,7 +5859,7 @@ document.addEventListener('keydown',e=>{const i=e.target;if(!i.classList||!i.cla
 document.addEventListener('input',e=>{const i=e.target;if(!i.classList||!i.classList.contains('tyIn')||e.inputType)return;if(drNames().includes(String(i.value).trim().toUpperCase()))setTimeout(()=>tyApply(i),0)});
 document.addEventListener('click',e=>{if(e.target.classList&&e.target.classList.contains('tyIn'))e.stopPropagation()},true);
 function tyMount(el){if(!document.getElementById('tyDL')){const d=document.createElement('datalist');d.id='tyDL';d.innerHTML=drNames().map(n=>`<option value="${esc(n)}">`).join('');document.body.appendChild(d)}
-  if(!DR.sim&&!DR.live&&DR.mode==='grid'&&DR.active){const sl=el.querySelector(`[data-slot="${CSS.escape(DR.active)}"]`);if(sl&&!sl.querySelector('.tyIn')){const i=document.createElement('input');i.className='dr-input tyIn';i.dataset.tyk=DR.active;i.setAttribute('list','tyDL');i.autocomplete='off';i.placeholder='Type…';sl.classList.add('tyOn');sl.appendChild(i)}}
+  if(!DR.sim&&!DR.live&&!DR.sug&&DR.mode==='grid'&&DR.active){const sl=el.querySelector(`[data-slot="${CSS.escape(DR.active)}"]`);if(sl&&!sl.querySelector('.tyIn')){const i=document.createElement('input');i.className='dr-input tyIn';i.dataset.tyk=DR.active;i.setAttribute('list','tyDL');i.autocomplete='off';i.placeholder='Type…';sl.classList.add('tyOn');sl.appendChild(i)}}
   const f=el.querySelector('.tyIn');if(f&&!(document.activeElement&&/INPUT|TEXTAREA/.test(document.activeElement.tagName)&&document.activeElement.type!=='checkbox'&&!document.activeElement.classList.contains('tyIn')))setTimeout(()=>f.focus({preventScroll:true}),0)}
 function drRender(){const el=$('drmain');if(!el||(view!=='draft'&&view!=='suggest'))return;
   const pg=el.querySelector('.dr-pgrid'),sl=pg?pg.scrollLeft:0;
@@ -5871,7 +5896,7 @@ $('draftview').addEventListener('click',e=>{
   const pb=t.closest('[data-pb]');if(pb&&!pb.disabled){drAssign(DR.pop.slot,pb.dataset.pb);drNextPop();drRender();return}
   const gb=t.closest('[data-gb]');if(gb&&!gb.disabled){const tg=drTarget();if(tg){drAssign(tg,gb.dataset.gb);drRender()}return}
   const sl=t.closest('[data-slot]');if(sl){if(sl.dataset.lock){DR.msg='Picks go in order: fill the previous pick first.';DR.bad=false;drRender();return}
-    if(DR.mode==='list'){DR.pop={type:'brawler',slot:sl.dataset.slot};drPopRender()}else{DR.active=sl.dataset.slot;drRender()}return}
+    if(DR.mode==='list'||DR.sug){DR.pop={type:'brawler',slot:sl.dataset.slot};drPopRender()}else{DR.active=sl.dataset.slot;drRender()}return}
   const tp=t.closest('[data-tpop]');if(tp){DR.pop={type:'team',side:tp.dataset.tpop};drPopRender();return}
   const tk=t.closest('[data-tpick]');if(tk){DR.cur[DR.pop.side]=tk.dataset.tpick;drClosePop();drRender();return}
   if(t.closest('[data-tuse]')){const v=canonTeam(($('drTeamIn').value||''));if(v){DR.cur[DR.pop.side]=v;drClosePop();drRender()}return}
@@ -5999,13 +6024,14 @@ function simHTML(){const teams=dsTeams(),maps=dsMaps();
     <button type="button" class="btn ds-go" data-dsstart${DS.map?'':' disabled'}>${DS.d?'↺ New draft':'Start draft'}</button>`;
   if(!DS.d)return `<section class="panel">${drSubHTML()}<h2 class="ttl" style="margin:6px 0">Practice vs bot</h2><div class="ds-setup">${setupIn}</div><p class="msg">Choose your team and the rival the bot plays like (or leave both on the meta), the map and who picks first.</p></section>`;
   const d=DS.d,pos=drPos(d.coin),nx=dsNext(),P=dsProb(),pa=Math.round(100*P.p),meFirst=d.coin==='blue';
+  const myTurnP=()=>DS.phase==='bans'||(DS.phase==='picks'&&nx&&nx.who==='me'&&!DS.busy);
   const tin=(ph)=>`<input class="dr-input tyIn" data-tyk="ds" list="tyDL" placeholder="${ph}" autocomplete="off">`;
-  const pickCard=(n)=>{const b=d.picks[n-1],cur=nx&&nx.n===n&&DS.phase==='picks',me=cur&&!DS.busy&&nx.who==='me';return `<div class="dz-c${b?' f':''}${cur?' cur':''}${me?' ty':''}"><span class="dz-n">${n}</span>${b?bimg(b,'dz-ci')+`<span class="dz-cn">${esc(b)}</span>`:me?`<span class="dz-e">YOUR PICK</span>${tin('Type…')}`:`<span class="dz-e">${cur?'…':'#'+n}</span>`}</div>`};
-  let banTy=false;const banI=b=>{if(!b&&DS.phase==='bans'&&!banTy){banTy=true;return `<div class="dz-ban ty">${tin('Ban…')}</div>`}return `<div class="dz-ban${b?' f':''}"${b&&DS.phase==='bans'?` data-dsb="${esc(b)}" title="Click to remove"`:''}>${b?bimg(b,'dz-bi'):''}</div>`};
+  const pickCard=(n)=>{const b=d.picks[n-1],cur=nx&&nx.n===n&&DS.phase==='picks',me=cur&&!DS.busy&&nx.who==='me';return `<div class="dz-c${b?' f':''}${cur?' cur':''}${me?' ty':''}"${me?' data-dspop="1" title="Click to choose your pick"':''}><span class="dz-n">${n}</span>${b?bimg(b,'dz-ci')+`<span class="dz-cn">${esc(b)}</span>`:me?`<span class="dz-plus">+</span><span class="dz-e">YOUR PICK</span>`:`<span class="dz-e">${cur?'…':'#'+n}</span>`}</div>`};
+  const banI=(b,i,mine)=>{const open=mine&&!b&&DS.phase==='bans';return `<div class="dz-ban2${b?' f':''}${open?' op':''}"${b&&mine&&DS.phase==='bans'?` data-dsb="${esc(b)}" title="Click to remove"`:open?' data-dspop="1" title="Click to choose a ban"':''}><span class="dz-bl">BAN ${i+1}</span><span class="dz-bx">${b?bimg(b,'dz-bi'):open?'+':''}</span></div>`};
   const side=me=>{const team=me?DS.me:DS.opp,ns=(me?pos[0]:pos[1]).slice().sort((a,b)=>a-b);
     const bans=me?[0,1,2].map(i=>DS.myBans[i]||''):(DS.phase==='bans'?['','','']:d.bans.r);
     return `<div class="dz-side ${me?'b':'r'}"><div class="dz-th">${dsLogo(team)}<div><b>${esc(team?team:me?'You':'Meta bot')}</b><small>${me?'you':'bot · '+DS.diff}${(meFirst===me)?' · 1st pick':''}</small></div></div>
-      <div class="dz-bans">${bans.map(banI).join('')}</div><div class="dz-col">${ns.map(pickCard).join('')}</div></div>`};
+      <div class="dz-bans">${bans.map((b,i)=>banI(b,i,me)).join('')}</div><div class="dz-col">${ns.map(pickCard).join('')}</div></div>`};
   const order=[1,2,3,4,5,6].map(n=>{const mine=pos[0].includes(n),b=d.picks[n-1],cur=nx&&nx.n===n&&DS.phase==='picks';return `<span class="dz-o ${mine?'b':'r'}${b?' f':''}${cur?' cur':''}">${b?bimg(b,'dz-oi'):n}</span>`}).join('<i class="dz-ar">›</i>');
   const turn=DS.phase==='bans'?`<b>BANS</b> · choose 3 (${DS.myBans.length}/3)${DS.myBans.length===3?' <button type="button" class="btn" data-dslock>Lock bans</button>':''}`:DS.phase==='done'||!nx?'<b>DRAFT FINISHED</b>':DS.busy||nx.who==='bot'?`<b class="r">${esc(dsName(DS.opp)).toUpperCase()}</b> is picking #${nx.n}…`:`<b class="b">YOUR TURN</b> · pick #${nx.n}`;
   const mi=IMGS['mode'+mkey(modeOfMap(DS.map))];
@@ -6014,19 +6040,23 @@ function simHTML(){const teams=dsTeams(),maps=dsMaps();
     <div class="dz-act"><button type="button" class="btn quiet" data-dsundo${DS.hist.length&&!DS.busy?'':' disabled'}>↶ Undo</button><button type="button" class="btn quiet" data-dsstart>↺ Restart</button></div></div>`;
   const used=drUsedMap(d),q=DS.q.trim().toLowerCase();
   const grid=drNames().filter(n=>!q||n.toLowerCase().includes(q)).map(n=>{const u=used[mkey(n)],mb=DS.phase==='bans'&&DS.myBans.includes(n);return `<button type="button" class="dz-br${u&&!mb?' used':''}${mb?' mb':''}" data-dsb="${esc(n)}" title="${esc(n)}">${bimg(n,'dz-gi')}<small>${esc(n)}</small></button>`}).join('');
-  let sug='';const myTurn=DS.phase==='bans'||(DS.phase==='picks'&&nx&&nx.who==='me'&&!DS.busy);
+  const pop=DS.pop&&myTurnP()?`<div class="dz-popw"><div class="dz-pop"><div class="dz-poph"><b>${DS.phase==='bans'?'Choose a ban':'Choose your pick #'+(nx?nx.n:'')}</b><input type="search" data-dsq value="${esc(DS.q)}" placeholder="Search brawler…"><button type="button" class="btn quiet" data-dspopx>✕</button></div><div class="dz-grid">${grid}</div></div></div>`:'';
+  let sug='';const myTurn=myTurnP();
   if(DS.sug&&myTurn){const L=DS.phase==='bans'?(()=>{const F=dsBanFreq(DS.me,DS.d.coin==='blue'),B=dsScores('ban',DS.me,DS.opp,[],[]),sMax=Math.max(...B.map(x=>x.score),.01);
       return B.map(x=>{const f=F.cnt[mkey(x.name)]||0;return {name:x.name,score:.5*x.score/sMax+.5*f/F.mx,info:[['Banned '+(DS.d.coin==='blue'?'with':'without')+' 1st pick',Math.round(100*f/F.mx)+'%']].concat((x.info||[]).slice(0,1))}}).sort((a,b)=>b.score-a.score)})():dsScores('pick',DS.me,DS.opp,dsSide('me'),dsSide('bot'));
-    const top=L.filter(x=>!DS.myBans.includes(x.name)).slice(0,5),mx=top.length?top[0].score:1;
-    sug=`<div class="dz-sug"><div class="dz-h">${DS.phase==='bans'?'SUGGESTED BANS':'SUGGESTED PICKS'}</div>${top.map((x,i)=>`<button type="button" class="dz-sg" data-dsb="${esc(x.name)}">${bimg(x.name,'dz-si')}<div class="dz-st"><b>${i+1}. ${esc(x.name)}</b><span class="dz-sb"><i style="width:${Math.round(100*x.score/mx)}%"></i></span><small>${(x.info||[]).slice(0,2).map(c=>esc(c[0])+' '+esc(c[1])).join(' · ')}</small></div></button>`).join('')}</div>`}
+    const top=L.filter(x=>!DS.myBans.includes(x.name)).slice(0,DS.phase==='bans'?8:12),mx=top.length?top[0].score:1;
+    const mine=dsSide('me'),X=DS.phase==='picks'?sgExtraHTML(sgExtras(DS.map,mine,dsSide('bot'),drUsedMap(d),3-mine.length),'data-dsb',mine):'';
+    sug=`<div class="dz-sug"><div class="dz-h">${DS.phase==='bans'?'SUGGESTED BANS':'SUGGESTED PICKS'}</div>${top.map((x,i)=>`<button type="button" class="dz-sg" data-dsb="${esc(x.name)}">${bimg(x.name,'dz-si')}<div class="dz-st"><b>${i+1}. ${esc(x.name)}</b><span class="dz-sb"><i style="width:${Math.round(100*x.score/mx)}%"></i></span><small>${(x.info||[]).slice(0,2).map(c=>esc(c[0])+' '+esc(c[1])).join(' · ')}</small></div></button>`).join('')}</div>${X}`}
   return `<section class="panel">${drSubHTML()}
     <details class="dz-set"><summary><span class="ttl">Practice vs bot</span><span class="dz-sum">${esc(DS.map)} · ${esc(DS.diff)} bot · settings ▾</span></summary><div class="ds-setup">${setupIn}</div></details>
     <div class="dz-turn">${turn}</div><div class="dz-order">${order}</div>
     <div class="dz-board">${side(true)}${mid}${side(false)}</div>
-    <div class="dz-low">${sug||`<div class="dz-sug"><div class="dz-h">SUGGESTIONS</div><p class="msg" style="font-size:12px">${DS.phase==='done'?'Draft finished · open <b>What happened</b> to see why the bot picked each brawler.':'They appear on your turn.'}</p></div>`}<div class="dz-pool"><div class="dz-ph"><input type="search" data-dsq value="${esc(DS.q)}" placeholder="Search brawler…"><label class="ds-tg"><input type="checkbox" data-dssug${DS.sug?' checked':''}> Suggestions</label></div><div class="dz-grid">${grid}</div></div></div>
+    <div class="dz-low dz-low2"><div class="dz-sgh"><label class="ds-tg"><input type="checkbox" data-dssug${DS.sug?' checked':''}> Show suggestions</label></div>${sug||`<div class="dz-sug"><div class="dz-h">SUGGESTIONS</div><p class="msg" style="font-size:12px">${DS.phase==='done'?'Draft finished · open <b>What happened</b> to see why the bot picked each brawler.':'They appear on your turn.'}</p></div>`}</div>${pop}
     <details class="dz-log"${DS.phase==='done'?' open':''}><summary>What happened (${DS.log.length})</summary>${DS.log.map(x=>`<p>${x}</p>`).join('')}</details></section>`}
 document.addEventListener('click',e=>{if(!DR.sim||view!=='draft')return;const t=e.target;if(!t.closest)return;
-  const b=t.closest('[data-dsb]');if(b){dsClick(b.dataset.dsb);return}
+  if(t.closest('[data-dspop]')){DS.pop=true;DS.q='';drRender();const n=document.querySelector('.dz-pop [data-dsq]');if(n)n.focus();return}
+  if(t.closest('[data-dspopx]')||(DS.pop&&t.closest('.dz-popw')&&!t.closest('.dz-pop'))){DS.pop=false;drRender();return}
+  const b=t.closest('[data-dsb]');if(b){const inPop=!!t.closest('.dz-pop');DS.pop=false;if(inPop)DS.q='';dsClick(b.dataset.dsb);if(inPop&&!DS.d)return;if(inPop)drRender();return}
   if(t.closest('[data-dsstart]')){DS.d=null;dsStart();if(!DS.d)drRender();return}
   if(t.closest('[data-dslock]')){dsLockBans();return}if(t.closest('[data-dsundo]')){dsUndo();return}
   const f=t.closest('[data-dsfirst]');if(f){DS.first=f.dataset.dsfirst;dsSave();drRender();return}
@@ -6035,6 +6065,7 @@ document.addEventListener('change',e=>{if(!DR.sim)return;const t=e.target;
   if(t.dataset&&t.dataset.ds){DS[t.dataset.ds]=t.value;dsSave();drRender();return}if(t.matches&&t.matches('[data-dssug]')){DS.sug=t.checked;drRender()}});
 let _dsT=0;document.addEventListener('input',e=>{const t=e.target;if(!DR.sim||!(t.matches&&t.matches('[data-dsq]')))return;DS.q=t.value;clearTimeout(_dsT);_dsT=setTimeout(()=>{const p=t.selectionStart;drRender();const n=document.querySelector('[data-dsq]');if(n){n.focus();try{n.setSelectionRange(p,p)}catch(_){}}},200)});
 
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&DS.pop){DS.pop=false;drRender()}});
 // ---- Draft Suggestion
 DR.sug=false;DR.curD=null;DR.curS=null;
 function drSwitch(){
@@ -6074,6 +6105,25 @@ function sgMeta(map,w){
 const shr=(w,n,p0,k)=>(w+k*p0)/(n+k);
 const pct=(w,n)=>n?Math.round(100*w/n)+'%':'–';
 const SGZ={n:0,w:0,m:{}};
+// rev167: lower bound of the win rate (Wilson, 80%): a few lucky sets do not rank high
+const sgLB=(w,n)=>{if(!n)return 0;const z=1.28,p=w/n,z2=z*z;return (p+z2/(2*n)-z*Math.sqrt(p*(1-p)/n+z2/(4*n*n)))/(1+z2/n)};
+function sgTrios(w){const S=sgSrc(w);if(S.c.trios)return S.c.trios;const o={};
+  for(const t of M.D.off)for(const x of sgTeam(t,w).items){const m=x.mine.filter(Boolean).map(mkey);if(m.length!==3)continue;const k=m.slice().sort().join('|'),e=o[k]||(o[k]={n:0,w:0,m:{}});e.n++;e.w+=x.win;const q=e.m[x.map]||(e.m[x.map]={n:0,w:0});q.n++;q.w+=x.win}
+  return S.c.trios=o}
+function sgExtras(map,allies,enemies,used,free){allies=(allies||[]).map(mkey);enemies=(enemies||[]).map(mkey);
+  const PP=sgPairs('p'),q=e=>e?(map?(e.m[map]||SGZ):e):SGZ,MINP=map?5:12,nm=k=>drNames().find(n=>mkey(n)===k)||k,ok=k=>!used[k];
+  const one=(L,key)=>{const r=[];for(const n of drNames()){const k=mkey(n);if(!ok(k))continue;let w=0,c=0;for(const o of L){const e=q(PP[key][k+'|'+o]);w+=e.w;c+=e.n}if(c>=MINP*L.length&&w/c>=.52)r.push({b:[n],w,n:c,s:sgLB(w,c)})}return r.sort((a,b)=>b.s-a.s).slice(0,6)};
+  const syn=allies.length&&free>0?one(allies,'duo'):[],ctr=enemies.length&&free>0?one(enemies,'vs'):[];
+  const duos=[];if(free>=2)for(const key in PP.duo){const [a,b]=key.split('|');if(a>=b||!ok(a)||!ok(b))continue;const e=q(PP.duo[key]);if(e.n>=MINP&&e.w/e.n>=.52)duos.push({b:[nm(a),nm(b)],w:e.w,n:e.n,s:sgLB(e.w,e.n)})}
+  duos.sort((a,b)=>b.s-a.s);
+  const T=sgTrios('p'),trios=[];if(free>=1&&allies.length+free>=3)for(const key in T){const ks=key.split('|');if(!allies.every(a=>ks.includes(a)))continue;const rest=ks.filter(k=>!allies.includes(k));if(rest.length>free||!rest.every(ok))continue;const e=q(T[key]);if(e.n>=(map?4:8)&&e.w/e.n>=.52)trios.push({b:ks.map(nm),w:e.w,n:e.n,s:sgLB(e.w,e.n),have:allies.map(nm)})}
+  trios.sort((a,b)=>b.s-a.s);
+  return {syn,ctr,duos:duos.slice(0,6),trios:trios.slice(0,5)}}
+function sgExtraHTML(X,attr,have){const pc=(w,n)=>Math.round(100*w/n)+'%',H=new Set((have||[]).map(mkey));
+  const row=x=>`<div class="sx-r"><span class="sx-bs">${x.b.map(n=>H.has(mkey(n))?`<span class="sx-b sx-have" title="${esc(n)} · already picked">${bimg(n,'bi')}</span>`:`<button type="button" class="sx-b" ${attr}="${esc(n)}" title="${esc(n)} · click to use it">${bimg(n,'bi')}</button>`).join('')}</span><span class="sx-n">${x.b.map(esc).join(' + ')}</span><b style="${wrSoft(x.w/x.n)};background:transparent!important">${pc(x.w,x.n)}</b><small>${x.n} sets</small></div>`;
+  const sec=(t,sub,L)=>L.length?`<div class="sx-sec"><div class="sx-h">${t}<small>${sub}</small></div>${L.map(row).join('')}</div>`:'';
+  const h=sec('With your picks','win rate next to them',X.syn)+sec('Against their picks','win rate against them',X.ctr)+sec('Duos','two brawlers together',X.duos)+sec('Full combos','three together',X.trios);
+  return h?`<div class="sx-grid">${h}</div>`:''}
 function sgScores(kind,team,opp,map,allies,enemies){
   allies=(allies||[]).map(mkey);enemies=(enemies||[]).map(mkey);
   const um=drUsedMap(DR.cur),out=[],Z=SGZ,hasT=!!team&&M.D.off.includes(team),hasO=!!opp&&M.D.off.includes(opp);
@@ -6082,21 +6132,23 @@ function sgScores(kind,team,opp,map,allies,enemies){
   const PP=(allies.length||enemies.length)?sgPairs('p'):null,PA=PP?sgPairs('a'):null;
   const pq=(e)=>e?(map?(e.m[map]||SGZ):e):SGZ;
   let maxUse=1,maxMeta=1;for(const k in OP.own){const q=mq(OP.own[k]);if(q.n>maxUse)maxUse=q.n}for(const k in MP)if(MP[k].n>maxMeta)maxMeta=MP[k].n;
+  const MINM=map?6:15,MINT=5; // rev167: sets needed before a brawler can be suggested (one lucky set is not a suggestion)
   for(const name of drNames()){
     const k=mkey(name);if(um[k])continue;
     const tp=TP.own[k]||Z,ta=TA.own[k]||Z,tpm=mq(tp),tam=mq(ta);
     const op=OP.own[k]||Z,oa=OA.own[k]||Z,opm=mq(op),oam=mq(oa);
     const mp=MP[k]||Z,ma=MA[k]||Z,agp=OP.ag[k]||Z,aga=OA.ag[k]||Z;
+    if(kind==='pick'?!(mp.n>=MINM||tpm.n>=MINT):!(opm.n>=3||mp.n>=MINM))continue;
     const est=(P,A,pri,kP,kA)=>shr(P.w,P.n,shr(A.w,A.n,pri,kA),kP);
-    const pT=est(tpm,tam,shr(ta.w,ta.n,.5,8),4,5),pM=est(mp,ma,.5,8,10),pOag=est(agp,aga,.5,5,6),pOown=est(opm,oam,shr(oa.w,oa.n,.5,8),4,5);
+    const pT=est(tpm,tam,shr(ta.w,ta.n,.5,12),12,12),pM=est(mp,ma,.5,20,20),pOag=est(agp,aga,.5,10,12),pOown=est(opm,oam,shr(oa.w,oa.n,.5,12),10,10);
     let score,info;
     const cell=(l,p,a)=>[l,pct(p.w,p.n)+' ['+p.n+'/'+a.n+']'];
     if(kind==='pick'){
       const parts=[[.15,pM]];if(hasT)parts.push([.30,pT]);if(hasO)parts.push([.20,1-pOag]);
       info=[];if(hasT)info.push(cell('Team',tpm,tam));info.push(cell('Meta',mp,ma));if(hasO)info.push(cell('Rival vs it',agp,aga));
       const pool=(idx,list,key)=>{let wP=0,nP=0,wA=0,nA=0;for(const o of list){const a=pq(PP[idx][key(o)]),b=pq(PA[idx][key(o)]);wP+=a.w;nP+=a.n;wA+=b.w;nA+=b.n}return {wP,nP,wA,nA,k:list.length}};
-      if(allies.length){const r=pool('duo',allies,o=>k+'|'+o);const p=shr(r.wP,r.nP,shr(r.wA,r.nA,pM,8*r.k),6*r.k);parts.push([.20,p]);info.push(['Synergy',pct(r.wP,r.nP)+' ['+r.nP+'/'+r.nA+']'])}
-      if(enemies.length){const r=pool('vs',enemies,o=>k+'|'+o);const p=shr(r.wP,r.nP,shr(r.wA,r.nA,pM,8*r.k),6*r.k);parts.push([.15,p]);info.push(['Vs their picks',pct(r.wP,r.nP)+' ['+r.nP+'/'+r.nA+']'])}
+      if(allies.length){const r=pool('duo',allies,o=>k+'|'+o);const p=shr(r.wP,r.nP,shr(r.wA,r.nA,pM,15*r.k),15*r.k);parts.push([.20,p]);info.push(['Synergy',pct(r.wP,r.nP)+' ['+r.nP+'/'+r.nA+']'])}
+      if(enemies.length){const r=pool('vs',enemies,o=>k+'|'+o);const p=shr(r.wP,r.nP,shr(r.wA,r.nA,pM,15*r.k),15*r.k);parts.push([.15,p]);info.push(['Vs their picks',pct(r.wP,r.nP)+' ['+r.nP+'/'+r.nA+']'])}
       const W=parts.reduce((a,x)=>a+x[0],0);score=parts.reduce((a,x)=>a+x[0]*x[1],0)/W;
     }else if(hasO){score=.5*pOown+.3*(opm.n/maxUse)+.2*pM;info=[cell('Rival',opm,oam),cell('Meta',mp,ma)]}
     else{score=.6*pM+.4*(mp.n/maxMeta);info=[cell('Meta',mp,ma)]}
@@ -6111,10 +6163,11 @@ function sgHTML(){
   if(p[0]==='pick'){side=drPos(d.coin)[0].includes(+p[1])?'blue':'red';kind='pick'}else{side=p[1]==='b'?'blue':'red';kind='ban'}
   const team=d[side],opp=d[side==='blue'?'red':'blue'],map=d.map||'';
   const pos=drPos(d.coin),mineP=(side==='blue'?pos[0]:pos[1]).map(n=>d.picks[n-1]).filter(Boolean),theirP=(side==='blue'?pos[1]:pos[0]).map(n=>d.picks[n-1]).filter(Boolean);
-  const list=sgScores(kind,team,opp,map,kind==='pick'?mineP:[],kind==='pick'?theirP:[]).slice(0,12);
+  const list=sgScores(kind,team,opp,map,kind==='pick'?mineP:[],kind==='pick'?theirP:[]).slice(0,18);
+  const X=kind==='pick'?sgExtraHTML(sgExtras(map,mineP,theirP,drUsedMap(d),3-mineP.length),'data-gb',mineP):'';
   const what=p[0]==='pick'?'Pick '+p[1]:p[0]==='ban'?'Ban':'Global ban';
-  return box(`<p class="msg" style="margin:0 0 10px;text-align:center">${what} for <b style="color:${team?tcol(team):'inherit'}">${team?esc(team):'any team'}</b> on <b>${map?esc(map):'all maps'}</b> · ${kind==='pick'?'blends '+(team?'the team\'s own results with the brawler, ':'')+'the brawler\'s results '+(map?'on this map ':'')+'across all teams'+(opp?', and how badly the rival does against it':'')+(mineP.length?', how it pairs with '+mineP.join(' + '):'')+(theirP.length?', how it does against '+theirP.join(' + '):''):(opp?'brawlers the rival is strongest and most used with':'the strongest and most used brawlers')+(map?' on this map':'')}${team&&opp?'':' · choose the teams and the map for sharper suggestions'}. Click one to fill the slot.</p>
-   <div class="sg-list">${list.map((x,i)=>`<button type="button" class="sg-b" data-gb="${esc(x.name)}" data-rar="${rarOf(x.name)}"><span class="sg-r">${i+1}</span>${bimg(x.name,'bi lg')}<b>${esc(x.name)}</b><em style="${kind==='pick'?wrSoft(x.score):'background:transparent;color:#c4b5fd;font-weight:800'}" title="Score: ${kind==='pick'?'estimated win chance of this pick, as a %':'ban priority index (not a %)'}">${Math.round(x.score*100)}${kind==='pick'?'%':''}</em>${x.info.map(([l,v])=>`<small>${l}: ${v}</small>`).join('')}</button>`).join('')}</div>
+  return box(`<p class="msg" style="margin:0 0 10px;text-align:center">${what} for <b style="color:${team?tcol(team):'inherit'}">${team?esc(team):'any team'}</b> on <b>${map?esc(map):'all maps'}</b> · ${kind==='pick'?'blends '+(team?'the team\'s own results with the brawler, ':'')+'the brawler\'s results '+(map?'on this map ':'')+'across all teams'+(opp?', and how badly the rival does against it':'')+(mineP.length?', how it pairs with '+mineP.join(' + '):'')+(theirP.length?', how it does against '+theirP.join(' + '):''):(opp?'brawlers the rival is strongest and most used with':'the strongest and most used brawlers')+(map?' on this map':'')}${team&&opp?'':' · choose the teams and the map for sharper suggestions'}. Click one to fill the slot. Only brawlers with enough sets are suggested.</p>
+   <div class="sg-list">${list.map((x,i)=>`<button type="button" class="sg-b" data-gb="${esc(x.name)}" data-rar="${rarOf(x.name)}"><span class="sg-r">${i+1}</span>${bimg(x.name,'bi lg')}<b>${esc(x.name)}</b><em style="${kind==='pick'?wrSoft(x.score):'background:transparent;color:#c4b5fd;font-weight:800'}" title="Score: ${kind==='pick'?'estimated win chance of this pick, as a %':'ban priority index (not a %)'}">${Math.round(x.score*100)}${kind==='pick'?'%':''}</em>${x.info.map(([l,v])=>`<small>${l}: ${v}</small>`).join('')}</button>`).join('')}</div>${X}
    <p class="foot" style="margin-top:8px">Each line shows win rate [sets in the selected period / sets in all dates]. The period leads; when it has few sets, older data fills in. ${kind==='pick'?'The % is the estimated win chance of the pick: a weighted average of the signals available (team 30, meta 15, rival weakness 20, synergy with your picks 20, results against their picks 15; missing ones are dropped and the rest rescaled), not a calibrated probability.':'The number is a ban priority index (rival strength + usage + meta), not a %.'} Brawlers already picked or banned are left out.</p>`);
 }
 
@@ -6262,7 +6315,11 @@ function teamCardHTML(team,k){
   const mf=mapsFilter(),D=M.D,sets=[];
   for(const m of ds.matches){if(m.s||m.y===0.5)continue;if(mf&&!mf.includes(m.m))continue;
     const mine=m.a===team,win=mine?m.y:m.b===team?1-m.y:null;if(win==null)continue;
-    sets.push({m:m.m,ty:m.ty,win,mine:(mine?m.ba:m.bb)||[],theirs:(mine?m.bb:m.ba)||[]})}
+    sets.push({m:m.m,ty:m.ty,win,mine:(mine?m.ba:m.bb)||[],theirs:(mine?m.bb:m.ba)||[],ta:(mine?m.ta:m.tb)||[],tb:(mine?m.tb:m.ta)||[],S:casStats(m)})}
+  const KO={},KA={},KDU={},KP={};for(const x of sets){if(!x.S)continue;const Q=[];x.mine.forEach((b,k)=>{const q=b&&x.S.P[String(x.ta[k]||'').toUpperCase()];if(q){Q.push([b,q]);casKdAdd(KO,b,[q]);casKdAdd(KP,String(x.ta[k]).toUpperCase()+'|'+b,[q])}});
+    for(let a=0;a<Q.length;a++)for(let c=a+1;c<Q.length;c++)casKdAdd(KDU,[Q[a][0],Q[c][0]].sort().join(' + '),[Q[a][1],Q[c][1]]);x.theirs.forEach((b,k)=>{const q=b&&x.S.P[String(x.tb[k]||'').toUpperCase()];if(q)casKdAdd(KA,b,[q])})}
+  const kdn=(nm,e)=>`<span class="nmx tc-kdn"><span>${nm}</span>${kdLine(e&&e.g?e:null)}</span>`;
+  const kdP=(tags,b)=>{const e={g:0,k:0,d:0,dm:0};for(const t of tags||[]){const q=KP[String(t).toUpperCase()+'|'+b];if(q){e.g+=q.g;e.k+=q.k;e.d+=q.d;e.dm+=q.dm}}return e};
   const n=sets.length,w=sets.filter(x=>x.win===1).length,l=n-w,wr=n?w/n:0;
   const rk=D.off.map(t=>[t,M.x[D.teams.indexOf(t)+1]]).sort((a,b)=>b[1]-a[1]),pos=rk.findIndex(x=>x[0]===team),rat=M.x[D.teams.indexOf(team)+1];
   const byMap={},byMode={};for(const x of sets){const e=byMap[x.m]||(byMap[x.m]={m:x.m,n:0,w:0});e.n++;e.w+=x.win;const md=modeOfMap(x.m);if(md){const q=byMode[md]||(byMode[md]={m:md,n:0,w:0});q.n++;q.w+=x.win}}
@@ -6275,16 +6332,16 @@ function teamCardHTML(team,k){
   const row=(i,cells,wins,nn)=>`<tr><td class="rk">${i+1}</td>${cells}<td class="num">${nn}</td><td class="num">${wins}</td><td class="num heat" style="${hx(nn?wins/nn:0,nn)}">${nn?Math.round(100*wins/nn):0}%</td></tr>`;
   // 1. own top 10 brawlers, 2. top 10 picks against the team, 3. top 10 duos, 4. type compositions
   const st=Engine.teamStats(ds,team,mf,10);
-  const own=st.picks.map((x,i)=>row(i,`<td class="ic">${brc(x.k)}<span class="nmx">${esc(x.k)}</span></td>`,x.w,x.n));
+  const own=st.picks.map((x,i)=>row(i,`<td class="ic">${brc(x.k)}${kdn(esc(x.k),KO[x.k])}</td>`,x.w,x.n));
   const ag={};for(const x of sets)for(const b of x.theirs){if(!b)continue;const e=ag[b]||(ag[b]={n:0,w:0});e.n++;e.w+=x.win}
-  const agl=Object.entries(ag).sort((a,b)=>b[1].n-a[1].n||b[1].w-a[1].w).slice(0,10).map(([b,e],i)=>row(i,`<td class="ic">${brc(b)}<span class="nmx">${esc(b)}</span></td>`,e.w,e.n));
-  const duo=st.duos.map((x,i)=>row(i,`<td class="ic">${duoH(x.k.split(' + '))}</td>`,x.w,x.n));
+  const agl=Object.entries(ag).sort((a,b)=>b[1].n-a[1].n||b[1].w-a[1].w).slice(0,10).map(([b,e],i)=>row(i,`<td class="ic">${brc(b)}${kdn(esc(b),KA[b])}</td>`,e.w,e.n));
+  const duo=st.duos.map((x,i)=>row(i,`<td class="ic"><span class="tc-duo">${duoH(x.k.split(' + '))}${kdLine(KDU[x.k.split(' + ').sort().join(' + ')]||null)}</span></td>`,x.w,x.n));
   const tc={};for(const x of sets){const br=x.mine.filter(Boolean);if(br.length<3)continue;const t=br.map(b=>typeOf(b)).sort((p,q)=>(TYPE_ORDER.indexOf(p)+99)%99-(TYPE_ORDER.indexOf(q)+99)%99||(p<q?-1:1)),key=t.join('|');const e=tc[key]||(tc[key]={t,n:0,w:0});e.n++;e.w+=x.win}
   const tcl=Object.values(tc).sort((a,b)=>b.n-a.n||b.w-a.w).slice(0,10).map((e,i)=>row(i,`<td class="ic tcomp"><div class="tcw">${e.t.map(t=>`<span class="tchip"><i style="background:${TYPE_COL[t]||TYPE_COL.OTHER}"></i>${tLbl(t)}</span>`).join('')}</div></td>`,e.w,e.n));
   const HT=[['Type composition'],['Sets',1],['Wins',1],['WR',1]];
   const riv=Engine.rivalsFor(ds,DB,team,5,mf).map(r=>{const q=(r.w+r.l)?r.w/(r.w+r.l):0;return `<div class="tc-rv"><div>${teamLabel(r,'a')}</div><small>${r.w}–${r.l}${r.d?'–'+r.d:''}</small><span class="heat" style="${bd(q)}">${Math.round(q*100)}%</span></div>`}).join('');
   const P=Engine.playersFor(ds,team,mf);
-  const pls=teamPlayers(team,P).filter(p=>p.n).map(p=>`<div class="tc-pl tc-box"><div class="phead"><b>${esc(p.name)}</b><small>${Math.round(100*p.w/p.n)}% win rate [${p.n} sets]</small></div>${cardTbl([['Brawler'],['Picks',1],['WR',1]],p.list.slice(0,10).map((x,i)=>`<tr><td class="rk">${i+1}</td><td class="ic" title="${esc(x.b)}">${brc(x.b)}<span class="nmx">${esc(x.b)}</span></td><td class="num">${x.n}</td><td class="num heat" style="${hx(x.n?x.w/x.n:0,x.n)}">${x.n?Math.round(100*x.w/x.n):0}%</td></tr>`),'',['auto','40px','46px'])}</div>`).join('');
+  const pls=teamPlayers(team,P).filter(p=>p.n).map(p=>`<div class="tc-pl tc-box"><div class="phead"><b>${esc(p.name)}</b><small>${Math.round(100*p.w/p.n)}% win rate [${p.n} sets]</small></div>${cardTbl([['Brawler'],['Picks',1],['WR',1]],p.list.slice(0,10).map((x,i)=>`<tr><td class="rk">${i+1}</td><td class="ic" title="${esc(x.b)}">${brc(x.b)}${kdn(esc(x.b),kdP(p.tags,x.b))}</td><td class="num">${x.n}</td><td class="num heat" style="${hx(x.n?x.w/x.n:0,x.n)}">${x.n?Math.round(100*x.w/x.n):0}%</td></tr>`),'',['auto','40px','46px'])}</div>`).join('');
   const dr=drAll().filter(d=>(d.blue===team||d.red===team)&&drInPer(d));let dh='';
   if(dr.length){const pk={},bn={},gb={},bnB={},bnR={};for(const d of dr){const s=d.blue===team?'b':'r',full=s==='b'?'blue':'red';[1,2,3,4,5,6].filter(i=>pickSide(d.coin,i)===full).forEach(i=>{const b=d.picks[i-1];if(b)pk[b]=(pk[b]||0)+1});d.bans[s].forEach(b=>{if(b){bn[b]=(bn[b]||0)+1;if(!drUnk(d)){const o=d.coin==='red'?bnR:bnB;o[b]=(o[b]||0)+1}}});d.gb[s].forEach(b=>{if(b)gb[b]=(gb[b]||0)+1})}
     const dT=(lab,o)=>{const a=Object.entries(o).sort((x,y)=>y[1]-x[1]||x[0].localeCompare(y[0])).slice(0,10);return `<div class="tc-sec tc-box"><div class="lbl">${lab}</div>${cardTbl([['Brawler'],['Drafts',1],['%',1]],a.map(([b,c],k)=>`<tr><td class="rk">${k+1}</td><td class="ic">${brc(b)}<span class="nmx">${esc(b)}</span></td><td class="num">${c}</td><td class="num mut">${Math.round(100*c/dr.length)}%</td></tr>`),'No drafts',['auto','50px','44px'])}</div>`};
@@ -6544,7 +6601,7 @@ function scoutHTML(){
   const stab=(o,minN)=>Object.values(o).filter(x=>x.n>=minN).map(x=>Object.assign({s:sh(x.w,x.n,wrA)},x));
   const strongM=stab(byR,3).sort((a,b)=>b.s-a.s).filter(x=>x.w/x.n>=.55).slice(0,3);
   const weakM=stab(byR,3).sort((a,b)=>a.s-b.s).filter(x=>x.w/x.n<=.45).slice(0,3);
-  const li=(t,cls)=>`<li${cls?' class="'+cls+'"':''}>${t}</li>`;
+  const li=(t,cls)=>{const m=/^([A-Z][^:<]{2,80}):\s*/.exec(t);const lb=m?m[1]:'',v=m?t.slice(m[0].length):t;return `<li class="sc-pt${cls?' '+cls:''}">${lb?`<span class="sc-lb">${lb}</span>`:''}<span class="sc-vs">${v.split(' · ').map(x=>`<span class="sc-v">${x}</span>`).join('')}</span></li>`};
   const bn=b=>`<b>${esc(b)}</b>`;
   const mpct=x=>`${bn(x.m)} ${pcs(x.w/x.n)} <small>[${x.n}]</small>`;
   const sigB=st.picks.filter(x=>x.n>=mn&&x.w/x.n>=.52).slice(0,3);
@@ -7585,9 +7642,12 @@ window.CTXINFO=function(){const P=[];const ex=x=>esc(x);let teams='';
   if(view==='stats'&&tab!=='scout'&&tab!=='tier')P.push(ex(filterLabel()));
   if(view==='pred'&&sel&&sel.maps)P.push(sel.maps.length?sel.maps.length+(sel.maps.length===1?' map':' maps'):'No maps chosen');
   // rev159: the newest set in the data, so everyone knows how fresh the numbers are
-  try{const A=(typeof FULL!=='undefined'&&FULL&&FULL.matches&&FULL.matches.length?FULL:ds).matches;let d='',t=-1;for(const m of A){if(m.d>d||(m.d===d&&(m.t||0)>t)){d=m.d;t=m.t||0}}
-    if(d){const today=new Date(),iso=x=>x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'),y=new Date(today);y.setDate(y.getDate()-1);
-      const lab=d===iso(today)?'today':d===iso(y)?'yesterday':fmtDate(d);P.push(`<span class="cx-up" title="Newest set in the sheet: ${esc(fmtDate(d))}${t>0?' '+mxHM(t):''}">Data updated ${esc(lab)}${t>0?' '+mxHM(t):''}</span>`)}}catch(e){}
+  try{const A=(typeof FULL!=='undefined'&&FULL&&FULL.matches&&FULL.matches.length?FULL:ds).matches;let d='',t=-1,u=0;for(const m of A){if(m.u>u)u=m.u;if(m.d>d||(m.d===d&&(m.t||0)>t)){d=m.d;t=m.t||0}}
+    if(d||u){const today=new Date(),iso=x=>x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'),y=new Date(today);y.setDate(y.getDate()-1);
+      // with the exact (UTC) time of the newest game: day and hour in the viewer's own time zone; the sheet's time column is the local time of the region that played
+      let dd=d,hm=t>0?mxHM(t):'',tip='Newest set in the sheet: '+fmtDate(d)+(hm?' '+hm+' (local time of the region that played)':'');
+      if(u){const x=new Date(u);dd=iso(x);hm=String(x.getHours()).padStart(2,'0')+':'+String(x.getMinutes()).padStart(2,'0');tip='Newest game in the sheet: '+fmtDate(dd)+' '+hm+' (your time)'}
+      const lab=dd===iso(today)?'today':dd===iso(y)?'yesterday':fmtDate(dd);P.push(`<span class="cx-up" title="${esc(tip)}">Data updated ${esc(lab)}${hm?' '+hm:''}</span>`)}}catch(e){}
   return P};
 function renderCheck(){const el=$('checkview');if(el)el.innerHTML=checkHTML()}
 
@@ -7826,7 +7886,7 @@ DB=loadDb();
 (async()=>{
   const src=store.get('tvt:src');let st=null;
   if(src==='csv')st=loadStored();
-  else{const c=await idbGet('sheet');if(c&&c.ds&&c.ds.v===4&&c.ds.ev===3&&Array.isArray(c.ds.matches))st=c.ds}
+  else{const c=await idbGet('sheet');if(c&&c.ds&&c.ds.v===4&&c.ds.ev===4&&Array.isArray(c.ds.matches))st=c.ds}
   if(!st&&src!=='csv'){setStatus('Loading the automatic copy of the sheet…',false,10);st=await snapStart();setStatus('')}
   if(st&&Array.isArray(st.btypes)&&st.btypes.length>20)BTYPE=setTypes(st.btypes);
   build(st||JSON.parse(JSON.stringify(DEFAULT)),!!st);
@@ -9543,6 +9603,7 @@ html body .tcs-v:not(#_){display:flex;flex-direction:column;align-items:flex-sta
 .sbshow{position:sticky;top:96px;z-index:35}
 html body #ctxbar:not(#_){display:flex;align-items:center;justify-content:center;height:34px;min-height:34px;padding:0 18px!important;line-height:1}
 html body #ctxbar>*:not(#_){line-height:1;display:inline-flex;align-items:center}
+html body #ctxbar:not(#_):not(#__){top:54px}
 html body table.typet .tchip:not(#_){display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;background:#2d2c44;border:0;padding:3px 8px;white-space:nowrap;color:#e5e3f0}
 </style>
 <script>
@@ -9654,3 +9715,118 @@ html body table.typet .tchip:not(#_){display:inline-flex;align-items:center;gap:
     if(d.accpwok!=null){A.pw=null;paint();return}});
 })();
 </script>
+
+<style>
+/* ===== rev167 ===== */
+/* maps in one row at the top (Team Predictor, Scouting): tall map pictures, grouped by mode */
+html body .mrow:not(#_):not(#__){display:flex!important;flex-wrap:nowrap;justify-content:center;gap:10px;margin:0 0 12px;padding:10px 12px;background:#121118;border:1px solid #24222f;overflow-x:auto;position:static;width:auto;max-width:none}
+html body .mrow>.pr-h,html body .mrow>.pr-hint{display:none!important}
+html body .mrow .pr-g:not(#_){display:flex;flex-direction:column;gap:5px;margin:0;flex:0 0 auto}
+html body .mrow .pr-gh:not(#_){display:flex;align-items:center;gap:5px;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#c4b5fd;margin:0}
+html body .mrow .pr-gh img:not(#_){width:14px;height:14px}
+html body .mrow .pr-tiles:not(#_){display:flex!important;flex-wrap:nowrap;gap:4px;grid-template-columns:none}
+html body .mrow .pr-t:not(#_):not(#__){width:64px;padding:0;display:flex;flex-direction:column;align-items:stretch;gap:3px;background:transparent;border:0}
+html body .mrow .pr-im:not(#_):not(#__){display:block;position:relative;width:64px;height:100px;background-size:cover;background-position:center;border:2px solid #2a2736;filter:saturate(.85) brightness(.85)}
+html body .mrow .pr-t:hover .pr-im:not(#_):not(#__){border-color:#7c5cc4;filter:none}
+html body .mrow .pr-t.on .pr-im:not(#_):not(#__){border-color:#a855f7;filter:none;box-shadow:0 0 0 1px #a855f7}
+html body .mrow .pr-im b:not(#_){position:absolute;top:3px;left:3px;background:#a855f7;color:#fff;font-size:11px;font-weight:800;padding:1px 5px}
+html body .mrow .pr-t small:not(#_):not(#__){font-size:10px;line-height:1.15;color:#a8a3b8;text-align:center;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:23px}
+html body .mrow .pr-t.on small:not(#_):not(#__){color:#fff;font-weight:700}
+.mrow-sc{margin-top:12px!important}
+/* Team Predictor: the team box chooses the team; results centred */
+html body .cas .cas-headp:not(#_):not(#__){position:relative;display:grid!important;grid-template-columns:minmax(0,1fr) minmax(300px,440px) minmax(0,1fr)!important;grid-template-areas:none!important}
+html body .cas .cas-headp>*:not(#_):not(#__){grid-area:auto!important}
+html body .cas .cas-headp>.cas-pop:not(#_):not(#__){position:absolute}
+html body .cas [data-caspop]{cursor:pointer}
+html body .cas .cas-ht[data-caspop]:hover:not(#_):not(#__){border-color:#a855f7}
+html body .cas .cas-pop{position:absolute;top:calc(100% + 6px);z-index:30;background:#16131f;border:1px solid #a855f7;box-shadow:0 18px 50px rgba(0,0,0,.65);padding:10px 12px 12px}
+html body .cas .cas-pop-a{left:0}html body .cas .cas-pop-b{right:0}
+html body .cas .cas-pt{font-weight:800;letter-spacing:.1em;text-transform:uppercase;font-size:11px;color:#c4b5fd;margin-bottom:8px}
+html body .cas .cas-pop .cas-chips:not(#_):not(#__){display:grid;grid-template-columns:repeat(6,44px);gap:6px}
+html body .cas .cas-pop .cas-tc:not(#_):not(#__){width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:#1f1b2b;border:1px solid #2e2a3d}
+html body .cas .cas-pop .cas-tc img:not(#_):not(#__){width:30px;height:30px}
+html body .cas .cas-pop .cas-tc:hover:not(#_){border-color:#a855f7}
+html body .cas .cas-pop .cas-tc.on:not(#_):not(#__){border:2px solid var(--c)}
+html body .pc-res:not(#_){display:flex;flex-direction:column;align-items:center;text-align:center}
+html body .pc-res .pc-t:not(#_){text-align:center;width:100%}
+html body .pc-res .pc-scs:not(#_){justify-content:center}
+/* K/D + damage under the names, head to head, mixed rosters */
+html body .cas .cas-nm{display:flex;flex-direction:column;justify-content:center;min-width:0;line-height:1.2}
+html body .cas .cas-nm>span:not(#_){display:block;overflow:hidden;text-overflow:ellipsis}
+html body .cas .cas-kd{display:block;margin-top:2px;font-size:10.5px;font-weight:600;color:#6e6a85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+html body .cas .cas-duo{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0}
+html body .cas .cas-br:not(#_){display:flex;align-items:center;gap:8px;min-width:0}
+html body .cas .cas-mix .cas-nm>span:not(#_){color:#a8a3b8;font-size:11.5px}
+html body .cas .cas-mix .cas-kd{max-width:150px}
+html body .cas .cas-usr{flex:0 0 24px}
+html body .cas .cas-h2h{padding:8px 10px;border-bottom:1px solid #24222f;background:rgba(168,85,247,.06)}
+html body .cas .cas-h2h .h2t{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#a8a3c0;margin-bottom:6px}
+html body .cas .cas-h2h .h2t span{display:flex;align-items:center;gap:6px;color:#e5e3f0;letter-spacing:.03em;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+html body .cas .cas-h2h .h2t img:not(#_){width:18px;height:18px}
+html body .cas .cas-h2h .h2r{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+html body .cas .cas-h2h .h2c{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:4px;background:#15131d;border:1px solid #26232f}
+html body .cas .cas-h2h .h2c small{font-size:9.5px;color:#8a86a0;text-transform:uppercase;letter-spacing:.08em}
+html body .cas .cas-h2h .h2c b{font-size:15px;font-weight:800;color:#fff}
+html body .cas .cas-h2h .h2c em{font-style:normal;font-size:11.5px;font-weight:800;color:#6e6a85}
+html body .cas .cas-g5 .cas-kd:not(#_),html body .cas .cas-rv .cas-kd:not(#_){white-space:normal;font-size:10px;line-height:1.2}
+/* Practice vs bot: slots like the other drafts, pop-up brawler list, room for suggestions */
+html body .dz-ban2{display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 6px;background:#14121b;border:1px dashed #3a3650;min-width:58px}
+html body .dz-ban2 .dz-bl{font-size:9px;letter-spacing:.12em;color:#8a86a0;font-weight:700}
+html body .dz-ban2 .dz-bx{width:42px;height:42px;display:flex;align-items:center;justify-content:center;border:1px dashed #4a4562;color:#c4b5fd;font-size:20px;font-weight:600}
+html body .dz-ban2.f .dz-bx{border:1px solid #3a3650}
+html body .dz-ban2.f .dz-bx img{width:40px;height:40px;filter:grayscale(.2)}
+html body .dz-ban2.op{border-color:#a855f7;cursor:pointer}
+html body .dz-ban2.op .dz-bx{border-color:#a855f7;color:#fff;background:rgba(168,85,247,.15)}
+html body .dz-ban2.op:hover .dz-bx{background:rgba(168,85,247,.3)}
+html body .dz-ban2.f[data-dsb]{cursor:pointer}
+html body .dz-c[data-dspop]{cursor:pointer}
+html body .dz-c[data-dspop]:hover{background:rgba(168,85,247,.18)}
+html body .dz-plus{display:flex;align-items:center;justify-content:center;width:40px;height:40px;border:1px dashed #a855f7;color:#fff;font-size:22px;margin:4px auto}
+html body .dz-low2:not(#_){display:block!important}
+html body .dz-sgh{display:flex;justify-content:flex-end;margin-bottom:6px}
+html body .dz-low2 .dz-sug:not(#_){width:100%}
+html body .dz-low2 .dz-sug:not(#_)>.dz-sg{display:inline-flex;width:calc(25% - 8px);margin:0 8px 8px 0;vertical-align:top}
+html body .dz-popw{position:fixed;inset:0;z-index:9500;background:rgba(8,7,12,.6);display:flex;align-items:center;justify-content:center}
+html body .dz-pop{width:min(1100px,92vw);max-height:80vh;display:flex;flex-direction:column;background:#16131f;border:1px solid #a855f7;box-shadow:0 24px 70px rgba(0,0,0,.7);padding:12px 14px}
+html body .dz-poph{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+html body .dz-poph b{color:#fff;font-size:14px;letter-spacing:.04em}
+html body .dz-poph input{flex:1;max-width:320px}
+html body .dz-poph .btn{margin-left:auto}
+html body .dz-pop .dz-grid:not(#_){overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:6px;max-height:none}
+/* extra suggestions (Draft Suggestion and Practice vs bot) */
+html body .sx-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-top:14px}
+html body .sx-sec{background:#121118;border:1px solid #24222f;padding:8px 10px}
+html body .sx-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#c4b5fd;margin-bottom:6px}
+html body .sx-h small{font-size:10.5px;font-weight:500;letter-spacing:0;text-transform:none;color:#6e6a85}
+html body .sx-r{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:8px;padding:5px 0;border-top:1px solid #1d1b26}
+html body .sx-r:first-of-type{border-top:0}
+html body .sx-bs{display:flex;gap:3px}
+html body .sx-b{padding:0;border:1px solid #2e2a3d;background:#1a1724;cursor:pointer;display:flex}
+html body .sx-b:hover{border-color:#a855f7}
+html body .sx-b img{width:32px;height:32px}
+html body .sx-have{opacity:.45;cursor:default}
+html body .sx-n{font-size:12px;font-weight:700;color:#e5e3f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+html body .sx-r b{font-size:13px;font-weight:800}
+html body .sx-r small{font-size:11px;color:#6e6a85;white-space:nowrap}
+/* Scouting: each point separated, label on top; every section in a rounded box */
+html body .sc-col ul:not(#_){display:flex;flex-direction:column;gap:8px;padding:0;margin:0;list-style:none}
+html body .sc-col li.sc-pt:not(#_):not(#__){display:block;padding:9px 11px;background:rgba(255,255,255,.025);border:1px solid #26232f;border-left:3px solid var(--sc-acc,#4a4562);line-height:1.5;list-style:none;margin:0}
+html body .sc-col.t{--sc-acc:#f87171}html body .sc-col.w{--sc-acc:#4ade80}html body .sc-col.p{--sc-acc:#facc15}
+html body .sc-lb{display:block;font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#a8a3c0;margin-bottom:5px}
+html body .sc-vs{display:flex;flex-direction:column;gap:3px}
+html body .sc-col .sc-v:not(#_):not(#__){display:block;text-transform:none;letter-spacing:0;font-size:13px}
+html body .sc-col .sc-v *:not(#_):not(#__){text-transform:none;letter-spacing:0}
+html body .tc-sec.sc-block:not(#_):not(#__):not(#___){border:1px solid #2e2a3d!important;border-radius:14px!important;padding:16px 18px!important;margin:0 0 18px!important;background:rgba(255,255,255,.012)}
+/* Card: brawler types one under the other, K/D + damage under each name */
+html body .tcard .tcomp .tcw:not(#_):not(#__){display:flex!important;flex-direction:column;align-items:flex-start;gap:3px;flex-wrap:nowrap}
+html body .tcard .tc-kdn:not(#_){display:inline-flex;flex-direction:column;justify-content:center;line-height:1.15;min-width:0;vertical-align:middle}
+html body .tcard .tc-kdn .u-kdl:not(#_):not(#__){font-size:10px;white-space:normal;line-height:1.2;overflow:visible}
+html body .tcard .tc-duo{display:inline-flex;flex-direction:column;gap:2px;vertical-align:middle}
+/* Match Selector: the day table in a box with coloured corners; the matches in a rounded box */
+html body .mxd-wrap:not(#_){position:relative;border:1px solid #2a2736;padding:10px 12px;margin:12px 0 14px;background:#121118}
+html body .mxd-wrap::after{content:'';position:absolute;inset:-1px;pointer-events:none;background-image:linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7);background-repeat:no-repeat;background-size:16px 2px,2px 16px,16px 2px,2px 16px,16px 2px,2px 16px,16px 2px,2px 16px;background-position:top left,top left,top right,top right,bottom left,bottom left,bottom right,bottom right}
+html body .mx-wrap:not(#_):not(#__){border:1px solid #2e2a3d;border-radius:14px!important;padding:12px 14px;background:rgba(255,255,255,.012)}
+/* Team Stats: every table box with coloured corners */
+html body .u-ts :is(.u-panel,.pdcol,.bpop,.u-blk.uxdr):not(#_){position:relative}
+html body .u-ts :is(.u-panel,.pdcol,.bpop,.u-blk.uxdr)::after{content:'';position:absolute;inset:-1px;pointer-events:none;background-image:linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7),linear-gradient(#a855f7,#a855f7);background-repeat:no-repeat;background-size:14px 2px,2px 14px,14px 2px,2px 14px,14px 2px,2px 14px,14px 2px,2px 14px;background-position:top left,top left,top right,top right,bottom left,bottom left,bottom right,bottom right}
+</style>
