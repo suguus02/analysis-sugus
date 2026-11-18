@@ -6388,7 +6388,7 @@ function cardTab(){
   return `<p class="msg cd-intro" style="margin:10px 0">One card per team, using the date range, game type and maps you have selected. Use <b>Download image</b> on a card to save it as a PNG.</p><div class="tcards">${T.map((t,i)=>teamCardHTML(t,i)).join('')}</div>`}
 document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-cardx]');if(!b)return;
-  const el=document.getElementById('tc-'+b.dataset.cardx);if(!el)return;
+  let el=document.getElementById('tc-'+b.dataset.cardx);if(!el)return;const cid='tc-'+b.dataset.cardx;
   if(!window.html2canvas){b.textContent='Export not available';return}
   const t0=b.textContent;b.disabled=true;b.textContent='Preparing…';
   const mob=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||(window.matchMedia('(pointer:coarse)').matches&&navigator.maxTouchPoints>1);
@@ -6413,8 +6413,10 @@ document.addEventListener('click',async e=>{
     await new Promise(r=>setTimeout(r,50));
     let blob=null;
     const big=el.scrollWidth*el.scrollHeight,cap=sc=>Math.max(.6,Math.min(sc,Math.sqrt(9e6/Math.max(1,big)))),tries=mob?[[cap(1.5),false],[cap(1),false],[cap(1),true]]:[[2,false],[1,false],[1,true]];
-    for(let i=0;i<tries.length;i++){const [sc,safe]=tries[i];
-      try{const cv=await render(sc,safe);blob=await new Promise(res=>cv.toBlob(res,'image/png'));cv.width=cv.height=0;if(blob)break}catch(er){console.warn('export try '+(i+1)+' failed',er);if(i===tries.length-1)throw er}
+    // rev176: if the page was updated while the image was being made, the card on screen is a new one: take it again before every try
+    const why=[];
+    for(let i=0;i<tries.length;i++){const [sc,safe]=tries[i];const cur=document.getElementById(cid);if(cur&&cur!==el)el=cur;
+      try{const cv=await render(sc,safe);blob=await new Promise(res=>cv.toBlob(res,'image/png'));cv.width=cv.height=0;if(blob)break;why.push((i+1)+': empty image')}catch(er){console.warn('export try '+(i+1)+' failed',er);why.push((i+1)+': '+(er&&er.message||er));if(i===tries.length-1)throw new Error(why.join(' · '))}
     }
     unwide();if(!blob)throw new Error('The image could not be created');
     if(!mob){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000)}
