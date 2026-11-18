@@ -3082,6 +3082,11 @@ function dwChart(items,team,small){const its=(items||[]).filter(x=>!x.s&&x.win!=
     <div class="dw-c"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${g}<line x1="${pl}" x2="${W-pr}" y1="${y(avg)}" y2="${y(avg)}" stroke="#a855f7" stroke-width="1.5" opacity=".6"/>${bars}<polyline points="${pts}" fill="none" stroke="#c4b5fd" stroke-width="2" opacity=".45" pointer-events="none"/></svg></div></section>`}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-dwd]');if(!b)return;dateSel=b.dataset.dwd;calMonth=dateSel.slice(0,7);msTeam=b.dataset.dwt||'';try{mxOpen=0}catch(x){}
   const t=document.querySelector('#sheetbar [data-sb="1"]');if(t)t.click();window.scrollTo(0,0)});
+// rev169: loading bar: the click is drawn first (bar on top), then the page is built
+(function(){let replay=false;const bar=document.createElement('div');bar.id='ldBar';bar.innerHTML='<i></i>';document.body.appendChild(bar);
+  document.addEventListener('click',e=>{if(replay)return;const t=e.target.closest&&e.target.closest('#sheetbar [data-sb],[data-tss]');if(!t)return;
+    e.stopImmediatePropagation();e.preventDefault();document.body.classList.add('ld-on');
+    requestAnimationFrame(()=>setTimeout(()=>{replay=true;try{t.click()}finally{replay=false}requestAnimationFrame(()=>setTimeout(()=>document.body.classList.remove('ld-on'),80))},16))},true)})();
 // ===== rivals filter for Team Stats: all rivals / Worlds teams / chosen teams
 const RIV={m:'all',L:[],open:false};try{const x=JSON.parse(store.get('tvt:riv')||'null');if(x){RIV.m=x.m||'all';RIV.L=x.L||[]}}catch(e){}
 const rivSave=()=>store.set('tvt:riv',JSON.stringify({m:RIV.m,L:RIV.L}));
@@ -3286,7 +3291,7 @@ function statsTab(){return picksTab()}
 function rivCol(team,cls,D){
   // with a lineup filter on, only the sets of the chosen lineups count
   let dsr=ds;if(D&&D.luAct&&D.items0){const keep=new Set(D.items0.map(x=>x.i));dsr=Object.assign({},ds,{matches:ds.matches.filter(m=>keep.has(m.i))})}
-  const L=Engine.rivalsFor(dsr,DB,team,10,mapsFilter());
+  let L=Engine.rivalsFor(dsr,DB,team,rivOn()?400:10,mapsFilter());if(rivOn()){const S=rivSet();L=L.filter(r=>r.named&&S.has(r.name)).slice(0,10)}
   const items=L.map((r,i)=>{const wr=(r.w+r.l)?r.w/(r.w+r.l):0;
     return `<li class="rival"><span class="rk">${i+1}</span><div>${teamLabel(r,cls)}</div><div class="rstat"><b>${plural(r.n,'set')}</b><span class="msg">${r.w}W · ${r.l}L${r.d?` · ${r.d}D`:''} <span class="${wr>=.55?'pc-g':wr>=.45?'pc-o':'pc-r'}">${Math.round(wr*100)}%</span></span></div></li>`}).join('');
   return `<div class="pdcol"><div class="toolrow pdhead"><div class="ttl" style="margin:0">Most played opponents · top 10${D&&D.luAct?' (lineup filter)':''}</div></div><div class="scroll pds"><ol class="rivals">${items||'<li class="msg">No data</li>'}</ol></div></div>`;
@@ -4337,10 +4342,10 @@ const casTitle=(t,sub,tog,col)=>`<div class="cas-ch"${col?` style="--c:${col}"`:
 const casPc=(w,n)=>n?Math.round(100*w/n)+'%':'–';
 // P (Team Predictor): {A,B,maps,p,src,extra,ban} — the two teams and the maps come from the predictor, several maps at once
 // rev168: map tiles (pictures only), grouped by mode, the mode title centred over its maps
-function mapTilesHTML(cur,attr,av){const S=Array.isArray(cur)?cur:(cur?[cur]:[]),multi=Array.isArray(cur);
+function mapTilesHTML(cur,attr,av,xa,sub){const S=Array.isArray(cur)?cur:(cur?[cur]:[]),multi=Array.isArray(cur);xa=xa||'';
   return (MODELIST||[]).map(([md,ms])=>[md,av?ms.filter(m=>av.has(m)):ms]).filter(x=>x[1].length).map(([md,ms])=>{const ic=IMGS['mode'+mkey(md)];
     return `<div class="mt-g"><div class="mt-gh">${ic?`<img src="${ic}" alt="">`:''}<b>${esc(md)}</b></div><div class="mt-ts">${ms.map(m=>{const k=S.indexOf(m),on=k>=0,u=IMGS['bg'+mkey(m)]||IMGS[mkey(m)]||'';
-      return `<button type="button" class="mt-t${on?' on':''}" ${attr}="${!multi&&on?'':esc(m)}" title="${esc(m)}${multi?(on?' · map '+(k+1)+' · click to remove':' · click to add'):(on?' · click again for all maps':'')}"><span class="mt-im"${u?` style="background-image:url('${u}')"`:''}></span>${multi&&on?`<b class="mt-n">${k+1}</b>`:''}</button>`}).join('')}</div></div>`}).join('')}
+      return `<button type="button" class="mt-t${on?' on':''}" ${xa} ${attr}="${!multi&&on?'':esc(m)}" title="${esc(m)}${multi?(on?' · map '+(k+1)+' · click to remove':' · click to add'):(on?' · click again for all maps':'')}"><span class="mt-im"${u?` style="background-image:url('${u}')"`:''}></span>${multi&&on?`<b class="mt-n">${k+1}</b>`:''}<span class="mt-nm">${esc(m)}</span>${sub?`<small class="mt-sub">${sub(m)}</small>`:''}</button>`}).join('')}</div></div>`}).join('')}
 function casterTab(P){
   const teams=casTeams();if(!teams.length)return '<p class="msg" style="margin:14px 0">No teams yet: the teams come from the list SELECTED TEAMS of the Picks sheet.</p>';
   let G=casGroup(teams,!!P);if(!G.length)G=teams;
@@ -4374,7 +4379,7 @@ function casterTab(P){
   if(p==null){const sh=(w,n)=>(w+3)/(n+6),all=t=>{const L=rows.filter(x=>x.t===t);return sh(L.reduce((a,x)=>a+x.win,0),L.length)},hh=(t,o)=>{const L=rows.filter(x=>x.t===t&&x.o===o);return sh(L.reduce((a,x)=>a+x.win,0),L.length)};
     const sA=.4*sh(hA.w,hA.n)+.35*all(A)+.25*hh(A,B),sB=.4*sh(hB.w,hB.n)+.35*all(B)+.25*hh(B,A);p=1/(1+Math.exp(-6*(sA-sB)));src='the win rate of each team on this map, its form on every map and their head to head (sets)'}
   const pa=Math.round(100*p);
-  const mid=`<div class="cas-mid${MAPS.length>4?' many':''}" style="--m:${MC}"${P?' data-caspop="m" title="Click to choose the maps of the series"':''}>${many?`<div class="cas-mthumbs${MAPS.length>12?' xs':MAPS.length>6?' sm':''}">${MAPS.map((m,k)=>{const u=IMGS['bg'+mkey(m)]||IMGS[mkey(m)]||'';return u?`<span><img src="${u}" alt="" title="${esc(m)}"><b>${k+1}</b></span>`:''}).join('')}</div>`:mimg?`<img class="cas-mimg" src="${mimg}" alt="">`:''}<div class="cas-mwp"><div class="cas-mt"><span>${IMGS['mode'+mkey(MD)]?`<img class="cas-mi" src="${IMGS['mode'+mkey(MD)]}" alt="">`:''}${many?'':esc(MD)}</span><b>${many?'Series of '+MAPS.length+' maps':esc(MAP)}</b></div>
+  const mid=`<div class="cas-mid${MAPS.length>4?' many':''}${P?' cas-midp':''}" style="--m:${MC}">${many?`<div class="cas-mthumbs${MAPS.length>12?' xs':MAPS.length>6?' sm':''}">${MAPS.map((m,k)=>{const u=IMGS['bg'+mkey(m)]||IMGS[mkey(m)]||'';return u?`<span><img src="${u}" alt="" title="${esc(m)}"><b>${k+1}</b></span>`:''}).join('')}</div>`:mimg?`<img class="cas-mimg" src="${mimg}" alt="">`:''}<div class="cas-mwp"><div class="cas-mt"><span>${IMGS['mode'+mkey(MD)]?`<img class="cas-mi" src="${IMGS['mode'+mkey(MD)]}" alt="">`:''}${many?'':esc(MD)}</span><b>${many?'Series of '+MAPS.length+' maps':esc(MAP)}</b></div>
     <div class="cas-wpt" title="Win chance from ${src}">${many?'Series win chance':'Win chance'}</div><div class="cas-wpr"><b style="color:${tcA}">${pa}%</b><div class="cas-wpb"><i style="flex:${pa};background:${tcA}"></i><i style="flex:${100-pa};background:${tcB}"></i></div><b style="color:${tcB}">${100-pa}%</b></div></div></div>`;
   // tables
   const head=(t,tog,col,tip)=>`<div class="cas-ch"${col?` style="--c:${col}"`:''}><div class="cas-ln" title="${esc(tip||'')}"><span>${t}</span></div>${tog||''}</div>`;
@@ -4399,7 +4404,7 @@ function casterTab(P){
     const o_=t===A?B:A,Hh=o_?rows.filter(x=>x.t===t&&x.o===o_):[],Hm=Hh.filter(onMap),hc=(L,lb)=>{const w=L.reduce((a,x)=>a+x.win,0);return `<div class="h2c"><small>${lb}</small><b>${L.length?w+'–'+(L.length-w):'–'}</b><em${L.length?` style="${casWr(w/L.length,L.length)}"`:''}>${L.length?casPc(w,L.length):'no sets'}</em></div>`};
     const h2h=o_?`<div class="cas-h2h" title="Sets between ${esc(t)} and ${esc(o_)} in these dates"><div class="h2t">Head to head <span>vs ${logo(o_,'l20')} ${esc(o_)}</span></div><div class="h2r">${hc(Hm,many?'These maps':'This map')}${hc(Hh,'All maps')}</div></div>`:'';
     return `<div class="cas-sub" style="--c:${col}">${head(`${logo(t,'l20')} Rivals`,casTog(id,[['n','Sets'],['wr','Win rate']],'n'),col,'the 5 rivals '+t+' played the most sets against (every map); rivals that are not in the list are shown by their 3 players')}${h2h}<table class="cas-t"><tbody>${rs||'<tr><td colspan="4" class="msg">No sets.</td></tr>'}</tbody></table></div>`};
-  return `<div class="cas${P?' cas-p':''}" title="">${top}${P?`${P.extra||''}<div class="cas-g4 cas-g7">${CAS.pop==='a'?`<div class="cas-pop cas-pop-a"><div class="cas-pt">Team A</div>${chips(A,'casa')}</div>`:CAS.pop==='b'?`<div class="cas-pop cas-pop-b"><div class="cas-pt">Team B</div>${chips(B,'casb')}</div>`:CAS.pop==='m'?`<div class="cas-pop cas-pop-m"><div class="cas-pt">Maps of the series <small>${MAPS.length?MAPS.length+' chosen · click them in the order they are played':'click them in the order they are played'}</small>${MAPS.length?'<button type="button" class="btn quiet" data-prclr>Clear</button>':''}</div><div class="mt-row">${mapTilesHTML(MAPS.slice(),'data-prmap',new Set((M&&M.D&&M.D.maps)||[]))}</div></div>`:''}<div class="cas-grp" style="--c:${tcA}">${pkT('pkA',`${logo(A,'l20')} ${esc(A)}`,RA,tcA)}${hdr(A,hA,tcA)}</div>${pkT('pkG',(many?'Selected maps':'Selected map')+' · total picks',RG,'var(--accent,#d63a50)')}${mid}${duoT()}<div class="cas-grp cas-grpb" style="--c:${tcB}">${hdr(B,hB,tcB,1)}${pkT('pkB',`${logo(B,'l20')} ${esc(B)}`,RB,tcB)}</div></div>`:`${maps_}<div class="cas-head cas-headp">${hdr(A,hA,tcA)}${mid}${hdr(B,hB,tcB,1)}${CAS.pop==='a'?`<div class="cas-pop cas-pop-a"><div class="cas-pt">Team A</div>${chips(A,'casa')}</div>`:CAS.pop==='b'?`<div class="cas-pop cas-pop-b"><div class="cas-pt">Team B</div>${chips(B,'casb')}</div>`:''}</div>
+  return `<div class="cas${P?' cas-p':''}" title="">${top}${P?`${P.extra||''}<div class="cas-g4 cas-g7">${CAS.pop==='a'?`<div class="cas-pop cas-pop-a"><div class="cas-pt">Team A</div>${chips(A,'casa')}</div>`:CAS.pop==='b'?`<div class="cas-pop cas-pop-b"><div class="cas-pt">Team B</div>${chips(B,'casb')}</div>`:CAS.pop==='m'?`<div class="cas-pop cas-pop-m"><div class="cas-pt">Maps of the series <small>${MAPS.length?MAPS.length+' chosen · click them in the order they are played':'click them in the order they are played'}</small>${MAPS.length?'<button type="button" class="btn quiet" data-prclr>Clear</button>':''}</div><div class="mt-row">${mapTilesHTML(MAPS.slice(),'data-prmap',new Set((M&&M.D&&M.D.maps)||[]))}</div></div>`:''}<div class="cas-grp" style="--c:${tcA}">${pkT('pkA',`${logo(A,'l20')} ${esc(A)}`,RA,tcA)}${hdr(A,hA,tcA)}</div>${pkT('pkG',(many?'Selected maps':'Selected map')+' · total picks',RG,'var(--accent,#d63a50)')}${mid.replace(/<\/div>$/,`<div class="mp-grid"><div class="mp-h">Maps of the series${MAPS.length?'<button type="button" data-prclr title="Remove every map">Clear</button>':''}</div>${mapTilesHTML(MAPS.slice(),'data-prmap',null)}</div></div>`)}${duoT()}<div class="cas-grp cas-grpb" style="--c:${tcB}">${hdr(B,hB,tcB,1)}${pkT('pkB',`${logo(B,'l20')} ${esc(B)}`,RB,tcB)}</div></div>`:`${maps_}<div class="cas-head cas-headp">${hdr(A,hA,tcA)}${mid}${hdr(B,hB,tcB,1)}${CAS.pop==='a'?`<div class="cas-pop cas-pop-a"><div class="cas-pt">Team A</div>${chips(A,'casa')}</div>`:CAS.pop==='b'?`<div class="cas-pop cas-pop-b"><div class="cas-pt">Team B</div>${chips(B,'casb')}</div>`:''}</div>
     <div class="cas-g4">${pkT('pkA',`${logo(A,'l20')} ${esc(A)}`,RA,tcA)}${pkT('pkG',(many?'Selected maps':'Selected map')+' · total picks',RG,'var(--accent,#d63a50)')}${duoT()}${pkT('pkB',`${logo(B,'l20')} ${esc(B)}`,RB,tcB)}</div>`}
     <div class="cas-g5"><div class="cas-card cas-rv">${rivT(A,tcA)}</div>${teamT('wMap',many?'Win rate · these maps':'Win rate · '+esc(MAP),onMap,'sets on '+(many?MAPS.join(', '):MAP))}${teamT('wMode',MDS.size>1?'Win rate · their modes':'Win rate · '+esc(MD),x=>MDS.has(x.md),'sets on every map of '+[...MDS].join(', '))}${teamT('wAll','Win rate · all maps',()=>true,'sets on every map and mode')}<div class="cas-card cas-rv">${rivT(B,tcB)}</div></div>
     <p class="cas-foot">Sets from ${fmtDate(R.from)} to ${fmtDate(R.to)} (single games and draws left out) · pick rate = share of the sets with that brawler · Team A in blue, Team B in red${BAN.size?' · global bans left out of the brawler and duo tables: '+esc([...BAN].join(', ')):''}</p></div>`}
@@ -4986,7 +4991,7 @@ function tlHist(b,C){const T=C.T,tw=tlTW(T),ty=flt2.type||'all',okTy=m=>ty==='al
   const end=C.last||todayISO(),out=[],k=mkey(b);
   const first=addDays(end,-42),pool=all.filter(m=>m.d>=first&&m.d<=end);
   for(let i=29;i>=0;i--){const d=addDays(end,-i),from=addDays(d,-13),sub=pool.filter(m=>m.d>=from&&m.d<=d);if(!sub.length){out.push({d,r:null});continue}
-    const L=tlCore(sub,T,'',d,tw).list,r=L.findIndex(e=>mkey(e.b)===k);out.push({d,r:r>=0?r+1:null,n:L.length,sc:r>=0?L[r].score:null})}
+    const L=tlCore(sub,T,'',d,tw).list,r=L.findIndex(e=>mkey(e.b)===k);const q=r>=0?L[r]:null;out.push({d,r:r>=0?r+1:null,n:L.length,sc:q?q.score:null,wr:q&&q.n?(q.nw||0)/q.n:null,pk:q?q.pick:null,ns:q?q.n:0})}
   return out}
 function tlDetail(b){const C=TLC||tlCalc(),k=mkey(b),T=C.T,nm=g=>sheetName(g,(ds.names||{})[g])||g;
   const e=C.list.find(x=>mkey(x.b)===k)||{b,score:0,pick:0,ban:0,n:0,nw:0,wr:.5},rank=C.list.findIndex(x=>mkey(x.b)===k)+1;
@@ -5014,22 +5019,32 @@ function tlDetail(b){const C=TLC||tlCalc(),k=mkey(b),T=C.T,nm=g=>sheetName(g,(ds
   const bn=Object.entries(BN).sort((a,b)=>b[1]-a[1]);
   const mapc=x=>{const mi=IMGS['mode'+mkey(modeOfMap(x.k))];return `<td class="ic tld-mapc"><span class="tld-mapi">${mimg(x.k,'')}</span><span class="tld-mapn"><b>${mi?`<img src="${mi}" class="tld-mi" alt="">`:''}${esc(x.k)}</b><small class="tld-sm">${esc(modeOfMap(x.k)||'')}</small></span></td>`};
   const teamc=x=>`<td class="ic">${logo(x.k,'l20')} <b>${esc(x.k)}</b></td>`;
-  const H=tlHist(b,C),pts=H.filter(x=>x.r),maxR=Math.max(10,...pts.map(x=>x.n||0));
-  const W=1500,Hh=280,px=i=>70+i*(W-100)/29,py=r=>16+(r-1)*(Hh-36)/(maxR-1);
-  let path='';H.forEach((x,i)=>{if(!x.r)return;path+=(path?'L':'M')+px(i).toFixed(1)+' '+py(x.r).toFixed(1)});
-  const ticks=[1,Math.round(maxR/4),Math.round(maxR/2),Math.round(3*maxR/4),maxR];
-  const hd=H.map((x,i)=>({x:px(i),y:x.r?py(x.r):null,d:fmtDate(x.d),r:x.r,sc:x.sc==null?null:+x.sc.toFixed(1)}));
-  const svg=`<div class="tld-chart" data-tlh='${esc(JSON.stringify(hd))}' data-w="${W}" data-h="${Hh+30}"><svg viewBox="0 0 ${W} ${Hh+30}" class="tld-svg" preserveAspectRatio="xMidYMid meet">${ticks.map(t=>`<line x1="60" x2="${W-20}" y1="${py(t)}" y2="${py(t)}" stroke="#22202e"/><text x="48" y="${py(t)+4}" text-anchor="end" fill="#8e8ab0" font-size="20">${t}</text>`).join('')}
-    ${path?`<path d="${path} L${px(29)} ${Hh} L${px(H.findIndex(x=>x.r))} ${Hh} Z" fill="rgba(74,222,128,.10)" stroke="none"/><path d="${path}" fill="none" stroke="#4ade80" stroke-width="4" stroke-linejoin="round"/>`:''}
-    ${H.map((x,i)=>x.r?`<circle cx="${px(i)}" cy="${py(x.r)}" r="5" fill="#4ade80"></circle>`:'').join('')}
-    ${[0,10,20,29].map(i=>`<text x="${px(i)}" y="${Hh+22}" text-anchor="middle" fill="#8e8ab0" font-size="20">${esc(fmtDate(H[i].d).replace(/ 20\d\d$/,''))}</text>`).join('')}<line class="tld-vl" x1="0" x2="0" y1="10" y2="${Hh}" stroke="#c4b5fd" stroke-dasharray="3 3" opacity="0"/><circle class="tld-dot" r="9" fill="#4ade80" stroke="#0b0a10" stroke-width="2" opacity="0"/></svg><div class="tld-tip" hidden></div></div>`;
+  const H=tlHist(b,C);
+  // rev170: three small charts (rank, win rate, pick rate), each zoomed to its own values
+  const sm=(key,title,col,fmt,inv,ref)=>{const W=480,Hh=150,l=46,r=12,t=12,bt=24,V=H.map(x=>x[key]==null?null:+x[key]),ok=V.filter(v=>v!=null);
+    const last=[...V].reverse().find(v=>v!=null);
+    if(ok.length<2)return `<div class="tls"><div class="tls-h"><span>${title}</span><b style="color:${col}">${last!=null?fmt(last):'–'}</b></div><p class="msg" style="font-size:11px;margin:30px 0;text-align:center">Not enough days with sets</p></div>`;
+    let lo=Math.min(...ok),hi=Math.max(...ok);const pad=(hi-lo)*.2||(key==='r'?1:key==='wr'?.03:.005);lo-=pad;hi+=pad;if(key==='r')lo=Math.max(.5,lo);if(key!=='r')lo=Math.max(0,lo);
+    const px=i=>l+i*(W-l-r)/29,py=v=>inv?t+(Hh-t-bt)*(v-lo)/(hi-lo):t+(Hh-t-bt)*(hi-v)/(hi-lo);
+    let path='';V.forEach((v,i)=>{if(v==null)return;path+=(path?'L':'M')+px(i).toFixed(1)+' '+py(v).toFixed(1)});
+    const gr=[0,.5,1].map(f=>lo+(hi-lo)*f);
+    const hd=H.map((x,i)=>({x:px(i),y:V[i]!=null?py(V[i]):null,d:fmtDate(x.d),lab:title,v:V[i]!=null?fmt(V[i]):null,sub:x.ns?plural(x.ns,'set'):''}));
+    const lastI=V.length-1-[...V].reverse().findIndex(v=>v!=null);
+    return `<div class="tls"><div class="tls-h"><span>${title}</span><b style="color:${col}">${fmt(last)}</b></div><div class="tld-chart" data-tlh='${esc(JSON.stringify(hd))}' data-w="${W}" data-h="${Hh}"><svg viewBox="0 0 ${W} ${Hh}" class="tld-svg">
+      ${gr.map(v=>`<line x1="${l}" x2="${W-r}" y1="${py(v).toFixed(1)}" y2="${py(v).toFixed(1)}" stroke="#24222f"/><text x="${l-6}" y="${(py(v)+4).toFixed(1)}" text-anchor="end" fill="#6e6a85" font-size="11">${fmt(v)}</text>`).join('')}
+      ${ref!=null&&ref>lo&&ref<hi?`<line x1="${l}" x2="${W-r}" y1="${py(ref).toFixed(1)}" y2="${py(ref).toFixed(1)}" stroke="#a8a3b8" stroke-opacity=".45" stroke-dasharray="3 4"/>`:''}
+      <path d="${path}" fill="none" stroke="${col}" stroke-width="2.2" stroke-linejoin="round"/>
+      <circle cx="${px(lastI)}" cy="${py(V[lastI])}" r="4" fill="${col}"/>
+      <text x="${l}" y="${Hh-6}" fill="#6e6a85" font-size="11">${esc(fmtDate(H[0].d).replace(/ 20\d\d$/,''))}</text><text x="${W-r}" y="${Hh-6}" fill="#6e6a85" font-size="11" text-anchor="end">${esc(fmtDate(H[29].d).replace(/ 20\d\d$/,''))}</text>
+      <line class="tld-vl" x1="0" x2="0" y1="${t}" y2="${Hh-bt}" stroke="#c4b5fd" stroke-dasharray="3 3" opacity="0"/><circle class="tld-dot" r="5" fill="${col}" stroke="#0b0a10" stroke-width="2" opacity="0"/></svg><div class="tld-tip" hidden></div></div></div>`};
+  const svg=`<div class="tls-g">${sm('r','Rank in the tier list','#c084fc',v=>'#'+Math.round(v),true)}${sm('wr','Win rate','#4ade80',v=>Math.round(100*v)+'%',false,.5)}${sm('pk','Pick rate','#60a5fa',v=>(100*v).toFixed(1)+'%')}</div>`;
   const tier=tlTier(e.score),pc=x=>(100*x).toFixed(1)+'%';
   const poT=Object.values(PO).reduce((a,b)=>a+b,0);
   const card=(l,v,sub)=>`<div class="tld-k"><small>${l}</small><b>${v}</b>${sub?`<i>${sub}</i>`:''}</div>`;
   return `<div class="gm tlm" role="dialog" aria-label="${esc(b)}"><div class="gm-top"><span class="gm-date">${TL.map?esc(TL.map)+' · ':''}${plural(C.nSets,'set')} · ${C.teams.length===M.D.off.length?'all teams':plural(C.teams.length,'team')}</span><button type="button" class="gm-close" data-gmclose aria-label="Close">✕</button></div>
    <div class="tld-body"><div class="tld-top">${bimg(b,'tld-img')}<div class="tld-nm"><h2>${esc(b)}</h2><span class="tld-tier tl-${tier.toLowerCase()}"><span class="tl-k">${tier}</span></span></div></div>
    <div class="tld-ks">${card('Rank',rank?'#'+rank:'–',rank?'of '+C.list.length:'')}${card('Win rate',e.n?Math.round(100*(e.nw||0)/e.n)+'%':'–',e.n?plural(e.n,'set'):'')}${card('Pick rate',pc(e.pick),'of the drafts')}${card('Ban rate',pc(e.ban),'of the drafts with bans')}${card('Meta score',e.score.toFixed(1),e.trend>.05?'▲ rising':e.trend<-.05?'▼ falling':'stable')}</div>
-   <div class="tld-h big">Meta history</div><p class="msg" style="margin:0 0 6px">Rank in the tier list over the last 30 days (each point uses the 14 days before it) · move along the line to see the day and the meta score.</p>${svg}
+   <div class="tld-h big">Meta history</div><p class="msg" style="margin:0 0 8px">Last 30 days · each point uses the 14 days before it · each chart is zoomed to its own values · move along a line to see the day</p>${svg}
    <div class="tld-g">
     ${tbl('Counters <small>(it loses most against)</small>',cnt,x=>`${br_(x)}${wrc(x)}`,'Not enough sets (3+ against)')}
     ${tbl('Good matchups <small>(it beats)</small>',good,x=>`${br_(x)}${wrc(x)}`,'Not enough sets (3+ against)')}
@@ -5045,7 +5060,7 @@ function tlDetail(b){const C=TLC||tlCalc(),k=mkey(b),T=C.T,nm=g=>sheetName(g,(ds
 document.addEventListener('mousemove',e=>{const c=e.target.closest&&e.target.closest('.tld-chart');if(!c)return;const H=JSON.parse(c.dataset.tlh),r=c.getBoundingClientRect(),W=+c.dataset.w,Hh=+c.dataset.h,X=(e.clientX-r.left)*W/r.width;
   let best=null;for(const p of H)if(p.y!=null&&(!best||Math.abs(p.x-X)<Math.abs(best.x-X)))best=p;const vl=c.querySelector('.tld-vl'),dt=c.querySelector('.tld-dot'),tp=c.querySelector('.tld-tip');if(!best)return;
   vl.setAttribute('x1',best.x);vl.setAttribute('x2',best.x);vl.setAttribute('opacity','1');dt.setAttribute('cx',best.x);dt.setAttribute('cy',best.y);dt.setAttribute('opacity','1');
-  tp.hidden=false;tp.innerHTML=`<b>${best.d}</b><span>Meta score <b>${best.sc!=null?best.sc.toFixed(1):'–'}</b></span><span>Rank <b>#${best.r}</b></span>`;
+  tp.hidden=false;tp.innerHTML=best.lab?`<b>${best.d}</b><span>${best.lab} <b>${best.v}</b></span>${best.sub?`<span>${best.sub}</span>`:''}`:`<b>${best.d}</b><span>Meta score <b>${best.sc!=null?best.sc.toFixed(1):'–'}</b></span><span>Rank <b>#${best.r}</b></span>`;
   const lx=best.x*r.width/W,ly=best.y*r.height/Hh;tp.style.left=Math.min(r.width-170,Math.max(0,lx+12))+'px';tp.style.top=Math.max(0,ly-60)+'px'});
 document.addEventListener('mouseout',e=>{const c=e.target.closest&&e.target.closest('.tld-chart');if(!c||c.contains(e.relatedTarget))return;c.querySelector('.tld-tip').hidden=true;c.querySelector('.tld-vl').setAttribute('opacity','0');c.querySelector('.tld-dot').setAttribute('opacity','0')});
 document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-tlb]');if(!t||tab!=='tier')return;
@@ -5433,11 +5448,12 @@ async function syncSheet(full){
 const volStart=(n,perm)=>Math.max(perm-1,0);
 const rowsSig=rows=>{let h=2166136261,L=0;for(const r of rows){const t=(r||[]).join('\u0001')+'\n';L+=t.length;for(let i=0;i<t.length;i++){h^=t.charCodeAt(i);h=Math.imul(h,16777619)}}return (h>>>0).toString(36)+'.'+L};
 // a reload of the data (new rows or edits) never starts while the user is working with the page: it waits until nothing was touched for 15 s
-let lastAct=Date.now(),autoWait=false;
+let lastAct=Date.now(),autoWait=false,syncNow=true;
 ['pointerdown','keydown','wheel','touchstart'].forEach(ev=>addEventListener(ev,()=>{lastAct=Date.now()},{passive:true,capture:true}));
 function autoSync(){
   if(autoWait)return;
-  const go=async()=>{if(sheetBusy||busy||(Date.now()-lastAct<15000&&!document.hidden)){setTimeout(go,8000);return}autoWait=false;await syncSheet()};
+  // rev172: right after opening the page (or coming back to it) the new games are loaded at once; later updates still wait until you stop for 15 s
+  const go=async()=>{const now=syncNow;if(sheetBusy||busy||(!now&&Date.now()-lastAct<15000&&!document.hidden)){setTimeout(go,now?300:8000);return}autoWait=false;syncNow=false;await syncSheet()};
   autoWait=true;go()}
 async function sheetCheck(){
   if(sheetBusy||busy||!FULL||FULL.source!=='Google Sheets')return;
@@ -5454,6 +5470,7 @@ async function sheetCheck(){
       const sg=rowsSig(vr);
       if(!FULL.tailSig||!FULL.perm){FULL.perm=pm;FULL.tailSig=sg} // data saved by an older version of the page: this is the starting point
       else if(sg!==FULL.tailSig){autoSync();return}}
+    syncNow=false;
     const pk=await readPicks(mcp);
     if(pk&&pk.types.length>20&&JSON.stringify(pk.types)!==JSON.stringify(FULL.btypes||[])){FULL.btypes=pk.types;BTYPE=setTypes(pk.types);idbSet('sheet',{ds:FULL});if(M&&!busy)renderDetail()}
     if(pk&&(JSON.stringify(pk.tags)!==JSON.stringify(FULL.pickTags||null)||JSON.stringify(pk.players)!==JSON.stringify(FULL.pickPlayers||null))){FULL.pickTags=pk.tags;FULL.pickPlayers=pk.players;idbSet('sheet',{ds:FULL});if(M&&!busy&&tab==='players')renderDetail()}
@@ -7878,7 +7895,8 @@ function draftsTab(){
   const list=base.filter(d=>!DR.sMap||d.map===DR.sMap);
   const focus=scope==='one'?T[0]:'';
   DR.sBase=()=>base;
-  const fil=`<div class="dr-sfil">${mapBoxHTML(DR.sMap,'data-drmapopen="s" data-x','Map')}${DR.sMap?'<button type="button" class="btn quiet" data-drmappick="" data-drk="s">All maps</button>':''}
+  const dcnt={};for(const x of base)if(x.map)dcnt[x.map]=(dcnt[x.map]||0)+1;
+  const fil=`<div class="mt-row mt-dr">${mapTilesHTML(DR.sMap||'','data-drmappick',new Set(maps),'data-drk="s"',m=>plural(dcnt[m]||0,'set'))}<button type="button" class="mt-all${DR.sMap?'':' on'}" data-drmappick="" data-drk="s">All maps</button></div><div class="dr-sfil">
    ${perSeg}<span class="msg">${plural(list.length,'draft')}</span></div>`;
   const tabs=!list.length?'<p class="msg">No drafts match these filters.</p>':scope==='pair'?T.map(t=>`<div class="dr-tgrp" style="color:${tcol(t)}">${esc(t)}</div>${drTablesFor(list,[t])}`).join(''):drTablesFor(list,T);
   // the coin of the selected team in each draft (in a matchup, of the first team): only for the list below
@@ -7890,7 +7908,7 @@ function draftsTab(){
 $('sheetGo').addEventListener('click',()=>{if(!busy){syncSheet(false);drLoad()}});
 $('sheetAll').addEventListener('click',()=>{if(!busy){syncSheet(true);drLoad()}});
 setInterval(()=>{sheetCheck();drLoad()},SHEET.poll); // also runs while the tab is in the background
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&Date.now()-lastCheck>SHEET.poll)sheetCheck()});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&Date.now()-lastCheck>SHEET.poll){syncNow=true;sheetCheck()}});
 DB=loadDb();
 (async()=>{
   const src=store.get('tvt:src');let st=null;
@@ -7902,7 +7920,7 @@ DB=loadDb();
   applyView();drLoad();
   if(src!=='csv'){
     const wait=()=>busy?setTimeout(wait,200):(st&&st.source==='Google Sheets'&&!st.snap?sheetCheck():syncSheet());
-    setTimeout(wait,500);
+    setTimeout(wait,50);
   }
 })();
 })();
@@ -9940,4 +9958,62 @@ html body .dz-sgh:not(#_){margin:0 0 4px}
 /* period calendar: centred inside the side panel, never cut on the right */
 html body .uxcal:not(#_):not(#__){left:8px!important;right:8px!important;width:auto!important;max-width:none!important;box-sizing:border-box;transform:none!important;overflow:visible}
 html body .uxcal table:not(#_),html body .uxcal .cal:not(#_){margin:0 auto}
+</style>
+
+<style id="rev169">
+/* map tiles: picture + name under it, every tile the same size */
+.mt-t{height:auto!important;display:flex!important;flex-direction:column;align-items:center;gap:4px}
+.mt-im{position:relative!important;inset:auto!important;width:58px;height:92px;flex:0 0 92px}
+.mt-nm{display:block;width:100%;height:24px;font-size:10px;line-height:12px;font-weight:600;color:#a8a3b8;text-align:center;overflow:hidden;white-space:normal;overflow-wrap:anywhere}
+.mt-t.on .mt-nm{color:#fff;font-weight:800}
+.mt-sub{display:block;font-size:9.5px;color:#6e6a85;line-height:1;white-space:nowrap}
+.mt-t.on .mt-sub{color:#c4b5fd}
+.mt-dr{margin:4px 0 12px;padding:10px 12px;background:#121118;border:1px solid #24222f}
+/* Team Predictor: the map choice inside the middle column, 6 rows (one per mode) of 3 maps */
+html body .cas .cas-g7:not(#_):not(#__){grid-template-columns:minmax(0,1.7fr) minmax(0,1fr) 188px minmax(0,1fr) minmax(0,1.7fr)!important}
+html body .cas .cas-g7 .cas-midp:not(#_):not(#__){justify-content:flex-start!important;gap:10px!important;padding:12px 8px!important;cursor:default}
+html body .cas .cas-g7 .cas-midp:hover:not(#_):not(#__){border-color:color-mix(in srgb,var(--m) 75%,#2c2a3a)!important}
+html body .cas .cas-midp :is(.cas-mthumbs,.cas-mimg):not(#_):not(#__){display:none!important}
+html body .cas .cas-midp .cas-mt b:not(#_):not(#__){font-size:15px!important}
+html body .cas .mp-grid{width:100%;display:flex;flex-direction:column;gap:6px;border-top:1px solid rgba(255,255,255,.08);padding-top:8px}
+html body .cas .mp-h{display:flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#c4b5fd}
+html body .cas .mp-h button{font:inherit;font-size:10px;letter-spacing:0;text-transform:none;padding:2px 8px;background:#1f1b2b;border:1px solid #3a3650;color:#e5e3f0}
+html body .cas .mp-grid .mt-g{gap:3px}
+html body .cas .mp-grid .mt-gh{font-size:9.5px}
+html body .cas .mp-grid .mt-gh img{width:12px;height:12px}
+html body .cas .mp-grid .mt-ts{gap:4px}
+html body .cas .mp-grid .mt-t{width:52px;flex:0 0 52px;gap:2px}
+html body .cas .mp-grid .mt-im{width:52px;height:58px;flex:0 0 58px}
+html body .cas .mp-grid .mt-nm{font-size:9px;line-height:10px;height:20px}
+html body .cas .mp-grid .mt-n{font-size:10px;padding:2px 4px;top:3px;left:3px}
+/* less room between the brawler and the numbers */
+html body .cas .cas-g7 th.cw:not(#_):not(#__){width:38px!important}html body .cas .cas-g7 th.cw2:not(#_):not(#__){width:42px!important}
+/* the chosen teams in the tables below: only an outline, no coloured row */
+html body .cas .cas-g5 tr.cas-hl td:not(#_):not(#__){background:transparent!important;box-shadow:inset 0 2px 0 var(--rc),inset 0 -2px 0 var(--rc)!important}
+html body .cas .cas-g5 tr.cas-hl td:first-child:not(#_):not(#__){box-shadow:inset 2px 0 0 var(--rc),inset 0 2px 0 var(--rc),inset 0 -2px 0 var(--rc)!important}
+html body .cas .cas-g5 tr.cas-hl td:last-child:not(#_):not(#__){box-shadow:inset -2px 0 0 var(--rc),inset 0 2px 0 var(--rc),inset 0 -2px 0 var(--rc)!important}
+html body .cas .cas-g5 tr.cas-hl .cas-tm span:not(#_):not(#__){color:#fff;font-weight:800}
+/* loading bar */
+#ldBar{position:fixed;left:0;right:0;top:0;height:3px;z-index:10000;pointer-events:none;opacity:0;overflow:hidden}
+#ldBar i{position:absolute;top:0;bottom:0;left:-40%;width:40%;background:linear-gradient(90deg,transparent,#a855f7,#d8b4fe,#a855f7,transparent)}
+body.ld-on #ldBar{opacity:1}
+body.ld-on #ldBar i{animation:ldmove .9s linear infinite}
+@keyframes ldmove{from{left:-40%}to{left:100%}}
+body.ld-on,body.ld-on *{cursor:progress!important}
+/* plain arrow cursor everywhere (no hand); text boxes keep the text cursor */
+html body *:not(input):not(textarea):not(select),html body *::before,html body *::after{cursor:default!important}
+html body :is(input[type=text],input[type=search],input:not([type]),textarea){cursor:text!important}
+/* Team Stats comps: a faint line between sets */
+html body .u-crow:not(#_){border-bottom:1px solid rgba(255,255,255,.06)!important}
+/* Full-team type combinations: the purple header reaches the top */
+html body .pdcol>.scroll.pds:first-child:not(#_):not(#__){margin-top:0!important}
+</style>
+
+<style id="rev170">
+.tls-g{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:14px}
+.tls{background:#15131d;border:1px solid #24222f;padding:10px 12px}
+.tls-h{display:flex;align-items:baseline;justify-content:space-between;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#a8a3c0;margin-bottom:6px}
+.tls-h b{font-size:17px;font-weight:800;letter-spacing:0}
+.tls .tld-chart{position:relative}
+.tls .tld-svg{display:block;width:100%;height:auto}
 </style>
