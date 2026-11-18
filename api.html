@@ -6393,13 +6393,18 @@ document.addEventListener('click',async e=>{
   const t0=b.textContent;b.disabled=true;b.textContent='Preparing…';
   const mob=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||(window.matchMedia('(pointer:coarse)').matches&&navigator.maxTouchPoints>1);
   const name=(b.dataset.cardn||'team').replace(/[^A-Za-z0-9]+/g,'-')+'-card.png';
-  const render=(sc,safe)=>window.html2canvas(el,{backgroundColor:'#14131f',scale:sc,useCORS:true,logging:false,imageTimeout:8000,windowWidth:mob?1150:undefined,ignoreElements:n=>n.hasAttribute&&n.hasAttribute('data-noexport'),
+  // rev175: the pictures outside the card are not copied for the image. On iPhone/iPad the copy waited for every picture of the
+  // whole page (all the tabs) to load again, and it could stay on 'Preparing…' for ever; and every try now has a time limit
+  const HEADT={HEAD:1,STYLE:1,LINK:1,META:1,TITLE:1,BASE:1},xSkip=n=>!!n&&n.nodeType===1&&(n.tagName==='IMG'||n.tagName==='VIDEO'||n.tagName==='IFRAME')&&!el.contains(n);
+  const tmo=(pr,ms)=>Promise.race([pr,new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms))]);
+  const render0=(sc,safe)=>window.html2canvas(el,{backgroundColor:'#14131f',scale:sc,useCORS:true,logging:false,imageTimeout:8000,windowWidth:mob?1920:undefined,ignoreElements:n=>(n.hasAttribute&&n.hasAttribute('data-noexport'))||xSkip(n),
     // rev156: a gradient on something 0 px wide (the lines beside a long section title, an empty bar…) made the export fail: those get a plain colour / no image in the copy that is drawn
     onclone:doc=>{try{const st=doc.createElement('style');st.textContent='*::before,*::after{background-image:none!important}.lbl::before,.lbl::after{background-color:#2e2b3d!important}';doc.head.appendChild(st);
       const W=doc.defaultView,px=v=>parseFloat(v)||0;doc.querySelectorAll('#'+(el.id||'x')+', #'+(el.id||'x')+' *').forEach(n=>{const cs=W.getComputedStyle(n);if(!cs.backgroundImage||cs.backgroundImage==='none')return;
         const r=n.getBoundingClientRect(),w=r.width-px(cs.borderLeftWidth)-px(cs.borderRightWidth),h=r.height-px(cs.borderTopWidth)-px(cs.borderBottomWidth);
         // last try (safe): no gradients at all, so the image is always created
         if(w<1||h<1||(safe&&/gradient/.test(cs.backgroundImage))){const c=cs.backgroundColor;n.style.backgroundImage='none';if(safe&&(!c||c==='rgba(0, 0, 0, 0)'))n.style.backgroundColor='#16151e'}})}catch(e){}}});
+  const render=(sc,safe)=>tmo(render0(sc,safe),20000);
   // rev157: a table wider than the screen (Matchups) is drawn whole: the card grows to its full width for the export only
   const wide=[...el.querySelectorAll('.mu-w,.tablewrap')].some(w=>w.scrollWidth>w.clientWidth+2),old=el.getAttribute('style')||'';
   if(wide){const W=Math.max(...[...el.querySelectorAll('.mu-w,.tablewrap')].map(w=>w.scrollWidth+60),el.scrollWidth);el.style.width=W+'px';el.style.maxWidth='none';el.classList.add('x-wide')}
@@ -6407,7 +6412,7 @@ document.addEventListener('click',async e=>{
   try{
     await new Promise(r=>setTimeout(r,50));
     let blob=null;
-    const tries=mob?[[1.5,false],[1,false],[1,true]]:[[2,false],[1,false],[1,true]];
+    const big=el.scrollWidth*el.scrollHeight,cap=sc=>Math.max(.6,Math.min(sc,Math.sqrt(9e6/Math.max(1,big)))),tries=mob?[[cap(1.5),false],[cap(1),false],[cap(1),true]]:[[2,false],[1,false],[1,true]];
     for(let i=0;i<tries.length;i++){const [sc,safe]=tries[i];
       try{const cv=await render(sc,safe);blob=await new Promise(res=>cv.toBlob(res,'image/png'));cv.width=cv.height=0;if(blob)break}catch(er){console.warn('export try '+(i+1)+' failed',er);if(i===tries.length-1)throw er}
     }
