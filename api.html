@@ -5097,7 +5097,7 @@ const TWS={mode:'mu',day:'',ty:'all',wp:'1',ms:{from:'2026-11-03',bty:'all',day:
 function twTab(SRC,sel,map){
   if(window.__ROLE!=='Admin')return '<p class="msg">Only admins can see this.</p>';
   const sw=`<span class="seg2 tw-sw"><button type="button" data-twm="mu" aria-pressed="${TWS.mode==='mu'}">Matchups</button><button type="button" data-twm="day" aria-pressed="${TWS.mode==='day'}">Day recap</button><button type="button" data-twm="mom" aria-pressed="${TWS.mode==='mom'}">Momentum</button><button type="button" data-twm="meta" aria-pressed="${TWS.mode==='meta'}">Meta shift</button><button type="button" data-twm="wp" aria-pressed="${TWS.mode==='wp'}">Worlds prediction</button></span>`;
-  if(TWS.mode==='day')return twDay(SRC,sw);if(TWS.mode==='mom')return twMom(SRC,sw);if(TWS.mode==='meta')return twMeta(sw);if(TWS.mode==='wp')return twPred(sw);
+  if(TWS.mode==='day')return twDay(SRC,sw);if(TWS.mode==='mom')return twMom(SRC,sw);if(TWS.mode==='meta')return twMeta(sw,sel);if(TWS.mode==='wp')return twPred(sw);
   return twMu(SRC,sel,map,sw)}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-twm]');if(!b)return;TWS.mode=b.dataset.twm;renderDetail()});
 document.addEventListener('change',e=>{const b=e.target.closest&&e.target.closest('[data-twday]');if(!b)return;TWS.day=b.value;renderDetail()});
@@ -5186,20 +5186,22 @@ function twMom(SRC,sw){
   ${body}<div class="tw-foot">SUGUS</div></article></div></div>`}
 // rev191: what went up and down (pick rate of the last 7 days vs the 7 days before) and the favourite first picks; all teams together
 const twTyBtns=()=>`<span class="seg2 tw-ty">${[['all','All games'],['tournament','Tournament'],['friendly','Friendly']].map(([k,l])=>`<button type="button" data-twty="${k}" aria-pressed="${TWS.ty===k}">${l}</button>`).join('')}</span>`;
-function twMeta(sw){
+function twMeta(sw,sel){
+  const SEL=sel instanceof Set?sel:new Set(sel||[]),inS=t=>SEL.has(String(t||'').replace(/^ext:/,''));
   // rev194: you choose both sides: a period "before" (from a date up to the day before) and the day to compare with, each with its own game type
-  const MS=TWS.ms,ALL0=((typeof FULL!=='undefined'&&FULL&&FULL.matches)||ds.matches||[]).filter(m=>!m.s&&(m.y===1||m.y===0));
+  const MS=TWS.ms,ALL0=((typeof FULL!=='undefined'&&FULL&&FULL.matches)||ds.matches||[]).filter(m=>!m.s&&(m.y===1||m.y===0)&&(inS(m.a)||inS(m.b)));
   const ok=(m,t)=>t==='all'||m.ty===t,dd=(d,k)=>{const t=new Date(d+'T12:00:00');t.setDate(t.getDate()+k);return t.toISOString().slice(0,10)};
   const cdays=[...new Set(ALL0.filter(m=>ok(m,MS.dty)).map(m=>m.d))].sort().reverse();
   if(!MS.day||!cdays.includes(MS.day))MS.day=cdays[0]||'';const end=MS.day,a1=end,b0=MS.from||'2000-01-01',b1=end?dd(end,-1):'';
   const A=ALL0.filter(m=>m.d===end&&ok(m,MS.dty)),B=ALL0.filter(m=>m.d>=b0&&m.d<=b1&&ok(m,MS.bty));
-  const cnt=L=>{const C={};L.forEach(m=>new Set([...(m.ba||[]),...(m.bb||[])].filter(Boolean)).forEach(b=>C[b]=(C[b]||0)+1));return C};
-  const CA=cnt(A),CB=cnt(B),nA=A.length,nB=B.length,pr=(C,n,b)=>n?(C[b]||0)/n:0;
+  // rev196: only the picks of the chosen teams (Tier List teams); pick rate = % of their sets in which they picked it
+  const cnt=L=>{const C={};let n=0;L.forEach(m=>[[m.a,m.ba],[m.b,m.bb]].forEach(([t,P])=>{if(!inS(t))return;n++;new Set((P||[]).filter(Boolean)).forEach(b=>C[b]=(C[b]||0)+1)}));return [C,n]};
+  const [CA,nA]=cnt(A),[CB,nB]=cnt(B),pr=(C,n,b)=>n?(C[b]||0)/n:0;
   const keys=[...new Set([...Object.keys(CA),...Object.keys(CB)])].filter(b=>(CA[b]||0)+(CB[b]||0)>=4);
   const D=keys.map(b=>({b,a:pr(CA,nA,b),p:pr(CB,nB,b)})).map(o=>Object.assign(o,{d:o.a-o.p}));
   const up=D.filter(o=>o.d>0).sort((x,y)=>y.d-x.d).slice(0,5),dn=D.filter(o=>o.d<0).sort((x,y)=>x.d-y.d).slice(0,5);
   // first picks: only sets whose draft has the pick order saved
-  const FP={};let nF=0;A.concat(B).forEach(m=>{const I=setInfo(m);if(!I.first||I.po)return;const side=I.first==='a'?m.ba:m.bb,b=(side||[]).find(x=>x&&I.num[mkey(x)]===1);if(!b)return;nF++;const e=FP[b]||(FP[b]={n:0,w:0});e.n++;e.w+=(I.first==='a'?m.y:1-m.y)});
+  const FP={};let nF=0;A.concat(B).forEach(m=>{const I=setInfo(m);if(!I.first||I.po)return;if(!inS(I.first==='a'?m.a:m.b))return;const side=I.first==='a'?m.ba:m.bb,b=(side||[]).find(x=>x&&I.num[mkey(x)]===1);if(!b)return;nF++;const e=FP[b]||(FP[b]={n:0,w:0});e.n++;e.w+=(I.first==='a'?m.y:1-m.y)});
   const topF=Object.keys(FP).sort((x,y)=>FP[y].n-FP[x].n).slice(0,5);
   const pc=v=>Math.round(100*v)+'%',nm=x=>esc(String(nx.tc(x)).toUpperCase()),sg=v=>(v>0?'+':'')+Math.round(100*v);
   const MO=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'],fd=d=>{if(!d)return '';const [y,m,x]=String(d).slice(0,10).split('-');return (+x)+' '+MO[(+m)-1]};
@@ -5208,7 +5210,7 @@ function twMeta(sw){
   const body=nA?`<div class="tz-cols"><div class="tw-cw"><div class="td-p1"><h4>ON THE RISE <small>pick rate · ${fd(b0)}–${fd(b1)} → ${fd(end)}</small></h4>${up.map(o=>row(o,'u')).join('')||'<p class="td-none">Nothing went up.</p>'}</div></div>
     <div class="tw-cw"><div class="td-p1"><h4>FALLING <small>pick rate · ${tyL(MS.bty)} before → ${tyL(MS.dty)} on ${fd(end)}</small></h4>${dn.map(o=>row(o,'d')).join('')||'<p class="td-none">Nothing went down.</p>'}</div></div></div>
     <div class="tz-fp"><div class="tw-cw"><div class="td-h tz-fh"><small>FIRST PICK</small><div class="tz-fl">${topF.length?topF.map((b,i)=>`<div class="tz-f${i?'':' one'}">${bimg(b,'tz-fi')}<b>${nm(b)}</b><em>${pc(FP[b].n/nF)}</em><span>of first picks · ${pc(FP[b].w/FP[b].n)} WR</span></div>`).join(''):'<span class="td-ns">No drafts with the pick order saved in these dates.</span>'}</div></div></div></div>`:'<p class="tw-empty">No sets in these dates.</p>';
-  return `<div class="tw-wrap"><div class="tw-bar">${sw}<span class="tz-ctl"><b>Before</b><label>from <input type="date" data-twmsi="from" value="${esc(MS.from||'')}"></label><span class="seg2">${[['all','All'],['tournament','Tournament'],['friendly','Friendly']].map(([k,l])=>`<button type="button" data-twms="bty=${k}" aria-pressed="${MS.bty===k}">${l}</button>`).join('')}</span><i>→</i><b>Compare with</b><select data-twmsi="day">${cdays.map(d=>`<option value="${d}"${d===end?' selected':''}>${fd(d)} ${d.slice(0,4)}</option>`).join('')}</select><span class="seg2">${[['all','All'],['tournament','Tournament'],['friendly','Friendly']].map(([k,l])=>`<button type="button" data-twms="dty=${k}" aria-pressed="${MS.dty===k}">${l}</button>`).join('')}</span></span><span class="msg">${nB} sets before · ${nA} sets that day · first picks from ${nF} drafts with the pick order.</span><button type="button" class="btn" data-cardx="tw" data-cardn="sugus-meta-shift">Download image</button></div>
+  return `<div class="tw-wrap"><div class="tw-bar">${sw}<span class="tz-ctl"><b>Before</b><label>from <input type="date" data-twmsi="from" value="${esc(MS.from||'')}"></label><span class="seg2">${[['all','All'],['tournament','Tournament'],['friendly','Friendly']].map(([k,l])=>`<button type="button" data-twms="bty=${k}" aria-pressed="${MS.bty===k}">${l}</button>`).join('')}</span><i>→</i><b>Compare with</b><select data-twmsi="day">${cdays.map(d=>`<option value="${d}"${d===end?' selected':''}>${fd(d)} ${d.slice(0,4)}</option>`).join('')}</select><span class="seg2">${[['all','All'],['tournament','Tournament'],['friendly','Friendly']].map(([k,l])=>`<button type="button" data-twms="dty=${k}" aria-pressed="${MS.dty===k}">${l}</button>`).join('')}</span></span><span class="msg">Teams chosen in Tier List (${SEL.size}) · ${nB} team-sets before · ${nA} that day · first picks from ${nF} drafts with the pick order.</span><button type="button" class="btn" data-cardx="tw" data-cardn="sugus-meta-shift">Download image</button></div>
   <div class="tw-scale"><article class="tw-img tz" id="tc-tw"><div class="tw-top"><div><h1>META SHIFT</h1><div class="tw-sub">${fd(b0)} — ${fd(b1)} (${tyL(MS.bty).toUpperCase()}, ${nB} SETS) <span>→</span> ${fd(end)} (${tyL(MS.dty).toUpperCase()}, ${nA} SETS)</div></div><img class="tw-wl" src="${TW_LOGO}" alt=""></div>
   ${body}<div class="tw-foot">SUGUS</div></article></div></div>`}
 // rev192: Worlds prediction images, from the same model as the Worlds bracket tab (and the results set there)
