@@ -5123,7 +5123,8 @@ function twDay(SRC,sw){
   // rev191: best duos of the day = two brawlers in the same team; ranked like the brawler of the day (win rate and how much it was played)
   const DU={};L.forEach(x=>[[x.mine,x.win],[x.theirs,1-x.win]].forEach(([T,w])=>{const B=[...new Set((T||[]).filter(Boolean))].sort();for(let i=0;i<B.length;i++)for(let j=i+1;j<B.length;j++){const k=B[i]+'|'+B[j],e=DU[k]||(DU[k]={n:0,w:0});e.n++;e.w+=w}}));
   const wl2=(w,n)=>{if(!n)return 0;const z=1.645,p=w/n,d=1+z*z/n;return (p+z*z/(2*n)-z*Math.sqrt(p*(1-p)/n+z*z/(4*n*n)))/d};
-  const minD=Math.max(3,Math.round(N*.06)),topD=Object.keys(DU).filter(k=>DU[k].n>=minD&&DU[k].w/DU[k].n>.5).sort((a,b)=>wl2(DU[b].w,DU[b].n)-wl2(DU[a].w,DU[a].n)).slice(0,5);
+  // rev201: most played duos: by sets, then win rate (no minimum)
+  const topD=Object.keys(DU).sort((a,b)=>DU[b].n-DU[a].n||DU[b].w/DU[b].n-DU[a].w/DU[a].n).slice(0,5);
   // rev181: maps of the day and how the series ended (3-0, 3-1, 3-2…); a series = the sets of the same two teams that day
   const MP={};L.forEach(x=>{if(x.map)MP[x.map]=(MP[x.map]||0)+1});const maps=Object.keys(MP).sort((a,b)=>MP[b]-MP[a]||a.localeCompare(b));
   const SR={};L.forEach(x=>{const a=x.myTeam||'?',o=x.opTeam||'?',k=[a,o].sort().join('|');const e=SR[k]||(SR[k]={});const w=x.win?a:o;e[w]=(e[w]||0)+1});
@@ -5138,13 +5139,13 @@ function twDay(SRC,sw){
   const MO=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'],fd=d=>{if(!d)return '';const [y,m,dd]=String(d).slice(0,10).split('-');return (+dd)+' '+MO[(+m)-1]+' '+y};
   const hl=(k,b,big,sm)=>`<div class="tw-cw"><div class="td-h"><small>${k}</small>${b?bimg(b,'td-hi'):''}<div><b>${b?nm(b):''}</b><em>${big}</em><span>${sm}</span></div></div></div>`;
   const body=N?`<div class="td-cols"><div class="tw-cw"><div class="td-p1"><h4>MOST PICKED <small>% of sets · WR</small></h4>${topP.map(b=>bar(b,pk[b].n,`<em class="td-wr">${pc(pk[b].w/pk[b].n)}</em>`)).join('')}</div></div>
-    <div class="tw-cw"><div class="td-p1 td-du"><h4>BEST DUOS <small>WR · sets</small></h4>${topD.map(k=>{const [a,b]=k.split('|'),e=DU[k];return `<div class="td-d">${bimg(a,'td-i')}${bimg(b,'td-i')}<b class="td-n">${nm(a)} <i>+</i> ${nm(b)}</b><em class="td-wr">${pc(e.w/e.n)}</em><span class="td-ds">${e.n} sets</span></div>`}).join('')||'<p class="td-none">Not enough sets for duos.</p>'}</div></div><div class="tw-cw"><div class="td-p1"><h4>MOST BANNED <small>% of sets</small></h4>${topB.map(b=>bar(b,bn[b],'<em class="td-wr" style="visibility:hidden">0%</em>')).join('')||'<p class="td-none">No bans saved for this day.</p>'}</div></div></div>
+    <div class="tw-cw"><div class="td-p1 td-du"><h4>MOST PLAYED DUOS <small>WR · sets</small></h4>${topD.map(k=>{const [a,b]=k.split('|'),e=DU[k];return `<div class="td-d">${bimg(a,'td-i')}${bimg(b,'td-i')}<b class="td-n">${nm(a)} <i>+</i> ${nm(b)}</b><em class="td-wr">${pc(e.w/e.n)}</em><span class="td-ds">${e.n} sets</span></div>`}).join('')||'<p class="td-none">Not enough sets for duos.</p>'}</div></div><div class="tw-cw"><div class="td-p1"><h4>MOST BANNED <small>% of sets</small></h4>${topB.map(b=>bar(b,bn[b],'<em class="td-wr" style="visibility:hidden">0%</em>')).join('')||'<p class="td-none">No bans saved for this day.</p>'}</div></div></div>
     <div class="td-hls">${best?hl('BRAWLER OF THE DAY',best,pc(pk[best].w/pk[best].n),`WR <span class="td-x">·</span> ${pc(pk[best].n/N)} pick rate <span class="td-x">·</span> ${pk[best].n} sets`):''}<div class="tw-cw td-scw"><div class="td-h td-sc"><small>MATCH RESULTS</small>${scK.map(k=>{const G=SL[k]||[],sh=G.slice(0,3);return `<div class="td-s"><div class="td-sh"><b>${k}</b><em>${nS?pc((SC[k]||0)/nS):'–'}</em><span>${SC[k]||0} match${(SC[k]||0)===1?'':'es'}</span></div><div class="td-sl">${sh.map(([w,l])=>`<div class="td-g">${logo(w,'td-lg')}<b>${esc(w)}</b><i>${k}</i><b class="l">${esc(l)}</b>${logo(l,'td-lg')}</div>`).join('')}${G.length>3?`<div class="td-g td-gm">+${G.length-3} more</div>`:''}</div></div>`}).join('')}</div></div><div class="tw-cw"><div class="td-maps"><small>MAPS PLAYED</small><div class="td-mg">${(()=>{const T=[];const byN={};maps.forEach(m=>(byN[MP[m]]=byN[MP[m]]||[]).push(m));Object.keys(byN).sort((a,b)=>b-a).forEach(n=>{const g=byN[n];for(let i=0;i<g.length;i+=2)T.push([g.slice(i,i+2),+n])});
     const sh=T.slice(0,6),left=T.slice(6).reduce((a,t)=>a+t[0].length,0);
     return sh.map(([g,n])=>{const src=g.map(m=>IMGS[mkey(m)]||'');return `<div class="td-m${g.length>1?' td-m2':''}"><img class="td-mi" data-split="${esc(JSON.stringify(src))}" src="${src[0]}" alt=""><div><b>${g.map(m=>esc(String(m).toUpperCase())).join(' <i>/</i> ')}</b><span>${n} set${n===1?'':'s'}${g.length>1?' each':''}</span></div></div>`}).join('')+'</div>'+(left?`<span class="td-more">+${left} more</span>`:'')})()}</div></div></div>`:'<p class="tw-empty">No sets on this day with these filters.</p>';
   return `<div class="tw-wrap"><div class="tw-bar">${sw}<span class="seg2 tw-ty">${[['all','All games'],['tournament','Tournament'],['friendly','Friendly']].map(([k,l])=>`<button type="button" data-twty="${k}" aria-pressed="${TWS.ty===k}">${l}</button>`).join('')}</span><label class="lbl">Day <select data-twday>${days.map(d=>`<option value="${d}"${d===day?' selected':''}>${fd(d)}</option>`).join('')}</select></label><span class="msg">All the sets of the day (every team together). No team is named.</span><button type="button" class="btn" data-cardx="tw" data-cardn="sugus-day-${day}">Download image</button></div>
   <div class="tw-scale twth-${TWS.th||1}"><article class="tw-img td" id="tc-tw"><div class="tw-top"><div><h1>DAY RECAP</h1><div class="tw-sub">${fd(day)}${TWS.ty==='tournament'?' <span>·</span> TOURNAMENT':TWS.ty==='friendly'?' <span>·</span> SCRIMS':''} <span>·</span> ${N} SETS <span>·</span> ${G} GAMES <span>·</span> ${Object.keys(pk).length} BRAWLERS PLAYED</div></div><img class="tw-wl" src="${TW_LOGO}" alt=""></div>
-  ${body}<div class="tw-foot">SUGUS</div></article></div></div>`}
+  ${body}<div class="tw-foot"><svg class="tw-x" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18.9 1.2h3.7l-8 9.2L24 22.8h-7.4l-5.8-7.6-6.6 7.6H.5l8.6-9.8L0 1.2h7.6l5.2 6.9 6.1-6.9zm-1.3 19.4h2L6.5 3.3H4.3l13.3 17.3z"/></svg><span>@Ssugus__</span></div></article></div></div>`}
 // rev186: draws two map images in one, cut by a white '/' (a real picture, so it also comes out in the downloaded image)
 function twSplitFill(){document.querySelectorAll('img[data-split]').forEach(im=>{if(im.dataset.done)return;im.dataset.done=1;let L;try{L=JSON.parse(im.dataset.split)}catch(e){return}
   const W=480,H=150,a=new Image(),b=new Image(),one=L.length<2;let n=one?1:0;const go=()=>{if(++n<2)return;const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
@@ -5184,7 +5185,7 @@ function twMom(SRC,sw){
     <div class="tm-foot"><div><b>${rev}</b> comebacks after losing set 1 <i>(${pc(fr(rev,nS))})</i></div><div><b>${rev2}</b> reverse sweeps from 0-2</div><div><b>${pc(fr(gc,dec))}</b> of the sets that went to game 3 were won by the team that lost game 1</div></div>`:'<p class="tw-empty">No full matches with these filters.</p>';
   return `<div class="tw-wrap"><div class="tw-bar">${sw}<span class="msg">All the matches of the chosen dates (every team together). No team is named.</span><button type="button" class="btn" data-cardx="tw" data-cardn="sugus-momentum">Download image</button></div>
   <div class="tw-scale twth-${TWS.th||1}"><article class="tw-img tm" id="tc-tw"><div class="tw-top"><div><h1>MOMENTUM</h1><div class="tw-sub">${sub}</div></div><img class="tw-wl" src="${TW_LOGO}" alt=""></div>
-  ${body}<div class="tw-foot">SUGUS</div></article></div></div>`}
+  ${body}<div class="tw-foot"><svg class="tw-x" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18.9 1.2h3.7l-8 9.2L24 22.8h-7.4l-5.8-7.6-6.6 7.6H.5l8.6-9.8L0 1.2h7.6l5.2 6.9 6.1-6.9zm-1.3 19.4h2L6.5 3.3H4.3l13.3 17.3z"/></svg><span>@Ssugus__</span></div></article></div></div>`}
 // rev191: what went up and down (pick rate of the last 7 days vs the 7 days before) and the favourite first picks; all teams together
 const twTyBtns=()=>`<span class="seg2 tw-ty">${[['all','All games'],['tournament','Tournament'],['friendly','Friendly']].map(([k,l])=>`<button type="button" data-twty="${k}" aria-pressed="${TWS.ty===k}">${l}</button>`).join('')}</span>`;
 function twMeta(sw,sel){
@@ -5213,7 +5214,7 @@ function twMeta(sw,sel){
     <div class="tz-fp"><div class="tw-cw"><div class="td-h tz-fh"><small>FIRST PICK</small><div class="tz-fl">${topF.length?topF.map((b,i)=>`<div class="tz-f${i?'':' one'}">${bimg(b,'tz-fi')}<b>${nm(b)}</b><em>${pc(FP[b].n/nF)}</em><span>of first picks · ${pc(FP[b].w/FP[b].n)} WR</span></div>`).join(''):'<span class="td-ns">No drafts with the pick order saved in these dates.</span>'}</div></div></div></div>`:'<p class="tw-empty">No sets in these dates.</p>';
   return `<div class="tw-wrap"><div class="tw-bar">${sw}<span class="tz-ctl"><b>Before</b><label>from <input type="date" data-twmsi="from" value="${esc(MS.from||'')}"></label><span class="seg2">${[['all','All'],['tournament','Tournament'],['friendly','Friendly']].map(([k,l])=>`<button type="button" data-twms="bty=${k}" aria-pressed="${MS.bty===k}">${l}</button>`).join('')}</span><i>→</i><b>Compare with</b><select data-twmsi="day">${cdays.map(d=>`<option value="${d}"${d===end?' selected':''}>${fd(d)} ${d.slice(0,4)}</option>`).join('')}</select><span class="seg2">${[['all','All'],['tournament','Tournament'],['friendly','Friendly']].map(([k,l])=>`<button type="button" data-twms="dty=${k}" aria-pressed="${MS.dty===k}">${l}</button>`).join('')}</span></span><span class="msg">Teams chosen in Tier List (${SEL.size}) · ${nB} team-sets before · ${nA} that day · first picks from ${nF} drafts with the pick order.</span><button type="button" class="btn" data-cardx="tw" data-cardn="sugus-meta-shift">Download image</button></div>
   <div class="tw-scale twth-${TWS.th||1}"><article class="tw-img tz" id="tc-tw"><div class="tw-top"><div><h1>META SHIFT</h1><div class="tw-sub">${fd(b0)} — ${fd(b1)} (${tyL(MS.bty).toUpperCase()}, ${nB} SETS) <span>→</span> ${fd(end)} (${tyL(MS.dty).toUpperCase()}, ${nA} SETS)</div></div><img class="tw-wl" src="${TW_LOGO}" alt=""></div>
-  ${body}<div class="tw-foot">SUGUS</div></article></div></div>`}
+  ${body}<div class="tw-foot"><svg class="tw-x" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18.9 1.2h3.7l-8 9.2L24 22.8h-7.4l-5.8-7.6-6.6 7.6H.5l8.6-9.8L0 1.2h7.6l5.2 6.9 6.1-6.9zm-1.3 19.4h2L6.5 3.3H4.3l13.3 17.3z"/></svg><span>@Ssugus__</span></div></article></div></div>`}
 // rev192: Worlds prediction images, from the same model as the Worlds bracket tab (and the results set there)
 function twPred(sw){
   // rev193: prediction (kept as it was before the match started) next to the real result, read from the tournament sets of the data
@@ -5262,7 +5263,7 @@ function twPred(sw){
   const sub=`${String(WB_DAY[day]||'').toUpperCase()} <span>·</span> WORLDS 2026${nDone?` <span>·</span> ${hits}/${nDone} WINNERS CALLED <span>·</span> ${exact} EXACT SCORE${exact===1?'':'S'}`:` <span>·</span> ${F.length} MATCHES`}`;
   return `<div class="tw-wrap"><div class="tw-bar">${sw}${sub2}<span class="msg">Prediction kept from before each match · real result from the tournament sets of the data (and the winners you set in Worlds bracket).</span><button type="button" class="btn" data-cardx="tw" data-cardn="sugus-worlds-day${day}">Download image</button></div>
   <div class="tw-scale twth-${TWS.th||1}"><article class="tw-img tp tpv-${window.TP_V||'tk'}" id="tc-tw"><div class="tw-top"><div><h1>DAY ${day} · PREDICTION VS RESULT</h1><div class="tw-sub">${sub}</div></div><img class="tw-wl" src="${TW_LOGO}" alt=""></div>
-  <div class="tp-days d${day} v-${window.TP_V||'tk'}">${cards}</div><div class="tp-leg"><span><i class="f"></i>Model's favourite</span><span><b>3-1</b> 24% = the 3 most likely scores (top team first)</span><span class="ok">✓ winner called</span><span class="ko">✕ upset</span></div><div class="tw-foot">SUGUS</div></article></div></div>`}
+  <div class="tp-days d${day} v-${window.TP_V||'tk'}">${cards}</div><div class="tp-leg"><span><i class="f"></i>Model's favourite</span><span><b>3-1</b> 24% = the 3 most likely scores (top team first)</span><span class="ok">✓ winner called</span><span class="ko">✕ upset</span></div><div class="tw-foot"><svg class="tw-x" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18.9 1.2h3.7l-8 9.2L24 22.8h-7.4l-5.8-7.6-6.6 7.6H.5l8.6-9.8L0 1.2h7.6l5.2 6.9 6.1-6.9zm-1.3 19.4h2L6.5 3.3H4.3l13.3 17.3z"/></svg><span>@Ssugus__</span></div></article></div></div>`}
 function twMu(SRC,sel,map,sw){
   const D2=Object.assign({},ds,{matches:SRC||[]}),items=[];
   for(const t of sel)for(const x of Engine.setList(D2,DB,t,map?[map]:null))if(!x.s&&(x.win===1||x.win===0))items.push(x);
@@ -5282,7 +5283,7 @@ function twMu(SRC,sel,map,sw){
   const body=top.length?top.map(card).join(''):'<p class="tw-empty">No sets with these filters.</p>';
   return `<div class="tw-wrap"><div class="tw-bar">${sw}<span class="msg">Image for Twitter (1600×900). It uses the teams, map and dates chosen above. Only admins see this tab.</span><button type="button" class="btn" data-cardx="tw" data-cardn="sugus-matchups-${esc(map||'all-maps')}">Download image</button></div>
   <div class="tw-scale twth-${TWS.th||1}"><article class="tw-img" id="tc-tw"><div class="tw-top"><div><h1>MATCHUPS</h1><div class="tw-sub">${sub}</div></div><img class="tw-wl" src="${TW_LOGO}" alt=""></div>
-  <div class="tw-grid">${body}</div><div class="tw-foot">SUGUS</div></article></div></div>`}
+  <div class="tw-grid">${body}</div><div class="tw-foot"><svg class="tw-x" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18.9 1.2h3.7l-8 9.2L24 22.8h-7.4l-5.8-7.6-6.6 7.6H.5l8.6-9.8L0 1.2h7.6l5.2 6.9 6.1-6.9zm-1.3 19.4h2L6.5 3.3H4.3l13.3 17.3z"/></svg><span>@Ssugus__</span></div></article></div></div>`}
 window.TWV={get:()=>TL.view,set:v=>{TL.view=v;if(tab==='tier')renderDetail()}};
 function tierTab(){tlDef();const C=tlCalc();TLC=C;const off=M.D.off,sel=new Set(TL.teams&&TL.teams.length?TL.teams:off),all=!(TL.teams&&TL.teams.length);
   const maps=[...new Set(((TL.since==='custom'&&FULL&&FULL.matches)||ds.matches).map(m=>m.m).filter(Boolean))].sort();
@@ -10992,4 +10993,54 @@ html body .tw-scale.twth-news:not(#_):not(#__) #tc-tw .tz-d.d{color:#111!importa
 html body .tw-scale.twth-comic:not(#_):not(#__) #tc-tw.tw-img.tp h1{font-size:76px!important;white-space:nowrap!important}
 html body .tw-scale.twth-action:not(#_):not(#__) #tc-tw.tw-img.tp h1{font-size:92px!important;white-space:nowrap!important}
 html body .tw-scale.twth-comic:not(#_):not(#__) #tc-tw .tw-sub{font-size:12px!important;letter-spacing:.08em!important;max-width:1180px;white-space:nowrap;overflow:hidden}
+</style><style id="rev201">
+/* footer: X logo + handle */
+html body .tw-scale:not(#_):not(#__):not(#___) #tc-tw .tw-foot{display:flex!important;align-items:center;gap:.35em;white-space:nowrap}
+html body .tw-scale:not(#_):not(#__):not(#___) #tc-tw .tw-foot .tw-x{width:.72em;height:.72em;flex:0 0 auto}
+/* World Finals logo always inside the title area (never over the line or the tables) */
+html body .tw-scale:not(#_):not(#__):not(#___) #tc-tw .tw-top{position:relative}
+html body .tw-scale:not(#_):not(#__):not(#___) #tc-tw .tw-wl{top:2px!important;right:0!important;height:calc(100% - 16px)!important;max-height:170px;width:auto!important;transform:rotate(4deg)!important;z-index:6}
+/* matchups: every chip the same width, labels centred */
+html body .tw-scale:not(#_):not(#__):not(#___) #tc-tw .tw-chip{width:104px!important;box-sizing:border-box;flex:0 0 104px!important}
+html body .tw-scale:not(#_):not(#__):not(#___) #tc-tw .tw-chip span{min-width:0;overflow:hidden}
+html body .tw-scale:not(#_):not(#__):not(#___) #tc-tw .tw-row small{text-align:center!important}
+/* match results: score centred in its box */
+html body .tw-scale:not(#_):not(#__):not(#___) #tc-tw .td-g i{display:flex!important;align-items:center!important;justify-content:center!important;line-height:1!important;padding:3px 0!important;height:auto!important}
+/* arcade */
+html body .tw-scale.twth-arcade:not(#_):not(#__):not(#___) #tc-tw .td-sh{flex-wrap:nowrap!important;column-gap:6px!important}
+html body .tw-scale.twth-arcade:not(#_):not(#__):not(#___) #tc-tw .td-sh>b{font-size:13px!important}
+html body .tw-scale.twth-arcade:not(#_):not(#__):not(#___) #tc-tw .td-sh>em{font-size:16px!important}
+html body .tw-scale.twth-arcade:not(#_):not(#__):not(#___) #tc-tw .td-sh span{flex-basis:100%!important}
+html body .tw-scale.twth-arcade:not(#_):not(#__):not(#___) #tc-tw .td-sh{flex-wrap:wrap!important}
+html body .tw-scale.twth-arcade:not(#_):not(#__):not(#___) #tc-tw .td-sh>b,html body .tw-scale.twth-arcade:not(#_):not(#__):not(#___) #tc-tw .td-sh>em{white-space:nowrap}
+html body .tw-scale.twth-arcade:not(#_):not(#__):not(#___) #tc-tw .tk-t b{font-size:15px!important}
+html body .tw-scale.twth-arcade:not(#_):not(#__):not(#___) #tc-tw .tk-t em{font-size:17px!important}
+html body .tw-scale.twth-arcade:not(#_):not(#__):not(#___) #tc-tw .tk-sc b{font-size:34px!important}
+html body .tw-scale.twth-arcade:not(#_):not(#__):not(#___) #tc-tw .tk-h{font-size:11px!important}
+html body .tw-scale.twth-arcade:not(#_):not(#__):not(#___) #tc-tw .tk-3{font-size:11px!important}
+html body .tw-scale.twth-arcade:not(#_):not(#__):not(#___) #tc-tw .tk-lg{width:26px!important;height:26px!important}
+/* tv: no LIVE on matchups */
+html body .tw-scale.twth-tv:not(#_):not(#__):not(#___) #tc-tw:not(.td):not(.tm):not(.tz):not(.tp)::after{display:none!important}
+/* news: no SUGUS TIMES */
+html body .tw-scale.twth-news:not(#_):not(#__):not(#___) #tc-tw::after{display:none!important}
+/* chalk: keep the bottom boxes above the handle */
+html body .tw-scale.twth-chalk:not(#_):not(#__):not(#___) #tc-tw .td-cols{margin-top:14px!important}
+html body .tw-scale.twth-chalk:not(#_):not(#__):not(#___) #tc-tw .td-hls{margin-top:22px!important}
+html body .tw-scale.twth-chalk:not(#_):not(#__):not(#___) #tc-tw .td-r{padding:1px 0!important}
+html body .tw-scale.twth-chalk:not(#_):not(#__):not(#___) #tc-tw .tw-foot{bottom:14px!important}
+/* comic: date box further right, POW next to the title */
+html body .tw-scale.twth-comic:not(#_):not(#__):not(#___) #tc-tw .tw-sub{margin-left:40px!important}
+html body .tw-scale.twth-comic:not(#_):not(#__):not(#___) #tc-tw::after{display:none!important}
+html body .tw-scale.twth-comic:not(#_):not(#__):not(#___) #tc-tw h1{position:relative}
+html body .tw-scale.twth-comic:not(#_):not(#__):not(#___) #tc-tw .tw-top h1::after{content:"POW!";position:absolute;left:100%;top:-6px;margin-left:24px;font-family:TwBang,Impact;font-size:34px;color:#FFE34D;-webkit-text-stroke:2px #111;text-shadow:none;background:#E8132B;padding:12px 22px;clip-path:polygon(50% 0,61% 22%,88% 8%,78% 35%,100% 50%,78% 63%,90% 92%,61% 78%,50% 100%,39% 78%,10% 92%,22% 63%,0 50%,22% 35%,12% 8%,39% 22%);transform:rotate(12deg);letter-spacing:.04em}
+/* action: handle fully inside the bottom black band, no credits line */
+html body .tw-scale.twth-action:not(#_):not(#__):not(#___) #tc-tw::after{display:none!important}
+html body .tw-scale.twth-action:not(#_):not(#__):not(#___) #tc-tw .tw-foot{bottom:8px!important;font-size:22px!important;letter-spacing:.2em!important}
+</style><style id="rev201b">
+html body .tw-scale.twth-comic:not(#_):not(#__):not(#___) #tc-tw .tw-foot span{font-family:TwLil,Impact,sans-serif!important;letter-spacing:.02em!important}
+html body .tw-scale.twth-action:not(#_):not(#__):not(#___) #tc-tw .tw-foot span{font-family:TwOsw,Impact,sans-serif!important;letter-spacing:.12em!important}
+html body .tw-scale.twth-chalk:not(#_):not(#__):not(#___) #tc-tw .tw-foot span{font-family:TwChalk,cursive!important;font-size:1.15em;letter-spacing:.02em!important}
+html body .tw-scale.twth-tv:not(#_):not(#__):not(#___) #tc-tw.tp h1{font-size:64px!important}
+html body .tw-scale.twth-tv:not(#_):not(#__):not(#___) #tc-tw.tp .tw-sub{display:table!important;margin-top:8px!important;white-space:nowrap}
+html body .tw-scale.twth-tv:not(#_):not(#__):not(#___) #tc-tw.tp .tw-top{padding-bottom:10px!important}
 </style>
