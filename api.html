@@ -3053,10 +3053,22 @@ function nxMatchups(SRC,sel,map){
   const pk={};items.forEach(x=>(x.mine||[]).filter(Boolean).forEach(b=>pk[b]=(pk[b]||0)+1));
   const top=Object.entries(pk).sort((a,b)=>b[1]-a[1]).slice(0,20).map(x=>x[0]);const C={};
   items.forEach(x=>(x.mine||[]).forEach(a=>{if(!top.includes(a))return;new Set(x.theirs||[]).forEach(b=>{if(!top.includes(b))return;const k=a+'|'+b,e=C[k]||(C[k]={n:0,w:0});e.n++;e.w+=x.win})}));
+  // rev178: picks and win rate of every brawler (of the chosen teams), shown with its name in the row and column titles
+  const PW={};items.forEach(x=>new Set(x.mine||[]).forEach(b=>{const e=PW[b]||(PW[b]={n:0,w:0});e.n++;e.w+=x.win}));
+  const wc=v=>v>=.6?'#4ade80':v>=.53?'#86efac':v>.47?'#facc15':v>.4?'#fca5a5':'#f87171',nm=b=>esc(nx.tc(b));
+  const st=b=>{const e=PW[b]||{n:0,w:0},v=e.n?e.w/e.n:0;return `<span class="mu-st"><b>${e.n}</b> picks · <i style="color:${wc(v)}">${Math.round(100*v)}%</i></span>`};
+  const MV=window.MU_V||'G';
+  const stC=b=>{const e=PW[b]||{n:0,w:0},v=e.n?e.w/e.n:0;return `<span class="mu-sc"><b>${e.n}</b><small>picks</small><i style="color:${wc(v)}">${Math.round(100*v)}%</i><small>WR</small></span>`};
+  const colH=b=>(MV==='C'||MV==='D'||MV==='E'||MV==='F'||MV==='G')?`<th class="mu-ch" title="${esc(b)}">${bimg(b,'mu-bi')}</th>`:MV==='A'?`<th class="mu-ch" title="${esc(b)}">${bimg(b,'mu-bi')}<span class="mu-nm">${nm(b)}</span>${stC(b)}</th>`:`<th class="mu-ch" title="${esc(b)}">${bimg(b,'mu-bi')}<span class="mu-nm">${nm(b)}</span></th>`;
+  const rowH=a=>MV==='G'?(()=>{const e=PW[a]||{n:0,w:0},v=e.n?e.w/e.n:0,c=!e.n?'inherit':v>=.55?'#7ee2a0':v<.45?'#ff8a80':'#ffc861';return `<th class="mu-gt"><small>Sets: ${e.n}</small><b style="color:${c}">WR: ${Math.round(100*v)}%</b></th><th class="mu-gw" title="${esc(a)}">${bimg(a,'mu-bi')}<b class="mu-gn">${nm(a)}</b></th>`})():MV==='F'?(()=>{const e=PW[a]||{n:0,w:0},v=e.n?e.w/e.n:0;return `<th class="mu-rh" title="${esc(a)}: ${e.n} picks · ${Math.round(100*v)}% win rate"><span class="mu-rf"><b>${e.n}</b><i style="color:${wc(v)}">${Math.round(100*v)}%</i>${bimg(a,'mu-bi')}<span class="mu-nm">${nm(a)}</span></span></th>`})():MV==='E'?(()=>{const e=PW[a]||{n:0,w:0},v=e.n?e.w/e.n:0;return `<th class="mu-rh" title="${esc(a)}: ${e.n} picks · ${Math.round(100*v)}% win rate"><span class="mu-re">${bimg(a,'mu-bi')}<span class="mu-ri"><span class="mu-nm">${nm(a)}</span><span class="mu-rn"><b>${e.n}</b><i style="color:${wc(v)}">${Math.round(100*v)}%</i></span></span></span></th>`})():MV==='D'?(()=>{const e=PW[a]||{n:0,w:0},v=e.n?e.w/e.n:0;return `<th class="mu-rh" title="${esc(a)}"><span class="mu-rd">${bimg(a,'mu-bi')}<span class="mu-nm">${nm(a)}</span><span class="mu-k2"><b>${e.n}</b><small>picks</small></span><span class="mu-k2"><b style="color:${wc(v)}">${Math.round(100*v)}%</b><small>WR</small></span></span></th>`})():(MV==='A'||MV==='C')?`<th class="mu-rh" title="${esc(a)}"><span class="mu-rw">${bimg(a,'mu-bi')}<span><span class="mu-nm">${nm(a)}</span>${st(a)}</span></span></th>`:`<th class="mu-rh" title="${esc(a)}"><span class="mu-rw">${bimg(a,'mu-bi')}<span class="mu-nm">${nm(a)}</span></span></th>`;
+  const strip=MV==='B'?`<div class="mu-strip">${top.map(b=>{const e=PW[b]||{n:0,w:0},v=e.n?e.w/e.n:0;return `<div class="mu-bc">${bimg(b,'mu-bi')}<span class="mu-nm">${nm(b)}</span><b>${e.n}</b><small>picks</small><i style="color:${wc(v)}">${Math.round(100*v)}%</i><small>win rate</small></div>`}).join('')}</div>`:'';
+  // rev178: cells like the Head to head of teams (Results): green = winning record, red = losing, orange = even; '/' = no sets
+  const muG=(a,b)=>{const e=a===b?null:C[a+'|'+b];if(!e||!e.n)return '<td class="hh-c mu-g"><span class="h2-x">/</span></td>';const p=e.w/e.n,k=p>.5?'g':p<.5?'r':'o',few=e.n<4;
+    return `<td class="hh-c mu-g" data-mu="${esc(a+'|'+b)}" title="${esc(a)} vs ${esc(b)}: ${e.w}-${e.n-e.w} in ${e.n} sets · click to see them"><span class="h2 ${k}${few?' few':''}"><b>${Math.round(100*p)}%</b><small>${e.w}-${e.n-e.w}</small><small>${e.n} set${e.n===1?'':'s'}${few?'*':''}</small></span></td>`};
   const bg=v=>v==null?'':v>=.6?'74,222,128':v>=.53?'134,239,172':v>.47?'250,204,21':v>.4?'252,165,165':'248,113,113';
   if(!top.length)return '<p class="msg">No sets for this map and these teams.</p>';
-  return `<div class="mu-w"><table class="mu"><tr><th class="mu-c">${map?mimg(map,'mu-mi'):'<small>All maps</small>'}</th>${top.map(b=>`<th title="${esc(b)}">${bimg(b,'mu-bi')}</th>`).join('')}</tr>${top.map(a=>`<tr><th title="${esc(a)}">${bimg(a,'mu-bi')}</th>${top.map(b=>{if(a===b)return '<td class="sl"></td>';const e=C[a+'|'+b],v=e&&e.n>=4?e.w/e.n:null;if(!e)return '<td><small>·</small></td>';return `<td class="mu-k${v==null?' few':''}" style="${v==null?'':'--g:'+bg(v)}" data-mu="${esc(a+'|'+b)}" title="${esc(a)} vs ${esc(b)}: ${e.w} won of ${e.n} sets · click to see them">${v==null?`<em>${e.w}/${e.n}</em><small>sets won</small>`:`<span>WR</span>${Math.round(v*100)}%<small>${e.n} sets</small>`}</td>`}).join('')}</tr>`).join('')}</table></div>
-  <p class="msg" style="font-size:11.5px;margin-top:8px">Row = brawler of the chosen teams, column = brawler of their rival · WR = % of sets won by the chosen team · below = sets played · grey cells (fewer than 4 sets) show sets won / sets played, e.g. 1/2 · top 20 brawlers of the map · <b style="color:#c4b5fd">click a cell to see the exact sets</b> · ${items.length} sets of the chosen teams${map?' on '+esc(map):' on all maps'} (same sets as "Our brawlers" / "Their brawlers" in Comps, with the teams and dates chosen here).</p>`}
+  return `${strip}<div class="mu-w mu-v${MV}"><table class="mu"><tr>${MV==='G'?`<th class="mu-c mu-gh" colspan="2">${map?mimg(map,'mu-mi'):''}<span>Total sets and WR</span></th>`:`<th class="mu-c">${map?mimg(map,'mu-mi')+'<small>'+esc(map)+'</small>':'<small>All maps</small>'}</th>`}${top.map(colH).join('')}</tr>${top.map(a=>`<tr>${rowH(a)}${top.map(b=>{if(MV==='G')return muG(a,b);if(a===b)return '<td class="sl"></td>';const e=C[a+'|'+b],v=e&&e.n>=4?e.w/e.n:null;if(!e)return '<td><small>·</small></td>';return `<td class="mu-k${v==null?' few':''}" style="${v==null?'':'--g:'+bg(v)}" data-mu="${esc(a+'|'+b)}" title="${esc(a)} vs ${esc(b)}: ${e.w} won of ${e.n} sets · click to see them">${v==null?`<em>${e.w}/${e.n}</em><small>sets won</small>`:`<span>WR</span>${Math.round(v*100)}%<small>${e.n} sets</small>`}</td>`}).join('')}</tr>`).join('')}</table></div>
+  ${MV==='G'?'<p class="h2-leg"><i class="g"></i>Winning record <i class="r"></i>Losing record <i class="o"></i>Even <span>/</span> No sets <span>*</span> Under 4 sets</p>':''}<p class="msg mu-help" style="font-size:11.5px;margin-top:8px">Row = brawler of the chosen teams, column = brawler of their rival · WR = % of sets won by the chosen team · below = sets played · grey cells (fewer than 4 sets) show sets won / sets played, e.g. 1/2 · top 20 brawlers of the map · <b style="color:#c4b5fd">click a cell to see the exact sets</b> · ${items.length} sets of the chosen teams${map?' on '+esc(map):' on all maps'} (same sets as "Our brawlers" / "Their brawlers" in Comps, with the teams and dates chosen here).</p>`}
 document.addEventListener('click',e=>{const c=e.target.closest&&e.target.closest('[data-mu]');if(c&&window.NXMU){const [a,b]=c.dataset.mu.split('|');
     const L=window.NXMU.items.filter(x=>(x.mine||[]).includes(a)&&(x.theirs||[]).includes(b)).sort((p,q)=>p.d<q.d?1:p.d>q.d?-1:q.i-p.i);const w=L.filter(x=>x.win===1).length;
     const ov=document.createElement('div');ov.className='mu-ov';ov.innerHTML=`<div class="mu-box"><header>${bimg(a,'mu-bi')}<b>${esc(nx.tc(a))}</b><span>vs</span>${bimg(b,'mu-bi')}<b>${esc(nx.tc(b))}</b><small>${window.NXMU.map?esc(window.NXMU.map)+' · ':''}${w} won of ${L.length} sets</small><button type="button" class="mu-x">✕</button></header>${compRows(L,'')}</div>`;
@@ -5081,7 +5093,7 @@ function tierTab(){tlDef();const C=tlCalc();TLC=C;const off=M.D.off,sel=new Set(
     <div class="tl-opts"><span class="seg2 tl-vw"><button type="button" data-tlview="tier" aria-pressed="${TL.view!=='mu'}">Tier list</button><button type="button" data-tlview="mu" aria-pressed="${TL.view==='mu'}">Matchups</button></span><label class="lbl">Map <select data-tlmap><option value="">All maps</option>${maps.map(m=>`<option${m===TL.map?' selected':''}>${esc(m)}</option>`).join('')}</select></label>
       ${TL.since==='custom'?(()=>{const b=FULL&&FULL.matches&&FULL.matches.length?rangeOf(FULL):{mn:'',mx:''};return `<span class="tl-dates"><label>From <input type="date" data-tlfrom value="${esc(TL.from||'')}" min="${b.mn}" max="${b.mx}"></label><label>To <input type="date" data-tlto value="${esc(TL.to||'')}" min="${b.mn}" max="${b.mx}"></label>${TL.from||TL.to?'<button type="button" class="chip" data-tlclr>Clear</button>':''}</span>`})():''}</div>
     <p class="msg tl-src">${plural(C.nSets,'set')} of ${all?'all the teams':plural(C.teams.length,'team')}${TL.map?' on '+esc(TL.map):''}${TL.since==='custom'?' · '+(TL.from?fmtDate(TL.from):'start')+' – '+(TL.to?fmtDate(TL.to):'today'):''} · meta score = presence (pick + ban rate) 50% + adjusted win rate 30% + pick priority 20% · recent sets and stronger teams weigh more · hover a brawler for the details · ▲▼ = pick rate of the last 7 days vs before · faded = fewer than 5 sets</p></div>
-    ${TL.view==='mu'?`<article class="tcard mu-card" id="tc-mu"><header class="tc-head"><div class="tc-id"><div><h3>Brawler matchups</h3><small>${all?'All teams':esc(C.teams.slice(0,4).join(', '))+(C.teams.length>4?' +'+(C.teams.length-4):'')} · ${TL.map?esc(TL.map):'All maps'} · ${TL.since==='custom'?(TL.from?fmtDate(TL.from):'start')+' – '+(TL.to?fmtDate(TL.to):'today'):esc(periodLabel())} · ${plural(C.nSets,'set')}</small></div></div>
+    ${TL.view==='mu'?`<article class="tcard mu-card" id="tc-mu"><header class="tc-head"><div class="tc-id"><div><h3>Brawler matchups</h3></div></div>
       <button type="button" class="btn quiet" data-cardx="mu" data-cardn="matchups-${esc(TL.map||'all-maps')}" data-noexport="1">Download image</button></header>${nxMatchups(C.SRC||tlSrc(),sel,TL.map)}</article>`:rows}${TL.view!=='mu'&&unseen.length?`<div class="tl-row tl-n"><div class="tl-lab"><span class="tl-k">–</span><small>not picked</small><small>${unseen.length} brawlers</small></div><div class="tl-g">${unseen.map(n=>`<div class="tl-t few">${bimg(n,'tl-i')}<b>${esc(n)}</b><span class="tl-sc">–</span></div>`).join('')}</div></div>`:''}</div>`}
 document.addEventListener('click',e=>{const t=e.target;if(!t.closest||tab!=='tier')return;
   const a=t.closest('[data-tlall]');if(a){TL.teams=null;tlSave();renderDetail();return}
@@ -10048,4 +10060,68 @@ html body .wb-sc b:not(#_):not(#__){font-size:11px;font-weight:600;color:#cfcde0
 html body .wb-sc.top b:not(#_):not(#__){color:#c4a7ff;font-weight:800}
 html body .wb-sc.top i:not(#_):not(#__){color:#e6e3f5}
 html body .wb-sc.b1:not(#_):not(#__){border-left:1px solid #3a3850}
+</style><style id="rev178">
+html body .mu th.mu-ch:not(#_):not(#__){width:60px;max-width:60px;vertical-align:bottom!important;padding-bottom:4px!important}
+html body .mu .mu-nm:not(#_):not(#__){display:block;font-size:10px;font-weight:700;color:#e6e3f5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px;margin:3px auto 0;letter-spacing:.01em;text-transform:uppercase}
+html body .mu .mu-st:not(#_):not(#__){display:block;font-size:9px;color:#8e8ab0;font-weight:600;white-space:nowrap;margin-top:1px}
+html body .mu .mu-st b:not(#_):not(#__){color:#cfcde0}
+html body .mu .mu-st i:not(#_):not(#__){font-style:normal;font-weight:800}
+html body .mu th.mu-rh:not(#_):not(#__){width:auto;text-align:left!important;padding-right:6px!important}
+html body .mu .mu-rw:not(#_):not(#__){display:flex;align-items:center;gap:8px;min-width:132px}
+html body .mu .mu-rw .mu-nm:not(#_):not(#__){margin:0;max-width:100px;font-size:11px}
+html body .mu .mu-rw .mu-st:not(#_):not(#__){font-size:10px}
+html body .mu th.mu-c small:not(#_):not(#__){display:block;font-size:10px;color:#cfcde0;font-weight:700;margin-top:4px}
+html body .mu-strip:not(#_):not(#__){display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:6px;margin:0 0 12px}
+html body .mu-bc:not(#_):not(#__){display:grid;grid-template-columns:40px 1fr 1fr;grid-template-rows:auto auto auto;column-gap:6px;align-items:center;background:#15141d;border:1px solid #23212e;padding:7px 8px}
+html body .mu-bc img:not(#_):not(#__){grid-row:1/4;width:40px;height:40px}
+html body .mu-bc .mu-nm:not(#_):not(#__){grid-column:2/4;font-size:11px;font-weight:800;color:#e6e3f5;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+html body .mu-bc b:not(#_):not(#__),html body .mu-bc i:not(#_):not(#__){font-size:15px;font-weight:800;font-style:normal;color:#e6e3f5;line-height:1}
+html body .mu-bc small:not(#_):not(#__){font-size:9px;color:#8e8ab0;grid-row:3}
+html body .mu-bc b:not(#_):not(#__){grid-column:2;grid-row:2}html body .mu-bc i:not(#_):not(#__){grid-column:3;grid-row:2}
+html body .mu-bc small:nth-of-type(1):not(#_):not(#__){grid-column:2}html body .mu-bc small:nth-of-type(2):not(#_):not(#__){grid-column:3}
+html body .mu .mu-sc:not(#_):not(#__){display:grid;grid-template-columns:1fr 1fr;margin-top:2px;line-height:1.05}
+html body .mu .mu-sc b:not(#_):not(#__),html body .mu .mu-sc i:not(#_):not(#__){font-size:10.5px;font-weight:800;font-style:normal;color:#e6e3f5}
+html body .mu .mu-sc small:not(#_):not(#__){font-size:7.5px;color:#8e8ab0;font-weight:600;text-transform:uppercase;grid-row:2}
+html body .mu .mu-rd:not(#_):not(#__){display:grid;grid-template-columns:34px 68px 30px 40px;align-items:center;gap:4px;min-width:0;padding:0 2px 0 0}
+html body .mu .mu-rd .mu-nm:not(#_):not(#__){margin:0;max-width:68px;font-size:11px;text-align:left}
+html body .mu .mu-k2:not(#_):not(#__){display:flex;flex-direction:column;align-items:center;line-height:1.05}
+html body .mu .mu-k2 b:not(#_):not(#__){font-size:14px;font-weight:800;color:#e6e3f5}
+html body .mu .mu-k2 small:not(#_):not(#__){font-size:8px;color:#8e8ab0;text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+html body .mu .mu-rd img:not(#_):not(#__){width:34px;height:34px}
+html body .mu .mu-re:not(#_):not(#__){display:flex;align-items:center;gap:9px;min-width:140px;padding-right:4px}
+html body .mu .mu-re img:not(#_):not(#__){width:40px;height:40px;flex:0 0 auto}
+html body .mu .mu-ri:not(#_):not(#__){display:flex;flex-direction:column;align-items:flex-start;gap:3px}
+html body .mu .mu-ri .mu-nm:not(#_):not(#__){margin:0;max-width:96px;font-size:12px;text-align:left}
+html body .mu .mu-rn:not(#_):not(#__){display:flex;gap:10px;align-items:baseline;line-height:1}
+html body .mu .mu-rn b:not(#_):not(#__){font-size:15px;font-weight:800;color:#e6e3f5}
+html body .mu .mu-rn i:not(#_):not(#__){font-size:15px;font-weight:800;font-style:normal}
+html body .mu .mu-rf:not(#_):not(#__){display:grid;grid-template-columns:28px 38px 34px 70px;align-items:center;gap:4px;padding-right:2px}
+html body .mu .mu-rf b:not(#_):not(#__){font-size:14px;font-weight:800;color:#e6e3f5;text-align:right}
+html body .mu .mu-rf i:not(#_):not(#__){font-size:14px;font-weight:800;font-style:normal;text-align:right}
+html body .mu .mu-rf img:not(#_):not(#__){width:34px;height:34px;margin:0 0 0 2px!important}
+html body .mu .mu-rf .mu-nm:not(#_):not(#__){margin:0;max-width:70px;font-size:11px;text-align:left}
+html body .mu th.mu-gt:not(#_):not(#__){min-width:70px;width:70px;text-align:left!important;padding:2px 6px!important;background:rgba(255,255,255,.035)!important;white-space:nowrap}
+html body .mu th.mu-gt small:not(#_):not(#__){display:block;font-size:10px;color:#8e8ab0;font-weight:600}
+html body .mu th.mu-gt b:not(#_):not(#__){display:block;font-size:13px;font-weight:800}
+html body .mu th.mu-gw:not(#_):not(#__){width:auto;text-align:left!important;padding:2px 8px 2px 6px!important;background:rgba(255,255,255,.035)!important;white-space:nowrap}
+html body .mu th.mu-gw img:not(#_):not(#__){display:inline-block!important;vertical-align:middle;width:34px;height:34px;margin:0!important}
+html body .mu th.mu-gw .mu-gn:not(#_):not(#__){display:inline-block;vertical-align:middle;margin-left:7px;font-size:12px;font-weight:700;color:#e5e3f0;max-width:86px;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase}
+html body .mu th.mu-gh:not(#_):not(#__){text-align:left!important;vertical-align:bottom!important;padding:0 0 6px 4px!important}
+html body .mu th.mu-gh span:not(#_):not(#__){display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#a78bfa;font-weight:700;white-space:nowrap}
+html body .mu th.mu-gh img:not(#_):not(#__){display:block;margin:0 0 6px!important}
+html body .mu-vG .mu:not(#_):not(#__){border-collapse:separate!important;border-spacing:5px 5px!important;background:transparent!important}
+html body .mu-vG .mu td.mu-g:not(#_):not(#__){background:none!important;border:0!important;box-shadow:none!important;text-shadow:none!important;width:55px;min-width:55px;max-width:55px;height:auto;padding:0!important;border-radius:0}
+html body .mu-vG .mu td.mu-g .h2:not(#_):not(#__),html body .mu-vG .mu td.mu-g .h2-x:not(#_):not(#__){display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0;width:55px;height:54px;border-radius:9px;opacity:1;letter-spacing:0;font-size:inherit;color:inherit}
+html body .mu-vG .mu td.mu-g .h2 b:not(#_):not(#__){font-size:14.5px;line-height:1.1}
+html body .mu-vG .mu td.mu-g .h2 small:not(#_):not(#__){font-size:9px!important;color:#9a97ad;margin-top:1px!important;white-space:nowrap;display:block;font-weight:600;line-height:1.15}
+html body .mu-vG .mu td.mu-g .h2.o:not(#_):not(#__){background:#2a2213}
+html body .mu-vG .mu td.mu-g .h2.o b:not(#_):not(#__){color:#ffc861}
+html body .mu-vG .mu td.mu-g .h2.few:not(#_):not(#__){opacity:.6}
+html body .mu-vG .mu td.mu-g .h2-x:not(#_):not(#__){background:none;color:#5c5970;font-size:16px}
+html body .mu-vG .mu td.mu-g[data-mu]:not(#_):not(#__){cursor:pointer}
+html body .mu-vG .mu td.mu-g[data-mu]:hover .h2:not(#_):not(#__){outline:1px solid #a855f7}
+html body .mu-vG ~ .mu-help:not(#_):not(#__){display:none}
+html body .h2-leg i.o:not(#_):not(#__){background:#5a4718}
+html body .mu-vG:not(#_):not(#__){background:none!important;border:0!important;box-shadow:none!important;padding:4px 0!important}
+html body .mu-vG .mu th.mu-ch:not(#_):not(#__){width:55px;max-width:55px}
 </style>
