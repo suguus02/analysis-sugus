@@ -2845,7 +2845,7 @@ function tsOne(team,cls,D,o){
     const BC=bnCalc(team,D,true,false),bn=Object.entries(BC.T).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([k,n])=>({k,n}));nb=BC.tot;
     body=nxTop([team],()=>D.items0)+dwChart(D.items0,team)+`<div class="u-grid3">
       <section class="u-panel"><header>Most picked brawlers <button type="button" class="u-lnk" data-tss="brawlers">See all ${Object.keys(B).length} →</button></header>${br}</section>
-      <section class="u-panel"><header>Best duos <button type="button" class="u-lnk" data-tss="brawlers">See all →</button></header>${du}</section></div>
+      <section class="u-panel"><header>Best duos <button type="button" class="u-lnk" data-tss="brawlers">See all →</button></header>${du}</section></div>${tsPkStrip([tsAgg(D.items0)],[team])}
       <div class="nx-mores"><button type="button" class="nx-more${OVMORE?' on':''}" data-ovmore>${OVMORE?'▾ Hide':'▸ Show'} opponents, all maps and bans</button></div>${OVMORE?`<div class="u-grid2 ov-more"><section class="u-panel"><header>Opponents <small>${plural(Object.keys(OP).length,'rival')}</small></header>${op}</section>
       <section class="u-panel"><header>Most banned by ${esc(team)} <button type="button" class="u-lnk" data-tss="bans">See all in Bans →</button></header>${bn.length?`<div class="u-bans">${bn.map(e=>`<div class="u-bn"><span class="bz-b">${bimg(e.k,'mx-bni')}</span><b>${esc(e.k)}</b><small>${e.n}× · ${pc(e.n,nb)}%</small></div>`).join('')}</div>`:'<p class="msg u-none">No bans known for these sets.</p>'}</section></div>
       <section class="u-panel"><header>All maps <small>by mode · best → worst inside each mode · pick maps in the side panel to filter the page</small></header>${maps?`<div class="u-allmaps" style="grid-template-columns:repeat(${Math.max(1,modes.length+(other.length?1:0))},minmax(0,1fr))">${maps}</div>`:none}</section>`:''}
@@ -2874,12 +2874,13 @@ tsU.inc=(O,k,y)=>{const e=O[k]||(O[k]={k,n:0,w:0});e.n++;if(y===1)e.w++;return e
 tsU.row=(i,ic,name,n,w,b,kd)=>`<div class="u-row u-r6"><span class="u-rk">${i}</span>${ic}<div class="u-nm"><b>${name}</b>${kd===undefined?'':kdLine(kd)}</div><span class="u-n">${n}<small>sets</small></span><span class="u-n u-nw">${w}<small>wins</small></span>${b}</div>`;
 tsU.none='<p class="msg u-none">No sets</p>';
 tsU.tile=(l,v,sub,c)=>`<div class="u-tile"><small>${l}</small><b${c?` style="color:${c}"`:''}>${v}</b><i>${sub}</i></div>`;
-function tsAgg(items){const its=(items||[]).filter(x=>!x.s&&x.win!==.5),{inc,top}=tsU;let W=0,gw=0,gl=0;const B={},DU={},OP={},MP={},TM={};
+function tsAgg(items){const its=(items||[]).filter(x=>!x.s&&x.win!==.5),{inc,top}=tsU;let W=0,gw=0,gl=0;const B={},DU={},OP={},MP={},TM={},PKO={},PKS={own:{n:0,w:0},op:{n:0,w:0},dec:{n:0,w:0}};
   for(const x of its){if(x.win===1)W++;const g=String(x.sc||'').split('-').map(Number);if(g.length===2&&!isNaN(g[0])&&!isNaN(g[1])){gw+=g[0];gl+=g[1]}
     const me=(x.mine||[]).filter(Boolean);me.forEach(b=>inc(B,b,x.win));const so=me.slice().sort();for(let i=0;i<so.length;i++)for(let j=i+1;j<so.length;j++)inc(DU,so[i]+'|'+so[j],x.win);
-    inc(OP,x.opTeam||x.opp||'?',x.win);if(x.map)inc(MP,x.map,x.win);if(x.team)inc(TM,x.team,x.win)}
+    inc(OP,x.opTeam||x.opp||'?',x.win);if(x.map)inc(MP,x.map,x.win);if(x.team)inc(TM,x.team,x.win);
+    {const m=typeof mOfI==='function'&&x.i!=null?mOfI(x.i):null;if(m&&window.mpkSide){const v=window.mpkSide(m);if(v){const meA=(x.mine||[]).join('|')===(m.ba||[]).join('|'),k=v==='-'?'dec':((v==='a')===meA?'own':'op');PKS[k].n++;PKS[k].w+=x.win;if(k==='own'&&x.map)PKO[x.map]=(PKO[x.map]||0)+1}}}}
   const N=its.length,mp=Object.values(MP).filter(e=>e.n>=3).sort((a,b)=>b.w/b.n-a.w/a.n||b.n-a.n);
-  return {N,W,L:N-W,gw,gl,B,DU,OP,MP,TM,mp,fav:top(B)[0]}}
+  return {N,W,L:N-W,gw,gl,B,DU,OP,MP,TM,mp,fav:top(B)[0],PKS,PKO}}
 function tsTiles(C,small){const {pc,col}=tsU,{N,W,L,gw,gl,mp,fav}=C;
   const t=(lab,val,sub,c,media)=>`<div class="u-tile${media?' med':''}">${media||''}<div class="u-tt"><small>${lab}</small><b${c?` style="color:${c}"`:''}>${val}</b><i>${sub}</i></div></div>`;
   const mapT=(lab,e,c)=>{if(!e)return t(lab,'–','3+ sets needed');const md=modeOfMap(e.k),mi=IMGS['mode'+mkey(md)];return t(lab,`${mi?`<img class="u-tmi" src="${mi}" alt="" title="${esc(md)}">`:''}<span>${esc(e.k)}</span>`,`${pc(e.w,e.n)}% · ${plural(e.n,'set')}`,c,`<span class="u-tmed map">${mimg(e.k,'u-tmimg')}</span>`)};
@@ -2897,7 +2898,11 @@ function tsMaps(Cs,names){const {pc,col}=tsU,maps=new Set();Cs.forEach(C=>Object
     const key=m=>Cs.reduce((a,C)=>{const e=C.MP[m];return a+(e?e.w/e.n:0)},0);
     return `<div class="u-mcol"><div class="u-mch${two?' two':''}">${mi?`<img src="${mi}" alt="">`:'<span></span>'}<b>${esc(md)}</b>${Cs.map(C=>{const a=sum(C);return a.n?`<span style="color:${col(pc(a.w,a.n))}">${pc(a.w,a.n)}%</span>`:'<span class="u-na">–</span>'}).join('')}</div>
       ${ms.sort((a,b)=>key(b)-key(a)).map(m=>{const n=Cs.map(C=>C.MP[m]?C.MP[m].n:0);return `<div class="u-mc${two?' two':''}">${mimg(m,'u-mci')}<div><b>${esc(m)}</b><small>${two?n.map(x=>x+' sets').join(' · '):plural(n[0],'set')+' · '+(Cs[0].MP[m]?Cs[0].MP[m].w+'W '+(n[0]-Cs[0].MP[m].w)+'L':'')}</small></div>${Cs.map(C=>wr(C,m)).join('')}</div>`}).join('')}</div>`}).join('');
-  return `${two?`<div class="u-mleg">${names.map((t,i)=>`<span>${logo(t,'l20')}${esc(t)}</span>`).join('<i>vs</i>')}</div>`:''}<div class="u-allmaps" style="grid-template-columns:repeat(${two?Math.min(3,modes.length):modes.length},minmax(0,1fr))">${cols}</div>`}
+  const pkL=tsPkStrip(Cs,names);
+  return `${pkL}${two?`<div class="u-mleg">${names.map((t,i)=>`<span>${logo(t,'l20')}${esc(t)}</span>`).join('<i>vs</i>')}</div>`:''}<div class="u-allmaps" style="grid-template-columns:repeat(${two?Math.min(3,modes.length):modes.length},minmax(0,1fr))">${cols}</div>`}
+function tsPkStrip(Cs,names){const {pc,col}=tsU,two=Cs.length>1;return Cs.map((C,i)=>{const P=C.PKS;if(!P||!(P.own.n+P.op.n+P.dec.n))return '';const f=e=>e.n?`<b style="color:${col(pc(e.w,e.n))}">${pc(e.w,e.n)}%</b> <small>${e.w}W ${e.n-e.w}L</small>`:'<span class="u-na">–</span>';
+    const fav=Object.entries(C.PKO||{}).sort((a,b)=>b[1]-a[1]).slice(0,3);
+    return `<div class="u-mpk">${two?logo(names[i],'l20'):''}<span class="u-mpl">Map picks</span><span>Their pick ${f(P.own)}</span><span>Rival's pick ${f(P.op)}</span>${P.dec.n?`<span>Decider ${f(P.dec)}</span>`:''}${fav.length?`<span class="u-mpf">They pick ${fav.map(([mm,k])=>`${mimg(mm,'u-mpi')}<i>${esc(mm)} ×${k}</i>`).join('')}</span>`:''}</div>`}).join('')}
 function tsBanTiles(T,tot){const E=Object.entries(T).sort((a,b)=>b[1]-a[1]).slice(0,8);return E.length?`<div class="u-bans">${E.map(([k,n])=>`<div class="u-bn"><span class="bz-b">${bimg(k,'mx-bni')}</span><b>${esc(k)}</b><small>${n}× · ${tsU.pc(n,tot)}%</small></div>`).join('')}</div>`:'<p class="msg u-none">No bans known for these sets</p>'}
 const bnToggles=(l1,l2)=>{const own=bnSubj==='own',trio=bnKind==='trio';return `<div class="u-tg"><div class="seg2" role="group" aria-label="Whose bans"><button type="button" data-bnsubj="own" aria-pressed="${own}">${l1}</button><button type="button" data-bnsubj="ag" aria-pressed="${!own}">${l2}</button></div><div class="seg2" role="group" aria-label="Single bans or trios"><button type="button" data-bnkind="one" aria-pressed="${!trio}">Each ban</button><button type="button" data-bnkind="trio" aria-pressed="${trio}">Trios of bans</button></div><span class="u-note">bans from the API and from saved drafts · % = share of the sets of each column</span></div>`};
 const tsHead=(t,extra)=>`<div class="u-thd">${logo(t,'l28')}<b>${esc(t)}</b>${extra||''}</div>`;
@@ -3467,7 +3472,8 @@ function mxSet(m,L,open){const key=mxKey(m);MXM[key]={m,L};const nm=g=>sheetName
   const head=S=>{const f=I.first?I.first===S.s:null;return `<div class="bz-sh${f===true?' f':''}">${f===true?'1st pick':f===false?'Last pick':'&nbsp;'}</div>`};
   const ctl=`<div class="bz-ctl"><span>Pick order</span><span class="seg2"><button type="button" data-mxf="${a.s}" aria-pressed="${lf===true}">◀ Left had 1st</button><button type="button" data-mxf="${b.s}" aria-pressed="${lf===false}">Right had 1st ▶</button><button type="button" data-mxf="" aria-pressed="${!I.first}">Unknown</button></span>
     ${I.first?(E?`<span class="bz-hint">Click the brawlers in the order they were picked (${E.list.length}/6)${E.err?' · <b>'+esc(E.err)+'</b>':''}</span><button type="button" class="btn quiet" data-mxord="cancel">Cancel</button>`:`<button type="button" class="btn quiet" data-mxord="edit">✎ ${I.po?'Set the order of the picks':'Change the order of the picks'}</button>`):''}
-    <small class="bz-sv" data-mxmsg>${MXMSG[key]||(I.d?(I.po?'1st pick saved · order of the picks not set':'saved'):'')}</small></div>`;
+    <small class="bz-sv" data-mxmsg>${MXMSG[key]||(I.d?(I.po?'1st pick saved · order of the picks not set':'saved'):'')}</small></div>
+    <div class="bz-ctl bz-mp"><span>Map picked by</span><span class="seg2">${(()=>{const v=mpkSide(m);return `<button type="button" data-mxmp="${a.s}" aria-pressed="${v===a.s}">◀ Left</button><button type="button" data-mxmp="${b.s}" aria-pressed="${v===b.s}">Right ▶</button><button type="button" data-mxmp="-" aria-pressed="${v==='-'}">Decider</button><button type="button" data-mxmp="" aria-pressed="${!v}">Unknown</button>`})()}</span></div>`;
   return `<div class="mx-s${open?' open':''}${m.ty==='tournament'?' tour':''}" data-mxk="${esc(key)}"><div class="mx-r bz-r" data-mxs>${mi?`<img class="mx-md" src="${mi}" alt="" title="${esc(md)}">`:'<span class="mx-md"></span>'}
     ${bmini(a.bn)}<span class="mx-bs">${a.b.map(n=>bimg(n,'mx-b')).join('')}</span><b class="mx-g${ya===1?' w':''}">${a.g??''}</b>${mk(ya)}
     <span class="mx-mid"><span class="bz-mn">${esc(m.m)}</span>${lf===true?'<small class="bz-1">◀ 1st</small>':lf===false?'<small class="bz-1">1st ▶</small>':''}</span>${mk(ya===.5?.5:1-ya)}<b class="mx-g${ya===0?' w':''}">${b.g??''}</b><span class="mx-bs">${b.b.map(n=>bimg(n,'mx-b')).join('')}</span>${bmini(b.bn)}<span class="mx-ch">⌄</span></div>
@@ -3525,11 +3531,23 @@ document.addEventListener('keydown',e=>{if(e.key!=='ArrowLeft'&&e.key!=='ArrowRi
   const i=+w.dataset.cdo+(e.key==='ArrowLeft'?-1:1);if(i<0||i>=CDL.length)return;e.preventDefault();cdOpen(w,i)});
 const MXMSG={};
 function mxRedraw(key){const r=MXM[key];if(!r)return;document.querySelectorAll('.mx-s[data-mxk]').forEach(el=>{if(el.dataset.mxk===key){const open=el.classList.contains('open');el.outerHTML=mxSet(r.m,r.L,open)}})}
+// rev206: who picked the map of a set (kept in the set's draft, field "Map picked by"): 'a' | 'b' | '-' (decider) | ''
+function mpkSide(m){let d=null;try{d=setDraft(m)}catch(e){}if(!d||!d.mp)return '';if(d.mp==='-')return '-';const u=String(d.mp).toUpperCase();
+  if(m.a&&u===String(m.a).toUpperCase())return 'a';if(m.b&&u===String(m.b).toUpperCase())return 'b';return ''}
+window.mpkSide=mpkSide;
+async function setSaveMP(m,v){const old=setDraft(m);if(!old&&!v)return;
+  let d=old?drClone(old):{id:setId(m),date:m.d,mode:modeOfMap(m.m),map:m.m,coin:'blue',blue:m.a||'',red:m.b||'',bans:{b:['','',''],r:['','','']},picks:Array(6).fill(''),gb:{b:['',''],r:['','']},winner:'',notes:'',saved:'',kind:'',km:'',dc:'',su:'U',po:'O',mp:''};
+  if(!old){if(m.ty==='tournament'){d.kind='tr';d.km=m.d.slice(0,7)}const pk=Array(6).fill('');(m.ba||[]).forEach((b,i)=>pk[[1,4,5][i]-1]=b);(m.bb||[]).forEach((b,i)=>pk[[2,3,6][i]-1]=b);d.picks=pk}
+  d.mp=v==='-'?'-':v==='a'?(m.a||''):v==='b'?(m.b||''):'';return drPersist(d)}
+async function mxDoMP(key,v){const r=MXM[key];if(!r)return;MXMSG[key]='Saving…';mxRedraw(key);
+  try{const w=await setSaveMP(r.m,v);MXMSG[key]=w==='local'?'Saved in this browser only (connect the sheet in the Draft tab to share it)':'Map pick saved'}catch(e){MXMSG[key]='Could not save: '+(e&&e.message||e)}
+  mxRedraw(key);setTimeout(()=>{delete MXMSG[key]},6000)}
 async function mxDo(key,first,order){const r=MXM[key];if(!r)return;MXMSG[key]='Saving…';mxRedraw(key);
   try{const w=await setSave(r.m,first,order);MXMSG[key]=w==='local'?'Saved in this browser only (connect the sheet in the Draft tab to share it)':first?'Saved · seen in Set log, Match Selector and Results':'Pick order removed'}
   catch(e){MXMSG[key]='Could not save: '+(e&&e.message||e)}
   mxRedraw(key);setTimeout(()=>{delete MXMSG[key]},6000)}
 document.addEventListener('click',e=>{const t=e.target;if(!t.closest)return;
+  const mp=t.closest('[data-mxmp]');if(mp){const k=mp.closest('[data-mxk]').dataset.mxk;mxDoMP(k,mp.dataset.mxmp);return}
   const f=t.closest('[data-mxf]');if(f){const k=f.closest('[data-mxk]').dataset.mxk;MXE=null;mxDo(k,f.dataset.mxf,null);return}
   const o=t.closest('[data-mxord]');if(o){const k=o.closest('[data-mxk]').dataset.mxk;MXE=o.dataset.mxord==='edit'?{key:k,list:[],err:''}:null;mxRedraw(k);return}
   const p=t.closest('[data-mxpk]');if(p&&MXE){const k=p.closest('[data-mxk]').dataset.mxk;if(k!==MXE.key)return;const r=MXM[k],I=setInfo(r.m),b=p.dataset.mxpk;
@@ -11159,4 +11177,12 @@ html body .wr-p>div b:not(#_):not(#__){display:block;font-family:TwAnton,Impact,
 html body .wr-p>div span:not(#_):not(#__){display:block;font-size:10px;opacity:.65;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 html body .wr-p em:not(#_):not(#__){grid-column:1/4;font-style:normal;font-family:TwAnton,Impact,sans-serif;font-size:40px;color:var(--tB);line-height:1;margin-top:6px}
 html body .wr-p small:not(#_):not(#__){grid-column:1/4;font-size:10.5px;opacity:.7}
+</style><style id="rev206">
+html body .bz-mp:not(#_):not(#__){margin-top:6px}
+html body .u-mpk:not(#_):not(#__){display:flex;align-items:center;flex-wrap:wrap;gap:8px 18px;padding:8px 12px;margin:0 0 10px;border:1px solid #2f2d40;background:#16151f;font-size:12.5px;color:#cfcde0}
+html body .u-mpl:not(#_):not(#__){font-weight:700;color:#e6e3f5;letter-spacing:.04em;text-transform:uppercase;font-size:11px}
+html body .u-mpk small:not(#_):not(#__){color:#8e8ab0}
+html body .u-mpf:not(#_):not(#__){display:inline-flex;align-items:center;gap:6px}
+html body .u-mpi:not(#_):not(#__){width:34px;height:22px;object-fit:cover;vertical-align:middle}
+html body .u-mpf i:not(#_):not(#__){font-style:normal;margin-right:8px;color:#cfcde0}
 </style>
