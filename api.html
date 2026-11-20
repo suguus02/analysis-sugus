@@ -3193,12 +3193,11 @@ function statMapsHTML(){
   const pair=scope==='pair';
   const TL=scope==='pool'?[poolTeams||[]]:pair?[[sel.a],[sel.b]]:[[scope==='one'?curOne():focus==='A'?sel.a:sel.b]];
   const TSs=TL.map(T=>new Set(T)),MWs=TL.map(()=>({})),CPs=TL.map(()=>({}));
-  for(const m of ds.matches){if(m.s||m.y===0.5)continue;
-    for(const [tm,br,y] of [[m.a,m.ba,m.y],[m.b,m.bb,1-m.y]]){
-      TSs.forEach((TS,ti)=>{if(!TS.has(tm))return;const MW=MWs[ti],CP=CPs[ti];
-        const e=MW[m.m]||(MW[m.m]={n:0,w:0});e.n++;e.w+=y;
-        const c=CP[m.m]||(CP[m.m]={});
-        for(const b of (br||[]))if(b){const q=c[b]||(c[b]={b,n:0,w:0});q.n++;q.w+=y}})}}
+  /* rev213: same set list as the rest of Team Stats (respects "Only sets against Worlds teams") */
+  TL.forEach((T,ti)=>{const MW=MWs[ti],CP=CPs[ti];for(const tm of [...new Set(T)].filter(Boolean))for(const x of Engine.setList(ds,DB,tm,null)){if(x.s||x.win===0.5)continue;const y=x.win;
+        const e=MW[x.map]||(MW[x.map]={n:0,w:0});e.n++;e.w+=y;
+        const c=CP[x.map]||(CP[x.map]={});
+        for(const b of (x.mine||[]))if(b){const q=c[b]||(c[b]={b,n:0,w:0});q.n++;q.w+=y}}});
   const MW=MWs[0];
   const topComp=(ti,m)=>{const c=CPs[ti][m];if(!c)return null;return Object.values(c).sort((x,y)=>y.n-x.n||y.w-x.w).slice(0,3)};
   const wr=e=>e&&e.n?e.w/e.n:-1,pc=e=>e&&e.n?Math.round(100*e.w/e.n)+'%':'';
