@@ -5301,14 +5301,16 @@ function twWR(sw){
   const MO=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'],fd=d=>{if(!d)return '';const [y,m,x]=String(d).slice(0,10).split('-');return (+x)+' '+MO[(+m)-1]};
   const tyL=S0.ty==='tournament'?'TOURNAMENT':S0.ty==='friendly'?'SCRIMS':'ALL GAMES';
   const sub=`${fd(S0.from)} — ${fd(S0.to)} ${String(S0.to).slice(0,4)} <span>·</span> ${tyL} <span>·</span> ${nS} MATCHES <span>·</span> ${N} SETS <span>·</span> ${G} GAMES`;
-  const tm=t=>t&&t!=='?'?`${logo(t,'td-lg')}<b>${esc(wbName?wbName(t):t)}</b>`:'<b>—</b>';
-  const mbox=(lab,z)=>z?`<div class="tw-cw"><div class="td-h wr-mt"><small>${lab}</small><div class="wr-mtx"><em>${mmss(z.sec)}</em><div class="wr-tm">${tm(z.win)}<i>${z.hi}-${z.lo}</i>${tm(z.win===z.a?z.b:z.a)}</div><span>${fd(z.sets[0].d)} · ${z.sets.reduce((a,m)=>a+String(m.q||'').length,0)} games played</span></div></div></div>`:`<div class="tw-cw"><div class="td-h wr-mt"><small>${lab}</small><span class="td-ns">No game times saved.</span></div></div>`;
+  // rev210: always logo + name on each side (right side mirrored), so the right team never disappears
+  const tmN=t=>t&&t!=='?'?esc(String(wbName?wbName(t):t).toUpperCase()):'—',tmL=t=>t&&t!=='?'?logo(t,'td-lg'):'<span class="wr-nl"></span>';
+  const tm=(t,r)=>r?`<b class="r">${tmN(t)}</b>${tmL(t)}`:`${tmL(t)}<b>${tmN(t)}</b>`;
+  const mbox=(lab,z)=>z?`<div class="tw-cw"><div class="td-h wr-mt"><small>${lab}</small><div class="wr-mtx"><em>${mmss(z.sec)}</em><div class="wr-tm">${tm(z.win)}<i>${z.hi}-${z.lo}</i>${tm(z.win===z.a?z.b:z.a,1)}</div><span>${fd(z.sets[0].d)} · ${z.sets.reduce((a,m)=>a+String(m.q||'').length,0)} games played</span></div></div></div>`:`<div class="tw-cw"><div class="td-h wr-mt"><small>${lab}</small><span class="td-ns">No game times saved.</span></div></div>`;
   let body='';
   if(S0.pg==='1'){
     body=N?`<div class="tm-hero wr-h3"><div class="tw-cw"><div class="tm-h"><b>${pc(fr(first,nS))}</b><div><h4>WIN SET 1 <i>→</i> WIN THE MATCH</h4><p>of the ${nS} matches were won by the team that took the first set · ${rev} comebacks · ${rev2} reverse sweeps from 0-2</p></div></div></div>
       <div class="tw-cw"><div class="tm-h tm-h2"><b>${fpN?pc(fr(fpW,fpN)):'–'}</b><div><h4>1ST PICK <i>vs</i> LAST PICK</h4><p>${fpN?`of the sets were won by the team with the 1st pick · last pick won ${pc(1-fr(fpW,fpN))} (${fpN} sets with the draft saved)`:'No drafts with the 1st pick saved in these dates.'}</p></div></div></div>
       <div class="tw-cw"><div class="tm-h tm-h2"><b>${bo5.length?pc(fr(to5,bo5.length)):'–'}</b><div><h4>WENT TO SET 5</h4><p>of the Bo5 matches ended 3-2 (${to5} of ${bo5.length})</p></div></div></div></div>
-      <div class="wr-r2"><div class="tw-cw"><div class="td-maps"><small>MOST PLAYED MAPS</small><div class="td-mg">${maps.slice(0,6).map(m=>{const src=IMGS[mkey(m)]||'';return `<div class="td-m"><img class="td-mi" data-split="${esc(JSON.stringify([src]))}" src="${src}" alt=""><div><b>${esc(String(m).toUpperCase())}</b><span>${MP[m]} sets · ${pc(MP[m]/N)}</span></div></div>`}).join('')}</div>${maps.length>6?`<span class="td-more">+${maps.length-6} more</span>`:''}</div></div>
+      <div class="wr-r2"><div class="tw-cw"><div class="td-maps"><small>MOST PLAYED MAPS</small><div class="td-mg wr-mg">${maps.slice(0,8).map(m=>{const src=IMGS[mkey(m)]||'';return `<div class="td-m"><img class="td-mi" data-split="${esc(JSON.stringify([src]))}" src="${src}" alt=""><div><b>${esc(String(m).toUpperCase())}</b><span>${MP[m]} sets · ${pc(MP[m]/N)}</span></div></div>`}).join('')}</div>${maps.length>8?`<span class="td-more">+${maps.length-8} more</span>`:''}</div></div>
       <div class="wr-mts">${mbox('LONGEST MATCH',LM)}${mbox('SHORTEST MATCH',SM&&SM!==LM?SM:null)}</div></div>`:'<p class="tw-empty">No sets in these dates.</p>';
   }else{
     const col=(h,L,val)=>`<div class="tw-cw"><div class="td-p1 wr-c"><h4>${h}</h4>${L.length?L.map(b=>`<div class="td-br">${bimg(b,'td-i')}<b class="td-n">${nm(b)}</b><em>${val(b)}</em></div>`).join(''):'<p class="td-none">No data.</p>'}</div></div>`;
@@ -11207,4 +11209,10 @@ html body .u-mpf i:not(#_):not(#__){font-style:normal;margin-right:8px;color:#cf
 html body .tw-scale:not(#_):not(#__) #tc-tw .td-sl.cmp .td-g{display:grid!important;grid-template-columns:22px 34px 22px!important;gap:5px!important;padding:4px 7px!important;width:auto!important;align-items:center}
 html body .tw-scale:not(#_):not(#__) #tc-tw .td-sl.cmp .td-lg{width:22px!important;height:22px!important}
 html body .tw-scale:not(#_):not(#__) #tc-tw .td-sl.cmp .td-g .td-lg:last-child{opacity:.6}
-html body .tw-scale:not(#_):not(#__) #tc-tw .td-sl.cmp .td-g i{text-align:center}</style>
+html body .tw-scale:not(#_):not(#__) #tc-tw .td-sl.cmp .td-g i{text-align:center}</style><style id="rev210">html body .wr-r2:not(#_):not(#__){grid-template-columns:minmax(0,1fr) 520px!important}
+html body .tw-scale:not(#_):not(#__) #tc-tw .td-mg.wr-mg{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:10px!important}
+html body .tw-scale:not(#_):not(#__) #tc-tw .wr-tm{grid-template-columns:30px minmax(0,1fr) 54px minmax(0,1fr) 30px!important;gap:10px!important;margin:10px 0 6px!important}
+html body .tw-scale:not(#_):not(#__) #tc-tw .wr-tm b{font-size:17px!important;line-height:1.2}
+html body .tw-scale:not(#_):not(#__) #tc-tw .wr-tm b.r{text-align:right}
+html body .tw-scale:not(#_):not(#__) #tc-tw .wr-tm i{font-size:17px!important;padding:3px 0!important;background:transparent!important;color:#f4f1ea!important;border:2px solid #f4f1ea!important;opacity:1!important;visibility:visible!important}
+html body .tw-scale:not(#_):not(#__) #tc-tw .wr-tm .td-lg,html body .tw-scale:not(#_):not(#__) #tc-tw .wr-tm .wr-nl{width:30px!important;height:30px!important;display:block}</style>
