@@ -2721,7 +2721,7 @@ function bnCalc(team,D,own,trio){const mf=mapsFilter(),mset=mf?new Set(mf):null;
   for(const x of (D.items0||[])){if(x.s)continue;const L=own?x.myBans:x.opBans;if(!L||!L.some(Boolean))continue;const m=mOfI(x.i);
     let first=null;if(m){const I=setInfo(m);if(I.d)used.add(I.d.id);if(I.first){const tA=m.a===team||(m.b!==team&&brKey(m.ba)===brKey(x.mine));first=(I.first==='a')===tA}}
     ns++;if(first===true)nf++;else if(first===false)nl++;put(L,first)}
-  for(const d of drAll()){if(used.has(d.id)||String(d.id).startsWith('set:'))continue;if(d.blue!==team&&d.red!==team)continue;if(!d.date||(d0&&d.date<d0)||(d1&&d.date>d1))continue;if(mset&&!mset.has(d.map))continue;
+  for(const d of drAll()){if(used.has(d.id)||String(d.id).startsWith('set:'))continue;if(d.blue!==team&&d.red!==team)continue;if(!drInPer(d))continue;if(mset&&!mset.has(d.map))continue;
     const me=d.blue===team?'b':'r',L=(d.bans&&d.bans[own?me:(me==='b'?'r':'b')])||[];if(!L.some(Boolean))continue;
     const first=drUnk(d)?null:d.coin===(me==='b'?'blue':'red');ndr++;if(first===true)nf++;else if(first===false)nl++;put(L,first)}
   return {T,F,Lc,ns,ndr,nf,nl,tot:ns+ndr,mf}}
@@ -6057,7 +6057,7 @@ function drPage(list,k,f){const L=list.slice().sort((a,b)=>String(b.date||'').lo
   const sig=L.length+'|'+(L[0]&&L[0].id);let P=DRPG[k];if(!P||P.sig!==sig)P=DRPG[k]={sig,n:20};
   const more=L.length-P.n;return L.slice(0,P.n).map(f).join('')+(more>0?`<div class="dr-more"><button type="button" class="btn" data-drmore="${k}">Show ${Math.min(20,more)} more</button><span class="msg">${P.n} of ${L.length} drafts shown</span><button type="button" class="btn quiet" data-drmore="${k}" data-all="1">Show all</button></div>`:'')}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-drmore]');if(!b)return;const P=DRPG[b.dataset.drmore];if(!P)return;P.n=b.dataset.all?1e9:P.n+20;const y=window.scrollY;if(b.dataset.drmore==='main'&&typeof drRender==='function')drRender();else renderDetail();window.scrollTo(0,y)});
-const drInPer=d=>{if(!FULL||!FULL.matches||!FULL.matches.length)return true;const rg=rangeOf(FULL);return d.date>=rg.from&&d.date<=rg.to};
+const drInPer=d=>{if(!FULL||!FULL.matches||!FULL.matches.length)return true;const rg=rangeOf(FULL);if(!d.date||d.date<rg.from||d.date>rg.to)return false;const ty=hasTypes(FULL)&&flt2.type!=='all'?flt2.type:null;if(ty==='tournament'&&!d.kind)return false;if(ty==='friendly'&&d.kind)return false;return true};
 function drListHTML(){
   const all=drAll(),teams=[...new Set(all.flatMap(d=>[d.blue,d.red]))].filter(Boolean).sort(),maps=[...new Set(all.map(d=>d.map))].filter(Boolean).sort();
   const rg=FULL&&FULL.matches&&FULL.matches.length?rangeOf(FULL):null,perOn=DR.fPer!=='all'&&!!rg,inPer=d=>!perOn||(d.date>=rg.from&&d.date<=rg.to);
