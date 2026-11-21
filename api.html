@@ -5113,10 +5113,12 @@ const TW_LOGO='data:image/webp;base64,UklGRqaEAABXRUJQVlA4WAoAAAAQAAAAZwEArAEAQU
 const TWS={th:1,mode:'mu',day:'',ty:'all',wp:'1',ms:{from:'2026-11-03',bty:'all',day:'',dty:'tournament'}};try{Object.assign(TWS.ms,JSON.parse(store.get('tvt:twms')||'{}')||{})}catch(e){}try{const v=store.get('tvt:twth');TWS.th=v?(isNaN(+v)?v:+v):1}catch(e){}
 // rev207: each Twitter section has its own dates and game type (independent from the page period)
 const TWR=(()=>{let o={};try{o=JSON.parse(store.get('tvt:twrg')||'{}')||{}}catch(e){}return o})();
+/* rev215: the Twitter recaps only count sets between two Worlds teams (other tournaments that the same day are left out) */
+function twWOnly(L){let W;try{W=new Set(rivWorlds())}catch(e){return L}if(!W.size)return L;return L.filter(m=>W.has(m.a||m.xa)&&W.has(m.b||m.xb))}
 function twAllM(){return (typeof FULL!=='undefined'&&FULL&&FULL.matches&&FULL.matches.length?FULL.matches:(ds.matches||[]))}
 function twRg(k){const days=[...new Set(twAllM().map(m=>m.d).filter(Boolean))].sort(),first=days[0]||'',last=days[days.length-1]||'';
   const r=TWR[k]||(TWR[k]={from:'2026-11-03',to:'',ty:'all'});const f=r.from||first;let t=r.to||last;if(t<f)t=f;return {f,t,ty:r.ty||'all',first,last}}
-function twRgSrc(k){const R=twRg(k);return twAllM().filter(m=>m.d&&m.d>=R.f&&m.d<=R.t&&(R.ty==='all'||m.ty===R.ty))}
+function twRgSrc(k){const R=twRg(k);return twWOnly(twAllM()).filter(m=>m.d&&m.d>=R.f&&m.d<=R.t&&(R.ty==='all'||m.ty===R.ty))}
 const twTyL=t=>t==='tournament'?'TOURNAMENT':t==='friendly'?'SCRIMS':'ALL GAMES';
 function twRgCtl(k){const R=twRg(k);return `<span class="tz-ctl tw-rg"><b>Dates</b><label>from <input type="date" data-twrgi="${k}.from" value="${esc(R.f)}"></label><label>to <input type="date" data-twrgi="${k}.to" value="${esc(R.t)}"></label><span class="seg2"><button type="button" data-twrg="${k}.one" aria-pressed="${R.f===R.t}">One day</button><button type="button" data-twrg="${k}.last" aria-pressed="${R.f===R.t&&R.t===R.last}">Last day</button><button type="button" data-twrg="${k}.since" aria-pressed="${R.f==='2026-11-03'&&R.t===R.last}">Since 3 Nov</button></span><span class="seg2">${[['all','All'],['tournament','Tournament'],['friendly','Friendly']].map(([q,l])=>`<button type="button" data-twrg="${k}.ty=${q}" aria-pressed="${R.ty===q}">${l}</button>`).join('')}</span></span>`}
 function twRgSave(){try{store.set('tvt:twrg',JSON.stringify(TWR))}catch(e){}}
@@ -5128,7 +5130,7 @@ const twFdR=(a,b)=>{const MO=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','S
 function twTab(SRC,sel,map){
   if(window.__ROLE!=='Admin')return '<p class="msg">Only admins can see this.</p>';
   const sw=`<span class="seg2 tw-sw"><button type="button" data-twm="mu" aria-pressed="${TWS.mode==='mu'}">Matchups</button><button type="button" data-twm="day" aria-pressed="${TWS.mode==='day'}">Day recap</button><button type="button" data-twm="mom" aria-pressed="${TWS.mode==='mom'}">Momentum</button><button type="button" data-twm="meta" aria-pressed="${TWS.mode==='meta'}">Meta shift</button><button type="button" data-twm="wp" aria-pressed="${TWS.mode==='wp'}">Worlds prediction</button><button type="button" data-twm="wr" aria-pressed="${TWS.mode==='wr'}">Worlds recap</button></span><span class="seg2 tw-th"><i>Style</i>${[[1,'1'],[2,'2'],[3,'3'],['arcade','Arcade'],['card','Card'],['tv','TV'],['news','News'],['neon','Neon'],['chalk','Chalk'],['comic','Comic'],['action','Action']].map(([n,l])=>`<button type="button" data-twth="${n}" aria-pressed="${String(TWS.th||1)===String(n)}">${l}</button>`).join('')}</span>`;
-  if(TWS.mode==='day')return twDay(SRC,sw);if(TWS.mode==='mom')return twMom(twRgSrc('mom'),sw);if(TWS.mode==='meta')return twMeta(sw,sel);if(TWS.mode==='wp')return twPred(sw);if(TWS.mode==='wr')return twWR(sw);
+  if(TWS.mode==='day')return twDay(twWOnly(SRC),sw);if(TWS.mode==='mom')return twMom(twRgSrc('mom'),sw);if(TWS.mode==='meta')return twMeta(sw,sel);if(TWS.mode==='wp')return twPred(sw);if(TWS.mode==='wr')return twWR(sw);
   return twMu(twRgSrc('mu'),sel,map,sw)}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-twm]');if(!b)return;TWS.mode=b.dataset.twm;renderDetail()});
 document.addEventListener('change',e=>{const b=e.target.closest&&e.target.closest('[data-twday]');if(!b)return;TWS.day=b.value;renderDetail()});
@@ -5264,7 +5266,7 @@ const twLogo=()=>TW_LOGOS[TWS.th]||TW_LOGO;
 function twWR(sw){
   const S0=TWS.wr||(TWS.wr={from:'2026-11-20',to:'2026-11-22',ty:'tournament',pg:'1'}),pc=v=>Math.round(100*v)+'%',fr=(a,b)=>b?a/b:0;
   const nm=x=>esc(String(nx.tc(x)).toUpperCase());
-  const SRC=(((typeof FULL!=='undefined'&&FULL&&FULL.matches)||ds.matches)||[]).filter(m=>!m.s&&(m.y===1||m.y===0)&&m.d>=S0.from&&m.d<=S0.to&&(S0.ty==='all'||m.ty===S0.ty));
+  const SRC=twWOnly((((typeof FULL!=='undefined'&&FULL&&FULL.matches)||ds.matches)||[])).filter(m=>!m.s&&(m.y===1||m.y===0)&&m.d>=S0.from&&m.d<=S0.to&&(S0.ty==='all'||m.ty===S0.ty));
   const N=SRC.length,G=SRC.reduce((a,m)=>a+String(m.q||'').length,0);
   // matches: same two teams on the same day; a gap of more than 90 minutes starts a new match
   const tid=m=>[String(m.a||m.xa||'?'),String(m.b||m.xb||'?')];
@@ -6784,7 +6786,8 @@ function scIco(h){const BN=new Set(drNames()),MP=new Set([...ds.matches.map(m=>m
   const one=t=>{const k=t.trim(),u=k.toUpperCase();if(BN.has(u))return bimg(u,'sci b')+esc(k);if(MP.has(mkey(k)))return mimg(k,'sci m')+esc(k);const tm=TM.find(x=>x.toUpperCase()===u);if(tm)return logo(tm,'sci t')+esc(k);const md=MD.find(x=>x.toUpperCase()===u);if(md&&IMGS['mode'+mkey(md)])return `<img class="sci o" src="${IMGS['mode'+mkey(md)]}" alt="">`+esc(k);return esc(k)};
   return h.replace(/<b>([^<]+)<\/b>/g,(m,x)=>{const tx=x.replace(/&amp;/g,'&');const parts=tx.split(/(\s*(?:\+|→|->)\s*)/);return '<b class="sci-w">'+parts.map((p,i)=>i%2?esc(p):one(p)).join('')+'</b>'})}
 function scInsights(R){
-  const S=scSets(R),fr=S.filter(x=>x.ty!=='tournament'),to=S.filter(x=>x.ty==='tournament');
+  /* rev214: scrims vs tournament needs both types, so it keeps the dates of the page but not the All/Tournament/Friendly button */
+  const S=scSets(R,FULL&&FULL.matches&&FULL.matches.length?(()=>{const r=rangeOf(FULL);return Object.assign({},FULL,{matches:FULL.matches.filter(m=>m.d>=r.from&&m.d<=r.to)})})():ds),fr=S.filter(x=>x.ty!=='tournament'),to=S.filter(x=>x.ty==='tournament');
   const last=S.map(x=>x.d).sort().pop()||'',L=Date.parse(last);
   const rec=fr.filter(x=>L-Date.parse(x.d)<7*DAY),bef=fr.filter(x=>{const a=L-Date.parse(x.d);return a>=7*DAY&&a<35*DAY});
   const cnt=(arr,duo)=>{const o={};for(const x of arr){const b=(x.mine||[]).filter(Boolean);const ks=duo?[]:b;if(duo){const s=b.slice().sort();for(let i=0;i<s.length;i++)for(let j=i+1;j<s.length;j++)ks.push(s[i]+'|'+s[j])}for(const k of new Set(ks)){const e=o[k]||(o[k]={n:0,w:0});e.n++;e.w+=x.win}}return o};
@@ -6825,8 +6828,9 @@ function scInit(){
   if(!SC.us||!T.includes(SC.us))SC.us=T.includes('TRIBE GAMING')?'TRIBE GAMING':(T[0]||'');
   if(!SC.rival||!T.includes(SC.rival)||SC.rival===SC.us){const c=scope==='one'?curOne():'';SC.rival=(c&&c!==SC.us&&T.includes(c))?c:(T.find(t=>t!==SC.us)||'')}
 }
-function scSets(t){const out=[];for(const m of ds.matches){if(m.s||m.y===0.5)continue;const mine=m.a===t;if(!mine&&m.b!==t)continue;
-  out.push({d:m.d,m:m.m,ty:m.ty,win:mine?m.y:1-m.y,mine:(mine?m.ba:m.bb)||[],theirs:(mine?m.bb:m.ba)||[],opp:mine?m.b:m.a})}return out}
+function scSets(t,src){const out=[];/* rev214: same team detection as Team Stats (player tags too, not only the team name of the row) */
+  for(const x of (Engine.setListRaw||Engine.setList)(src||ds,DB,t,null)){if(x.s||x.win===0.5)continue;
+  out.push({d:x.d,m:x.map,ty:x.ty,win:x.win,mine:x.mine||[],theirs:x.theirs||[],opp:x.opTeam||null})}return out}
 function scMatches(team,limit){ // one entry per match = all sets played against the same rival on the same day
   const out=[];
   for(const dd of Engine.datesFor(ds,DB,team,null)){
