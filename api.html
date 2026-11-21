@@ -1674,7 +1674,8 @@ function processRows(rows,db,opts){
     let fl=0;if(B.pl.join('|')<A.pl.join('|')){fl=1;for(const f of ['pl','nm','br','bn']){const x=A[f];A[f]=B[f];B[f]=x}}
     const [dd,mm,yy]=ds0.split('-');const d=yy+'-'+mm.padStart(2,'0')+'-'+dd.padStart(2,'0');
     let y=rr==='VICTORY'?1:rr==='DEFEAT'?0:0.5;if(fl&&y!==0.5)y=1-y;
-    const m={d,ty:(opts.typeCol!=null?t(r[opts.typeCol]).toLowerCase():''),m:t(r[2]),a:sideTeam(A.pl,A.nm,tag2team,dbt,official,alias,rk),xa:LAST_AMB,b:sideTeam(B.pl,B.nm,tag2team,dbt,official,alias,rk),xb:LAST_AMB,y,ba:A.br,bb:B.br,ta:A.pl,tb:B.pl,...(A.bn.some(Boolean)||B.bn.some(Boolean)?{na:A.bn,nb:B.bn}:{}),...(t(r[32])?{gs:[t(r[32])]}:{}),...(r[33]?{u:Date.parse(r[33])||0}:{}),i:idx,t:tm?((s=>s<18000?s+86400:s)(secs(tm))):idx,ht:tm?1:0};
+    const ty0=(opts.typeCol!=null?t(r[opts.typeCol]).toLowerCase():''),nc0=/^(no ?cuenta|ignorar?|ignore|bug|no count)$/.test(ty0.trim());
+    const m={d,ty:ty0,nc:nc0?1:0,m:t(r[2]),a:sideTeam(A.pl,A.nm,tag2team,dbt,official,alias,rk),xa:LAST_AMB,b:sideTeam(B.pl,B.nm,tag2team,dbt,official,alias,rk),xb:LAST_AMB,y,ba:A.br,bb:B.br,ta:A.pl,tb:B.pl,...(A.bn.some(Boolean)||B.bn.some(Boolean)?{na:A.bn,nb:B.bn}:{}),...(t(r[32])?{gs:[t(r[32])]}:{}),...(r[33]?{u:Date.parse(r[33])||0}:{}),i:idx,t:tm?((s=>s<18000?s+86400:s)(secs(tm))):idx,ht:tm?1:0};
     const key=d+'~'+m.m+'~'+A.pl.join('|')+'#'+A.br.join('|')+'~'+B.pl.join('|')+'#'+B.br.join('|'),o=fl;
     let g=groups.get(key);if(!g){g=[[],[]];groups.set(key,g)}g[o].push(m);
   }
@@ -1688,7 +1689,9 @@ function processRows(rows,db,opts){
       const same=kept.some(q=>{const dt=Math.abs(q.t-m.t),r=dt%3600;return q.y===m.y&&dt<=46802&&Math.min(r,3600-r)<=2});
       if(!same)kept.push(m)}
     const u0=g[0].filter(m=>!m.ht),u1=g[1].filter(m=>!m.ht);
-    const base=kept.concat(u0.length>=u1.length?u0:u1).sort((x,y)=>x.t-y.t||x.i-y.i);
+    let base=kept.concat(u0.length>=u1.length?u0:u1).sort((x,y)=>x.t-y.t||x.i-y.i);
+    // rev217: a round marked "no cuenta" in the Type column (any of its copies) is left out
+    const NC=g[0].concat(g[1]).filter(m=>m.nc);if(NC.length)base=base.filter(m=>!NC.some(q=>q===m||(q.ht&&m.ht?(()=>{const dt=Math.abs(q.t-m.t),r=dt%3600;return dt<=46802&&Math.min(r,3600-r)<=2})():(!q.ht&&!m.ht))));
     dups+=g[0].length+g[1].length-base.length;
     rounds+=base.length;
     let cur=null;
