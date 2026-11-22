@@ -6118,9 +6118,13 @@ async function snapStart(){return null;
 }
 // ===== rev229: the games of the current season come from the Supabase database (the archived seasons keep reading their Google Sheet).
 // If Supabase does not answer, the page falls back to the Google Sheet as before.
-const SB={url:'https://bwwboxtbmpfkwzathwrk.supabase.co',key:'sb_publishable_BO-RohlieDUKF4y3jX-Mqw_v0hIqjq6',on:!window.SEASON_RO,failed:false};
+const SB={url:'https://bwwboxtbmpfkwzathwrk.supabase.co',key:'sb_publishable_BO-RohlieDUKF4y3jX-Mqw_v0hIqjq6',on:!window.SEASON_RO,failed:false,min:''};
+// rev230: only the games from SB.from onwards are downloaded (by default the last 60 days, or from the saved period if it is older).
+// Choosing an older period downloads the missing days at that moment.
+SB.DAYS=60;SB.from=(()=>{const d=new Date(Date.now()-SB.DAYS*864e5).toISOString().slice(0,10);let f='';try{f=localStorage.getItem('tvt:from')||''}catch(e){}f=String(f).replace(/"/g,'');return /^\d{4}-\d\d-\d\d$/.test(f)&&f<d?f:d})();
+SB.flt=()=>'day=gte.'+SB.from;
 async function sbGet(path,extra){const r=await fetch(SB.url+'/rest/v1/'+path,{headers:Object.assign({apikey:SB.key,Authorization:'Bearer '+SB.key},extra||{}),cache:'no-store'});if(!r.ok&&r.status!==206)throw new Error('Supabase '+r.status);return r}
-async function sbCount(filter){const r=await sbGet('games?select=id'+(filter?'&'+filter:''),{Prefer:'count=exact',Range:'0-0'});const cr=r.headers.get('content-range')||'';const n=+(cr.split('/')[1]||0);return isNaN(n)?0:n}
+async function sbCount(filter){const r=await sbGet('games?select=id&'+SB.flt()+(filter?'&'+filter:''),{Prefer:'count=exact',Range:'0-0'});const cr=r.headers.get('content-range')||'';const n=+(cr.split('/')[1]||0);return isNaN(n)?0:n}
 const sbDay=d=>{const m=/^(\d{4})-(\d\d)-(\d\d)/.exec(d||'');return m?(+m[3])+'-'+(+m[2])+'-'+m[1]:''};
 const sbUtc=u=>{if(!u)return '';const t=Date.parse(u);return isNaN(t)?'':new Date(t).toISOString().replace('.000Z','Z')};
 function sbRow(g){const A=(L,i)=>L&&L[i]!=null?String(L[i]):'';const r=[sbDay(g.day),g.mode||'',g.map||'',g.result||''];
@@ -6128,12 +6132,17 @@ function sbRow(g){const A=(L,i)=>L&&L[i]!=null?String(L[i]):'';const r=[sbDay(g.
   for(let i=0;i<3;i++)r.push(A(g.b_names,i),A(g.b_tags,i));for(let i=0;i<3;i++)r.push(A(g.b_br,i));
   r.push(g.type||'',g.time||'',String(g.id||'').startsWith('U|')?sbUtc(g.utc):'');for(let i=0;i<6;i++)r.push(A(g.bans,i));r.push(g.stats?JSON.stringify(g.stats):'');return r}
 async function sbRows(offset,limit){const out=[];let o=offset;while(out.length<limit){const n=Math.min(1000,limit-out.length);
-    const r=await sbGet('games?select=*&order=seq.asc&offset='+o+'&limit='+n);const L=await r.json();L.forEach(g=>out.push(sbRow(g)));if(L.length<n)break;o+=L.length}return out}
+    const r=await sbGet('games?select=*&'+SB.flt()+'&order=seq.asc&offset='+o+'&limit='+n);const L=await r.json();L.forEach(g=>out.push(sbRow(g)));if(L.length<n)break;o+=L.length}return out}
 if(SB.on){const _tr=GV.tabRows,_ct=GV.count,_cf=GV.config;
   GV.tabRows=async function(offset,limit){if(SB.on&&!SB.failed){try{return await sbRows(offset,limit)}catch(e){SB.failed=true;console.warn('Supabase failed, using Google Sheets',e)}}return _tr.call(GV,offset,limit)};
   GV.count=async function(){if(SB.on&&!SB.failed){try{return await sbCount()}catch(e){SB.failed=true;console.warn('Supabase failed, using Google Sheets',e)}}return _ct.call(GV)};
   // "permanent" rows = games older than 4 days (they are read once and kept in the browser); the newer ones are read again on every refresh
-  GV.config=async function(){const pm=await _cf.call(GV);if(SB.on&&!SB.failed){try{const old=await sbCount('utc=lt.'+new Date(Date.now()-4*864e5).toISOString());this._ver=(this._ver||'')+'|sb';return Math.max(2,old+1)}catch(e){SB.failed=true}}return pm}}
+  // the first day in the database, so the calendar lets you go back to it
+  sbGet('games?select=day&order=day.asc&limit=1').then(r=>r.json()).then(L=>{if(L&&L[0]&&L[0].day)SB.min=String(L[0].day).slice(0,10)}).catch(()=>{});
+  const _bd=bounds;bounds=function(full){const b=_bd(full);if(SB.on&&!SB.failed&&SB.min&&SB.min<b.mn)b.mn=SB.min;return b};
+  const _rf=refilter;refilter=function(){if(SB.on&&!SB.failed&&flt2&&flt2.from&&flt2.from<SB.from&&!sheetBusy){SB.from=flt2.from;try{saveF()}catch(e){}
+      setStatus('Downloading the games from '+fmtDate(SB.from)+'…',false,5);syncSheet(true);return}return _rf.apply(this,arguments)};
+  GV.config=async function(){const pm=await _cf.call(GV);if(SB.on&&!SB.failed){try{const old=await sbCount('utc=lt.'+new Date(Date.now()-4*864e5).toISOString());this._ver=(this._ver||'')+'|sb'+SB.from;return Math.max(2,old+1)}catch(e){SB.failed=true}}return pm}}
 async function getMcp(){
   return {callTool:async(server,tool,a)=>{
     const rg=a.range;
