@@ -3118,7 +3118,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){const o=document.qu
 // rev228: by day or by week (weeks start on Monday) + patch / balance days as dashed lines
 let DWM=store.get('tvt:dwm')==='week'?'week':'day';
 const dwMon=d=>{const t=new Date(d+'T00:00:00Z'),k=(t.getUTCDay()+6)%7;t.setUTCDate(t.getUTCDate()-k);return t.toISOString().slice(0,10)};
-function dwPatches(){try{if(typeof BAL==='undefined'||!BAL){if(typeof balLoad==='function'&&!BALst)balLoad();return []}return (BAL.days||[]).map(x=>x.d)}catch(e){return []}}
+function dwPatches(){try{return typeof BAL!=='undefined'&&BAL&&BAL.days?BAL.days.map(x=>x.d):[]}catch(e){return []}}  // only if the Balance tab was already loaded (loading it here slowed the page)
 function dwChart(items,team,small){const its=(items||[]).filter(x=>!x.s&&x.win!==.5),D={},wk=DWM==='week';for(const x of its){const k=wk?dwMon(x.d):x.d;const e=D[k]||(D[k]={d:k,n:0,w:0});e.n++;if(x.win===1)e.w++}
   const L=Object.values(D).sort((a,b)=>a.d<b.d?-1:1);if(!L.length)return '';
   const col=p=>p>=.6?'#4ade80':p>=.53?'#86efac':p>.47?'#facc15':p>.4?'#fca5a5':'#f87171';
@@ -10481,7 +10481,7 @@ html body table.typet .tchip:not(#_){display:inline-flex;align-items:center;gap:
 (function(){
   const tip=document.createElement('div');tip.id='ixtip';document.body.appendChild(tip);
   document.addEventListener('mouseover',e=>{const b=e.target.closest&&e.target.closest('.ix-i');if(!b)return;tip.textContent=b.dataset.info||'';const r=b.getBoundingClientRect();
-    tip.style.left=Math.max(8,Math.min(innerWidth-372,r.left-170))+'px';tip.style.top=(r.bottom+8+300>innerHeight?r.top-8-Math.min(300,tip.offsetHeight||120):r.bottom+8)+'px';tip.classList.add('on')});
+    tip.style.left=Math.max(8,Math.min(innerWidth-372,r.left-12))+'px';tip.style.top=(r.bottom+8+300>innerHeight?r.top-8-Math.min(300,tip.offsetHeight||120):r.bottom+8)+'px';tip.classList.add('on')});
   document.addEventListener('mouseout',e=>{if(e.target.closest&&e.target.closest('.ix-i'))tip.classList.remove('on')});
   document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('.ix-i');if(b){e.preventDefault();e.stopPropagation();tip.classList.toggle('on')}},true);
   const NOTES='p.foot,.wb-note,.cas-foot,p.msg.tl-src,.u-note,.gt-sec>p.msg,.mu-w+p.msg,p.msg.cx-note,.tc-sec>p.msg.dw-note,.tc-sec>p.msg,.sc-fix>.msg,p.si-p,p.msg.cd-intro';
