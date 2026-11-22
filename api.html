@@ -5347,9 +5347,16 @@ function twWR(sw){
   const STG=new Map();(()=>{if(typeof WB_FMT==='undefined')return;const W={},L={},used=new Set(),C=ser.filter(z=>z.sets[0].d>='2026-11-19'&&z.sets[0].d<='2026-11-23');
     for(const [id,lab,,,sa,sb] of WB_FMT){const sd=s=>s.t||(s.w?W[s.w]:L[s.l]);const a=sd(sa),b=sd(sb);if(!a||!b)continue;
       const z=C.find(z=>!used.has(z)&&((tkey(z.a)===a&&tkey(z.b)===b)||(tkey(z.a)===b&&tkey(z.b)===a)));if(!z)continue;used.add(z);
-      const w=tkey(z.win);W[id]=w;L[id]=w===a?b:a;STG.set(z,lab)}})();
+      const w=tkey(z.win);W[id]=w;L[id]=w===a?b:a;STG.set(z,lab)}STG.W=W})();
   const stgNice=l=>String(l).replace(/\bUB\b/,'Upper').replace(/\bLB\b/,'Lower').replace(/\bQF\d*/,'quarterfinal').replace(/\bSF\d*/,'semifinal').replace(/\bR(\d)(\.\d)?/,'round $1').replace(/\bFinal\b/,'final').replace(/^Grand final$/,'Grand Final');
   const stage=z=>z&&STG.has(z)?stgNice(STG.get(z)):(z?fd(z.sets[0].d):'');
+  // rev220: the Grand Final is a Bo7 where the upper bracket winner starts 1-0, so it ends level in sets played (e.g. 3-3 = 4-3).
+  // It never counts as longest/shortest match or as a set-5 match; a note says so.
+  const GFz=MT.filter(z=>z.hi===z.lo&&z.hi>=3).sort((x,y)=>String(y.sets[0].d).localeCompare(String(x.sets[0].d)))[0]||null;
+  const GFnote=(()=>{if(!GFz)return '';const ka=tkey(GFz.a),kb=tkey(GFz.b),adv=STG.W&&[ka,kb].includes(STG.W.UF)?STG.W.UF:'';
+    const T=k=>esc(String(nx.tc(k===ka?GFz.a:GFz.b)).toUpperCase());
+    return adv?`Grand Final not counted here · Bo7 where ${T(adv)} started 1–0 as upper bracket winner · ${GFz.hi}–${GFz.lo} in sets played → ${T(adv)} won ${GFz.hi+1}–${GFz.lo}`
+      :`Grand Final not counted here · Bo7 with a 1–0 head start for the upper bracket winner · ${GFz.hi}–${GFz.lo} in sets played`})();
   const ZM=new Map();MT.forEach(z=>z.sets.forEach(m=>ZM.set(m,z)));
   const g5=bo5.filter(z=>z.lo===2).map(z=>({w:z.win,l:z.win===z.a?z.b:z.a}));
   const BRN=(typeof FULL!=='undefined'&&FULL&&FULL.btypes&&FULL.btypes.length>20)?FULL.btypes.length:Math.max(1,Object.keys(IMGS).filter(k=>/^br/.test(k)).length),nUsed=Object.keys(pk).length;
@@ -5431,10 +5438,10 @@ function twWR(sw){
       const trow=(lab,z)=>z?`<div class="sg-tr"><div><div class="sg-ey">${lab}</div><b>${mmss(z.sec)}</b></div><div class="sg-tb"><i style="width:${Math.max(8,Math.round(300*z.sec/msx))}px"></i><div class="sg-vs" style="left:${Math.max(8,Math.round(300*z.sec/msx))+10}px">${tmL(z.win)}${tmN(z.win)} <em>${z.hi}–${z.lo}</em> ${tmN(z.win===z.a?z.b:z.a)}${tmL(z.win===z.a?z.b:z.a)}<small>${esc(stage(z))}</small></div></div></div>`:'';
       return `<article class="sg" id="tc-tw" ${AV}>${cm}${top('The tournament.')}
         <div class="sg-l">${st(pcN(first,nS)+'<i>%</i>','WIN SET 1 → WIN THE MATCH',`${first} of ${nS} matches · ${rev} comebacks · ${rev2} reverse sweep${rev2===1?'':'s'}`,`<div class="sg-wf${nS>16?' sm':''}">${wf}</div>`)}
-        ${st(bo5.length?pcN(to5,bo5.length)+'<i>%</i>':'–','WENT TO SET 5',`${to5} of the ${bo5.length} Bo5 matches ended 3-2`,g5H?`<div class="sg-g5">${g5H}</div>`:'')}
+        ${st(bo5.length?pcN(to5,bo5.length)+'<i>%</i>':'–','WENT TO SET 5',`${to5} of the ${bo5.length} Bo5 matches ended 3-2${GFz?' · Bo7 final not counted':''}`,g5H?`<div class="sg-g5">${g5H}</div>`:'')}
         ${st(fpN?pcN(fpW,fpN)+'<i>%</i>':'–','1ST PICK vs LAST PICK',fpN?`won by each side · of ${fpN} sets`:'no drafts with the 1st pick saved',fpN?sb(100*fpW/fpN,`<b>1ST PICK</b> ${pcN(fpW,fpN)}%`,`${100-pcN(fpW,fpN)}% <b>LAST PICK</b>`):'')}
         ${st(String(nUsed),'DIFFERENT BRAWLERS PICKED','picked at least once during the tournament',sb(Math.min(100,100*nUsed/BRN),`<b>${nUsed} PICKED</b>`,`<b>${BRN}</b> IN THE GAME`))}
-        <div class="sg-tm">${trow('Longest match',LM)}${trow('Shortest match',SM&&SM!==LM?SM:null)}</div></div>
+        <div class="sg-tm">${trow('Longest match',LM)}${trow('Shortest match',SM&&SM!==LM?SM:null)}${GFnote?`<div class="sg-nt">* ${GFnote}</div>`:''}</div></div>
         <div class="sg-lab"><div class="sg-ey">Most played maps</div><p>% of the ${N} sets · the taller, the more it was played</p></div>${scene}</article>`;
     }
     const BL=most,mxP=Math.max(1,...BL.map(b=>pk[b].n));
@@ -11441,6 +11448,7 @@ html body .tw-scale.twth-sugus:not(#_):not(#__) #tc-tw.sg .sg-sb i+i{flex:1;back
 html body .tw-scale.twth-sugus:not(#_):not(#__) #tc-tw.sg .sg-sbl{display:flex;justify-content:space-between;width:340px;font-family:var(--sfm)!important;font-size:10.5px;color:var(--smut);margin-top:6px!important;letter-spacing:.08em!important}
 html body .tw-scale.twth-sugus:not(#_):not(#__) #tc-tw.sg .sg-sbl b{color:var(--sink);font-weight:400}
 html body .tw-scale.twth-sugus:not(#_):not(#__) #tc-tw.sg .sg-tm{border-top:1px solid var(--sline);padding-top:14px!important;margin-top:6px!important}
+html body .tw-scale.twth-sugus:not(#_):not(#__) #tc-tw.sg .sg-nt{font-family:var(--sfb);font-size:12.5px;line-height:1.45;color:var(--smut);margin-top:10px!important;max-width:560px;text-transform:none;letter-spacing:0}
 html body .tw-scale.twth-sugus:not(#_):not(#__) #tc-tw.sg .sg-tr{display:grid;grid-template-columns:150px 1fr;column-gap:22px;align-items:center;margin-top:8px!important}
 html body .tw-scale.twth-sugus:not(#_):not(#__) #tc-tw.sg .sg-tr .sg-ey{font-size:10.5px}
 html body .tw-scale.twth-sugus:not(#_):not(#__) #tc-tw.sg .sg-tr b{display:block;font-family:var(--sfn)!important;font-weight:var(--snw2);font-size:var(--sts);letter-spacing:var(--snl)!important;white-space:nowrap;line-height:1;margin-top:4px!important}
