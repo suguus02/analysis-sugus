@@ -11651,7 +11651,7 @@ html body table th:not([style*="color"]):not(#_):not(#__){color:#c9c2d8!importan
  window.ldStatus=function(t,err,pct){if(t&&!err&&(pct!=null||/…\s*$/.test(t)))show(t,pct);else{clearTimeout(hideT);hideT=setTimeout(hide,150)}};
  // changing tab / section / team / type: show the screen (it only appears after 1 s), then do the change in the next frame
  var SEL='[data-tab],#sheetbar [data-sb],[data-one],[data-ty],[data-twm]';
- document.addEventListener('click',function(e){if(e.__ldPass||window.__ldPass)return;var t=e.target.closest&&e.target.closest(SEL);if(!t||t.disabled||t.closest('#ldov'))return;
+ document.addEventListener('click',function(e){if(!e.isTrusted||e.__ldPass||window.__ldPass)return;var t=e.target.closest&&e.target.closest(SEL);if(!t||t.disabled||t.closest('#ldov'))return;
    e.stopImmediatePropagation();e.preventDefault();show('Loading…',null);
    requestAnimationFrame(function(){setTimeout(function(){window.__ldPass=true;try{t.click()}finally{window.__ldPass=false}
      requestAnimationFrame(function(){setTimeout(function(){var s=document.getElementById('status');var busy=s&&s.querySelector('.pbar,.spin');if(!busy)hide()},0)})},16)})},true);
