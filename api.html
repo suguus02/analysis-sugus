@@ -12442,3 +12442,154 @@ html body .tw-scale:not(#_):not(#__) #tc-tw .wr-bst{margin-top:16px!important;ga
 html body .tw-scale:not(#_):not(#__) #tc-tw .wr-bx{padding:8px 16px!important}
 html body .tw-scale:not(#_):not(#__) #tc-tw .wr-bx h4{margin:0!important}
 </style>
+<script id="rev240">
+/* rev240: guided tours. A welcome + general tour the first time someone opens the page, a short tour the first time
+   each tab is opened, and a "?" button (bottom right) to replay them. What each person has seen is kept in their browser. */
+(function(){
+  const LS={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
+  const $=s=>document.querySelector(s);
+  const vis=e=>{if(!e)return false;const r=e.getBoundingClientRect();return r.width>8&&r.height>8&&getComputedStyle(e).visibility!=='hidden'};
+  // finds the box (section / panel) whose heading starts with a text
+  const byHead=(re,root)=>{const R=(typeof root==='string'?$(root):root)||document.body;const c=[...R.querySelectorAll('h2,h3,header,.lbl,.rs-h,.pi-h b,.u-panel header,.sg-h,div,span,b')].filter(e=>e.children.length<4&&re.test((e.textContent||'').trim().slice(0,60)));
+    for(const h of c){const box=h.closest('section,.u-panel,.panel,.rs-box,.pi-box,.nmbox,.gt-sec,.tc-sec');if(box&&vis(box)&&box.id!=='detailpanel')return box}return null};
+  const up=(sel,n)=>{let e=$(sel);for(let i=0;e&&i<(n||1);i++)e=e.parentElement;return e};
+  const btnText=t=>[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===t&&vis(b));
+  const curTab=()=>{const b=$('#sheetbar .sb-t.on');return b?b.textContent.replace(/\d+$/,'').trim():''};
+  const gated=()=>document.documentElement.classList.contains('gated')||!!$('#gate');
+  const loading=()=>{const l=$('#ldov');return !!(l&&(l.classList.contains('on')||l.classList.contains('now')))};
+
+  const GENERAL=[
+    {el:()=>$('#sheetbar'),t:'The menu',d:'Everything is grouped in <b>TEAM</b> (our team and the rival we play next), <b>META</b> (brawlers and predictions) and two tools apart: <b>Draft</b> and <b>Rosters</b>. Hover a tab to see what it does.'},
+    {el:()=>$('.hero'),t:'Season',d:'Switch between this season and archived ones. Old seasons are read only.'},
+    {el:()=>$('#uxPer'),t:'Period',d:'Choose the <b>dates</b> you want to look at. Every tab uses this period.'},
+    {el:()=>$('.uxgames'),t:'Type of games',d:'<b>Tournament</b> (official games), <b>Friendly</b> (scrims) or <b>All</b>.'},
+    {el:()=>$('#statsscope .scm-l')||$('#statsscope'),t:'Teams and rivals',d:'Pick the team you want to study, and below it the rivals. The team you choose is kept when you change tabs.'},
+    {el:()=>$('#statsscope .scm-r'),t:'Maps',d:'Filter by mode or by map. The percentage next to each map is the set win rate of the chosen team.'},
+    {el:()=>$('#ctxbar'),t:'Active filters',d:'What you are looking at right now. Click the <b>✕</b> of a chip to remove that filter.'},
+    {el:()=>$('#uxShare'),t:'Share this view',d:'Copies a link that opens the page exactly like you see it: same tab, team, period and filters.'},
+    {el:()=>$('#tqHelp'),t:'Help is always here',d:'This button replays the tour of the tab you are in, or this general tour. Each tab also shows a short tour the first time you open it.'}];
+  const TABS={
+    'Team Stats':[
+      {el:()=>{const d=$('#detail');return d&&d.firstElementChild},t:'Team summary',d:'Sets and games won, the most picked brawler, the best map and the ranking against the teams of the same league.'},
+      {el:()=>{const b=btnText('Overview');return b&&b.parentElement},t:'Sections',d:'Overview, brawlers, maps, players, comps, drafts… Each section goes deeper into one part of the team.'},
+      {el:()=>byHead(/^Win rate by day/i,'#detail'),t:'Win rate by day',d:'Each bar is a day (or a week). Click a bar to see the matches of that day. The lines mark the patches.'},
+      {el:()=>byHead(/^Maps week by week/i,'#detail'),t:'Maps week by week',d:'Set win rate on every map, week by week, with the trend. Next to it, our 3 weakest maps with a link to prepare them in Draft prep.'},
+      {el:()=>$('.pi-box'),t:'Patch impact',d:'How the last patch changed things for this team: the changed brawlers we play, what the rivals do against us and the maps that changed most.'}],
+    'Match Selector':[
+      {el:()=>$('#detail'),t:'Every set, one by one',d:'All the sets of the chosen team in the period, with bans, picks, result and player stats. Click a set to open it.'},
+      {el:()=>$('#statsscope'),t:'Filters',d:'Use the left panel to narrow by rival, map or type of game.'}],
+    'Draft prep':[
+      {el:()=>$('#ppSb'),t:'Maps by mode',d:'Our notebook, one page per map. The dot shows if a map is already prepared. Choose a map here.'},
+      {el:()=>$('.p3pages'),t:'General page or one per rival',d:'<b>General</b> holds what is true against everyone. Create a page for a rival when you prepare a match against them.'},
+      {el:()=>$('.p3tabs'),t:'1st pick and last pick',d:'Two situations: when we have the first pick and when we have the last pick.'},
+      {el:()=>$('.p3bs'),t:'Ban sets and sections',d:'For each set of bans, ideas grouped in sections (Mid, Aggro…). Add a brawler with <b>+</b>.'},
+      {el:()=>$('.p3leg'),t:'Colours',d:'Click a brawler to mark it: yellow = doubt, green = sure, red = avoid.'},
+      {el:()=>$('.p3notes'),t:'Notes',d:'General notes of the map, and a note for every idea. Everything is saved for the whole team.'}],
+    'Next match':[
+      {el:()=>up('.nmrv',1),t:'The rival',d:'Choose the team we play this week.'},
+      {el:()=>$('.nmhero'),t:'The match',d:'Recent form of both teams, win chance from the model, format and side. Write the date and the Bo so everyone knows.'},
+      {el:()=>$('.nmkp'),t:'Key numbers',d:'The numbers that matter most for this match.'},
+      {el:()=>$('.nmmaps'),t:'Map draft',d:'Maps to pick, to avoid and theirs, with the prep status of each one. Click a map to open it in Draft prep.'},
+      {el:()=>{const t=$('#detail textarea');return t&&(t.closest('.nmbox')||t)},t:'Staff notes',d:'Notes for the whole staff about this rival. They are saved for everyone.'}],
+    'Results':[
+      {el:()=>$('#statsscope .scm-l')||$('#statsscope'),t:'Choose the teams',d:'Pick several teams (or a whole league) to compare them.'},
+      {el:()=>{const d=$('#detail');return d&&d.firstElementChild},t:'Head to head and results',d:'Results between the chosen teams, by team and by region, weekly win rate, top picks and maps.'},
+      {el:()=>$('.gt-evo'),t:'Strength over time',d:'A rating for every team, week by week. Click a team to show or hide its line.'}],
+    'Tier List':[
+      {el:()=>$('#detail'),t:'Tier list',d:'A meta score for every brawler (S to E), from the drafts of the teams you choose on the left.'}],
+    'Team Predictor':[
+      {el:()=>$('#predview'),t:'Team Predictor',d:'Choose two teams to see the chance of each one to win, map by map, from the model.'}],
+    'Draft':[
+      {el:()=>$('#draftview'),t:'Draft',d:'Save the drafts we play, get suggestions while drafting, practise against a bot or follow a live draft.'}],
+    'Rosters':[
+      {el:()=>$('#ppSb'),t:'Filters',d:'Region, period and type of games. <b>Scrims</b> = the same 3 players against the same 3 rivals at least 3 times in a day.'},
+      {el:()=>$('.rs-kp'),t:'Summary',d:'How many trios are playing, how many are new, roster changes of known teams and players we do not track yet.'},
+      {el:()=>{const t=$('.rs-tb thead');return t&&t.closest('.rs-box')},t:'Trios playing together',d:'Every trio with its games, sets, activity and win rate. Click a column title to sort, and a trio to see its rivals and maps.'},
+      {el:()=>$('.rs-bt'),t:'See stats and + Picks',d:'<b>SEE STATS</b> opens Team Stats for that trio. <b>+ PICKS</b> saves the roster as a team in the Picks sheet.'},
+      {el:()=>{const b=$('.rs-dc');return b&&b.closest('.rs-box')},t:'Players discovered',d:'Players we do not track yet. <b>+ SEGUIMIENTO</b> adds them to the sheet so their games start to arrive.'}]};
+
+  const css=`.tq-hole{position:fixed;z-index:99998;border:2px solid #9b5cff;box-shadow:0 0 0 9999px rgba(7,4,11,.74);pointer-events:none;transition:all .22s ease}
+.tq-hole:before,.tq-hole:after{content:'';position:absolute;width:14px;height:14px;border:3px solid #c9a6ff}.tq-hole:before{top:-4px;left:-4px;border-right:0;border-bottom:0}.tq-hole:after{bottom:-4px;right:-4px;border-left:0;border-top:0}
+.tq-block{position:fixed;inset:0;z-index:99997}
+.tq-pop{position:fixed;z-index:99999;width:340px;max-width:calc(100vw - 32px);background:#151018;border:1px solid #3a2d44;padding:18px 20px 14px;color:#f2ecf8;font-family:inherit;transition:top .22s,left .22s}
+.tq-pop:before,.tq-pop:after,.tq-wb:before,.tq-wb:after{content:'';position:absolute;width:12px;height:12px;border:2px solid #9b5cff}.tq-pop:before,.tq-wb:before{top:-1px;left:-1px;border-right:0;border-bottom:0}.tq-pop:after,.tq-wb:after{bottom:-1px;right:-1px;border-left:0;border-top:0}
+.tq-s{font-size:10px;letter-spacing:.16em;font-weight:800;color:#c9a6ff}.tq-t{font-size:19px;font-weight:800;margin:6px 0 8px;letter-spacing:.02em}.tq-d{font-size:13px;line-height:1.5;color:#d9cfe0}.tq-d b{color:#fff}
+.tq-f{display:flex;align-items:center;gap:8px;margin-top:16px}.tq-dots{display:flex;gap:5px;flex:1;flex-wrap:wrap}.tq-dots i{width:6px;height:6px;background:#3a2d44}.tq-dots i.on{background:#9b5cff;width:16px}
+.tq-b{font:inherit;font-size:12px;font-weight:700;padding:8px 14px;border:1px solid #4b3566;background:transparent;color:#e6def0;cursor:pointer}.tq-b.p{background:#9b5cff;border-color:#9b5cff;color:#fff}.tq-b:hover{filter:brightness(1.15)}.tq-b[disabled]{opacity:.35;cursor:default}
+.tq-l{display:flex;justify-content:space-between;gap:10px;margin-top:12px;font-size:11px}.tq-l button{font:inherit;background:none;border:0;padding:0;color:#a99cba;text-decoration:underline;text-underline-offset:2px;cursor:pointer}.tq-l button:hover{color:#fff}
+.tq-wel{position:fixed;inset:0;z-index:99999;background:rgba(7,4,11,.8);display:flex;align-items:center;justify-content:center;padding:16px}
+.tq-wb{position:relative;width:520px;max-width:100%;background:#151018;border:1px solid #3a2d44;padding:30px 34px 24px;color:#f2ecf8;text-align:center}
+.tq-wb h2{font-size:26px;letter-spacing:.14em;margin:8px 0 10px}.tq-wb p{font-size:14px;line-height:1.55;color:#d9cfe0;margin:0 0 8px}
+.tq-list{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:18px 0 20px;text-align:left}.tq-list div{border:1px solid #2a2030;background:#120d15;padding:9px 11px;font-size:12px;color:#d9cfe0}.tq-list b{display:block;color:#fff;font-size:12.5px;margin-bottom:2px}
+#tqHelp{position:fixed;z-index:9990;right:18px;bottom:18px;width:42px;height:42px;border:1px solid #9b5cff;background:#151018;color:#e6def0;font:inherit;font-weight:800;font-size:18px;cursor:pointer}#tqHelp:hover{background:#24143a}
+#tqMenu{position:fixed;z-index:9991;right:18px;bottom:66px;width:250px;background:#151018;border:1px solid #3a2d44;padding:6px}#tqMenu button{display:block;width:100%;text-align:left;font:inherit;font-size:13px;color:#e6def0;background:none;border:0;padding:9px 10px;cursor:pointer}#tqMenu button:hover{background:#24143a}
+#tqMenu small{display:block;color:#a99cba;font-size:11px;margin-top:2px}
+@media print{#tqHelp,#tqMenu{display:none}}
+@media (max-width:600px){.tq-list{grid-template-columns:1fr}}`;
+  const st=document.createElement('style');st.textContent=css;document.head.appendChild(st);
+
+  let T=null; // running tour {steps,i,key}
+  const clear=()=>{document.querySelectorAll('.tq-hole,.tq-pop,.tq-block,.tq-wel').forEach(x=>x.remove());removeEventListener('resize',place);removeEventListener('scroll',place,true)};
+  function end(){if(T)LS.set('tvt:tq:'+T.key,'1');T=null;clear()}
+  function place(){if(!T)return;const s=T.steps[T.i],el=s&&s.el();const h=$('.tq-hole'),p=$('.tq-pop');if(!h||!p||!el)return;
+    const r=el.getBoundingClientRect(),vw=innerWidth,vh=innerHeight,pad=6,cl=Math.max(4,r.top-pad),ch=Math.min(vh-8,r.bottom+pad)-cl;
+    Object.assign(h.style,{left:Math.max(4,r.left-pad)+'px',top:cl+'px',width:Math.min(vw-8,r.width+pad*2)+'px',height:Math.max(20,ch)+'px'});
+    const pw=p.offsetWidth,ph=p.offsetHeight;let x,y;
+    if(r.right+20+pw<vw){x=r.right+20;y=Math.max(16,Math.min(r.top,vh-ph-16))}
+    else if(r.left-20-pw>0){x=r.left-20-pw;y=Math.max(16,Math.min(r.top,vh-ph-16))}
+    else if(r.bottom+16+ph<vh){y=r.bottom+16;x=Math.max(16,Math.min(r.left,vw-pw-16))}
+    else if(r.top-16-ph>0){y=r.top-16-ph;x=Math.max(16,Math.min(r.left,vw-pw-16))}
+    else{x=vw-pw-16;y=vh-ph-16}
+    p.style.left=x+'px';p.style.top=y+'px'}
+  function show(){clear();if(!T)return;
+    // skip the steps whose element is not on the page (e.g. no data yet)
+    while(T.i<T.steps.length&&!vis(T.steps[T.i].el()))T.i++;
+    if(T.i>=T.steps.length){end();return}
+    const s=T.steps[T.i],el=s.el(),n=T.steps.length,last=!T.steps.slice(T.i+1).some(x=>vis(x.el()));
+    const r=el.getBoundingClientRect();if(r.top<70||r.bottom>innerHeight-20){el.scrollIntoView({block:r.height>innerHeight*.7?'start':'center'});}
+    const bl=document.createElement('div');bl.className='tq-block';bl.onclick=()=>{};document.body.appendChild(bl);
+    const h=document.createElement('div');h.className='tq-hole';document.body.appendChild(h);
+    const p=document.createElement('div');p.className='tq-pop';p.setAttribute('role','dialog');
+    p.innerHTML=`<div class="tq-s">${T.title?T.title+' · ':''}STEP ${T.i+1} OF ${n}</div><div class="tq-t">${s.t}</div><div class="tq-d">${s.d}</div>
+      <div class="tq-f"><div class="tq-dots">${Array.from({length:n},(_,k)=>`<i class="${k===T.i?'on':''}"></i>`).join('')}</div><button class="tq-b" data-tq="back"${T.i?'':' disabled'}>Back</button><button class="tq-b p" data-tq="next">${last?'Done':'Next'}</button></div>
+      <div class="tq-l"><button data-tq="skip">Skip the tour</button><button data-tq="auto">${LS.get('tvt:tq:auto')==='0'?'Show tours by themselves':"Don't show tours by themselves"}</button></div>`;
+    document.body.appendChild(p);setTimeout(place,260);place();addEventListener('resize',place);addEventListener('scroll',place,true);
+    p.querySelector('[data-tq="next"]').focus()}
+  function start(key,steps,title){if(gated())return;T={key,steps,i:0,title:title||''};show()}
+  document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-tq]');if(!b)return;e.stopPropagation();const a=b.dataset.tq;
+    if(a==='next'){T.i++;if(!T.steps.slice(T.i).some(x=>vis(x.el()))){end();return}show()}
+    else if(a==='back'){let j=T.i-1;while(j>0&&!vis(T.steps[j].el()))j--;T.i=Math.max(0,j);show()}
+    else if(a==='skip')end();
+    else if(a==='auto'){const off=LS.get('tvt:tq:auto')==='0';LS.set('tvt:tq:auto',off?'1':'0');b.textContent=off?"Don't show tours by themselves":'Show tours by themselves'}
+    else if(a==='go'){clear();LS.set('tvt:tq:welcome','1');start('general',GENERAL,'GENERAL TOUR')}
+    else if(a==='later'){clear();LS.set('tvt:tq:welcome','1');LS.set('tvt:tq:general','1')}},true);
+  document.addEventListener('keydown',e=>{if(!T)return;if(e.key==='Escape')end();else if(e.key==='ArrowRight'){const b=$('[data-tq="next"]');b&&b.click()}else if(e.key==='ArrowLeft'){const b=$('[data-tq="back"]');b&&!b.disabled&&b.click()}});
+
+  function welcome(){clear();const w=document.createElement('div');w.className='tq-wel';w.innerHTML=`<div class="tq-wb" role="dialog" aria-label="Welcome"><div class="tq-s">WELCOME${window.__USER?', '+String(window.__USER).replace(/</g,'&lt;').toUpperCase():''}</div><h2>ANALYSIS SUGUS</h2>
+    <p>Every game our players and our rivals play, turned into stats, drafts and match prep.</p><p>Take a 2-minute tour to learn where everything is.</p>
+    <div class="tq-list"><div><b>Team Stats</b>How a team is doing: win rates, maps, brawlers, players</div><div><b>Next match</b>Everything to prepare this week's rival</div><div><b>Draft prep</b>Our notebook of picks and bans, map by map</div><div><b>Rosters</b>Who plays with whom: tryouts and new rosters</div></div>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button class="tq-b" data-tq="later">Not now</button><button class="tq-b p" data-tq="go">Start the tour →</button></div>
+    <div class="tq-l" style="justify-content:center;margin-top:14px;color:#a99cba">You can replay any tour from the&nbsp;<b style="color:#e6def0">?</b>&nbsp;button, bottom right</div></div>`;document.body.appendChild(w);w.querySelector('[data-tq="go"]').focus()}
+
+  // "?" button
+  const hb=document.createElement('button');hb.id='tqHelp';hb.type='button';hb.title='Help: tours of the page';hb.textContent='?';
+  const mountHelp=()=>{if(!document.body.contains(hb))document.body.appendChild(hb)};
+  hb.onclick=e=>{e.stopPropagation();const m=$('#tqMenu');if(m){m.remove();return}const t=curTab(),has=!!TABS[t];const d=document.createElement('div');d.id='tqMenu';
+    d.innerHTML=`${has?`<button data-tqm="tab">Tour of ${t}<small>What you can do in this tab</small></button>`:''}<button data-tqm="gen">General tour<small>Menu, period, teams and filters</small></button><button data-tqm="wel">Welcome screen</button><button data-tqm="auto">${LS.get('tvt:tq:auto')==='0'?'Turn on automatic tours':'Turn off automatic tours'}<small>The short tour the first time you open each tab</small></button>`;
+    document.body.appendChild(d)};
+  document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-tqm]');const m=$('#tqMenu');if(!b){if(m&&!e.target.closest('#tqMenu'))m.remove();return}
+    const a=b.dataset.tqm;m&&m.remove();if(a==='tab'){const t=curTab();start('tab:'+t,TABS[t],t.toUpperCase())}else if(a==='gen')start('general',GENERAL,'GENERAL TOUR');else if(a==='wel')welcome();
+    else if(a==='auto'){LS.set('tvt:tq:auto',LS.get('tvt:tq:auto')==='0'?'1':'0')}});
+
+  // first visit and first time in each tab
+  let lastTab='',waitT=0;
+  setInterval(()=>{mountHelp();if(T||$('.tq-wel')||gated()||loading())return;const d=$('#detail');if(!d||!d.children.length)return;
+    if(!LS.get('tvt:tq:welcome')){welcome();return}
+    const t=curTab();if(t!==lastTab){lastTab=t;waitT=Date.now();return}
+    if(!t||!TABS[t]||LS.get('tvt:tq:auto')==='0'||LS.get('tvt:tq:tab:'+t)||Date.now()-waitT<1200)return;
+    if(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))return;
+    if(!TABS[t].some(s=>vis(s.el())))return;
+    start('tab:'+t,TABS[t],t.toUpperCase())},700);
+  window.TQ={start:(k)=>k==='general'?start('general',GENERAL,'GENERAL TOUR'):TABS[k]&&start('tab:'+k,TABS[k],k.toUpperCase()),welcome,reset:()=>{Object.keys(localStorage).filter(k=>k.startsWith('tvt:tq:')).forEach(k=>localStorage.removeItem(k))}};
+})();
+</script>
