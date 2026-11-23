@@ -5014,7 +5014,7 @@ function rsCompute(){
   for(const e of E){
     // team: a team of the Picks sheet with 2 or more of the 3 tags
     const c={};for(const g of e.tags)for(const t of t2t[g]||[])c[t]=(c[t]||0)+1;const bt=Object.entries(c).sort((a,b)=>b[1]-a[1])[0];
-    e.team=bt&&bt[1]>=2?bt[0]:'';
+    e.team=bt&&bt[1]>=2?bt[0]:'';e.vt='';if(e.team&&rsVT().some(v=>v.name===e.team)){e.vt=e.team;e.team=''}
     e.names=e.tags.map(g=>rsVis(sheetName(g,NM[g]||g)||NM[g],g));
     e.tracked=e.tags.map(g=>!!(t2t[g]||seg[g]));
     if(e.team){const ot=(off[e.team]||[]).map(x=>String(x).toUpperCase());e.newT=e.tags.filter(g=>!ot.includes(g));e.st=e.newT.length?'chg':'same';e.ot=ot}
@@ -5075,6 +5075,7 @@ function rsHTML(){rsSegLoad();const C=rsCompute();
   const pls=e=>`<div class="rs-pl">${e.tags.map((g,i)=>{const nw=e.st==='chg'&&e.newT.includes(g);return `<span class="rs-p${nw?' nw':''}" title="${esc(g)}"><i class="${e.tracked[i]?'':'no'}"></i>${esc(e.names[i])}${nw?' <u>NEW</u>':''}</span>`}).join('')}</div>`;
   const nmT=g=>esc(rsVis(sheetName(g,C.NM[g]||g)||C.NM[g],g));
   const teamC=e=>{const sub=e.team?(e.st==='chg'?`${e.newT.map(nmT).join(', ')} in${e.outT&&e.outT.length?' · '+e.outT.map(nmT).join(', ')+' out':''}`:esc(TOUR[e.team]||'Picks team')):(e.guess?esc(e.guess)+' tag on 2+ players':(e.st==='new'?'first seen '+rsD(e.first):'seen before'));
+    if(e.vt)return `<div class="rs-tm">${rsLogo('','')}<div>${esc(e.vt)}<small>${tagB[e.st]} temporary trio · only in this browser</small></div></div>`;
     return `<div class="rs-tm">${rsLogo(e.team,'')}<div>${e.team?esc(e.team):e.guess?esc(e.guess)+' <span class="rs-mut">(guess)</span>':'Unknown trio'}<small>${tagB[e.st]} ${sub}</small></div></div>`};
   const det=e=>{const V=Object.entries(e.vs).sort((a,b)=>b[1].n-a[1].n),Mp=Object.entries(e.maps).sort((a,b)=>b[1].s-a[1].s||b[1].n-a[1].n);
     return `<tr class="rs-det"><td colspan="7"><div class="rs-dg"><div><div class="rs-t">SCRIMMED VS</div>${V.slice(0,12).map(([k,v])=>{const o=C.TR[k];return `<div class="rs-dl">${rsLogo(o&&o.team,'')}<span>${o?(o.team?esc(o.team):o.names.map(esc).join(' · ')):''}</span><b>${v.n} games · ${v.s} sets</b>${rsWr(v.s,v.sw)}</div>`}).join('')}</div>
