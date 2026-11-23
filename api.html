@@ -5098,6 +5098,51 @@ function alertMsg(m){try{setStatus('Could not add it to the sheet: '+m+' · copi
 // the names of SEGUIMIENTO also load when the page starts, so every tab can use the names of the sheet
 (function w(){try{if(typeof FULL!=='undefined'&&FULL&&FULL.matches){rsSegLoad();return}}catch(e){}setTimeout(w,1500)})();
 
+// rev238: "Strength over time" moves from the Worlds bracket to Results (for the teams chosen there)
+let _evHK='',_evH=null,EV_ON=null,EV_KEY='';
+function evHistory(){const F=FULL;if(!F||!F.matches)return null;const k=F.matches.length;if(_evHK===k&&_evH)return _evH;
+  const S=F.matches.filter(m=>!m.sh&&!m.s&&m.a&&m.b&&m.a!==m.b&&m.w!==m.l).map(m=>[String(m.a).replace(/^ext:/,''),String(m.b).replace(/^ext:/,''),m.w>m.l?1:0,m.d,m.ty]).sort((a,b)=>a[3]<b[3]?-1:1);
+  if(!S.length)return null;const first=S[0][3],last=S[S.length-1][3],T=[...new Set(S.flatMap(g=>[g[0],g[1]]))];let r={};T.forEach(t=>r[t]=0);
+  const cuts=[];for(let t=Date.parse(first)+13*864e5;t<Date.parse(last);t+=7*864e5)cuts.push(new Date(t).toISOString().slice(0,10));cuts.push(last);
+  const pts=[];
+  for(const D of cuts){const L=Date.parse(D),G=[];for(const s_ of S){if(s_[3]>D)break;G.push([s_[0],s_[1],s_[2],Math.pow(.5,(L-Date.parse(s_[3]))/864e5/45)*(s_[4]==='tournament'?2:1)])}
+    for(let it=0;it<60;it++){const gr={},hs={};T.forEach(t=>{gr[t]=-r[t];hs[t]=1});
+      for(const [a,b,y,w] of G){const p=1/(1+Math.exp(Math.max(-30,Math.min(30,r[b]-r[a]))));gr[a]+=w*(y-p);gr[b]-=w*(y-p);hs[a]+=w*p*(1-p);hs[b]+=w*p*(1-p)}
+      T.forEach(t=>{r[t]+=Math.max(-.5,Math.min(.5,gr[t]/hs[t]))})}
+    const cnt={};for(const g of G){cnt[g[0]]=(cnt[g[0]]||0)+1;cnt[g[1]]=(cnt[g[1]]||0)+1}
+    const v={};for(const t of T)v[t]=cnt[t]?1500+r[t]*400/Math.LN10:null;pts.push({d:D,v})}
+  _evHK=k;_evH=pts;return pts}
+function evoHTML(teams){const P=evHistory();if(!P||P.length<2||!teams||!teams.length)return '';
+  const US=typeof p3Our==='function'?p3Our():'TRIBE GAMING';
+  const lastV=t=>{for(let i=P.length-1;i>=0;i--)if(P[i].v[t]!=null)return P[i].v[t];return null};
+  const T=teams.filter(t=>lastV(t)!=null);if(!T.length)return '';
+  const key=T.join('|');if(!EV_ON||EV_KEY!==key){EV_KEY=key;const top=T.slice().sort((a,b)=>lastV(b)-lastV(a)).slice(0,5);EV_ON=new Set(top.concat(T.includes(US)?[US]:[]))}
+  const evc=t=>t===US?'#ffffff':WB_EVC[T.indexOf(t)%WB_EVC.length];
+  const sh=T.filter(t=>EV_ON.has(t));let lo=1e9,hi=-1e9;for(const p of P)for(const t of sh)if(p.v[t]!=null){lo=Math.min(lo,p.v[t]);hi=Math.max(hi,p.v[t])}
+  if(hi<lo){lo=1400;hi=1600}const pad=(hi-lo)*.08+5;lo-=pad;hi+=pad;
+  const W=1000,H=360,x0=52,x1=W-175,y0=16,y1=H-34,X=i=>x0+i*(x1-x0)/(P.length-1),Y=v=>y0+(hi-v)/(hi-lo)*(y1-y0);
+  let g='';const step=Math.ceil(P.length/9);
+  P.forEach((p,i)=>{if(i%step===0||i===P.length-1)g+=`<line x1="${X(i)}" x2="${X(i)}" y1="${y0}" y2="${y1}" class="ev-gl"/><text x="${X(i)}" y="${H-12}" class="ev-ax" text-anchor="middle">${fmtDate(p.d).replace(/ \d{4}$/,'')}</text>`});
+  for(let k=0;k<=4;k++){const v=lo+(hi-lo)*k/4;g+=`<text x="${x0-8}" y="${Y(v)+4}" class="ev-ax" text-anchor="end">${Math.round(v)}</text><line x1="${x0}" x2="${x1}" y1="${Y(v)}" y2="${Y(v)}" class="ev-gl h"/>`}
+  const labs=[];
+  for(const t of sh){const c=evc(t),us=t===US;let d='',pen=false;P.forEach((p,i)=>{const v=p.v[t];if(v==null){pen=false;return}d+=(pen?'L':'M')+X(i).toFixed(1)+','+Y(v).toFixed(1);pen=true});
+    g+=`<path d="${d}" fill="none" stroke="${c}" stroke-width="${us?4:2.4}" stroke-linejoin="round" opacity="${us?1:.9}"><title>${esc(t)}</title></path>`;
+    P.forEach((p,i)=>{const v=p.v[t];if(v!=null)g+=`<circle cx="${X(i)}" cy="${Y(v)}" r="${us?3.5:2.6}" fill="${c}"><title>${esc(t)} · ${fmtDate(p.d)} · ${Math.round(v)}</title></circle>`});
+    const lv=lastV(t);if(lv!=null)labs.push({t,y:Y(lv),v:lv,c})}
+  labs.sort((a,b)=>a.y-b.y);for(let i=1;i<labs.length;i++)if(labs[i].y-labs[i-1].y<15)labs[i].y=labs[i-1].y+15;
+  for(const l of labs)g+=`<text x="${x1+8}" y="${l.y+4}" class="ev-lb" fill="${l.c}">${esc(l.t)} ${Math.round(l.v)}</text>`;
+  const chips=T.map(t=>`<button type="button" class="ev-chip${EV_ON.has(t)?' on':''}" data-evon="${esc(t)}" style="--c:${evc(t)}">${logo(t,'')}${esc(t)}</button>`).join('');
+  return `<section class="rs-box gt-evo" style="margin-top:18px"><div class="rs-h">STRENGTH OVER TIME</div><p class="wb-note" style="margin-top:0;font-size:12.5px;color:#b8abc8">A rating for every team, recalculated every week with all the sets up to that day (recent sets and tournaments weigh more). Higher = stronger; 1500 = average. A gap of 100 ≈ 64% to win one set. It uses all the loaded data, not only the period. Click a team to show or hide it.</p>
+    <div class="ev-chips">${chips}</div><svg viewBox="0 0 ${W} ${H}" class="ev-svg">${g}</svg>
+    <details class="ev-how"><summary>How the points work</summary><div>
+      <p><b>What counts.</b> Every set between two teams of the data, scrims and tournaments. A set is one result: won or lost (2–0 and 2–1 count the same).</p>
+      <table class="ev-t"><tr><th>Gap</th><td>0</td><td>50</td><td>100</td><td>200</td><td>300</td><td>400</td></tr><tr><th>Chance to win a set</th><td>50%</td><td>57%</td><td>64%</td><td>76%</td><td>85%</td><td>91%</td></tr></table>
+      <p><b>How the numbers are chosen.</b> All the sets are looked at together, and every team gets the number that best explains its results: beating a strong team gives more than beating a weak one. Like chess Elo, but with all the sets at once.</p>
+      <p><b>Recent sets weigh more.</b> A set from 45 days ago counts half, from 90 days a quarter. Tournament sets count double.</p>
+      <p><b>What it does not know.</b> Roster changes, the patch, who the teams choose to scrim or how seriously they take a scrim.</p></div></details></section>`}
+{const _g=groupTab;groupTab=function(){const h=_g();if(/^<p class="msg"/.test(h))return h;let e='';try{e=evoHTML(groupTeams())}catch(er){}return h+e}}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-evon]');if(!b||!EV_ON)return;const t=b.dataset.evon;if(EV_ON.has(t))EV_ON.delete(t);else EV_ON.add(t);renderDetail()});
+
 function prepHTML(){
   if(PP.st===0)ppLoad();
   const maps=ppMaps();if(!maps.includes(PP.map))PP.map=maps[0]||'';setTimeout(ppSbPaint,0);
@@ -8979,9 +9024,9 @@ body{padding-bottom:50px}
 (function(){
   // [label, main section, Team Stats tab]
   const T=[['Team Stats','stats','stats','Brawlers, bans, players, comps and drafts of one team, two teams compared or several together'],['Match Selector','stats','match','Every scrim and match played, set by set, with bans, picks and player stats'],['Results','stats','group','Results of the selected teams: head to head, matches by team, regions, weekly win rate, top picks and maps'],
-           ['Next match','stats','scout','Everything to prepare the match of the week against one rival: map draft, bans, players and staff notes'],['Balance','bal','','How each balance patch changed what teams pick and ban'],
+           ['Next match','stats','scout','Everything to prepare the match of the week against one rival: map draft, bans, players and staff notes'],
            ['Tier List','stats','tier','Meta score of every brawler (S to E) from the drafts of the teams you choose'],['Draft','draft','','Save drafts, get draft suggestions, practise against a bot or follow a live draft'],['Draft prep','stats','prep','Prepare every draft situation: bans, first picks, answers and last picks, by map, 1st/last pick and rival'],['Team Predictor','pred','','Win chance between two teams, map by map'],['Rosters','stats','roster','Who plays with whom: trios, tryouts and roster changes by region'],
-           ['Worlds bracket','worlds','','Simulation of the Worlds bracket with the model'],['Twitter','stats','tier','Images to post on Twitter (only admins see this tab)','tw'],null,['Data check','check','','Problems found in the data (missing tags, odd rows…) to fix in the sheet']];
+           ['Twitter','stats','tier','Images to post on Twitter (only admins see this tab)','tw'],null,['Data check','check','','Problems found in the data (missing tags, odd rows…) to fix in the sheet']];
   const bar=document.getElementById('sheetbar');if(!bar)return;
   bar.innerHTML=T.map((t,i)=>t?`<button type="button" class="sb-t" data-sb="${i}" data-tip="${t[3]||''}">${t[0]}</button>`:'<span class="sb-sep"></span>').join('');
   const tip=document.createElement('div');tip.id='sbtip';document.body.appendChild(tip);let tt=0;
@@ -10701,10 +10746,11 @@ html body table.typet .tchip:not(#_){display:inline-flex;align-items:center;gap:
 
 <script>
 /* rev143: tabs in three groups */
-(function(){const G=[['Team',['Team Stats','Next match','Match Selector']],['Meta',['Tier List','Balance','Draft','Draft prep']],['Competition',['Results','Team Predictor','Worlds bracket']]];
+(function(){const G=[['Team',['Team Stats','Match Selector','Draft prep','Next match','Results']],['Meta',['Tier List','Team Predictor']],['',['Draft','Rosters']]];
   function go(){const sb=document.getElementById('sheetbar');if(!sb||sb.querySelector('.sb-grp'))return !!sb;const B=[...sb.querySelectorAll('.sb-t')];if(!B.length)return false;const by={};B.forEach(b=>by[b.textContent.trim()]=b);
-    const D=G.map(([g,L])=>{const d=document.createElement('div');d.className='sb-grp';d.innerHTML='<i>'+g+'</i>';L.forEach(n=>{if(by[n])d.appendChild(by[n])});return d});sb.prepend(...D);
-    sb.querySelectorAll(':scope>.sb-sep').forEach(x=>x.remove());return true}
+    const D=G.map(([g,L])=>{const d=document.createElement('div');d.className='sb-grp';d.innerHTML=g?'<i>'+g+'</i>':'';L.forEach(n=>{if(by[n])d.appendChild(by[n])});return d});sb.prepend(...D);
+    sb.querySelectorAll(':scope>.sb-sep').forEach(x=>x.remove());
+    setTimeout(()=>{const sel=document.querySelector('.mnav[aria-selected="true"]');if(sel&&/^(worlds|bal)$/.test(sel.dataset.view)){const t=document.querySelector('.mnav[data-view="stats"]');if(t)t.click()}},800);return true}
   if(!go()){const t=setInterval(()=>{if(go())clearInterval(t)},200)}})();
 </script>
 <script>
