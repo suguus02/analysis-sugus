@@ -2230,9 +2230,9 @@ let SEL_KEEP=null;
 function saveSel(){if(SEL_KEEP)return;store.set('tvt:sel',JSON.stringify({a:sel.a,b:sel.b,maps:sel.maps}))}
 
 // the page works only with the 18 maps of the rotation (MAP18): sets on any other map are left out everywhere; the Data check lists them
-function onlyMap18(d){if(!d||!d.matches||d._m18)return d;const ex={};
-  const ms=d.matches.filter(m=>{if(!m.m||MAP18.has(mkey(m.m)))return true;ex[m.m]=(ex[m.m]||0)+1;return false});
-  return Object.assign({},d,{matches:ms,excluded:ex,_m18:1})}
+function onlyMap18(d){if(!d||!d.matches||d._m18)return d;const ex={};const all=d.matches.filter(m=>!m.sh);
+  const ms=d.matches.filter(m=>{if(!m.m||inPool(m.m,m.d))return true;ex[m.m]=(ex[m.m]||0)+1;return false});
+  return Object.assign({},d,{matches:ms,excluded:ex,_m18:1,_all:all})}
 
 // ===== ficha de jugador (equipo de Picks con un solo jugador) =====
 const SH_MARK='⁠'; // invisible: el rival de una copia no se confunde con el equipo real
@@ -2275,7 +2275,22 @@ function build(newDs,isCustom){
   },30);
 }
 let MODELIST=[],PICKMAPS=[]; // maps shown as chips: only those with an image
-const MAP18=new Set(['Out in the Open',"Belle's Rock",'Goldarm Gulch','Hard Rock Mine','Crystal Arcade','Deathcap Trap','Dry Season','Hideout','Layer Cake','Pinhole Punt','Beach Ball','Triple Dribble','Kaboom Canyon','Safe Zone','Hot Potato','Dueling Beetles','Ring of Fire','Open Business'].map(mkey));
+let MAP18=new Set(['Out in the Open',"Belle's Rock",'Goldarm Gulch','Hard Rock Mine','Crystal Arcade','Deathcap Trap','Dry Season','Hideout','Layer Cake','Pinhole Punt','Beach Ball','Triple Dribble','Kaboom Canyon','Safe Zone','Hot Potato','Dueling Beetles','Ring of Fire','Open Business'].map(mkey));
+// rev243: the map rotation comes from the MAPAS tab (MAPA | MODO | DESDE | HASTA). A set counts if its map was in the rotation that day.
+const MODE_ORDER=['Knockout','Gem Grab','Bounty','Brawl Ball','Heist','Hot Zone'];
+let POOL=null;try{POOL=JSON.parse(store.get('tvt:pool')||'null')}catch(e){POOL=null}
+function poolSet(P){POOL=P&&P.length?P:null;if(POOL)MAP18=new Set(POOL.map(x=>mkey(x.n)))}
+poolSet(POOL);
+function inPool(name,day){if(!POOL)return MAP18.has(mkey(name));const k=mkey(name);return POOL.some(x=>mkey(x.n)===k&&(!x.f||!day||day>=x.f)&&(!x.t||!day||day<=x.t))}
+function poolModes(a,b){if(!POOL)return null;const out=MODE_ORDER.map(md=>[md,[]]);
+  for(const x of POOL){if((x.t&&a&&x.t<a)||(x.f&&b&&x.f>b))continue;let e=out.find(o=>o[0].toLowerCase()===String(x.md).toLowerCase());if(!e){e=[x.md||'Other',[]];out.push(e)}if(!e[1].some(n=>mkey(n)===mkey(x.n)))e[1].push(x.n)}
+  return out.filter(o=>o[1].length)}
+function poolOld(){if(!POOL)return [];const cur=new Set((MODELIST||[]).flatMap(x=>x[1]).map(mkey));return [...new Set(POOL.filter(x=>!cur.has(mkey(x.n))).map(x=>x.n))]}
+async function poolLoad(){try{const rows=await gviz('sheet=MAPAS&headers=1&tq='+encodeURIComponent('select *'));const P=[];
+    for(const r of rows.slice(1)){const n=String(r[0]||'').trim();if(!n)continue;P.push({n,md:String(r[1]||'').trim(),f:balND(r[2])||'',t:balND(r[3])||''})}
+    if(!P.length)return;const sig=JSON.stringify(P);if(sig===JSON.stringify(POOL))return;store.set('tvt:pool',sig);poolSet(P);
+    if(typeof FULL!=='undefined'&&FULL&&!busy){build(Object.assign({},FULL,{matches:(FULL._all||FULL.matches).filter(m=>!m.sh),_m18:0}),custom)}}catch(e){}}
+setTimeout(function w(){if(typeof FULL!=='undefined'&&FULL)poolLoad();else setTimeout(w,1500)},1500);
 function setup(){
   const D=M.D,saved=Object.assign({},loadSel());
   const opts=D.off.map((t,i)=>`<option value="${i}">${esc(t)} · ${num(DESC.tot[t].n)} sets</option>`).join('');
@@ -2304,7 +2319,8 @@ function setup(){
   if(!maps.length)maps=byFreq.slice(0,5);
   sel.maps=maps;
   const MODES=[['Knockout',['Out in the Open',"Belle's Rock",'Goldarm Gulch']],['Gem Grab',['Hard Rock Mine','Crystal Arcade','Deathcap Trap']],['Bounty',['Dry Season','Hideout','Layer Cake']],['Brawl Ball',['Pinhole Punt','Beach Ball','Triple Dribble']],['Heist',['Kaboom Canyon','Safe Zone','Hot Potato']],['Hot Zone',['Dueling Beetles','Ring of Fire','Open Business']]];
-  MODELIST=MODES;
+  let _a='',_b='';for(const m of ds.matches){if(!_a||m.d<_a)_a=m.d;if(m.d>_b)_b=m.d}const PM=poolModes(_a,_b);
+  MODELIST=PM&&PM.length?PM:MODES;
   const byKey={};PICKMAPS.forEach(m=>byKey[mkey(m)]=m);
   const used=new Set();
   let html=MODES.map(([mode,list])=>{
@@ -4764,7 +4780,7 @@ function p3Picker(ST){const types=TYPE_ORDER.slice(),f=new Set(P3.filt||[]),q=St
 // ---- maps + pages in the side panel
 function p3SbPaint(box){const pages=m=>{const R=new Set();Object.keys(PP.data).forEach(k=>{const p=k.split('|');if(p[0]==='v3'&&p[1]===m&&p[2]&&p3Get(k))R.add(p[2])});if(m===P3.map&&P3.riv)R.add(P3.riv);return [...R].sort()};
   const off=(M&&M.D&&M.D.off)||[];
-  box.innerHTML=`<div class="pr-h"><span class="lbl">Draft prep · maps</span></div><p class="pr-hint"><i class="p3dot l2"></i>prepared · <i class="p3dot l1"></i>half · <i class="p3dot l0"></i>nothing${P3.riv?' (page vs '+esc(P3.riv)+')':''}</p>`+(MODELIST||[]).map(([md,ms])=>{const ic=IMGS['mode'+mkey(md)];
+  box.innerHTML=`<div class="pr-h"><span class="lbl">Draft prep · maps</span></div><p class="pr-hint"><i class="p3dot l2"></i>prepared · <i class="p3dot l1"></i>half · <i class="p3dot l0"></i>nothing${P3.riv?' (page vs '+esc(P3.riv)+')':''}</p>`+(MODELIST||[]).concat(poolOld().length?[['Out of rotation',poolOld()]]:[]).map(([md,ms])=>{const ic=IMGS['mode'+mkey(md)];
     return `<div class="p3g"><div class="p3gh">${ic?`<img src="${ic}" alt="">`:''}<b>${esc(md)}</b></div>${ms.map(m=>{const u=IMGS[mkey(m)]||'',lv=p3Level(p3Get(P3K(m,P3.riv))),on=m===P3.map;
       return `<button type="button" class="p3m${on?' on':''}" data-p3map="${esc(m)}">${u?`<img src="${u}" alt="">`:'<span></span>'}<span>${esc(m)}</span><i class="p3dot l${lv}"></i></button>`+(on?`<div class="p3pages"><button type="button" class="${!P3.riv?'on':''}" data-p3riv="">General</button>${pages(m).map(r=>`<button type="button" class="${r===P3.riv?'on':''}" data-p3riv="${esc(r)}">vs ${esc(r)}</button>`).join('')}
         ${P3.newPage?`<div class="p3tl"><small>Choose a team:</small>${off.filter(t=>t!==p3Our()&&!pages(m).includes(t)).map(t=>`<button type="button" data-p3riv="${esc(t)}">${logo(t,'p3tli')}${esc(t)}</button>`).join('')}<button type="button" class="x" data-p3newpage="0">✕ cancel</button></div>`:`<button type="button" class="new" data-p3newpage>+ page for a team</button>`}</div>`:'')}).join('')}</div>`}).join('')}
