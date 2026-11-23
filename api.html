@@ -4918,17 +4918,19 @@ document.addEventListener('input',e=>{if(typeof tab==='undefined'||tab!=='scout'
 // Built from the games already loaded (scrims = friendly games where the same 3 play the same 3 rivals 3+ times in a day).
 const RS=(()=>{let s={};try{s=JSON.parse(localStorage.getItem('tvt:rs')||'{}')||{}}catch(e){}return Object.assign({reg:'',days:14,ty:'scrim',show:'all',min:10,grp:'all',open:'',form:'',sort:'games',dir:-1},s)})();
 function rsSave(){try{localStorage.setItem('tvt:rs',JSON.stringify({reg:RS.reg,days:RS.days,ty:RS.ty,show:RS.show,min:RS.min,grp:RS.grp,sort:RS.sort,dir:RS.dir}))}catch(e){}}
-var RSEG=null,RSEGt=0;   // SEGUIMIENTO tab: tag -> {name, raw region, region}
+var RSEG=null,RSEGt=0,RSTREG={};   // RSTREG: region of every team of the TEAMS table of Picks   // SEGUIMIENTO tab: tag -> {name, raw region, region}
 async function rsSegLoad(){if(RSEG||RSEGt)return;RSEGt=1;
   try{const rows=await gviz('sheet=SEGUIMIENTO&range=A1:D5000&headers=0');const o={};
     for(const r of rows||[]){const g=String(r[0]||'').trim().toUpperCase();if(!/^#[0-9A-Z]{3,}$/.test(g))continue;const raw=String(r[2]||'').trim();o[g]={name:String(r[1]||'').trim(),raw,reg:normReg(raw)}}RSEG=o}
   catch(e){RSEG={}}
+  try{const rows=await gviz('sheet=Picks&range=B2:AD400&headers=0');const U=x=>String(x||'').trim().toUpperCase();let h=-1;for(let i=0;i<rows.length&&h<0;i++)if((rows[i]||[]).some(x=>U(x)==='TEAMS'))h=i;
+    if(h>=0){const cab=rows[h].map(U),cT=cab.indexOf('TEAMS'),cR=cab.indexOf('REGION',cT+1);if(cT>=0&&cR>cT)for(let i=h+1;i<rows.length;i++){const n=U(rows[i][cT]),r=String(rows[i][cR]||'').trim();if(n&&r)RSTREG[n]=normReg(r)}}}catch(e){}
   _rsK='';const ae=document.activeElement;if(typeof view!=='undefined'&&view==='stats'&&['roster','stats','players','scout'].includes(tab)&&!(ae&&/INPUT|TEXTAREA|SELECT/.test(ae.tagName))){renderDetail();try{ppSbPaint()}catch(e){}}}
-const rsRegShort=r=>({'North America':'NA','South America':'SA','EMEA':'EMEA','APAC':'APAC','China':'China','East Asia':'East Asia'}[r]||r);
+const rsRegShort=r=>({'North America':'NA','South America':'SA','EMEA':'EMEA','APAC':'APAC','China':'China','East Asia':'East Asia','Unknown':'?'}[r]||r);
 let _rsK='',_rsC=null;
 function rsCompute(){
   const F=(typeof FULL!=='undefined'&&FULL&&FULL.matches)?FULL:ds;if(!F||!F.matches||!F.matches.length)return null;
-  const key=F.matches.length+'|'+RS.days+'|'+RS.ty+'|'+(RSEG?Object.keys(RSEG).length:-1)+'|'+Object.keys(REGION).length+'|'+Object.keys(F.knownTags||{}).length+'|'+Object.keys(F.official||{}).length;if(key===_rsK&&_rsC)return _rsC;
+  const key=F.matches.length+'|'+RS.days+'|'+RS.ty+'|'+(RSEG?Object.keys(RSEG).length:-1)+'|'+Object.keys(REGION).length+'|'+Object.keys(F.knownTags||{}).length+'|'+Object.keys(RSTREG).length+'|'+Object.keys(F.official||{}).length;if(key===_rsK&&_rsC)return _rsC;
   const L=F.matches,NM=F.names||{};let mx='';for(const m of L)if(m.d>mx)mx=m.d;
   const from=addDays(mx,-(RS.days-1)),dayList=[];for(let d=from;d<=mx;d=addDays(d,1))dayList.push(d);
   const off=Object.assign({},F.knownTags||{},F.official||{}),t2t={};for(const t in off)for(const g of off[t]||[])if(g)(t2t[String(g).toUpperCase()]||(t2t[String(g).toUpperCase()]=[])).push(t);   // every team of the TEAMS table of Picks, selected or not
@@ -4955,16 +4957,16 @@ function rsCompute(){
     // team: a team of the Picks sheet with 2 or more of the 3 tags
     const c={};for(const g of e.tags)for(const t of t2t[g]||[])c[t]=(c[t]||0)+1;const bt=Object.entries(c).sort((a,b)=>b[1]-a[1])[0];
     e.team=bt&&bt[1]>=2?bt[0]:'';
-    e.names=e.tags.map(g=>sheetName(g,NM[g]||g));
+    e.names=e.tags.map(g=>rsVis(sheetName(g,NM[g]||g)||NM[g],g));
     e.tracked=e.tags.map(g=>!!(t2t[g]||seg[g]));
     if(e.team){const ot=(off[e.team]||[]).map(x=>String(x).toUpperCase());e.newT=e.tags.filter(g=>!ot.includes(g));e.st=e.newT.length?'chg':'same';e.ot=ot}
     else e.st=first[e.k]>=from?'new':'same';
     const pf=e.names.map(n=>{const x=/^\s*([^|│]{1,6})\s*[|│]/.exec(n);return x?x[1].trim().toUpperCase():''}).filter(Boolean),pc={};pf.forEach(p=>pc[p]=(pc[p]||0)+1);
     const bp=Object.entries(pc).sort((a,b)=>b[1]-a[1])[0];e.guess=!e.team&&bp&&bp[1]>=2?bp[0]:'';
-    e.reg=e.team?(REGION[e.team]||''):''}
+    e.reg=e.team?(REGION[e.team]||RSTREG[String(e.team).toUpperCase()]||''):''}
   // region: the team; else the players (SEGUIMIENTO or a Picks team they belong to); else the rivals they scrimmed most
   const vote=(o,r,w)=>{if(r)o[r]=(o[r]||0)+w};const top=o=>{const x=Object.entries(o).sort((a,b)=>b[1]-a[1])[0];return x?x[0]:''};
-  for(const e of E)if(!e.reg){const o={};for(const g of e.tags){if(seg[g])vote(o,seg[g].reg,2);for(const t of t2t[g]||[])vote(o,REGION[t],1)}e.reg=top(o)}
+  for(const e of E)if(!e.reg){const o={};for(const g of e.tags){if(seg[g])vote(o,seg[g].reg,2);for(const t of t2t[g]||[])vote(o,REGION[t]||RSTREG[String(t).toUpperCase()],1)}e.reg=top(o)}
   for(let p=0;p<3;p++)for(const e of E)if(!e.reg){const o={};for(const k in e.vs){const r=TR[k]&&TR[k].reg;vote(o,r,e.vs[k].n)}e.reg=top(o)}
   // the players of each team that did play in the period (to say who is out)
   const playedBy={};for(const e of E)if(e.team){const s=playedBy[e.team]||(playedBy[e.team]={});for(const g of e.tags)s[g]=(s[g]||0)+e.n}
@@ -4972,9 +4974,12 @@ function rsCompute(){
   _rsK=key;_rsC={E,TR,from,mx,dayList,t2t,seg,NM};return _rsC}
 const rsD=d=>{const p=String(d||'').split('-');return p.length===3?(+p[2])+' '+MON[+p[1]-1]:''};
 function rsTh(l,k,inl){const on=RS.sort===k,a=on?(RS.dir>0?' ↑':' ↓'):'';const b=`<button type="button" class="rs-so${on?' on':''}" data-rssort="${k}">${l}${a}</button>`;return inl?b:`<th>${b}</th>`}
+// names made only of invisible characters (ㅤ, braille blank, zero-width…) show the tag instead
+function rsVis(n,g){const v=String(n||'').replace(/[\s\u3164\u115F\u1160\u2800\u200B-\u200F\u2060\uFEFF\uFFA0]/g,'');return v?String(n):g}
 function rsWr(s,w){if(!s)return '<span class="rs-mut">–</span>';const v=Math.round(100*w/s);return `<b style="color:${v>=55?'#4ade80':v<45?'#f87171':'#facc15'}">${v}%</b>`}
 function rsLogo(t,cls){return t?logo(t,cls||''):`<span class="rs-q ${cls||''}">?</span>`}
 function rsVisible(C){
+  for(const e of C.E)if(!e.reg)e.reg='Unknown';
   const regs=[...new Set(C.E.map(e=>e.reg).filter(Boolean))].sort((a,b)=>C.E.filter(e=>e.reg===b).length-C.E.filter(e=>e.reg===a).length);
   if(!RS.reg||!regs.includes(RS.reg))RS.reg=regs.includes('South America')?'South America':(regs[0]||'');
   const gOf=e=>{if(!e.team)return 'unk';const v=String(TOUR[e.team]||'').toUpperCase();return /CHALL/.test(v)?'chall':/LEAG|LIGA/.test(v)?'league':'other'};
@@ -5009,7 +5014,7 @@ function rsHTML(){rsSegLoad();const C=rsCompute();
   const vsL=e=>{const V=Object.entries(e.vs).sort((a,b)=>b[1].n-a[1].n);return `<div class="rs-vs">${V.slice(0,2).map(([k])=>{const o=C.TR[k];return `<span title="${esc(o?(o.team||o.names.join(' · ')):'')}">${rsLogo(o&&o.team,'')}</span>`}).join('')}${V.length>2?`<small>+${V.length-2}</small>`:''}</div>`};
   const act=e=>`<div class="rs-act d${RS.days}">${C.dayList.map(d=>{const n=e.days[d]||0;return `<b class="${n>=10?'hi':n?'on':''}" title="${rsD(d)} · ${n} games"></b>`}).join('')}</div>`;
   const pls=e=>`<div class="rs-pl">${e.tags.map((g,i)=>{const nw=e.st==='chg'&&e.newT.includes(g);return `<span class="rs-p${nw?' nw':''}" title="${esc(g)}"><i class="${e.tracked[i]?'':'no'}"></i>${esc(e.names[i])}${nw?' <u>NEW</u>':''}</span>`}).join('')}</div>`;
-  const nmT=g=>esc(sheetName(g,C.NM[g]||g));
+  const nmT=g=>esc(rsVis(sheetName(g,C.NM[g]||g)||C.NM[g],g));
   const teamC=e=>{const sub=e.team?(e.st==='chg'?`${e.newT.map(nmT).join(', ')} in${e.outT&&e.outT.length?' · '+e.outT.map(nmT).join(', ')+' out':''}`:esc(TOUR[e.team]||'Picks team')):(e.guess?esc(e.guess)+' tag on 2+ players':(e.st==='new'?'first seen '+rsD(e.first):'seen before'));
     return `<div class="rs-tm">${rsLogo(e.team,'')}<div>${e.team?esc(e.team):e.guess?esc(e.guess)+' <span class="rs-mut">(guess)</span>':'Unknown trio'}<small>${tagB[e.st]} ${sub}</small></div></div>`};
   const det=e=>{const V=Object.entries(e.vs).sort((a,b)=>b[1].n-a[1].n),Mp=Object.entries(e.maps).sort((a,b)=>b[1].s-a[1].s||b[1].n-a[1].n);
