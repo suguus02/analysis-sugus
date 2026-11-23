@@ -4935,21 +4935,23 @@ function rsCompute(){
   const seg=RSEG||{};
   const tk=a=>a&&a.length===3&&a.every(Boolean)?a.map(g=>String(g).toUpperCase()).sort().join(','):'';
   const pk=(A,B,d)=>(A<B?A+'~'+B:B+'~'+A)+'~'+d;
+  // each item of the data is a SET (w/l = games won/lost by side A, s = a single loose game, y = 1/0 who won the set)
+  const gN=m=>Math.max(1,(m.w||0)+(m.l||0)+(m.dr||0));
   const pd={},first={};
   for(const m of L){const A=tk(m.ta),B=tk(m.tb);if(!A||!B)continue;for(const T of [A,B])if(!first[T]||m.d<first[T])first[T]=m.d;
-    if(m.d>=from&&m.ty!=='tournament'){const k=pk(A,B,m.d);pd[k]=(pd[k]||0)+1}}
+    if(m.d>=from&&m.ty!=='tournament'){const k=pk(A,B,m.d);pd[k]=(pd[k]||0)+gN(m)}}
   const ok=(m,A,B)=>{const tour=m.ty==='tournament';if(RS.ty==='tour')return tour;const sc=!tour&&(pd[pk(A,B,m.d)]||0)>=3;return RS.ty==='scrim'?sc:(tour||sc)};
   const TR={};
   for(const m of L){if(m.d<from)continue;const A=tk(m.ta),B=tk(m.tb);if(!A||!B||!ok(m,A,B))continue;
-    for(const [T,O,y] of [[A,B,m.y],[B,A,1-m.y]]){const e=TR[T]||(TR[T]={k:T,tags:T.split(','),n:0,w:0,days:{},vs:{},maps:{},first:'',last:'',g:[]});
-      e.n++;e.w+=y;e.days[m.d]=(e.days[m.d]||0)+1;
-      const v=e.vs[O]||(e.vs[O]={n:0,w:0,s:0,sw:0});v.n++;v.w+=y;
-      const mp=e.maps[m.m]||(e.maps[m.m]={n:0,w:0});mp.n++;mp.w+=y;
-      if(!e.first||m.d<e.first)e.first=m.d;if(m.d>e.last)e.last=m.d;e.g.push({o:O,d:m.d,m:m.m,t:m.t,y})}}
+    const n=gN(m),isSet=!m.s&&(m.y===1||m.y===0);
+    for(const [T,O,y,gw] of [[A,B,m.y,m.w||0],[B,A,1-m.y,m.l||0]]){const e=TR[T]||(TR[T]={k:T,tags:T.split(','),n:0,w:0,s:0,sw:0,days:{},vs:{},maps:{},first:'',last:''});
+      e.n+=n;e.w+=gw;e.days[m.d]=(e.days[m.d]||0)+n;
+      const v=e.vs[O]||(e.vs[O]={n:0,w:0,s:0,sw:0});v.n+=n;v.w+=gw;
+      const mp=e.maps[m.m]||(e.maps[m.m]={n:0,w:0,s:0,sw:0});mp.n+=n;mp.w+=gw;
+      if(isSet){e.s++;e.sw+=y;v.s++;v.sw+=y;mp.s++;mp.sw+=y}
+      if(!e.first||m.d<e.first)e.first=m.d;if(m.d>e.last)e.last=m.d}}
   const E=Object.values(TR);
-  for(const e of E){const g={};for(const x of e.g){const k=x.o+'~'+x.d+'~'+x.m;(g[k]||(g[k]=[])).push(x)}e.s=0;e.sw=0;
-    for(const k in g){const a=g[k].sort((p,q)=>p.t-q.t),v=e.vs[a[0].o];let w=0,l=0;
-      for(const x of a){if(x.y===1)w++;else if(x.y===0)l++;if(w>=2||l>=2){e.s++;v.s++;if(w>=2){e.sw++;v.sw++}w=0;l=0}}}delete e.g;
+  for(const e of E){
     // team: a team of the Picks sheet with 2 or more of the 3 tags
     const c={};for(const g of e.tags)for(const t of t2t[g]||[])c[t]=(c[t]||0)+1;const bt=Object.entries(c).sort((a,b)=>b[1]-a[1])[0];
     e.team=bt&&bt[1]>=2?bt[0]:'';
@@ -5007,9 +5009,9 @@ function rsHTML(){rsSegLoad();const C=rsCompute();
   const nmT=g=>esc(sheetName(g,C.NM[g]||g));
   const teamC=e=>{const sub=e.team?(e.st==='chg'?`${e.newT.map(nmT).join(', ')} in${e.outT&&e.outT.length?' · '+e.outT.map(nmT).join(', ')+' out':''}`:esc(TOUR[e.team]||'Picks team')):(e.guess?esc(e.guess)+' tag on 2+ players':(e.st==='new'?'first seen '+rsD(e.first):'seen before'));
     return `<div class="rs-tm">${rsLogo(e.team,'')}<div>${e.team?esc(e.team):e.guess?esc(e.guess)+' <span class="rs-mut">(guess)</span>':'Unknown trio'}<small>${sub}</small></div></div>`};
-  const det=e=>{const V=Object.entries(e.vs).sort((a,b)=>b[1].n-a[1].n),Mp=Object.entries(e.maps).sort((a,b)=>b[1].n-a[1].n);
+  const det=e=>{const V=Object.entries(e.vs).sort((a,b)=>b[1].n-a[1].n),Mp=Object.entries(e.maps).sort((a,b)=>b[1].s-a[1].s||b[1].n-a[1].n);
     return `<tr class="rs-det"><td colspan="8"><div class="rs-dg"><div><div class="rs-t">SCRIMMED VS</div>${V.slice(0,12).map(([k,v])=>{const o=C.TR[k];return `<div class="rs-dl">${rsLogo(o&&o.team,'')}<span>${o?(o.team?esc(o.team):o.names.map(esc).join(' · ')):''}</span><b>${v.n} games · ${v.s} sets</b>${rsWr(v.s,v.sw)}</div>`}).join('')}</div>
-      <div><div class="rs-t">MAPS</div>${Mp.slice(0,10).map(([m,v])=>`<div class="rs-dl"><span>${esc(m)}</span><b>${v.n} games</b>${rsWr(v.n,v.w)}</div>`).join('')}<button type="button" class="rs-btn" style="margin:10px 0 4px" data-rsstats="${esc(e.k)}">SEE ALL STATS IN TEAM STATS ›</button><p class="rs-hint">Map win rate counts games. Tags: ${e.tags.map((g,i)=>esc(e.names[i])+' '+esc(g)).join(' · ')}</p></div></div></td></tr>`};
+      <div><div class="rs-t">MAPS</div>${Mp.slice(0,10).map(([m,v])=>`<div class="rs-dl"><span>${esc(m)}</span><b>${v.s} sets · ${v.n} games</b>${rsWr(v.s,v.sw)}</div>`).join('')}<button type="button" class="rs-btn" style="margin:10px 0 4px" data-rsstats="${esc(e.k)}">SEE ALL STATS IN TEAM STATS ›</button><p class="rs-hint">Win rates count sets; a loose single game is not a set. Tags: ${e.tags.map((g,i)=>esc(e.names[i])+' '+esc(g)).join(' · ')}</p></div></div></td></tr>`};
   const rows=L.map(e=>`<tr class="rs-row${RS.open===e.k?' op':''}" data-rsopen="${esc(e.k)}"><td>${tagB[e.st]}</td><td>${teamC(e)}</td><td>${pls(e)}</td><td class="rs-num">${e.n}<small>${e.s} sets</small></td><td>${act(e)}<small class="rs-ld">since ${rsD(e.first)} · last ${rsD(e.last)}</small></td><td>${vsL(e)}</td><td>${rsWr(e.s,e.sw)}</td><td class="rs-bt"><button type="button" class="rs-btn" data-rsstats="${esc(e.k)}" title="Open Team Stats for this ${e.team?'team':'trio'}">SEE STATS</button>${e.team?'':`<button type="button" class="rs-btn ghost" data-rspicks="${esc(e.k)}" title="Add this roster as a team in the Picks sheet">+ PICKS</button>`}</td></tr>${RS.form===e.k?rsForm(e,C):RS.open===e.k?det(e):''}`).join('');
   const tbl=`<div class="rs-box"><div class="rs-h">TRIOS PLAYING TOGETHER <small>${esc(tyTxt)} · most games first · click a trio to see its rivals and maps</small></div>
     ${L.length?`<div class="tablewrap"><table class="rs-tb"><thead><tr><th></th><th>TEAM</th><th>PLAYERS</th><th>GAMES</th><th>ACTIVITY</th><th>VS</th><th>SET WR</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:'<p class="rs-hint" style="font-size:13px">No trio with these filters. Try a longer period, fewer minimum games or “Both”.</p>'}
