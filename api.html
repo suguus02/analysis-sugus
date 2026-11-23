@@ -4928,10 +4928,10 @@ const rsRegShort=r=>({'North America':'NA','South America':'SA','EMEA':'EMEA','A
 let _rsK='',_rsC=null;
 function rsCompute(){
   const F=(typeof FULL!=='undefined'&&FULL&&FULL.matches)?FULL:ds;if(!F||!F.matches||!F.matches.length)return null;
-  const key=F.matches.length+'|'+RS.days+'|'+RS.ty+'|'+(RSEG?Object.keys(RSEG).length:-1)+'|'+Object.keys(REGION).length;if(key===_rsK&&_rsC)return _rsC;
+  const key=F.matches.length+'|'+RS.days+'|'+RS.ty+'|'+(RSEG?Object.keys(RSEG).length:-1)+'|'+Object.keys(REGION).length+'|'+Object.keys(F.knownTags||{}).length+'|'+Object.keys(F.official||{}).length;if(key===_rsK&&_rsC)return _rsC;
   const L=F.matches,NM=F.names||{};let mx='';for(const m of L)if(m.d>mx)mx=m.d;
   const from=addDays(mx,-(RS.days-1)),dayList=[];for(let d=from;d<=mx;d=addDays(d,1))dayList.push(d);
-  const off=F.official||{},t2t={};for(const t in off)for(const g of off[t]||[])if(g)(t2t[String(g).toUpperCase()]||(t2t[String(g).toUpperCase()]=[])).push(t);
+  const off=Object.assign({},F.knownTags||{},F.official||{}),t2t={};for(const t in off)for(const g of off[t]||[])if(g)(t2t[String(g).toUpperCase()]||(t2t[String(g).toUpperCase()]=[])).push(t);   // every team of the TEAMS table of Picks, selected or not
   const seg=RSEG||{};
   const tk=a=>a&&a.length===3&&a.every(Boolean)?a.map(g=>String(g).toUpperCase()).sort().join(','):'';
   const pk=(A,B,d)=>(A<B?A+'~'+B:B+'~'+A)+'~'+d;
@@ -5038,9 +5038,9 @@ function rsVTinject(d){const V=rsVT();if(!d||!d.official||!V.length)return;let c
 function rsGoStats(name){scope='one';oneTeam=name;try{store.set('tvt:selT',JSON.stringify([name]))}catch(e){}
   const b=[...document.querySelectorAll('#sheetbar [data-sb]')].find(x=>x.textContent.trim()==='Team Stats');if(b)b.click();else{tab='stats';renderDetail()}}
 function rsSeeStats(k){const C=_rsC,e=C&&C.TR[k];if(!e||typeof FULL==='undefined'||!FULL)return;
-  if(e.team){rsGoStats(e.team);return}
+  if(e.team&&FULL.official[e.team]){rsGoStats(e.team);return}
   const short=n=>String(n).replace(/^\s*[^|│]{1,6}\s*[|│]\s*/,'').trim()||n;
-  const name=(e.guess?e.guess+' · ':'TRIO · ')+e.names.map(short).join(' / ');
+  const name=e.team||((e.guess?e.guess+' · ':'TRIO · ')+e.names.map(short).join(' / '));
   const V=rsVT().filter(v=>v.name!==name&&v.tags.join()!==e.tags.join());V.unshift({name,tags:e.tags.slice(),reg:e.reg});rsVTsave(V.slice(0,8));
   if(e.reg)REGION[name]=e.reg;
   if(!FULL.official[name]){FULL.official[name]=e.tags.slice();Engine.relabel(FULL,DB)}
