@@ -30,6 +30,8 @@ window.DATA_SHEET_ID=window.SEASONS[window.SEASON];window.SEASON_RO=window.SEASO
   function csv(t){var rows=[],r=[],f='',q=false;for(var i=0;i<t.length;i++){var c=t[i];if(q){if(c==='"'){if(t[i+1]==='"'){f+='"';i++}else q=false}else f+=c}else if(c==='"')q=true;else if(c===','){r.push(f);f=''}else if(c==='\n'||c==='\r'){if(c==='\r'&&t[i+1]==='\n')i++;r.push(f);rows.push(r);r=[];f=''}else f+=c}if(f!==''||r.length){r.push(f);rows.push(r)}return rows}
   // ---- rev149: accounts with username + password (checked by the Apps Script). Old list (USUARIOS) only while the new code is not in the sheet yet.
   var SK='tvt:sess',RK='tvt:role';
+  // rev242: the sheet is private, so every call to the Apps Script carries the session of whoever is signed in
+  (function(){var of=window.fetch;window.fetch=function(u,o){try{if(o&&String(o.method).toUpperCase()==='POST'&&/script\.google(usercontent)?\.com\/macros/.test(String(u&&u.url||u))&&typeof o.body==='string'&&o.body.charAt(0)==='{'){var b=JSON.parse(o.body);if(!b.session){var t=localStorage.getItem('tvt:sess');if(t){b.session=t;o=Object.assign({},o,{body:JSON.stringify(b)})}}}}catch(e){}return of.apply(this,arguments.length>1?[u,o]:arguments)}})();
   var gs=function(k){try{return localStorage.getItem(k)||''}catch(e){return ''}},ss=function(k,v){try{if(v)localStorage.setItem(k,v);else localStorage.removeItem(k)}catch(e){}};
   var oldList=function(){return fetch('https://docs.google.com/spreadsheets/d/'+window.API_SHEET_ID+'/gviz/tq?tqx=out:csv&sheet='+encodeURIComponent(TAB)+'&range=A1:A1000&headers=0',{cache:'no-store'})
     .then(function(r){return r.text()}).then(function(t){if(/^\s*</.test(t))throw 0;var R=csv(t);if(!R.length||!/^(usuarios?|users?|username)$/i.test(String(R[0][0]||'').trim()))throw 0;
@@ -100,9 +102,9 @@ window.DATA_SHEET_ID=window.SEASONS[window.SEASON];window.SEASON_RO=window.SEASO
     S.getItem=function(x){return g.call(this,k(x))};S.setItem=function(x,v){return s.call(this,k(x),v)};S.removeItem=function(x){return r.call(this,k(x))}}catch(e){}
   function csv(t){return t.split('\n').map(function(l){return l.replace(/^"|"$/g,'').split('","')})}
   function pinta(){
-    fetch('https://docs.google.com/spreadsheets/d/'+window.API_SHEET_ID+'/gviz/tq?tqx=out:csv&sheet=CONFIG&range=A1:B6&headers=0',{cache:'no-store'})
-    .then(function(r){return r.text()}).then(function(t){
-      var v={};csv(t).forEach(function(r){v[(r[0]||'').toUpperCase()]=r[1]||''});
+    (window.__gvizRows?window.__gvizRows('sheet=CONFIG&range=A1:B6&headers=0'):fetch('https://docs.google.com/spreadsheets/d/'+window.API_SHEET_ID+'/gviz/tq?tqx=out:csv&sheet=CONFIG&range=A1:B6&headers=0',{cache:'no-store'}).then(function(r){return r.text()}).then(csv))
+    .then(function(rows){
+      var v={};rows.forEach(function(r){v[(r[0]||'').toUpperCase()]=r[1]||''});
       var host=document.querySelector('header.hero .herotext')||document.body,b=document.getElementById('apiBadge');
       if(!b){b=document.createElement('div');b.id='apiBadge';host.appendChild(b)}
       var e=v['PROBLEMA']||'',esc=function(x){return String(x).replace(/</g,'&lt;')},tot=v['PARTIDAS EN TOTAL']||'0',up=v['ÚLTIMA ACTUALIZACIÓN']||'';
@@ -6335,7 +6337,8 @@ async function idbSet(k,v){if(window.SEASON_RO)k=k+'@'+window.SEASON;try{const d
 const hhmm=ts=>new Date(ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
 function sheetMsg(e){
   const c=e&&e.code;
-  if(c==='gviz_private')return 'Google Sheets did not give access. In the sheet: Share → General access → Anyone with the link → Viewer. ('+e.message+')';
+  if(c==='gviz_session')return 'Your session has ended. Reload the page and sign in again.';
+  if(c==='gviz_private')return 'Google Sheets did not give access. Sign in again, or check the Apps Script is updated. ('+e.message+')';
   if(c==='gviz_net')return 'Could not reach Google Sheets ('+e.message+'). Check your connection and that the sheet is shared as Anyone with the link → Viewer.';
   if(c==='no_mcp')return 'Live sync is not available in this view. The last saved data is in use.'+(e.why?' ['+e.why+']':'');
   if(c==='server_not_connected'||c==='selection_required')return 'Connect Google Sheets in claude.ai (Settings → Connectors) and press Refresh.';
@@ -6352,7 +6355,19 @@ function csvParse(t){const rows=[];let r=[],f='',q=false;for(let i=0;i<t.length;
   else if(c==='\n'||c==='\r'){if(c==='\r'&&t[i+1]==='\n')i++;r.push(f);rows.push(r);r=[];f=''}
   else f+=c}
   if(f!==''||r.length){r.push(f);rows.push(r)}return rows}
+let GVZ_APP=true;
+async function gvizApp(params){const u=(typeof DRAFT_API!=='undefined'&&DRAFT_API.url)||store.get('tvt:drurl')||'';let ses='';try{ses=localStorage.getItem('tvt:sess')||''}catch(e){}
+  if(!GVZ_APP||!u||!ses)return null;const P=new URLSearchParams(params);
+  const body={action:'read',token:(typeof DRAFT_API!=='undefined'&&DRAFT_API.token)||'',session:ses,id:SHEET.id,sheet:P.get('sheet')||'',range:P.get('range')||'',headers:P.get('headers')||'0',tq:P.get('tq')||''};
+  for(let k=0;k<3;k++){let j=null;try{const r=await fetch(u,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});j=await r.json()}catch(e){if(k<2){await new Promise(r=>setTimeout(r,1200*(k+1)));continue}throw {code:'gviz_net',message:String(e&&e.message||e)}}
+    if(j&&j.ok)return j.rows||[];
+    const er=j&&j.error||'';if(er==='unknown action'||er==='token'){GVZ_APP=false;return null}   // the Apps Script is not updated yet: use the public link
+    if(/busy/i.test(er)&&k<2){await new Promise(r=>setTimeout(r,1500));continue}
+    throw {code:er==='session'?'gviz_session':'gviz_app',message:er||'rejected'}}
+  return null}
+window.__gvizRows=params=>gviz(params);
 async function gviz(params){
+  const ap=await gvizApp(params);if(ap)return ap;
   const url='https://docs.google.com/spreadsheets/d/'+SHEET.id+'/gviz/tq?tqx=out:csv&'+params;
   let res;try{res=await fetch(url,{cache:'no-store'})}catch(e){throw {code:'gviz_net',message:String(e&&e.message||e)}}
   const txt=await res.text();
