@@ -2891,8 +2891,8 @@ function tsAgg(items){const its=(items||[]).filter(x=>!x.s&&x.win!==.5),{inc,top
   return {N,W,L:N-W,gw,gl,B,DU,OP,MP,TM,mp,fav:top(B)[0],PKS,PKO}}
 // rev228: our position among the teams of the same group (Tournament column of Picks: LEAGUE, CHALLENGERS…) in the same dates
 let _rkK=null,_rkV=null;
-function tsRank(team){try{if(scope!=='one'||(statMaps&&statMaps.length)||(typeof rivOn==='function'&&rivOn()))return null;const g=String((typeof TOUR!=='undefined'&&TOUR[team])||'').trim().toUpperCase();
-  const T=M.D.off.filter(t=>!g||String(TOUR[t]||'').trim().toUpperCase()===g),key=ds.matches.length+'|'+g+'|'+T.length+'|'+(flt2&&flt2.type);if(_rkK!==key){const R={};
+function tsRank(team){try{const _vt=rsVT().map(v=>v.name);if(_vt.includes(team))return null;if(scope!=='one'||(statMaps&&statMaps.length)||(typeof rivOn==='function'&&rivOn()))return null;const g=String((typeof TOUR!=='undefined'&&TOUR[team])||'').trim().toUpperCase();
+  const T=M.D.off.filter(t=>!_vt.includes(t)&&(!g||String(TOUR[t]||'').trim().toUpperCase()===g)),key=ds.matches.length+'|'+g+'|'+T.length+'|'+(flt2&&flt2.type);if(_rkK!==key){const R={};
     T.forEach(t=>R[t]={n:0,w:0,gw:0,gl:0});ds.matches.forEach(m=>{if(m.s||!(m.y===1||m.y===0))return;for(const [t,y,flip] of [[m.a,m.y,0],[m.b,1-m.y,1]]){const e=R[t];if(!e)continue;e.n++;e.w+=y;const q=String(m.q||'');for(const c of q){if(c==='W')flip?e.gl++:e.gw++;else if(c==='L')flip?e.gw++:e.gl++}}});
     _rkK=key;_rkV=R}const R=_rkV,ok=Object.keys(R).filter(t=>R[t].n>=8);if(!R[team]||!ok.includes(team)||ok.length<3)return null;
   const pos=f=>ok.slice().sort((a,b)=>f(R[b])-f(R[a])).indexOf(team)+1;return {n:ok.length,set:pos(e=>e.w/e.n),game:pos(e=>e.gw/Math.max(1,e.gw+e.gl)),grp:g}}catch(e){return null}}
@@ -4987,6 +4987,7 @@ function rsSbPaint(box){rsSegLoad();const C=rsCompute();const regs=C?rsVisible(C
   <div class="rs-t">SHOW</div>${seg('show',[['all','All'],['new','New'],['chg','Changes']])}
   <div class="rs-t">MIN. GAMES TOGETHER</div>${seg('min',[[3,'3'],[10,'10'],[25,'25']])}
   <div class="rs-t">TEAMS</div>${seg('grp',[['all','All'],['league','League'],['chall','Chall.'],['unk','Unknown']])}
+  ${(()=>{const V=rsVT();return V.length?`<div class="rs-t">TRIOS IN TEAM STATS</div><p class="rs-hint">${V.length} trio${V.length>1?'s':''} added as temporary teams (only on this browser): ${V.map(v=>esc(v.name)).join(', ')}.</p><button type="button" class="rs-btn" style="margin-top:8px" data-rsvtclear="1">REMOVE THEM</button>`:''})()}
   <p class="rs-hint">The period counts back from the last day with games. Region of a trio without team: its players (SEGUIMIENTO) or the rivals it plays.</p></div>`}
 function rsHTML(){rsSegLoad();const C=rsCompute();
   if(!C)return '<div class="nodata">NO DATA<small>The games are still loading.</small></div>';
@@ -5007,11 +5008,11 @@ function rsHTML(){rsSegLoad();const C=rsCompute();
   const teamC=e=>{const sub=e.team?(e.st==='chg'?`${e.newT.map(nmT).join(', ')} in${e.outT&&e.outT.length?' · '+e.outT.map(nmT).join(', ')+' out':''}`:esc(TOUR[e.team]||'Picks team')):(e.guess?esc(e.guess)+' tag on 2+ players':(e.st==='new'?'first seen '+rsD(e.first):'seen before'));
     return `<div class="rs-tm">${rsLogo(e.team,'')}<div>${e.team?esc(e.team):e.guess?esc(e.guess)+' <span class="rs-mut">(guess)</span>':'Unknown trio'}<small>${sub}</small></div></div>`};
   const det=e=>{const V=Object.entries(e.vs).sort((a,b)=>b[1].n-a[1].n),Mp=Object.entries(e.maps).sort((a,b)=>b[1].n-a[1].n);
-    return `<tr class="rs-det"><td colspan="8"><div class="rs-dg"><div><div class="rs-t">SCRIMMED VS</div>${V.slice(0,12).map(([k,v])=>{const o=C.TR[k];return `<div class="rs-dl">${rsLogo(o&&o.team,'')}<span>${o?(o.team?esc(o.team):o.names.map(esc).join(' · ')):''}</span><b>${v.n} games · ${v.s} sets</b>${rsWr(v.s,v.sw)}</div>`}).join('')}</div>
-      <div><div class="rs-t">MAPS</div>${Mp.slice(0,10).map(([m,v])=>`<div class="rs-dl"><span>${esc(m)}</span><b>${v.n} games</b>${rsWr(v.n,v.w)}</div>`).join('')}<p class="rs-hint">Map win rate counts games. Tags: ${e.tags.map((g,i)=>esc(e.names[i])+' '+esc(g)).join(' · ')}</p></div></div></td></tr>`};
-  const rows=L.map(e=>`<tr class="rs-row${RS.open===e.k?' op':''}" data-rsopen="${esc(e.k)}"><td>${tagB[e.st]}</td><td>${teamC(e)}</td><td>${pls(e)}</td><td class="rs-num">${e.n}<small>${e.s} sets</small></td><td class="rs-num">${rsD(e.last)}<small>since ${rsD(e.first)}</small></td><td>${act(e)}</td><td>${vsL(e)}</td><td>${rsWr(e.s,e.sw)}</td></tr>${RS.open===e.k?det(e):''}`).join('');
+    return `<tr class="rs-det"><td colspan="9"><div class="rs-dg"><div><div class="rs-t">SCRIMMED VS</div>${V.slice(0,12).map(([k,v])=>{const o=C.TR[k];return `<div class="rs-dl">${rsLogo(o&&o.team,'')}<span>${o?(o.team?esc(o.team):o.names.map(esc).join(' · ')):''}</span><b>${v.n} games · ${v.s} sets</b>${rsWr(v.s,v.sw)}</div>`}).join('')}</div>
+      <div><div class="rs-t">MAPS</div>${Mp.slice(0,10).map(([m,v])=>`<div class="rs-dl"><span>${esc(m)}</span><b>${v.n} games</b>${rsWr(v.n,v.w)}</div>`).join('')}<button type="button" class="rs-btn" style="margin:10px 0 4px" data-rsstats="${esc(e.k)}">SEE ALL STATS IN TEAM STATS ›</button><p class="rs-hint">Map win rate counts games. Tags: ${e.tags.map((g,i)=>esc(e.names[i])+' '+esc(g)).join(' · ')}</p></div></div></td></tr>`};
+  const rows=L.map(e=>`<tr class="rs-row${RS.open===e.k?' op':''}" data-rsopen="${esc(e.k)}"><td>${tagB[e.st]}</td><td>${teamC(e)}</td><td>${pls(e)}</td><td class="rs-num">${e.n}<small>${e.s} sets</small></td><td class="rs-num">${rsD(e.last)}<small>since ${rsD(e.first)}</small></td><td>${act(e)}</td><td>${vsL(e)}</td><td>${rsWr(e.s,e.sw)}</td><td><button type="button" class="rs-btn" data-rsstats="${esc(e.k)}" title="Open Team Stats for this ${e.team?'team':'trio'}">SEE STATS</button></td></tr>${RS.open===e.k?det(e):''}`).join('');
   const tbl=`<div class="rs-box"><div class="rs-h">TRIOS PLAYING TOGETHER <small>${esc(tyTxt)} · most games first · click a trio to see its rivals and maps</small></div>
-    ${L.length?`<div class="tablewrap"><table class="rs-tb"><thead><tr><th></th><th>TEAM</th><th>PLAYERS</th><th>GAMES</th><th>LAST DAY</th><th>ACTIVITY · ${RS.days} DAYS</th><th>PLAYED VS</th><th>SET WR</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<p class="rs-hint" style="font-size:13px">No trio with these filters. Try a longer period, fewer minimum games or “Both”.</p>'}
+    ${L.length?`<div class="tablewrap"><table class="rs-tb"><thead><tr><th></th><th>TEAM</th><th>PLAYERS</th><th>GAMES</th><th>LAST DAY</th><th>ACTIVITY · ${RS.days} DAYS</th><th>PLAYED VS</th><th>SET WR</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:'<p class="rs-hint" style="font-size:13px">No trio with these filters. Try a longer period, fewer minimum games or “Both”.</p>'}
     <div class="rs-leg"><span><i></i>tracked player (Picks or SEGUIMIENTO)</span><span><i class="no"></i>not tracked (seen as teammate or rival)</span><span><b style="color:#facc15">NEW</b> = new player in a Picks team</span><span>Activity: one square per day · lighter = 10+ games</span></div></div>`;
   const ch=all.filter(e=>e.st!=='same').sort((a,b)=>a.first<b.first?1:a.first>b.first?-1:b.n-a.n).slice(0,14).map(e=>`<div class="rs-ch"><span class="d">${rsD(e.first)}</span><div><b>${e.team?esc(e.team):e.names.map(esc).join(' · ')}</b> · ${e.st==='chg'?`${(e.outT||[]).map(g=>`<span class="o">− ${nmT(g)}</span>`).join(' ')} ${e.newT.map(g=>`<span class="n">+ ${nmT(g)}</span>`).join(' ')} · ${e.n} games together`:`<span class="n">new trio</span> · ${e.n} games${e.guess?' · '+esc(e.guess)+' tag':''}`}</div></div>`).join('');
   const chB=`<div class="rs-box"><div class="rs-h">ROSTER CHANGES <small>new trios and new players in Picks teams · newest first</small></div>${ch||'<p class="rs-hint">No changes in this period.</p>'}</div>`;
@@ -5024,6 +5025,29 @@ document.addEventListener('click',e=>{const t=e.target;if(!t||!t.closest)return;
   const cp=t.closest('[data-rscopy]');if(cp){const txt=cp.dataset.rscopy;const done=()=>{cp.textContent='COPIED ✓';setTimeout(()=>{cp.textContent='+ SEGUIMIENTO'},1800)};
     try{navigator.clipboard.writeText(txt).then(done,()=>{prompt('Copy this:',txt)})}catch(er){prompt('Copy this:',txt)}return}
   const r=t.closest('[data-rsopen]');if(r&&typeof tab!=='undefined'&&tab==='roster'){RS.open=RS.open===r.dataset.rsopen?'':r.dataset.rsopen;renderDetail()}});
+
+// rev232: "See stats" for a trio. A trio that is not a Picks team becomes a temporary team (only on this browser) so Team Stats works for it.
+function rsVT(){try{return JSON.parse(localStorage.getItem('tvt:vteams')||'[]')||[]}catch(e){return []}}
+function rsVTsave(V){try{localStorage.setItem('tvt:vteams',JSON.stringify(V))}catch(e){}}
+function rsVTinject(d){const V=rsVT();if(!d||!d.official||!V.length)return;let ch=false;
+  for(const v of V){if(v.reg)REGION[v.name]=v.reg;if(!d.official[v.name]){d.official[v.name]=v.tags.slice();ch=true}}
+  if(ch)Engine.relabel(d,DB)}
+{const _b=build;build=function(d,c){try{rsVTinject(d)}catch(e){}return _b(d,c)}}
+function rsGoStats(name){scope='one';oneTeam=name;try{store.set('tvt:selT',JSON.stringify([name]))}catch(e){}
+  const b=[...document.querySelectorAll('#sheetbar [data-sb]')].find(x=>x.textContent.trim()==='Team Stats');if(b)b.click();else{tab='stats';renderDetail()}}
+function rsSeeStats(k){const C=_rsC,e=C&&C.TR[k];if(!e||typeof FULL==='undefined'||!FULL)return;
+  if(e.team){rsGoStats(e.team);return}
+  const short=n=>String(n).replace(/^\s*[^|│]{1,6}\s*[|│]\s*/,'').trim()||n;
+  const name=(e.guess?e.guess+' · ':'TRIO · ')+e.names.map(short).join(' / ');
+  const V=rsVT().filter(v=>v.name!==name&&v.tags.join()!==e.tags.join());V.unshift({name,tags:e.tags.slice(),reg:e.reg});rsVTsave(V.slice(0,8));
+  if(e.reg)REGION[name]=e.reg;
+  if(!FULL.official[name]){FULL.official[name]=e.tags.slice();Engine.relabel(FULL,DB)}
+  rsGoStats(name);build(FULL,custom)}
+function rsVTclear(){const V=rsVT();rsVTsave([]);if(typeof FULL!=='undefined'&&FULL&&FULL.official){let ch=false;for(const v of V)if(FULL.official[v.name]){delete FULL.official[v.name];ch=true}if(ch){Engine.relabel(FULL,DB);build(FULL,custom)}}
+  try{ppSbPaint()}catch(e){}}
+document.addEventListener('click',e=>{const t=e.target;if(!t||!t.closest)return;
+  const s=t.closest('[data-rsstats]');if(s){e.stopImmediatePropagation();rsSeeStats(s.dataset.rsstats);return}
+  if(t.closest('[data-rsvtclear]')){e.stopImmediatePropagation();rsVTclear()}},true);
 
 function prepHTML(){
   if(PP.st===0)ppLoad();
