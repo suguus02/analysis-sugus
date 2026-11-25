@@ -1284,7 +1284,7 @@ tr.gt-clk{cursor:pointer}tr.gt-clk:hover td{background:rgba(255,255,255,.06)}
 .mx-tr:hover td{background:#17161f}.mx-tr.on td{background:#1a1626;border-color:rgba(168,85,247,.55)}
 .mx-time{font-family:var(--mono,monospace);color:#b4b1c7!important;white-space:nowrap}
 .mx-ta,.mx-tb{white-space:nowrap}.mx-ta>*,.mx-tb>*{vertical-align:middle}.mx-ta img,.mx-tb img{margin-right:8px}
-.mx-pp{color:#cfcce0;font-size:12px}.mxd-tag{margin-left:8px;padding:1px 5px;border:1px solid #3a3850;color:#8f8ba8;font-size:9.5px;font-weight:800;letter-spacing:.08em}.mxd tr.mxd-trio{cursor:default}.mxd th.mxd-s{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}.mxd th.mxd-s:hover,.mxd th.mxd-s.on{color:#c4b5fd}
+.mx-pp{color:#cfcce0;font-size:12px}.mxd-tag{margin-left:8px;padding:1px 5px;border:1px solid #3a3850;color:#8f8ba8;font-size:9.5px;font-weight:800;letter-spacing:.08em}.mxd th.mxd-s{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}.mxd th.mxd-s:hover,.mxd th.mxd-s.on{color:#c4b5fd}
 .mx-sc{font:700 16px var(--mono,monospace);white-space:nowrap}.mx-sc b{color:#a8a4c8}.mx-sc .w,.mx-g.w{color:#4ade80}.mx-sc .l{color:#f87171}
 .mx-mm{width:20px;height:20px;object-fit:contain;margin-right:3px;vertical-align:middle}
 .mx-cc,.mx-ch{color:#8f8ba8}
@@ -3556,7 +3556,7 @@ function scrimHTML(r,team){
     <table class="rank tiny"><thead><tr><th></th><th></th><th>Map</th><th class="num">Sets</th><th class="num">Wins</th><th class="num">WR</th></tr></thead><tbody>${mrows}</tbody></table></div>
     <div class="sptwrap"><div class="teamblk"><div class="sptc"><span class="tbox2">${esc(team)}</span></div><div class="splg">${plyTbl(sets,0)}</div></div><div class="teamblk"><div class="sptc"><span class="tbox2">${r.named?esc(nm):r.players.map(esc).join(' · ')}</span></div><div class="splg">${plyTbl(sets,1)}</div></div></div></div>`;
 }
-let msTeam=null,_msK='',_msV=null;
+let msTeam=null,msTeamLbl='',_msK='',_msV=null;
 // every date with sets of listed teams: date -> team -> {n sets, rivals}
 // rev248: Match Selector options: region, and Picks teams only or every trio
 const MXS=(()=>{let o={};try{o=JSON.parse(store.get('tvt:mxs')||'{}')||{}}catch(e){}return Object.assign({reg:'*',all:false},o)})();
@@ -3785,12 +3785,12 @@ function mxModal(e){if(!e)return;const L=e.sets,nm=g=>sheetName(g,(ds.names||{})
   ov.classList.add('on')}
 // all matches (sets vs the same rival) on a day; listed team on the left (the chosen team when there is one)
 const MX_GAP=90;
-function mxMatches(d,team){const T=new Set(allTeams()),G={},nm=g=>sheetName(g,(ds.names||{})[g])||g;
+function mxMatches(d,team){const T=new Set(allTeams()),G={},nm=g=>sheetName(g,(ds.names||{})[g])||g,isTr=!!team&&String(team).startsWith('trio:');
   for(const m of ds.matches){if(m.d!==d)continue;const ia=T.has(m.a),ib=T.has(m.b);if(!ia&&!ib&&!MXS.all)continue;// rev189: single games too
-    if(team&&m.a!==team&&m.b!==team)continue;
+    if(team&&(isTr?mxTrioKey(m.ta)!==team&&mxTrioKey(m.tb)!==team:m.a!==team&&m.b!==team))continue;
     const ka=ia?m.a:mxTrioKey(m.ta),kb=ib?m.b:mxTrioKey(m.tb);
     if(MXS.reg!=='*'){const ra=mxRegOf(ia?m.a:'',ia?null:m.ta),rb=mxRegOf(ib?m.b:'',ib?null:m.tb);if(ra!==MXS.reg&&rb!==MXS.reg)continue}
-    let L=team?m.a===team:ia&&ib?m.a<=m.b:ia?true:ib?false:ka<=kb;const A=L?m.a:m.b,B=L?m.b:m.a,al=T.has(A),bl=T.has(B);
+    let L=team?(isTr?mxTrioKey(m.ta)===team:m.a===team):ia&&ib?m.a<=m.b:ia?true:ib?false:ka<=kb;const A=L?m.a:m.b,B=L?m.b:m.a,al=T.has(A),bl=T.has(B);
     const k=(L?ka:kb)+'|'+(L?kb:ka)+'|'+(m.ty==='tournament'?'T':'F'),e=G[k]||(G[k]={a:al?A:'',ap:new Set(),b:bl?B:'',bp:new Set(),at:((L?m.ta:m.tb)||[]).map(tagCanon),bt:((L?m.tb:m.ta)||[]).map(tagCanon),sets:[],w:0,l:0,tour:m.ty==='tournament'});
     e.sets.push({m,L});const y=L?m.y:1-m.y;if(!m.s){if(y===1)e.w++;else if(y===0)e.l++}
     if(!al)for(const g of ((L?m.ta:m.tb)||[]))if(g)e.ap.add(nm(g));
@@ -3820,7 +3820,7 @@ function mxDayTable(d,team){let AL=[];try{AL=mxMatches(d,'')}catch(e){return ''}
   const nT=R.filter(e=>e.t).length,nR=R.length-nT,cnt=plural(nT,'team')+(nR?' · '+plural(nR,'trio'):'');
   if(!open)return `<div class="mxd-wrap"><button type="button" class="mxd-tg" data-mxdtg>▸ Win rate on ${fmtDate(d)} · ${cnt}</button></div>`;
   return `<div class="mxd-wrap"><button type="button" class="mxd-tg on" data-mxdtg>▾ Win rate on ${fmtDate(d)} · ${cnt}</button><table class="mxd"><thead><tr><th></th><th>Team</th>${sh('sets','Sets')}<th class="num">W–L</th>${sh('wr','Win rate')}<th class="num">Tournament</th><th>Played against</th></tr></thead><tbody>${R.map((e,i)=>{const n=e.w+e.l,tn=e.tw+e.tl;
-    if(!e.t)return `<tr class="mxd-trio"><td class="rk">${i+1}</td><td><span class="mxd-t"><span class="mx-pp">${esc(e.pp.join(' · ')||'Trio')}</span><small class="mxd-tag">TRIO</small></span></td><td class="num">${n}</td><td class="num">${e.w}–${e.l}</td><td class="num"><b style="color:${cl(e.w,n)}">${pc(e.w,n)}</b></td><td class="num">${tn?`${e.tw}–${e.tl}`:'<small>–</small>'}</td><td class="mxd-r">${[...e.riv].map(r=>off.includes(r)?logo(r,'l20'):'').join('')}${e.tr?`<small>${e.riv.size?'+ ':''}${plural(e.tr,'trio')}</small>`:''}${!e.riv.size&&!e.tr?'<small>other rivals</small>':''}</td></tr>`;
+    if(!e.t)return `<tr class="mxd-trio${e.k===team?' on':''}" data-mt="${e.k===team?'':esc(e.k)}" data-mtl="${esc(e.pp.join(' · ')||'Trio')}" title="${e.k===team?'Show all the matches again':'Show only the matches of this trio'}"><td class="rk">${i+1}</td><td><span class="mxd-t"><span class="mx-pp">${esc(e.pp.join(' · ')||'Trio')}</span><small class="mxd-tag">TRIO</small></span></td><td class="num">${n}</td><td class="num">${e.w}–${e.l}</td><td class="num"><b style="color:${cl(e.w,n)}">${pc(e.w,n)}</b></td><td class="num">${tn?`${e.tw}–${e.tl}`:'<small>–</small>'}</td><td class="mxd-r">${[...e.riv].map(r=>off.includes(r)?logo(r,'l20'):'').join('')}${e.tr?`<small>${e.riv.size?'+ ':''}${plural(e.tr,'trio')}</small>`:''}${!e.riv.size&&!e.tr?'<small>other rivals</small>':''}</td></tr>`;
     return `<tr class="${e.t===team?'on':''}" data-mt="${e.t===team?'':esc(e.t)}" title="${e.t===team?'Show all the matches again':'Show only the matches of '+esc(e.t)}"><td class="rk">${i+1}</td><td><span class="mxd-t">${logo(e.t,'l28')}<b>${esc(e.t)}</b></span></td><td class="num">${n}</td><td class="num">${e.w}–${e.l}</td><td class="num"><b style="color:${cl(e.w,n)}">${pc(e.w,n)}</b></td><td class="num">${tn?`${e.tw}–${e.tl}`:'<small>–</small>'}</td><td class="mxd-r">${[...e.riv].map(r=>off.includes(r)?logo(r,'l20'):'').join('')}${e.tr?`<small>${e.riv.size?'+ ':''}${plural(e.tr,'trio')}</small>`:''}${!e.riv.size&&!e.tr?'<small>other rivals</small>':''}</td></tr>`}).join('')}</tbody></table></div>`}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-mxdsort]');if(!b)return;store.set('tvt:mxdsort',b.dataset.mxdsort);renderDetail()});
 document.addEventListener('click',e=>{if(!e.target.closest||!e.target.closest('[data-mxdtg]'))return;store.set('tvt:mxd',store.get('tvt:mxd')==='0'?'1':'0');renderDetail()});
@@ -3829,8 +3829,9 @@ function datesTab(){
   if(!dates.length)return '<p class="msg" style="margin-top:12px">There are no sets in the data for this period.</p>';
   if(!dateSel||!IX[dateSel]){dateSel=dates[0].d;calMonth=dateSel.slice(0,7);mxOpen=0}
   const dayT=Object.entries(IX[dateSel]).map(([n,e])=>({n:n,sets:e.n,riv:Object.keys(e.riv)})).sort((a,b)=>b.sets-a.sets||(a.n<b.n?-1:1));
-  if(msTeam&&!IX[dateSel][msTeam])msTeam='';
-  const team=msTeam||'',played=new Set(dates.map(x=>x.d)),L=mxMatches(dateSel,team);MXL=L;
+  // rev253: a trio of the day table can be the filter too (msTeam = 'trio:tag,tag,tag')
+  if(msTeam&&(String(msTeam).startsWith('trio:')?!mxMatches(dateSel,msTeam).length:!IX[dateSel][msTeam]))msTeam='';
+  const team=msTeam||'',isTr=team.startsWith('trio:'),tName=isTr?(msTeamLbl||'Trio'):team,played=new Set(dates.map(x=>x.d)),L=mxMatches(dateSel,team);MXL=L;
   const tcards=`<button type="button" class="mtc${!team?' on':''}" data-mt=""><span class="mtn"><b>All teams</b></span><small>${plural(L.length&&!team?L.length:mxMatches(dateSel,'').length,'match')} this day</small></button>`+dayT.map(e=>{const rv=e.riv.filter(Boolean),nrv=e.riv.length-rv.length;return `<button type="button" class="mtc${e.n===team?' on':''}" data-mt="${esc(e.n)}" style="--tc:${tcol(e.n)}"><span class="mtn">${logo(e.n,'l28')}<b>${esc(e.n)}</b>${tdot(e.n)}</span><small>${plural(e.sets,'set')}${rv.length||nrv?' · vs '+esc(rv.concat(nrv?['other']:[]).join(', ')):''}</small></button>`}).join('');
   const tn=e=>e.b?`${logo(e.b,'l28')}<b>${esc(e.b)}</b>`:`<span class="mx-pp">${esc([...e.bp].slice(0,3).join(' · ')||'Rival')}</span>`;
   const rows=L.map((e,i)=>{const op=false;
@@ -3839,12 +3840,12 @@ function datesTab(){
       <td class="mx-sc"><b class="${e.w>e.l?'w':e.w<e.l?'l':''}">${e.w}</b>–<b class="${e.l>e.w?'w':e.l<e.w?'l':''}">${e.l}</b></td><td class="mx-tb">${tn(e)}${mxStBtn(i,'b')}</td><td class="num">${e.sets.filter(x=>!x.m.s).length}</td><td class="mx-mds">${modes}</td><td class="mx-cc">↗</td></tr>
 `}).join('');
   return `<div class="mpickrow msrow" style="margin-top:14px"><div class="dbox msdate"><button type="button" class="dbtn${calOpen?' open':''}" data-calopen="1" aria-expanded="${calOpen}"><span class="dl">Date</span><b>${fmtDate(dateSel)}</b><small>${plural(dayT.length,'team')} played</small><span class="dcar">▾</span></button>${calOpen?`<div class="calpop">${calendarHTML(played,dates)}</div>`:''}</div>
-    <div class="dbox msteam"><button type="button" class="dbtn${msPop==='team'?' open':''}" data-mspop="team" aria-expanded="${msPop==='team'}"><span class="dl">Team</span><b class="msb">${team?logo(team,'l28')+`<span>${esc(team)}</span>`:'<span>All teams</span>'}</b><small>optional filter · click to change</small><span class="dcar">▾</span></button>${msPop==='team'?`<div class="calpop mspop"><div class="lbl">Teams that played on ${fmtDate(dateSel)} · ${dayT.length}</div><div class="mtcs">${tcards}</div></div>`:''}</div></div>
+    <div class="dbox msteam"><button type="button" class="dbtn${msPop==='team'?' open':''}" data-mspop="team" aria-expanded="${msPop==='team'}"><span class="dl">Team</span><b class="msb">${isTr?`<span>${esc(tName)}</span>`:team?logo(team,'l28')+`<span>${esc(team)}</span>`:'<span>All teams</span>'}</b><small>optional filter · click to change</small><span class="dcar">▾</span></button>${msPop==='team'?`<div class="calpop mspop"><div class="lbl">Teams that played on ${fmtDate(dateSel)} · ${dayT.length}</div><div class="mtcs">${tcards}</div></div>`:''}</div></div>
     ${mxOptsHTML()}${mxDayTable(dateSel,team)}
-    <div class="mx-wrap">${L.length?`<div class="lbl">${team?esc(team)+' · ':''}Matches on ${fmtDate(dateSel)} · ${L.length}</div>
+    <div class="mx-wrap">${L.length?`<div class="lbl">${team?esc(tName)+' · ':''}Matches on ${fmtDate(dateSel)} · ${L.length}</div>
     <table class="mx-t"><thead><tr><th>Time</th><th>Team</th><th>Score</th><th>Rival</th><th class="num">Sets</th><th>Modes</th><th></th></tr></thead><tbody>${rows}</tbody></table>
     <p class="msg" style="font-size:11.5px;margin-top:8px">Click a match to open it · click a set to see the players and the map · a set with only one game found is shown (marked “1 game only”) but never counted</p>`:'<p class="msg">No matches this day.</p>'}</div>
-    ${team?`<div class="mtop" style="margin-top:18px">${recentHTML(team,null)}</div>`:''}`;
+    ${team&&!isTr?`<div class="mtop" style="margin-top:18px">${recentHTML(team,null)}</div>`:''}`;
 }
 document.addEventListener('click',e=>{const t=e.target;if(!t.closest)return;
   const s=t.closest('[data-mxs]');if(s){const it=s.parentNode,on=it.classList.contains('open'),box=it.closest('.mx-list');if(box)box.querySelectorAll('.mx-s.open').forEach(x=>x.classList.remove('open'));if(!on)it.classList.add('open');return}
@@ -6467,7 +6468,7 @@ $('detailpanel').addEventListener('click',e=>{
   if(e.target.closest('[data-drshowpk]')){DR.showPk=!DR.showPk;renderDetail();return}
   const dlc=e.target.closest('[data-drlc]');if(dlc){DR.lCoin=dlc.dataset.drlc;renderDetail();return}
   const dgc=e.target.closest('[data-drgc]');if(dgc){DR.gComb=dgc.dataset.drgc;renderDetail();return}
-  const mtc=e.target.closest('[data-mt]');if(mtc){msTeam=mtc.dataset.mt;rivalSel=0;mxOpen=0;renderDetail();return}
+  const mtc=e.target.closest('[data-mt]');if(mtc){msTeam=mtc.dataset.mt;msTeamLbl=mtc.dataset.mtl||'';rivalSel=0;mxOpen=0;renderDetail();return}
   const dt=e.target.closest('[data-dt]');if(dt){dateTeam=dt.dataset.dt;dateSel=null;rivalSel=0;calMonth=null;renderDetail();return}
   const ri=e.target.closest('[data-ri]');if(ri){rivalSel=+ri.dataset.ri;renderDetail();const t=document.querySelector('.mviewrow');if(t)t.scrollIntoView({behavior:'smooth',block:'start'});return}
   const dy=e.target.closest('[data-day]');if(dy){dateSel=dy.dataset.day;rivalSel=+(dy.dataset.lri||0);calMonth=dateSel.slice(0,7);calOpen=false;const fromList=!!dy.closest('.recent');renderDetail();if(fromList){const t=document.querySelector('.mpickrow');if(t)t.scrollIntoView({behavior:'smooth',block:'start'})}return}
