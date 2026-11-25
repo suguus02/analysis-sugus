@@ -3561,9 +3561,12 @@ let msTeam=null,msTeamLbl='',_msK='',_msV=null;
 // every date with sets of listed teams: date -> team -> {n sets, rivals}
 // rev248: Match Selector options: region, and Picks teams only or every trio
 const MXS=(()=>{let o={};try{o=JSON.parse(store.get('tvt:mxs')||'{}')||{}}catch(e){}return Object.assign({reg:'*',all:false},o)})();
+// rev256: every team of the TEAMS table of Picks with its tags, also teams with only one player (a tryout like ZOULAN), so their players count as tracked
+function pkTagMap(F){const o=Object.assign({},(F&&F.knownTags)||{},(F&&F.official)||{}),pp=(F&&F.pickPlayers)||(FULL&&FULL.pickPlayers)||{};
+  for(const t in pp)if(!o[t]){const g=[].concat(...(pp[t]||[]).map(p=>p.tags||[]));if(g.length)o[t]=g}return o}
 function mxTrioKey(tags){return 'trio:'+(tags||[]).map(g=>tagCanon(g)).sort().join(',')}
 function mxRegOf(team,tags){if(team)return REGION[team]||(typeof RSTREG!=='undefined'&&RSTREG[String(team).toUpperCase()])||'';
-  const off=Object.assign({},(FULL&&FULL.knownTags)||{},(FULL&&FULL.official)||{}),seg=(typeof RSEG!=='undefined'&&RSEG)||{},v={};
+  const off=pkTagMap(FULL),seg=(typeof RSEG!=='undefined'&&RSEG)||{},v={};
   for(const g0 of tags||[]){const g=String(g0||'').toUpperCase();if(seg[g]&&seg[g].reg)v[seg[g].reg]=(v[seg[g].reg]||0)+2;for(const t in off)if((off[t]||[]).some(x=>String(x).toUpperCase()===g)){const r=REGION[t]||(typeof RSTREG!=='undefined'&&RSTREG[String(t).toUpperCase()]);if(r)v[r]=(v[r]||0)+1}}
   return Object.entries(v).sort((a,b)=>b[1]-a[1]).map(x=>x[0])[0]||''}
 const mxStBtn=(i,s)=>`<button type="button" class="mx-st" data-mxst="${i}|${s}" title="Open Team Stats for this team or trio">SEE STATS</button>`;
@@ -5142,10 +5145,10 @@ const rsRegShort=r=>({'North America':'NA','South America':'SA','EMEA':'EMEA','A
 let _rsK='',_rsC=null;
 function rsCompute(){
   const F=(typeof FULL!=='undefined'&&FULL&&FULL.matches)?FULL:ds;if(!F||!F.matches||!F.matches.length)return null;
-  const key=F.matches.length+'|'+RS.days+'|'+RS.ty+'|'+(RSEG?Object.keys(RSEG).length:-1)+'|'+Object.keys(REGION).length+'|'+Object.keys(F.knownTags||{}).length+'|'+Object.keys(RSTREG).length+'|'+Object.keys(F.official||{}).length;if(key===_rsK&&_rsC)return _rsC;
+  const key=F.matches.length+'|'+RS.days+'|'+RS.ty+'|'+(RSEG?Object.keys(RSEG).length:-1)+'|'+Object.keys(REGION).length+'|'+Object.keys(F.knownTags||{}).length+'|'+Object.keys(RSTREG).length+'|'+Object.keys(F.official||{}).length+'|'+Object.keys((FULL&&FULL.pickPlayers)||{}).length;if(key===_rsK&&_rsC)return _rsC;
   const L=F.matches,NM=F.names||{};let mx='';for(const m of L)if(m.d>mx)mx=m.d;
   const from=addDays(mx,-(RS.days-1)),dayList=[];for(let d=from;d<=mx;d=addDays(d,1))dayList.push(d);
-  const off=Object.assign({},F.knownTags||{},F.official||{}),t2t={};for(const t in off)for(const g of off[t]||[])if(g)(t2t[String(g).toUpperCase()]||(t2t[String(g).toUpperCase()]=[])).push(t);   // every team of the TEAMS table of Picks, selected or not
+  const off=pkTagMap(F),t2t={};for(const t in off)for(const g of off[t]||[])if(g)(t2t[String(g).toUpperCase()]||(t2t[String(g).toUpperCase()]=[])).push(t);   // every team of the TEAMS table of Picks, selected or not
   const seg=RSEG||{};
   const tk=a=>a&&a.length===3&&a.every(Boolean)?a.map(g=>tagCanon(g)).sort().join(','):'';
   const pk=(A,B,d)=>(A<B?A+'~'+B:B+'~'+A)+'~'+d;
@@ -5370,7 +5373,7 @@ let _plK='',_plC=null;
 function plCompute(){
   const F=ds;if(!F||!F.matches)return null;const key=F.matches.length+'|'+(F.matches[0]&&F.matches[0].d)+'|'+(F.matches.length&&F.matches[F.matches.length-1].d);if(key===_plK&&_plC)return _plC;
   const NM=(FULL&&FULL.names)||F.names||{},P={},pair={};
-  const off=Object.assign({},(FULL&&FULL.knownTags)||{},(FULL&&FULL.official)||{}),t2t={};for(const t in off)for(const g of off[t]||[])if(g)t2t[String(g).toUpperCase()]=t;
+  const off=pkTagMap(FULL),t2t={};for(const t in off)for(const g of off[t]||[])if(g)t2t[String(g).toUpperCase()]=t;
   const get=g=>P[g]||(P[g]={g,n:0,w:0,br:{},cl:{},st:{k:0,d:0,dm:0,h:0,tk:0,n:0},mates:{},opR:{}});
   for(const m of F.matches){if(m.s||m.sh||!(m.y===1||m.y===0))continue;const S=m.gs?setStatsC(m):null;
     for(const [T,B,y,OT,OL] of [[m.ta,m.ba,m.y,m.tb,m.b],[m.tb,m.bb,1-m.y,m.ta,m.a]]){if(!T||T.length!==3||!B)continue;
