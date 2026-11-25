@@ -1284,7 +1284,7 @@ tr.gt-clk{cursor:pointer}tr.gt-clk:hover td{background:rgba(255,255,255,.06)}
 .mx-tr:hover td{background:#17161f}.mx-tr.on td{background:#1a1626;border-color:rgba(168,85,247,.55)}
 .mx-time{font-family:var(--mono,monospace);color:#b4b1c7!important;white-space:nowrap}
 .mx-ta,.mx-tb{white-space:nowrap}.mx-ta>*,.mx-tb>*{vertical-align:middle}.mx-ta img,.mx-tb img{margin-right:8px}
-.mx-pp{color:#cfcce0;font-size:12px}.mxd-tag{margin-left:8px;padding:1px 5px;border:1px solid #3a3850;color:#8f8ba8;font-size:9.5px;font-weight:800;letter-spacing:.08em}.mxd th.mxd-s{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}.mxd th.mxd-s:hover,.mxd th.mxd-s.on{color:#c4b5fd}
+.mx-pp{color:#cfcce0;font-size:12px}.grpq{display:block;width:100%;box-sizing:border-box;margin:4px 0 8px;padding:7px 10px;background:#0d0c12;border:1px solid #3a3850;color:#e5e3f0;font:inherit;font-size:12.5px}.grpq:focus{outline:none;border-color:#a855f7}.uxchip[hidden]{display:none!important}.mxd-tag{margin-left:8px;padding:1px 5px;border:1px solid #3a3850;color:#8f8ba8;font-size:9.5px;font-weight:800;letter-spacing:.08em}.mxd th.mxd-s{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}.mxd th.mxd-s:hover,.mxd th.mxd-s.on{color:#c4b5fd}
 .mx-sc{font:700 16px var(--mono,monospace);white-space:nowrap}.mx-sc b{color:#a8a4c8}.mx-sc .w,.mx-g.w{color:#4ade80}.mx-sc .l{color:#f87171}
 .mx-mm{width:20px;height:20px;object-fit:contain;margin-right:3px;vertical-align:middle}
 .mx-cc,.mx-ch{color:#8f8ba8}
@@ -3839,7 +3839,9 @@ function datesTab(){
     return `<tr class="mx-tr${op?' on':''}${e.tour?' tour':''}" data-mxo="${i}"><td class="mx-time">${mxHM(e.t0)}–${mxHM(e.t1)}${e.tour?'<em class="mx-tt">Tournament</em>':''}</td><td class="mx-ta">${e.a?`${logo(e.a,'l28')}<b>${esc(e.a)}</b>`:`<span class="mx-pp">${esc([...(e.ap||[])].slice(0,3).join(' · ')||'Rival')}</span>`}${mxStBtn(i,'a')}</td>
       <td class="mx-sc"><b class="${e.w>e.l?'w':e.w<e.l?'l':''}">${e.w}</b>–<b class="${e.l>e.w?'w':e.l<e.w?'l':''}">${e.l}</b></td><td class="mx-tb">${tn(e)}${mxStBtn(i,'b')}</td><td class="num">${e.sets.filter(x=>!x.m.s).length}</td><td class="mx-mds">${modes}</td><td class="mx-cc">↗</td></tr>
 `}).join('');
-  return `<div class="mpickrow msrow" style="margin-top:14px"><div class="dbox msdate"><button type="button" class="dbtn${calOpen?' open':''}" data-calopen="1" aria-expanded="${calOpen}"><span class="dl">Date</span><b>${fmtDate(dateSel)}</b><small>${plural(dayT.length,'team')} played</small><span class="dcar">▾</span></button>${calOpen?`<div class="calpop">${calendarHTML(played,dates)}</div>`:''}</div>
+  const di=dates.findIndex(x=>x.d===dateSel),dOld=dates[di+1],dNew=dates[di-1];
+  const arr=(x,c,t)=>`<button type="button" class="mxday" data-mxday="${x?x.d:''}"${x?'':' disabled'} title="${x?t+' · '+fmtDate(x.d):'No more days with matches'}">${c}</button>`;
+  return `<div class="mpickrow msrow" style="margin-top:14px">${arr(dOld,'‹','Previous day with matches')}<div class="dbox msdate"><button type="button" class="dbtn${calOpen?' open':''}" data-calopen="1" aria-expanded="${calOpen}"><span class="dl">Date</span><b>${fmtDate(dateSel)}</b><small>${plural(dayT.length,'team')} played</small><span class="dcar">▾</span></button>${calOpen?`<div class="calpop">${calendarHTML(played,dates)}</div>`:''}</div>${arr(dNew,'›','Next day with matches')}
     <div class="dbox msteam"><button type="button" class="dbtn${msPop==='team'?' open':''}" data-mspop="team" aria-expanded="${msPop==='team'}"><span class="dl">Team</span><b class="msb">${isTr?`<span>${esc(tName)}</span>`:team?logo(team,'l28')+`<span>${esc(team)}</span>`:'<span>All teams</span>'}</b><small>optional filter · click to change</small><span class="dcar">▾</span></button>${msPop==='team'?`<div class="calpop mspop"><div class="lbl">Teams that played on ${fmtDate(dateSel)} · ${dayT.length}</div><div class="mtcs">${tcards}</div></div>`:''}</div></div>
     ${mxOptsHTML()}${mxDayTable(dateSel,team)}
     <div class="mx-wrap">${L.length?`<div class="lbl">${team?esc(tName)+' · ':''}Matches on ${fmtDate(dateSel)} · ${L.length}</div>
@@ -3847,6 +3849,11 @@ function datesTab(){
     <p class="msg" style="font-size:11.5px;margin-top:8px">Click a match to open it · click a set to see the players and the map · a set with only one game found is shown (marked “1 game only”) but never counted</p>`:'<p class="msg">No matches this day.</p>'}</div>
     ${team&&!isTr?`<div class="mtop" style="margin-top:18px">${recentHTML(team,null)}</div>`:''}`;
 }
+// rev254: ‹ › go to the previous / next day with matches (also the ← → keys in Match Selector)
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-mxday]');if(!b||!b.dataset.mxday)return;dateSel=b.dataset.mxday;calMonth=dateSel.slice(0,7);calOpen=false;msPop='';mxOpen=0;renderDetail()});
+document.addEventListener('keydown',e=>{if(typeof view==='undefined'||view!=='stats'||tab!=='match'||e.ctrlKey||e.metaKey||e.altKey)return;if(e.key!=='ArrowLeft'&&e.key!=='ArrowRight')return;
+  const a=document.activeElement;if(a&&(/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)||a.isContentEditable))return;const ov=document.getElementById('gmOv');if(ov&&ov.classList.contains('on'))return;
+  const B=document.querySelectorAll('.mxday');const b=B[e.key==='ArrowLeft'?0:1];if(b&&!b.disabled){e.preventDefault();b.click()}});
 document.addEventListener('click',e=>{const t=e.target;if(!t.closest)return;
   const s=t.closest('[data-mxs]');if(s){const it=s.parentNode,on=it.classList.contains('open'),box=it.closest('.mx-list');if(box)box.querySelectorAll('.mx-s.open').forEach(x=>x.classList.remove('open'));if(!on)it.classList.add('open');return}
   const o=t.closest('[data-mxo]');if(o){mxModal(MXL[+o.dataset.mxo])}});
@@ -5049,22 +5056,30 @@ document.addEventListener('input',e=>{if(typeof tab==='undefined'||tab!=='scout'
 
 (function(){
  function q(s){return document.querySelector(s)}
- function chip(cls,lab,val,act,x){return '<span class="cxc '+(cls||'')+'" data-cx="'+act+'"><s>'+lab+'</s>'+val+(x?'<b class="x" data-cxx="'+x+'" title="Remove this filter">✕</b>':'')+'</span>'}
+ function chip(cls,lab,val,act,x){var g='';if(/^[gk]:/.test(act)){g=' data-cxg="'+E(act.slice(2))+'"';act=act.slice(0,1)}
+  return '<span class="cxc '+(cls||'')+(act!=='none'?' cxa':'')+'" data-cx="'+act+'"'+g+' title="'+(act==='none'?'':'Click to change')+'"><s>'+lab+'</s>'+val+(act!=='none'&&act!=='period'?'':'')+(x?'<b class="x" data-cxx="'+x+'" title="Remove this filter">✕</b>':'')+'</span>'}
  function lg(t){try{return logo(t,'')}catch(e){return ''}}
  function E(x){return String(x==null?'':x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
  function install(){if(!window.CTXINFO||window.CTXINFO.__chips)return false;var orig=window.CTXINFO;
   var f=function(){var P=[],rm=0,base=[];try{base=orig()||[]}catch(e){}
    try{
-    if(view==='stats'&&tab==='roster'&&typeof RS!=='undefined'){P.push(chip('','REGION',E(RS.reg||'–'),'none'));P.push(chip('','PERIOD','Last '+RS.days+' days','none'));P.push(chip('','GAMES',{scrim:'Scrims',tour:'Tournament',all:'Scrims + tournament'}[RS.ty],'none'));return P}
+    if(view==='stats'&&tab==='roster'&&typeof RS!=='undefined'){P.push(chip('','REGION',E(RS.reg||'–'),'g:[data-rs="reg"]'));P.push(chip('','PERIOD','Last '+RS.days+' days','g:[data-rs="days"]'));P.push(chip('','GAMES',{scrim:'Scrims',tour:'Tournament',all:'Scrims + tournament'}[RS.ty],'g:[data-rs="ty"]'));
+      if(RS.days!==14||RS.ty!=='scrim'||RS.show!=='all'||RS.min!==5)P.push('<button type="button" class="cxr" data-cxx="all">Reset filters</button>');return P}
+    if(view==='stats'&&tab==='match'&&typeof MXS!=='undefined'){var mt=msTeam||'',tr=String(mt).indexOf('trio:')===0;
+      P.push(chip('','DATE',E(fmtDate(dateSel)),'k:[data-calopen]'));
+      P.push(chip(mt?'team':'','TEAM',mt?(tr?E(msTeamLbl||'Trio'):lg(mt)+E(mt)):'All teams','k:[data-mspop="team"]',mt?'mxteam':''));
+      P.push(chip('','REGION',MXS.reg==='*'?'All':E(MXS.reg),'g:[data-mxsreg]',MXS.reg!=='*'?'mxreg':''));
+      P.push(chip('','SHOW',MXS.all?'All trios':'Picks teams','g:[data-mxsall]',MXS.all?'mxall':''));
+      if(mt||MXS.reg!=='*'||MXS.all)P.push('<button type="button" class="cxr" data-cxx="all">Reset filters</button>');return P}
     if(view==='stats'&&tab==='scout'&&typeof NM!=='undefined'){var us=p3Our();P.push(chip('team','TEAM',lg(us)+E(us),'panel'));if(NM.riv)P.push(chip('rv','RIVAL',lg(NM.riv)+E(NM.riv),'rival'))}
     else if(view==='stats'&&tab==='prep'&&typeof P3!=='undefined'){P.push(chip('','MAP',E(P3.map),'none'));P.push(chip(P3.riv?'rv':'','PAGE',P3.riv?lg(P3.riv)+'vs '+E(P3.riv):'General','none'))}
     else if(view==='pred'&&sel&&sel.a){P.push(chip('team','TEAMS',lg(sel.a)+E(sel.a)+' vs '+lg(sel.b)+E(sel.b),'none'))}
     else if(view==='stats'&&tab!=='tier'){
-      if(scope==='one'){var t=curOne();P.push(chip('team','TEAM',lg(t)+E(t),'panel'))}
+      if(scope==='one'){var t=curOne();P.push(chip('team','TEAM',lg(t)+E(t),'team1'))}
       else if(scope==='pool'){P.push(chip('team','TEAMS',(poolTeams||[]).length+' together','panel'))}
       else if(sel&&sel.a){P.push(chip('team','TEAM',lg(sel.a)+E(sel.a),'panel'));P.push(chip('rv','VS',lg(sel.b)+E(sel.b),'panel','vs'));rm++}}
     var per=(q('#sbPer')||{}).textContent||'';if(per)P.push(chip('','PERIOD',E(per),'period'));
-    var ty=(flt2&&flt2.type)||'all';P.push(chip('','TYPE',ty==='all'?'All games':ty==='tournament'?'Tournament':'Friendly','panel',ty==='all'?'':'type'));if(ty!=='all')rm++;
+    var ty=(flt2&&flt2.type)||'all';P.push(chip('','TYPE',ty==='all'?'All games':ty==='tournament'?'Tournament':'Friendly','g:[data-ty]',ty==='all'?'':'type'));if(ty!=='all')rm++;
     if(view==='stats'&&tab!=='scout'&&tab!=='tier'&&tab!=='prep'){
       if(statMaps&&statMaps.length){P.push(chip('','MAP',E(filterLabel()),'panel','map'));rm++}
       var rv=q('#statsscope [data-riv][aria-pressed=true]');if(rv&&rv.dataset.riv!=='all'&&rv.offsetParent){P.push(chip('','RIVALS',E(rv.textContent.replace('▾','').trim()),'panel','riv'));rm++}}
@@ -5077,13 +5092,27 @@ document.addEventListener('input',e=>{if(typeof tab==='undefined'||tab!=='scout'
  setInterval(install,400);install();
  function panel(){var b=q('.sbshow');if(document.body.classList.contains('sb-off')&&b)b.click();var s=q('#statsscope');if(s&&s.scrollIntoView)s.scrollIntoView({block:'nearest',behavior:'smooth'})}
  function clickIt(s){var b=q(s);if(b){b.click();return true}return false}
+ document.addEventListener('click',function(e){var m=q('#cxMenu');if(!m)return;var o=e.target.closest&&e.target.closest('#cxMenu [data-cxm]');
+  if(o){var B=document.querySelectorAll(m.dataset.for),b=B[+o.dataset.cxm];m.remove();if(b)b.click();return}
+  if(!(e.target.closest&&e.target.closest('#cxMenu,#ctxbar [data-cx]')))m.remove()});
+ addEventListener('scroll',function(){var m=q('#cxMenu');if(m)m.remove()},{passive:true});
  document.addEventListener('click',function(e){var x=e.target.closest&&e.target.closest('#ctxbar [data-cxx]');if(x){e.preventDefault();e.stopPropagation();var k=x.dataset.cxx;
+    if(view==='stats'&&tab==='match'){if(k==='mxteam'||k==='all'){msTeam='';msTeamLbl=''}if(k==='mxreg'||k==='all')MXS.reg='*';if(k==='mxall'||k==='all')MXS.all=false;
+      store.set('tvt:mxs',JSON.stringify(MXS));_msK=null;mxOpen=0;try{renderDetail()}catch(er){}if(k!=='all')return}
+    if(view==='stats'&&tab==='roster'&&k==='all'){RS.days=14;RS.ty='scrim';RS.show='all';RS.min=5;try{localStorage.setItem('tvt:rs',JSON.stringify(RS))}catch(er){}try{renderDetail()}catch(er){}return}
     if(k==='vs'||k==='all'){if(scope==='pair'&&sel&&sel.a&&typeof setSelTeams==='function'){setSelTeams([sel.a]);try{renderDetail()}catch(er){}}}
     if(k==='type'||k==='all')clickIt('#statsscope [data-ty="all"],[data-ty="all"]');
     if(k==='map'||k==='all')clickIt('#statsscope [data-sm=""]');
     if(k==='riv'||k==='all')clickIt('#statsscope [data-riv="all"]');
     return}
   var c=e.target.closest&&e.target.closest('#ctxbar [data-cx]');if(!c)return;var a=c.dataset.cx;
+  var mn=q('#cxMenu');if(mn){var was=mn.dataset.for===c.dataset.cxg;mn.remove();if(was&&a==='g')return}
+  if(a==='team1'){tpOpen('one');return}
+  if(a==='k'){var kb=q(c.dataset.cxg);if(kb){kb.scrollIntoView({block:'center'});kb.click()}return}
+  if(a==='g'){var B=[].slice.call(document.querySelectorAll(c.dataset.cxg));if(!B.length){panel();return}
+    var m=document.createElement('div');m.id='cxMenu';m.dataset.for=c.dataset.cxg;var r=c.getBoundingClientRect();m.style.left=Math.max(8,Math.min(r.left,innerWidth-200))+'px';m.style.top=(r.bottom+4)+'px';
+    m.innerHTML=B.map(function(b,i){var on=b.getAttribute('aria-pressed')==='true'||b.classList.contains('on');return '<button type="button" data-cxm="'+i+'"'+(on?' class="on"':'')+'>'+E(b.textContent.replace(/\s+/g,' ').trim())+(on?' ✓':'')+'</button>'}).join('');
+    document.body.appendChild(m);return}
   if(a==='period'){var p=q('#sbPer');p=p&&p.closest('button');if(p){if(document.body.classList.contains('sb-off')){var b=q('.sbshow');if(b)b.click()}p.click()}}
   else if(a==='panel')panel();
   else if(a==='rival'){var r=q('.nmrv');if(r)r.scrollIntoView({block:'center',behavior:'smooth'})}},true);
@@ -5696,9 +5725,17 @@ function grpLabel(){const p=[];if(GRP.tour!=='*')p.push(GRP.tour);if(GRP.reg!=='
 function grpBarHTML(){const {tours,regs,subs}=grpVals(),n=grpTeams().length;
   const seg=(k,vals,lab)=>`<div class="grprow"><label>${lab}</label><span class="cas-opt">${['*',...vals].map(v=>`<button type="button" data-grp${k}="${esc(v)}" aria-pressed="${v===GRP[k==='t'?'tour':k==='s'?'sub':'reg']}">${k==='r'&&REGC[v]?`<i class="grp-rd" style="background:${REGC[v]}"></i>`:''}${v==='*'?'All':esc(k==='r'?rsRegShort(v):v)}</button>`).join('')}</span></div>`;
   return `<div class="grpbar grp2" data-noexport="1">${tours.length?seg('t',tours,'Competition'):''}${regs.length?seg('r',regs,'Region'):''}${subs.length?seg('s',subs,'Sub-region'):''}<small>${n} team${n===1?'':'s'}</small></div>`}
+const GRPQ={};
+document.addEventListener('input',e=>{const i=e.target;if(!i.matches||!i.matches('.grpq'))return;const k=i.dataset.grpq,q=i.value.trim().toLowerCase();GRPQ[k]=i.value;
+  const box=i.closest('.grpk');if(box)box.querySelectorAll('.uxchip[data-t]').forEach(b=>{b.hidden=!!q&&!b.dataset.t.toLowerCase().includes(q)})});
+document.addEventListener('keydown',e=>{const i=e.target;if(!i.matches||!i.matches('.grpq'))return;
+  if(e.key==='Enter'){const b=[...i.closest('.grpk').querySelectorAll('.uxchip[data-t]')].find(x=>!x.hidden);if(b){GRPQ[i.dataset.grpq]='';b.click()}e.preventDefault()}
+  if(e.key==='Escape'){i.value='';GRPQ[i.dataset.grpq]='';i.dispatchEvent(new Event('input',{bubbles:true}))}});
 function grpChips(key,label,cur,col,fn,o){o=o||{};cur=(cur||[]).filter(Boolean);TPCB[key]={fn,cur:cur[0]||'',none:'',excl:o.excl||[]};
   const ok=t=>!(o.excl||[]).includes(t)&&(!o.only||o.only.includes(t)),T=grpTeams().filter(ok).sort((a,b)=>a.localeCompare(b)),extra=cur.filter(t=>!T.includes(t)&&ok(t));
-  return `<div class="uxpick grpk"><label>${label}</label><div class="uxchips">${[...T,...extra].map(t=>`<button type="button" class="uxchip${cur.includes(t)?' on':''}${extra.includes(t)?' out':''}" style="--c:${o.colOf?o.colOf(t):col}" data-uxchip="${esc(key)}" data-t="${esc(t)}" title="${esc(t)}${extra.includes(t)?' · not in this group':''}">${logo(t,'l26')}<span class="uxn">${esc(t)}</span></button>`).join('')}${o.tail||''}</div></div>`}
+  const qv=(GRPQ[key]||'').toLowerCase(),hid=t=>qv&&!t.toLowerCase().includes(qv)?' hidden':'';
+  const sb=T.length+extra.length>8?`<input type="search" class="grpq" data-grpq="${esc(key)}" value="${esc(GRPQ[key]||'')}" placeholder="Search team" autocomplete="off">`:'';
+  return `<div class="uxpick grpk"><label>${label}</label>${sb}<div class="uxchips">${[...T,...extra].map(t=>`<button type="button"${hid(t)} class="uxchip${cur.includes(t)?' on':''}${extra.includes(t)?' out':''}" style="--c:${o.colOf?o.colOf(t):col}" data-uxchip="${esc(key)}" data-t="${esc(t)}" title="${esc(t)}${extra.includes(t)?' · not in this group':''}">${logo(t,'l26')}<span class="uxn">${esc(t)}</span></button>`).join('')}${o.tail||''}</div></div>`}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-drper]');if(!b)return;DR.fPer=b.dataset.drper;try{store.set('tvt:drper',DR.fPer)}catch(_){}if(view==='draft')drRender();else renderDetail()});
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-grpt],[data-grpr],[data-grps],[data-grpall],[data-grpnone]');if(!b)return;
   if(b.dataset.grpt!=null){GRP.tour=b.dataset.grpt;GRP.reg='*';GRP.sub='*'}
@@ -6422,8 +6459,16 @@ document.addEventListener('change',e=>{const t=e.target;if(!t.closest)return;con
   if(t.matches('[data-tlfrom]')){TL.from=t.value;tlSave();renderDetail();return}if(t.matches('[data-tlto]')){TL.to=t.value;tlSave();renderDetail()}});
 // for the visit log (the access script outside reads where the user is)
 window.__uxState=()=>{let tm='';try{if(view==='stats'){if(tab==='report')tm=RP.team;else if(tab==='stats'||tab==='card'||tab==='scout'){if(scope==='one')tm=curOne();else if(poolTeams&&poolTeams.length)tm=poolTeams.slice(0,4).join(' + ')}}}catch(e){}return {view,tab,team:tm||''}};
+// rev254: the last team you looked at follows you between Team Stats (and its sub-tabs), Match Selector and Next match
+let _fwT=null,_fwV='';
+function uxFollow(){try{
+  const TS=['stats','players','drafts','card','group'],off=allTeams();
+  const get=()=>tab==='match'?(msTeam&&!String(msTeam).startsWith('trio:')?msTeam:''):tab==='scout'?(NM.riv||''):TS.includes(tab)&&scope==='one'?curOne():'';
+  const put=t=>{if(!t||!off.includes(t))return;if(tab==='match'){msTeam=t;msTeamLbl=''}else if(tab==='scout'){if(t!==p3Our()){NM.riv=t;nmSave()}}else if(TS.includes(tab)&&scope==='one'){setSelTeams([t])}};
+  if(tab!==_fwT){const L=store.get('tvt:follow')||'';if(_fwT!==null&&L&&L!==get())put(L);_fwT=tab}
+  const v=get();if(v&&v!==_fwV)store.set('tvt:follow',v);_fwV=v}catch(e){}}
 function renderDetail(){
-  if(tab==='ideas')tab='prep';
+  if(tab==='ideas')tab='prep';uxFollow();
   selRestore();uxApplyHash();if(tab==='scout')uxSyncScout();
   document.querySelectorAll('.tabbtn').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===tab?'true':'false'));
   $('statsscope').innerHTML=(tab==='plab'||tab==='roster'||tab==='scout'||tab==='report'||tab==='match'||tab==='caster'||tab==='tier'||tab==='prep'||tab==='ideas')?'':scopeWithMaps();$('statsscope').hidden=view!=='stats'||tab==='plab'||tab==='roster'||tab==='scout'||tab==='report'||tab==='match'||tab==='caster'||tab==='tier'||tab==='prep'||tab==='ideas';tselPaint();
@@ -9385,7 +9430,7 @@ body{padding-bottom:50px}
 @media (min-width:1100px){.scmaps .scm-r{zoom:.62}}
 .scmaps .scm-r .mcols{margin-top:6px}
 /* match selector: date / team / rival on one line, each with its own colour */
-.msrow{gap:12px;align-items:stretch;margin-bottom:12px}
+.msrow{gap:12px;align-items:stretch;margin-bottom:12px}.mxday{flex:none;width:38px;background:#121118;border:1px solid #3a3850;color:#e5e3f0;font:inherit;font-size:22px;font-weight:700;cursor:pointer;line-height:1}.mxday:hover:not([disabled]){border-color:#a855f7;background:#24143a}.mxday[disabled]{opacity:.3;cursor:default}
 .msrow .dbtn{height:100%;min-width:230px}
 .msdate .dbtn{background:linear-gradient(135deg,rgba(168,85,247,.22),rgba(168,85,247,.06));border-color:rgba(168,85,247,.55)}
 .msdate .dbtn:hover,.msdate .dbtn.open{border-color:#a855f7}
@@ -12475,7 +12520,7 @@ html body table th:not([style*="color"]):not(#_):not(#__){color:#c9c2d8!importan
 #ctxbar .cxc.team{border-color:#a855f7;background:#24143a}
 #ctxbar .cxc.rv{border-color:rgba(233,150,150,.35);background:rgba(233,150,150,.08)}
 #ctxbar .cxc .x{color:#a9a5c0;margin-left:2px;font-weight:700;padding:0 2px}#ctxbar .cxc .x:hover{color:#f87171}
-#ctxbar .cxc:hover{border-color:#6b5b78}
+#ctxbar .cxc:hover{border-color:#6b5b78}#ctxbar .cxc.cxa::after{content:'▾';margin-left:2px;font-size:9px;color:#a9a5c0}#ctxbar .cxc.cxa:hover{border-color:#a855f7}#cxMenu{position:fixed;z-index:60;min-width:170px;background:#151018;border:1px solid #3a2d44;padding:4px;box-shadow:0 10px 30px rgba(0,0,0,.5)}#cxMenu button{display:block;width:100%;font:inherit;font-size:12.5px;color:#e6def0;background:none;border:0;padding:7px 10px;text-align:left;cursor:pointer}#cxMenu button:hover{background:#24143a}#cxMenu button.on{font-weight:800;color:#c9a6ff}
 #ctxbar .cxr{background:none;border:1px solid #4b3566;color:#c9a6ff;font:inherit;font-size:11.5px;padding:3px 8px;cursor:pointer}
 #ctxbar .cxu{color:#9d99b6;font-size:11.5px}
 
