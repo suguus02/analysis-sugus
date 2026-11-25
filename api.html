@@ -2127,7 +2127,10 @@ const WORLDS=['TRIBE GAMING','TEAM ELEKTROS','FUT ESPORTS','HMBLE','REPLY TOTEM'
 const TOUR={};let SELECTED=null;
 const EXTRA_COL=['#f0a53a','#2ec4b6','#b388ff','#ff7eb6','#8bc34a','#4dd0e1','#ffd54f','#a1887f'];
 const REG_ALIAS={'NORTH AMERICA':'North America','NA':'North America','SOUTH AMERICA':'South America','SA':'South America','LATAM':'South America','CHINA':'China','EMEA':'EMEA','EU':'EMEA','EUROPE':'EMEA','APAC':'APAC','ASIA':'APAC'};
-const normReg=r=>{r=String(r||'').trim();if(!r)return '';return REG_ALIAS[r.toUpperCase()]||r};
+const SUBREG={'INDIA':['APAC','India'],'JAPAN':['APAC','Japan'],'KOREA':['APAC','Korea'],'EAST ASIA':['APAC','East Asia'],'SEA':['APAC','SEA'],'OCEANIA':['APAC','Oceania'],'DACH':['EMEA','DACH'],'FRANCE':['EMEA','France'],'SOUTH EUROPE':['EMEA','South Europe'],'NORTH EUROPE':['EMEA','North Europe'],'MENA':['EMEA','MENA'],'NA EAST':['North America','NA East'],'NA WEST':['North America','NA West'],'BRASIL':['South America','Brasil'],'BRAZIL':['South America','Brasil'],'SA WEST':['South America','SA West']};
+const normReg=r=>{r=String(r||'').trim();if(!r)return '';const u=r.toUpperCase();if(SUBREG[u])return SUBREG[u][0];return REG_ALIAS[u]||r};
+const subReg=r=>{r=String(r||'').trim();const u=r.toUpperCase();return SUBREG[u]?SUBREG[u][1]:(REG_ALIAS[u]||r)};
+const SUBR={};
 function regCss(){let el=document.getElementById('regcss');if(!el){el=document.createElement('style');el.id='regcss';document.head.appendChild(el)}
   el.textContent=Object.keys(REGC).map(r=>`.tile[data-reg="${r.replace(/"/g,'')}"]{border-color:${REGC[r]}!important}`).join('')}
 function applyTeamMeta(d){
@@ -2136,7 +2139,8 @@ function applyTeamMeta(d){
   for(const k of Object.keys(TOUR))delete TOUR[k];
   if(!sheet){LCQ.forEach(t=>TOUR[t]='LCQ');WORLDS.forEach(t=>TOUR[t]='Worlds')}
   const spell={};
-  for(const t in tm){const e=tm[t];if(e.region)REGION[t]=normReg(e.region);
+  for(const k of Object.keys(SUBR))delete SUBR[k];
+  for(const t in tm){const e=tm[t];if(e.region){REGION[t]=normReg(e.region);SUBR[t]=subReg(e.region)}
     if(e.tour){const v=String(e.tour).trim(),u=v.toUpperCase();TOUR[t]=spell[u]||(spell[u]=v)}}
   SELECTED=sheet?d.selected.slice():null;
   let n=0;for(const t in REGION){const r=REGION[t];if(r&&!REGC[r])REGC[r]=EXTRA_COL[n++%EXTRA_COL.length]}
@@ -2282,7 +2286,8 @@ const MODE_ORDER=['Knockout','Gem Grab','Bounty','Brawl Ball','Heist','Hot Zone'
 let POOL=null;try{POOL=JSON.parse(store.get('tvt:pool')||'null')}catch(e){POOL=null}
 function poolSet(P){POOL=P&&P.length?P:null;if(POOL)MAP18=new Set(POOL.map(x=>mkey(x.n)))}
 poolSet(POOL);
-function inPool(name,day){if(!POOL)return MAP18.has(mkey(name));const k=mkey(name);return POOL.some(x=>mkey(x.n)===k&&(!x.f||!day||day>=x.f)&&(!x.t||!day||day<=x.t))}
+let ALLMAPS=store.get('tvt:allmaps')==='1';   // rev248: off-season: every map that is played counts, not only the rotation
+function inPool(name,day){if(ALLMAPS)return true;if(!POOL)return MAP18.has(mkey(name));const k=mkey(name);return POOL.some(x=>mkey(x.n)===k&&(!x.f||!day||day>=x.f)&&(!x.t||!day||day<=x.t))}
 function poolModes(a,b){if(!POOL)return null;const out=MODE_ORDER.map(md=>[md,[]]);
   for(const x of POOL){if((x.t&&a&&x.t<a)||(x.f&&b&&x.f>b))continue;let e=out.find(o=>o[0].toLowerCase()===String(x.md).toLowerCase());if(!e){e=[x.md||'Other',[]];out.push(e)}if(!e[1].some(n=>mkey(n)===mkey(x.n)))e[1].push(x.n)}
   return out.filter(o=>o[1].length)}
@@ -2292,6 +2297,13 @@ async function poolLoad(){try{const rows=await gviz('sheet=MAPAS&headers=1&tq='+
     if(!P.length)return;const sig=JSON.stringify(P);if(sig===JSON.stringify(POOL))return;store.set('tvt:pool',sig);poolSet(P);
     if(typeof FULL!=='undefined'&&FULL&&!busy){build(Object.assign({},FULL,{matches:(FULL._all||FULL.matches).filter(m=>!m.sh),_m18:0}),custom)}}catch(e){}}
 setTimeout(function w(){if(typeof FULL!=='undefined'&&FULL)poolLoad();else setTimeout(w,1500)},1500);
+function allMapsKeys(){if(!ALLMAPS||typeof FULL==='undefined'||!FULL)return;for(const m of (FULL._all||FULL.matches||[]))if(m.m)MAP18.add(mkey(m.m))}
+function allMapsSet(on){ALLMAPS=!!on;store.set('tvt:allmaps',on?'1':'0');if(POOL)poolSet(POOL);else MAP18=new Set(['Out in the Open',"Belle's Rock",'Goldarm Gulch','Hard Rock Mine','Crystal Arcade','Deathcap Trap','Dry Season','Hideout','Layer Cake','Pinhole Punt','Beach Ball','Triple Dribble','Kaboom Canyon','Safe Zone','Hot Potato','Dueling Beetles','Ring of Fire','Open Business'].map(mkey));allMapsKeys();
+  if(typeof FULL!=='undefined'&&FULL&&!busy)build(Object.assign({},FULL,{matches:(FULL._all||FULL.matches).filter(m=>!m.sh),_m18:0}),custom);mountAllMaps(true)}
+function mountAllMaps(force){const bar=document.querySelector('.uxbar');if(!bar)return;let d=document.getElementById('uxAllMaps');if(d&&!force)return;if(!d){d=document.createElement('div');d.id='uxAllMaps';bar.insertAdjacentElement('afterend',d)}
+  d.innerHTML=`<span class="mxs-l">Maps</span><span class="rs-seg"><button type="button" data-allmaps="0" aria-pressed="${!ALLMAPS}" title="Only the maps of the rotation (MAPAS tab of the sheet)">Rotation</button><button type="button" data-allmaps="1" aria-pressed="${ALLMAPS}" title="Every map that is played, also out of the rotation: useful in the off-season">All maps</button></span>`}
+setInterval(()=>{mountAllMaps(false);if(ALLMAPS)allMapsKeys()},1500);
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-allmaps]');if(!b)return;allMapsSet(b.dataset.allmaps==='1')});
 function setup(){
   const D=M.D,saved=Object.assign({},loadSel());
   const opts=D.off.map((t,i)=>`<option value="${i}">${esc(t)} · ${num(DESC.tot[t].n)} sets</option>`).join('');
@@ -3473,9 +3485,20 @@ function scrimHTML(r,team){
 }
 let msTeam=null,_msK='',_msV=null;
 // every date with sets of listed teams: date -> team -> {n sets, rivals}
-function msIndex(){const k=ds.matches.length+'|'+(ds.matches[0]&&ds.matches[0].i)+'|'+allTeams().length;if(_msK===k&&_msV)return _msV;
+// rev248: Match Selector options: region, and Picks teams only or every trio
+const MXS=(()=>{let o={};try{o=JSON.parse(store.get('tvt:mxs')||'{}')||{}}catch(e){}return Object.assign({reg:'*',all:false},o)})();
+function mxTrioKey(tags){return 'trio:'+(tags||[]).map(g=>String(g||'').toUpperCase()).sort().join(',')}
+function mxRegOf(team,tags){if(team)return REGION[team]||(typeof RSTREG!=='undefined'&&RSTREG[String(team).toUpperCase()])||'';
+  const off=Object.assign({},(FULL&&FULL.knownTags)||{},(FULL&&FULL.official)||{}),seg=(typeof RSEG!=='undefined'&&RSEG)||{},v={};
+  for(const g0 of tags||[]){const g=String(g0||'').toUpperCase();if(seg[g]&&seg[g].reg)v[seg[g].reg]=(v[seg[g].reg]||0)+2;for(const t in off)if((off[t]||[]).some(x=>String(x).toUpperCase()===g)){const r=REGION[t]||(typeof RSTREG!=='undefined'&&RSTREG[String(t).toUpperCase()]);if(r)v[r]=(v[r]||0)+1}}
+  return Object.entries(v).sort((a,b)=>b[1]-a[1]).map(x=>x[0])[0]||''}
+function mxOptsHTML(){const regs=[...new Set(allTeams().map(t=>REGION[t]).filter(Boolean))].sort();
+  return `<div class="mxs-row" data-noexport="1"><span class="mxs-l">Region</span><span class="rs-seg">${['*',...regs].map(r=>`<button type="button" data-mxsreg="${esc(r)}" aria-pressed="${MXS.reg===r}">${r==='*'?'All':esc(rsRegShort(r))}</button>`).join('')}</span>
+    <span class="mxs-l">Show</span><span class="rs-seg"><button type="button" data-mxsall="0" aria-pressed="${!MXS.all}" title="Only matches with a team of the Picks sheet">Picks teams</button><button type="button" data-mxsall="1" aria-pressed="${!!MXS.all}" title="Every trio of the data too: tryouts and rosters that are not in Picks">All trios</button></span></div>`}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-mxsreg],[data-mxsall]');if(!b)return;if(b.dataset.mxsreg!=null)MXS.reg=b.dataset.mxsreg;else MXS.all=b.dataset.mxsall==='1';store.set('tvt:mxs',JSON.stringify(MXS));_msK=null;mxOpen=0;renderDetail()});
+function msIndex(){const k=ds.matches.length+'|'+(ds.matches[0]&&ds.matches[0].i)+'|'+allTeams().length+'|'+MXS.all;if(_msK===k&&_msV)return _msV;
   const T=new Set(allTeams()),V={};
-  for(const m of ds.matches){if(m.s)continue;
+  for(const m of ds.matches){if(MXS.all&&!V[m.d])V[m.d]={};if(m.s)continue;
     for(const [x,y] of [[m.a,m.b],[m.b,m.a]]){if(!T.has(x))continue;const D=V[m.d]||(V[m.d]={}),e=D[x]||(D[x]={n:0,riv:{}});e.n++;e.riv[T.has(y)?y:'']=1}}
   _msK=k;_msV=V;return V}
 // shared set row (Match Selector + Results scrim window): L=true -> left side is m.a
@@ -3683,19 +3706,22 @@ function mxModal(e){if(!e)return;const L=e.sets,nm=g=>sheetName(g,(ds.names||{})
 // all matches (sets vs the same rival) on a day; listed team on the left (the chosen team when there is one)
 const MX_GAP=90;
 function mxMatches(d,team){const T=new Set(allTeams()),G={},nm=g=>sheetName(g,(ds.names||{})[g])||g;
-  for(const m of ds.matches){if(m.d!==d)continue;const ia=T.has(m.a),ib=T.has(m.b);if(!ia&&!ib)continue;// rev189: single games too
+  for(const m of ds.matches){if(m.d!==d)continue;const ia=T.has(m.a),ib=T.has(m.b);if(!ia&&!ib&&!MXS.all)continue;// rev189: single games too
     if(team&&m.a!==team&&m.b!==team)continue;
-    let L=team?m.a===team:(ia&&(!ib||m.a<=m.b));const A=L?m.a:m.b,B=L?m.b:m.a,bl=T.has(B);
-    const k=A+'|'+(bl?B:'?'+B)+'|'+(m.ty==='tournament'?'T':'F'),e=G[k]||(G[k]={a:A,b:bl?B:'',bp:new Set(),sets:[],w:0,l:0,tour:m.ty==='tournament'});
+    const ka=ia?m.a:mxTrioKey(m.ta),kb=ib?m.b:mxTrioKey(m.tb);
+    if(MXS.reg!=='*'){const ra=mxRegOf(ia?m.a:'',ia?null:m.ta),rb=mxRegOf(ib?m.b:'',ib?null:m.tb);if(ra!==MXS.reg&&rb!==MXS.reg)continue}
+    let L=team?m.a===team:ia&&ib?m.a<=m.b:ia?true:ib?false:ka<=kb;const A=L?m.a:m.b,B=L?m.b:m.a,al=T.has(A),bl=T.has(B);
+    const k=(L?ka:kb)+'|'+(L?kb:ka)+'|'+(m.ty==='tournament'?'T':'F'),e=G[k]||(G[k]={a:al?A:'',ap:new Set(),b:bl?B:'',bp:new Set(),sets:[],w:0,l:0,tour:m.ty==='tournament'});
     e.sets.push({m,L});const y=L?m.y:1-m.y;if(!m.s){if(y===1)e.w++;else if(y===0)e.l++}
+    if(!al)for(const g of ((L?m.ta:m.tb)||[]))if(g)e.ap.add(nm(g));
     if(!bl)for(const g of ((L?m.tb:m.ta)||[]))if(g)e.bp.add(nm(g))}
   // the same two teams can play more than one scrim in a day: a gap of more than MX_GAP minutes between two sets starts a new match
   const GG=[];for(const e of Object.values(G)){e.sets.sort((p,q)=>p.m.t-q.m.t);let cur=null,end=-1;
-    for(const x of e.sets){if(!cur||x.m.t-end>MX_GAP*60){cur={a:e.a,b:e.b,bp:e.bp,sets:[],w:0,l:0,tour:e.tour};GG.push(cur)}
+    for(const x of e.sets){if(!cur||x.m.t-end>MX_GAP*60){cur={a:e.a,ap:e.ap,b:e.b,bp:e.bp,sets:[],w:0,l:0,tour:e.tour};GG.push(cur)}
       cur.sets.push(x);const y=x.L?x.m.y:1-x.m.y;if(!x.m.s){if(y===1)cur.w++;else if(y===0)cur.l++}end=Math.max(end,x.m.last||x.m.t)}}
   // the team that won the match always on the left
   // a draw: alphabetical order from left to right (A–Z); a rival that is not on the list stays on the right
-  for(const e of GG)if(e.l>e.w||(e.l===e.w&&e.a&&e.b&&e.b.localeCompare(e.a)<0)){e.ap=e.bp;e.bp=new Set();const a=e.a;e.a=e.b;e.b=a;const w=e.w;e.w=e.l;e.l=w;for(const x of e.sets)x.L=!x.L}
+  for(const e of GG)if(e.l>e.w||(e.l===e.w&&e.a&&e.b&&e.b.localeCompare(e.a)<0)){const ap=e.ap;e.ap=e.bp;e.bp=ap||new Set();const a=e.a;e.a=e.b;e.b=a;const w=e.w;e.w=e.l;e.l=w;for(const x of e.sets)x.L=!x.L}
   return GG.map(e=>{e.sets.sort((p,q)=>p.m.t-q.m.t);e.t0=e.sets[0].m.t;e.t1=Math.max(...e.sets.map(x=>x.m.last||x.m.t));return e}).sort((p,q)=>p.t0-q.t0)}
 // rev159: win rate of every team on the chosen day (sets), above the list of matches
 function mxDayTable(d,team){let AL=[];try{AL=mxMatches(d,'')}catch(e){return ''}const T={},off=M.D.off;
@@ -3724,7 +3750,7 @@ function datesTab(){
 `}).join('');
   return `<div class="mpickrow msrow" style="margin-top:14px"><div class="dbox msdate"><button type="button" class="dbtn${calOpen?' open':''}" data-calopen="1" aria-expanded="${calOpen}"><span class="dl">Date</span><b>${fmtDate(dateSel)}</b><small>${plural(dayT.length,'team')} played</small><span class="dcar">▾</span></button>${calOpen?`<div class="calpop">${calendarHTML(played,dates)}</div>`:''}</div>
     <div class="dbox msteam"><button type="button" class="dbtn${msPop==='team'?' open':''}" data-mspop="team" aria-expanded="${msPop==='team'}"><span class="dl">Team</span><b class="msb">${team?logo(team,'l28')+`<span>${esc(team)}</span>`:'<span>All teams</span>'}</b><small>optional filter · click to change</small><span class="dcar">▾</span></button>${msPop==='team'?`<div class="calpop mspop"><div class="lbl">Teams that played on ${fmtDate(dateSel)} · ${dayT.length}</div><div class="mtcs">${tcards}</div></div>`:''}</div></div>
-    ${mxDayTable(dateSel,team)}
+    ${mxOptsHTML()}${mxDayTable(dateSel,team)}
     <div class="mx-wrap">${L.length?`<div class="lbl">${team?esc(team)+' · ':''}Matches on ${fmtDate(dateSel)} · ${L.length}</div>
     <table class="mx-t"><thead><tr><th>Time</th><th>Team</th><th>Score</th><th>Rival</th><th class="num">Sets</th><th>Modes</th><th></th></tr></thead><tbody>${rows}</tbody></table>
     <p class="msg" style="font-size:11.5px;margin-top:8px">Click a match to open it · click a set to see the players and the map · a set with only one game found is shown (marked “1 game only”) but never counted</p>`:'<p class="msg">No matches this day.</p>'}</div>
@@ -5554,7 +5580,7 @@ function uxApplyHash(){if(uxHashDone||!window.__UXH||!M)return;uxHashDone=true;c
   try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}}
 // teams by tournament / region (like the caster page)
 // rev246: two separate filters for the team lists: competition (League, Challengers…) and region
-const GRP=(()=>{const d={tour:'*',reg:'*'};try{const o=JSON.parse(store.get('tvt:grp')||'{}')||{};if(o.by){if(o.by==='tour'&&o.v)d.tour=o.v;if(o.by==='reg'&&o.v)d.reg=o.v}else Object.assign(d,o)}catch(e){}return d})();
+const GRP=(()=>{const d={tour:'*',reg:'*',sub:'*'};try{const o=JSON.parse(store.get('tvt:grp')||'{}')||{};if(o.by){if(o.by==='tour'&&o.v)d.tour=o.v;if(o.by==='reg'&&o.v)d.reg=o.v}else Object.assign(d,o)}catch(e){}return d})();
 const grpT=t=>String(TOUR[t]||'').trim(),grpR=t=>REGION[t]||'';
 function grpVals(){const T=allTeams();const tours=[...new Set(T.map(grpT).filter(Boolean))];
   const order=v=>/LEAG|LIGA/i.test(v)?0:/CHALL/i.test(v)?1:2;tours.sort((a,b)=>order(a)-order(b)||a.localeCompare(b));
@@ -5562,19 +5588,23 @@ function grpVals(){const T=allTeams();const tours=[...new Set(T.map(grpT).filter
   const inT=T.filter(t=>GRP.tour==='*'||grpT(t)===GRP.tour);
   const regs=[...new Set(inT.map(grpR).filter(Boolean))].sort();
   if(GRP.reg!=='*'&&!regs.includes(GRP.reg))GRP.reg='*';
-  return {T,tours,regs,inT}}
-function grpTeams(){const {inT}=grpVals();return GRP.reg==='*'?inT:inT.filter(t=>grpR(t)===GRP.reg)}
-function grpLabel(){const p=[];if(GRP.tour!=='*')p.push(GRP.tour);if(GRP.reg!=='*')p.push(rsRegShort(GRP.reg));return p.join(' · ')}
-function grpBarHTML(){const {tours,regs}=grpVals(),n=grpTeams().length;
-  const seg=(k,vals,lab)=>`<div class="grprow"><label>${lab}</label><span class="cas-opt">${['*',...vals].map(v=>`<button type="button" data-grp${k}="${esc(v)}" aria-pressed="${v===GRP[k==='t'?'tour':'reg']}">${k==='r'&&REGC[v]?`<i class="grp-rd" style="background:${REGC[v]}"></i>`:''}${v==='*'?'All':esc(k==='r'?rsRegShort(v):v)}</button>`).join('')}</span></div>`;
-  return `<div class="grpbar grp2" data-noexport="1">${tours.length?seg('t',tours,'Competition'):''}${regs.length?seg('r',regs,'Region'):''}<small>${n} team${n===1?'':'s'}</small></div>`}
+  const inR=GRP.reg==='*'?inT:inT.filter(t=>grpR(t)===GRP.reg);
+  const subs=GRP.reg==='*'?[]:[...new Set(inR.map(t=>SUBR[t]||'').filter(Boolean))].sort();
+  if(!GRP.sub||(GRP.sub!=='*'&&!subs.includes(GRP.sub)))GRP.sub='*';
+  return {T,tours,regs,inT,inR,subs:subs.length>1?subs:[]}}
+function grpTeams(){const {inR}=grpVals();return GRP.sub==='*'?inR:inR.filter(t=>(SUBR[t]||'')===GRP.sub)}
+function grpLabel(){const p=[];if(GRP.tour!=='*')p.push(GRP.tour);if(GRP.reg!=='*')p.push(rsRegShort(GRP.reg));if(GRP.sub&&GRP.sub!=='*')p.push(GRP.sub);return p.join(' · ')}
+function grpBarHTML(){const {tours,regs,subs}=grpVals(),n=grpTeams().length;
+  const seg=(k,vals,lab)=>`<div class="grprow"><label>${lab}</label><span class="cas-opt">${['*',...vals].map(v=>`<button type="button" data-grp${k}="${esc(v)}" aria-pressed="${v===GRP[k==='t'?'tour':k==='s'?'sub':'reg']}">${k==='r'&&REGC[v]?`<i class="grp-rd" style="background:${REGC[v]}"></i>`:''}${v==='*'?'All':esc(k==='r'?rsRegShort(v):v)}</button>`).join('')}</span></div>`;
+  return `<div class="grpbar grp2" data-noexport="1">${tours.length?seg('t',tours,'Competition'):''}${regs.length?seg('r',regs,'Region'):''}${subs.length?seg('s',subs,'Sub-region'):''}<small>${n} team${n===1?'':'s'}</small></div>`}
 function grpChips(key,label,cur,col,fn,o){o=o||{};cur=(cur||[]).filter(Boolean);TPCB[key]={fn,cur:cur[0]||'',none:'',excl:o.excl||[]};
   const ok=t=>!(o.excl||[]).includes(t)&&(!o.only||o.only.includes(t)),T=grpTeams().filter(ok).sort((a,b)=>a.localeCompare(b)),extra=cur.filter(t=>!T.includes(t)&&ok(t));
   return `<div class="uxpick grpk"><label>${label}</label><div class="uxchips">${[...T,...extra].map(t=>`<button type="button" class="uxchip${cur.includes(t)?' on':''}${extra.includes(t)?' out':''}" style="--c:${o.colOf?o.colOf(t):col}" data-uxchip="${esc(key)}" data-t="${esc(t)}" title="${esc(t)}${extra.includes(t)?' · not in this group':''}">${logo(t,'l26')}<span class="uxn">${esc(t)}</span></button>`).join('')}${o.tail||''}</div></div>`}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-drper]');if(!b)return;DR.fPer=b.dataset.drper;try{store.set('tvt:drper',DR.fPer)}catch(_){}if(view==='draft')drRender();else renderDetail()});
-document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-grpt],[data-grpr],[data-grpall],[data-grpnone]');if(!b)return;
-  if(b.dataset.grpt!=null){GRP.tour=b.dataset.grpt;GRP.reg='*'}
-  else if(b.dataset.grpr!=null)GRP.reg=b.dataset.grpr;
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-grpt],[data-grpr],[data-grps],[data-grpall],[data-grpnone]');if(!b)return;
+  if(b.dataset.grpt!=null){GRP.tour=b.dataset.grpt;GRP.reg='*';GRP.sub='*'}
+  else if(b.dataset.grps!=null)GRP.sub=b.dataset.grps
+  else if(b.dataset.grpr!=null){GRP.reg=b.dataset.grpr;GRP.sub='*'}
   else if(b.dataset.grpall!=null){const L=selTeams();grpTeams().forEach(t=>{if(!L.includes(t))L.push(t)});setSelTeams(L);clrF()}
   else{setSelTeams([]);clrF()}
   store.set('tvt:grp',JSON.stringify(GRP));renderDetail()});
@@ -6467,7 +6497,7 @@ $('fType').addEventListener('click',e=>{const b=e.target.closest('button');if(!b
 function idb(){return new Promise((res,rej)=>{const r=indexedDB.open('tvt',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
 async function idbGet(k){if(window.SEASON_RO)k=k+'@'+window.SEASON;try{const d=await idb();return await new Promise((res,rej)=>{const q=d.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})}catch(e){return null}}
 async function idbSet(k,v){if(window.SEASON_RO)k=k+'@'+window.SEASON;try{const d=await idb();await new Promise((res,rej)=>{const t=d.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=res;t.onerror=()=>rej(t.error)});return true}catch(e){return false}}
-const hhmm=ts=>new Date(ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+const hhmm=ts=>new Date(ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:false});
 function sheetMsg(e){
   const c=e&&e.code;
   if(c==='gviz_session')return 'Your session has ended. Reload the page and sign in again.';
@@ -6729,7 +6759,7 @@ function playedToday(){const t=todayISO(),k=t+'|'+(FULL?FULL.matches.length:0);i
 const tdot=t=>{const n=playedToday()[t];return n?`<i class="tdot" title="Played scrims today · ${plural(n,'game')}"></i>`:''};
 function updateSheetInfo(){
   const el=$('sheetInfo');if(!el)return;
-  el.textContent=FULL&&FULL.source==='Google Sheets'?`Updated ${hhmm(FULL.syncedAt||Date.now())} · checked ${hhmm(lastCheck||FULL.syncedAt||Date.now())} · checks every ${SHEET.poll/60000} min`+(FULL.missing&&FULL.missing.length?` · no players linked yet for: ${FULL.missing.join(', ')} (write their 3 tags next to the team in the Picks sheet, columns J to U)`:'')+(FULL.syncNote?` · last refresh: ${FULL.syncNote}`:''):'';
+  el.textContent=FULL&&FULL.source==='Google Sheets'?`Page synced ${hhmm(FULL.syncedAt||Date.now())} · checked ${hhmm(lastCheck||FULL.syncedAt||Date.now())} · checks every ${SHEET.poll/60000} min`+(FULL.missing&&FULL.missing.length?` · no players linked yet for: ${FULL.missing.join(', ')} (write their 3 tags next to the team in the Picks sheet, columns J to U)`:'')+(FULL.syncNote?` · last refresh: ${FULL.syncNote}`:''):'';
 }
 // ===== Drafts =====
 const DR_HEAD=['Id','Date','Mode','Map','Coin','Blue','Red','BlueBan1','BlueBan2','BlueBan3','RedBan1','RedBan2','RedBan3','Pick1','Pick2','Pick3','Pick4','Pick5','Pick6','BlueGlobal1','BlueGlobal2','RedGlobal1','RedGlobal2','Winner','Notes','Saved'];
@@ -12435,6 +12465,8 @@ html body table th:not([style*="color"]):not(#_):not(#__){color:#c9c2d8!importan
 .pi-ml{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #221a28;font-size:12.5px}.pi-ml>span:first-of-type{flex:1;min-width:0}
 .pi-note{font-size:11.5px;color:#b8abc8;margin:10px 0 0;line-height:1.45}
 @media (max-width:900px){.pi-g{grid-template-columns:1fr}.pi-k3{grid-template-columns:1fr 1fr}}
+#uxAllMaps{display:flex;align-items:center;gap:10px;margin-top:8px}#uxAllMaps .rs-seg{flex:1}#uxAllMaps .rs-seg button{padding:6px 8px;font-size:12px}
+.mxs-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0 6px}.mxs-l{font-size:10px;letter-spacing:.14em;font-weight:700;color:#c9c2d8;text-transform:uppercase}.mxs-row .rs-seg button{padding:6px 10px;white-space:nowrap}
 .pl-mode{width:max-content;margin-bottom:16px}.pl-mode button{padding:8px 16px;font-size:13px;white-space:nowrap}.pl-hist{font-size:10.5px;color:#c9a6ff;margin-top:2px}
 .pl-g{display:grid;grid-template-columns:minmax(0,330px) minmax(0,1fr);gap:18px;align-items:start}
 .pl-mut{color:#b8abc8;font-size:11.5px}.pl-lg{width:20px;height:20px;object-fit:contain;vertical-align:middle;font-size:10px}
