@@ -2235,9 +2235,12 @@ let SEL_KEEP=null;
 function saveSel(){if(SEL_KEEP)return;store.set('tvt:sel',JSON.stringify({a:sel.a,b:sel.b,maps:sel.maps}))}
 
 // the page works only with the 18 maps of the rotation (MAP18): sets on any other map are left out everywhere; the Data check lists them
-function onlyMap18(d){if(!d||!d.matches||d._m18)return d;const ex={};const all=d.matches.filter(m=>!m.sh);
-  const ms=d.matches.filter(m=>{if(!m.m||inPool(m.m,m.d))return true;ex[m.m]=(ex[m.m]||0)+1;return false});
-  return Object.assign({},d,{matches:ms,excluded:ex,_m18:1,_all:all})}
+// rev249: a game with a bot never counts. Bots have very short tags (#QCR, #LQY…) and names like "Bot 4".
+const isBotTag=g=>{g=String(g||'').replace(/^#/,'');return !!g&&g.length<=4};
+const hasBot=m=>[...(m.ta||[]),...(m.tb||[])].some(isBotTag);
+function onlyMap18(d){if(!d||!d.matches||d._m18)return d;const ex={};const all=d.matches.filter(m=>!m.sh);let bots=0;
+  const ms=d.matches.filter(m=>{if(hasBot(m)){bots++;return false}if(!m.m||inPool(m.m,m.d))return true;ex[m.m]=(ex[m.m]||0)+1;return false});
+  return Object.assign({},d,{matches:ms,excluded:ex,bots,_m18:1,_all:all})}
 
 // ===== ficha de jugador (equipo de Picks con un solo jugador) =====
 const SH_MARK='⁠'; // invisible: el rival de una copia no se confunde con el equipo real
@@ -3487,11 +3490,18 @@ let msTeam=null,_msK='',_msV=null;
 // every date with sets of listed teams: date -> team -> {n sets, rivals}
 // rev248: Match Selector options: region, and Picks teams only or every trio
 const MXS=(()=>{let o={};try{o=JSON.parse(store.get('tvt:mxs')||'{}')||{}}catch(e){}return Object.assign({reg:'*',all:false},o)})();
-function mxTrioKey(tags){return 'trio:'+(tags||[]).map(g=>String(g||'').toUpperCase()).sort().join(',')}
+function mxTrioKey(tags){return 'trio:'+(tags||[]).map(g=>tagCanon(g)).sort().join(',')}
 function mxRegOf(team,tags){if(team)return REGION[team]||(typeof RSTREG!=='undefined'&&RSTREG[String(team).toUpperCase()])||'';
   const off=Object.assign({},(FULL&&FULL.knownTags)||{},(FULL&&FULL.official)||{}),seg=(typeof RSEG!=='undefined'&&RSEG)||{},v={};
   for(const g0 of tags||[]){const g=String(g0||'').toUpperCase();if(seg[g]&&seg[g].reg)v[seg[g].reg]=(v[seg[g].reg]||0)+2;for(const t in off)if((off[t]||[]).some(x=>String(x).toUpperCase()===g)){const r=REGION[t]||(typeof RSTREG!=='undefined'&&RSTREG[String(t).toUpperCase()]);if(r)v[r]=(v[r]||0)+1}}
   return Object.entries(v).sort((a,b)=>b[1]-a[1]).map(x=>x[0])[0]||''}
+const mxStBtn=(i,s)=>`<button type="button" class="mx-st" data-mxst="${i}|${s}" title="Open Team Stats for this team or trio">SEE STATS</button>`;
+document.addEventListener('click',ev=>{const b=ev.target.closest&&ev.target.closest('[data-mxst]');if(!b)return;ev.stopImmediatePropagation();ev.preventDefault();
+  const [i,sd]=b.dataset.mxst.split('|'),e=MXL[+i];if(!e)return;const team=sd==='a'?e.a:e.b,tags=(sd==='a'?e.at:e.bt)||[];
+  if(team&&FULL&&FULL.official[team]){rsGoStats(team);return}
+  const NM=(FULL&&FULL.names)||{},names=tags.map(g=>rsVis(sheetName(g,NM[g]||g)||NM[g],g));
+  const pf=names.map(n=>{const x=/^\s*([^|│]{1,6})\s*[|│]/.exec(n);return x?x[1].trim().toUpperCase():''}).filter(Boolean),pc={};pf.forEach(p=>pc[p]=(pc[p]||0)+1);const bp=Object.entries(pc).sort((a,b)=>b[1]-a[1])[0];
+  rsTrioStats({team:team&&FULL.knownTags&&FULL.knownTags[team]?team:'',tags,names,guess:bp&&bp[1]>=2?bp[0]:'',reg:mxRegOf('',tags)})},true);
 function mxOptsHTML(){const regs=[...new Set(allTeams().map(t=>REGION[t]).filter(Boolean))].sort();
   return `<div class="mxs-row" data-noexport="1"><span class="mxs-l">Region</span><span class="rs-seg">${['*',...regs].map(r=>`<button type="button" data-mxsreg="${esc(r)}" aria-pressed="${MXS.reg===r}">${r==='*'?'All':esc(rsRegShort(r))}</button>`).join('')}</span>
     <span class="mxs-l">Show</span><span class="rs-seg"><button type="button" data-mxsall="0" aria-pressed="${!MXS.all}" title="Only matches with a team of the Picks sheet">Picks teams</button><button type="button" data-mxsall="1" aria-pressed="${!!MXS.all}" title="Every trio of the data too: tryouts and rosters that are not in Picks">All trios</button></span></div>`}
@@ -3711,17 +3721,17 @@ function mxMatches(d,team){const T=new Set(allTeams()),G={},nm=g=>sheetName(g,(d
     const ka=ia?m.a:mxTrioKey(m.ta),kb=ib?m.b:mxTrioKey(m.tb);
     if(MXS.reg!=='*'){const ra=mxRegOf(ia?m.a:'',ia?null:m.ta),rb=mxRegOf(ib?m.b:'',ib?null:m.tb);if(ra!==MXS.reg&&rb!==MXS.reg)continue}
     let L=team?m.a===team:ia&&ib?m.a<=m.b:ia?true:ib?false:ka<=kb;const A=L?m.a:m.b,B=L?m.b:m.a,al=T.has(A),bl=T.has(B);
-    const k=(L?ka:kb)+'|'+(L?kb:ka)+'|'+(m.ty==='tournament'?'T':'F'),e=G[k]||(G[k]={a:al?A:'',ap:new Set(),b:bl?B:'',bp:new Set(),sets:[],w:0,l:0,tour:m.ty==='tournament'});
+    const k=(L?ka:kb)+'|'+(L?kb:ka)+'|'+(m.ty==='tournament'?'T':'F'),e=G[k]||(G[k]={a:al?A:'',ap:new Set(),b:bl?B:'',bp:new Set(),at:((L?m.ta:m.tb)||[]).map(tagCanon),bt:((L?m.tb:m.ta)||[]).map(tagCanon),sets:[],w:0,l:0,tour:m.ty==='tournament'});
     e.sets.push({m,L});const y=L?m.y:1-m.y;if(!m.s){if(y===1)e.w++;else if(y===0)e.l++}
     if(!al)for(const g of ((L?m.ta:m.tb)||[]))if(g)e.ap.add(nm(g));
     if(!bl)for(const g of ((L?m.tb:m.ta)||[]))if(g)e.bp.add(nm(g))}
   // the same two teams can play more than one scrim in a day: a gap of more than MX_GAP minutes between two sets starts a new match
   const GG=[];for(const e of Object.values(G)){e.sets.sort((p,q)=>p.m.t-q.m.t);let cur=null,end=-1;
-    for(const x of e.sets){if(!cur||x.m.t-end>MX_GAP*60){cur={a:e.a,ap:e.ap,b:e.b,bp:e.bp,sets:[],w:0,l:0,tour:e.tour};GG.push(cur)}
+    for(const x of e.sets){if(!cur||x.m.t-end>MX_GAP*60){cur={a:e.a,ap:e.ap,at:e.at,b:e.b,bp:e.bp,bt:e.bt,sets:[],w:0,l:0,tour:e.tour};GG.push(cur)}
       cur.sets.push(x);const y=x.L?x.m.y:1-x.m.y;if(!x.m.s){if(y===1)cur.w++;else if(y===0)cur.l++}end=Math.max(end,x.m.last||x.m.t)}}
   // the team that won the match always on the left
   // a draw: alphabetical order from left to right (A–Z); a rival that is not on the list stays on the right
-  for(const e of GG)if(e.l>e.w||(e.l===e.w&&e.a&&e.b&&e.b.localeCompare(e.a)<0)){const ap=e.ap;e.ap=e.bp;e.bp=ap||new Set();const a=e.a;e.a=e.b;e.b=a;const w=e.w;e.w=e.l;e.l=w;for(const x of e.sets)x.L=!x.L}
+  for(const e of GG)if(e.l>e.w||(e.l===e.w&&e.a&&e.b&&e.b.localeCompare(e.a)<0)){const ap=e.ap;e.ap=e.bp;e.bp=ap||new Set();const at=e.at;e.at=e.bt;e.bt=at;const a=e.a;e.a=e.b;e.b=a;const w=e.w;e.w=e.l;e.l=w;for(const x of e.sets)x.L=!x.L}
   return GG.map(e=>{e.sets.sort((p,q)=>p.m.t-q.m.t);e.t0=e.sets[0].m.t;e.t1=Math.max(...e.sets.map(x=>x.m.last||x.m.t));return e}).sort((p,q)=>p.t0-q.t0)}
 // rev159: win rate of every team on the chosen day (sets), above the list of matches
 function mxDayTable(d,team){let AL=[];try{AL=mxMatches(d,'')}catch(e){return ''}const T={},off=M.D.off;
@@ -3745,8 +3755,8 @@ function datesTab(){
   const tn=e=>e.b?`${logo(e.b,'l28')}<b>${esc(e.b)}</b>`:`<span class="mx-pp">${esc([...e.bp].slice(0,3).join(' · ')||'Rival')}</span>`;
   const rows=L.map((e,i)=>{const op=false;
     const modes=[...new Set(e.sets.map(x=>modeOfMap(x.m.m)))].map(md=>{const mi=IMGS['mode'+mkey(md)];return mi?`<img class="mx-mm" src="${mi}" title="${esc(md)}" alt="">`:''}).join('');
-    return `<tr class="mx-tr${op?' on':''}${e.tour?' tour':''}" data-mxo="${i}"><td class="mx-time">${mxHM(e.t0)}–${mxHM(e.t1)}${e.tour?'<em class="mx-tt">Tournament</em>':''}</td><td class="mx-ta">${e.a?`${logo(e.a,'l28')}<b>${esc(e.a)}</b>`:`<span class="mx-pp">${esc([...(e.ap||[])].slice(0,3).join(' · ')||'Rival')}</span>`}</td>
-      <td class="mx-sc"><b class="${e.w>e.l?'w':e.w<e.l?'l':''}">${e.w}</b>–<b class="${e.l>e.w?'w':e.l<e.w?'l':''}">${e.l}</b></td><td class="mx-tb">${tn(e)}</td><td class="num">${e.sets.filter(x=>!x.m.s).length}</td><td class="mx-mds">${modes}</td><td class="mx-cc">↗</td></tr>
+    return `<tr class="mx-tr${op?' on':''}${e.tour?' tour':''}" data-mxo="${i}"><td class="mx-time">${mxHM(e.t0)}–${mxHM(e.t1)}${e.tour?'<em class="mx-tt">Tournament</em>':''}</td><td class="mx-ta">${e.a?`${logo(e.a,'l28')}<b>${esc(e.a)}</b>`:`<span class="mx-pp">${esc([...(e.ap||[])].slice(0,3).join(' · ')||'Rival')}</span>`}${mxStBtn(i,'a')}</td>
+      <td class="mx-sc"><b class="${e.w>e.l?'w':e.w<e.l?'l':''}">${e.w}</b>–<b class="${e.l>e.w?'w':e.l<e.w?'l':''}">${e.l}</b></td><td class="mx-tb">${tn(e)}${mxStBtn(i,'b')}</td><td class="num">${e.sets.filter(x=>!x.m.s).length}</td><td class="mx-mds">${modes}</td><td class="mx-cc">↗</td></tr>
 `}).join('');
   return `<div class="mpickrow msrow" style="margin-top:14px"><div class="dbox msdate"><button type="button" class="dbtn${calOpen?' open':''}" data-calopen="1" aria-expanded="${calOpen}"><span class="dl">Date</span><b>${fmtDate(dateSel)}</b><small>${plural(dayT.length,'team')} played</small><span class="dcar">▾</span></button>${calOpen?`<div class="calpop">${calendarHTML(played,dates)}</div>`:''}</div>
     <div class="dbox msteam"><button type="button" class="dbtn${msPop==='team'?' open':''}" data-mspop="team" aria-expanded="${msPop==='team'}"><span class="dl">Team</span><b class="msb">${team?logo(team,'l28')+`<span>${esc(team)}</span>`:'<span>All teams</span>'}</b><small>optional filter · click to change</small><span class="dcar">▾</span></button>${msPop==='team'?`<div class="calpop mspop"><div class="lbl">Teams that played on ${fmtDate(dateSel)} · ${dayT.length}</div><div class="mtcs">${tcards}</div></div>`:''}</div></div>
@@ -4998,6 +5008,12 @@ document.addEventListener('input',e=>{if(typeof tab==='undefined'||tab!=='scout'
   else if(a==='rival'){var r=q('.nmrv');if(r)r.scrollIntoView({block:'center',behavior:'smooth'})}},true);
 })();
 
+// rev249: a player with more than one account in Picks (two tags in his row) counts as one: every tag becomes the first one
+let _tcSrc=null,_tcMap={},_tcAll={};
+function tagCanon(g){g=String(g||'').toUpperCase();const pp=typeof FULL!=='undefined'&&FULL&&FULL.pickPlayers;
+  if(pp!==_tcSrc){_tcSrc=pp;_tcMap={};_tcAll={};for(const t in pp||{})for(const p of pp[t]||[]){const T=(p.tags||[]).map(x=>String(x).toUpperCase()).filter(Boolean);if(T.length>1){for(const x of T)_tcMap[x]=T[0];_tcAll[T[0]]=T}}}
+  return _tcMap[g]||g}
+function tagAll(g){tagCanon('');g=String(g||'').toUpperCase();return _tcAll[g]||[g]}
 // ===== rev231: Rosters — who plays with whom (trios of 3 players), tryouts and roster changes, by region.
 // Built from the games already loaded (scrims = friendly games where the same 3 play the same 3 rivals 3+ times in a day).
 const RS=(()=>{let s={};try{s=JSON.parse(localStorage.getItem('tvt:rs')||'{}')||{}}catch(e){}return Object.assign({reg:'',days:14,ty:'scrim',show:'all',min:5,grp:'all',open:'',form:'',sort:'games',dir:-1},s)})();
@@ -5020,7 +5036,7 @@ function rsCompute(){
   const from=addDays(mx,-(RS.days-1)),dayList=[];for(let d=from;d<=mx;d=addDays(d,1))dayList.push(d);
   const off=Object.assign({},F.knownTags||{},F.official||{}),t2t={};for(const t in off)for(const g of off[t]||[])if(g)(t2t[String(g).toUpperCase()]||(t2t[String(g).toUpperCase()]=[])).push(t);   // every team of the TEAMS table of Picks, selected or not
   const seg=RSEG||{};
-  const tk=a=>a&&a.length===3&&a.every(Boolean)?a.map(g=>String(g).toUpperCase()).sort().join(','):'';
+  const tk=a=>a&&a.length===3&&a.every(Boolean)?a.map(g=>tagCanon(g)).sort().join(','):'';
   const pk=(A,B,d)=>(A<B?A+'~'+B:B+'~'+A)+'~'+d;
   // each item of the data is a SET (w/l = games won/lost by side A, s = a single loose game, y = 1/0 who won the set)
   const gN=m=>Math.max(1,(m.w||0)+(m.l||0)+(m.dr||0));
@@ -5133,13 +5149,15 @@ function rsVTinject(d){const V=rsVT();if(!d||!d.official||!V.length)return;let c
 {const _b=build;build=function(d,c){try{rsVTinject(d)}catch(e){}return _b(d,c)}}
 function rsGoStats(name){scope='one';oneTeam=name;try{store.set('tvt:selT',JSON.stringify([name]))}catch(e){}
   const b=[...document.querySelectorAll('#sheetbar [data-sb]')].find(x=>x.textContent.trim()==='Team Stats');if(b)b.click();else{tab='stats';renderDetail()}}
-function rsSeeStats(k){const C=_rsC,e=C&&C.TR[k];if(!e||typeof FULL==='undefined'||!FULL)return;
+function rsSeeStats(k){const C=_rsC,e=C&&C.TR[k];if(!e)return;rsTrioStats(e)}
+function rsTrioStats(e){if(typeof FULL==='undefined'||!FULL)return;
   if(e.team&&FULL.official[e.team]){rsGoStats(e.team);return}
   const short=n=>String(n).replace(/^\s*[^|│]{1,6}\s*[|│]\s*/,'').trim()||n;
   const name=e.team||((e.guess?e.guess+' · ':'TRIO · ')+e.names.map(short).join(' / '));
-  const V=rsVT().filter(v=>v.name!==name&&v.tags.join()!==e.tags.join());V.unshift({name,tags:e.tags.slice(),reg:e.reg});rsVTsave(V.slice(0,8));
+  const tags=[...new Set(e.tags.flatMap(tagAll))];
+  const V=rsVT().filter(v=>v.name!==name&&v.tags.join()!==tags.join());V.unshift({name,tags,reg:e.reg||''});rsVTsave(V.slice(0,8));
   if(e.reg)REGION[name]=e.reg;
-  if(!FULL.official[name]){FULL.official[name]=e.tags.slice();Engine.relabel(FULL,DB)}
+  if(!FULL.official[name]){FULL.official[name]=tags.slice();Engine.relabel(FULL,DB)}
   rsGoStats(name);build(FULL,custom)}
 function rsVTclear(){const V=rsVT();rsVTsave([]);if(typeof FULL!=='undefined'&&FULL&&FULL.official){let ch=false;for(const v of V)if(FULL.official[v.name]){delete FULL.official[v.name];ch=true}if(ch){Engine.relabel(FULL,DB);build(FULL,custom)}}
   try{ppSbPaint()}catch(e){}}
@@ -5245,7 +5263,7 @@ function plCompute(){
   const get=g=>P[g]||(P[g]={g,n:0,w:0,br:{},cl:{},st:{k:0,d:0,dm:0,h:0,tk:0,n:0},mates:{},opR:{}});
   for(const m of F.matches){if(m.s||m.sh||!(m.y===1||m.y===0))continue;const S=m.gs?setStatsC(m):null;
     for(const [T,B,y,OT,OL] of [[m.ta,m.ba,m.y,m.tb,m.b],[m.tb,m.bb,1-m.y,m.ta,m.a]]){if(!T||T.length!==3||!B)continue;
-      const tags=T.map(g=>String(g||'').toUpperCase());
+      const tags=T.map(g=>tagCanon(g));
       tags.forEach((g,i)=>{if(!g)return;const e=get(g),b=B[i]||'';e.n++;e.w+=y;if(b){const x=e.br[b]||(e.br[b]={n:0,w:0});x.n++;x.w+=y;const c=plCls(b);e.cl[c]=(e.cl[c]||0)+1}
         if(S&&S.P[T[i]]){const s=S.P[T[i]];e.st.k+=s.k;e.st.d+=s.d;e.st.dm+=s.dm;e.st.h+=s.h;e.st.tk+=s.tk;e.st.n+=s.n}
         tags.forEach((h,j)=>{if(j!==i&&h)e.mates[h]=(e.mates[h]||0)+1});
@@ -12466,6 +12484,7 @@ html body table th:not([style*="color"]):not(#_):not(#__){color:#c9c2d8!importan
 .pi-note{font-size:11.5px;color:#b8abc8;margin:10px 0 0;line-height:1.45}
 @media (max-width:900px){.pi-g{grid-template-columns:1fr}.pi-k3{grid-template-columns:1fr 1fr}}
 #uxAllMaps{display:flex;align-items:center;gap:10px;margin-top:8px}#uxAllMaps .rs-seg{flex:1}#uxAllMaps .rs-seg button{padding:6px 8px;font-size:12px}
+.mx-st{display:block;margin:5px auto 0;font:inherit;font-size:9.5px;font-weight:700;letter-spacing:.08em;color:#c9a6ff;background:none;border:1px solid #4b3566;padding:3px 7px;cursor:pointer}.mx-st:hover{background:#24143a;color:#fff}
 .mxs-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0 6px}.mxs-l{font-size:10px;letter-spacing:.14em;font-weight:700;color:#c9c2d8;text-transform:uppercase}.mxs-row .rs-seg button{padding:6px 10px;white-space:nowrap}
 .pl-mode{width:max-content;margin-bottom:16px}.pl-mode button{padding:8px 16px;font-size:13px;white-space:nowrap}.pl-hist{font-size:10.5px;color:#c9a6ff;margin-top:2px}
 .pl-g{display:grid;grid-template-columns:minmax(0,330px) minmax(0,1fr);gap:18px;align-items:start}
