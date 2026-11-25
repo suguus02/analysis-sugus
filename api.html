@@ -1284,7 +1284,7 @@ tr.gt-clk{cursor:pointer}tr.gt-clk:hover td{background:rgba(255,255,255,.06)}
 .mx-tr:hover td{background:#17161f}.mx-tr.on td{background:#1a1626;border-color:rgba(168,85,247,.55)}
 .mx-time{font-family:var(--mono,monospace);color:#b4b1c7!important;white-space:nowrap}
 .mx-ta,.mx-tb{white-space:nowrap}.mx-ta>*,.mx-tb>*{vertical-align:middle}.mx-ta img,.mx-tb img{margin-right:8px}
-.mx-pp{color:#cfcce0;font-size:12px}
+.mx-pp{color:#cfcce0;font-size:12px}.mxd-tag{margin-left:8px;padding:1px 5px;border:1px solid #3a3850;color:#8f8ba8;font-size:9.5px;font-weight:800;letter-spacing:.08em}.mxd tr.mxd-trio{cursor:default}
 .mx-sc{font:700 16px var(--mono,monospace);white-space:nowrap}.mx-sc b{color:#a8a4c8}.mx-sc .w,.mx-g.w{color:#4ade80}.mx-sc .l{color:#f87171}
 .mx-mm{width:20px;height:20px;object-fit:contain;margin-right:3px;vertical-align:middle}
 .mx-cc,.mx-ch{color:#8f8ba8}
@@ -3805,14 +3805,21 @@ function mxMatches(d,team){const T=new Set(allTeams()),G={},nm=g=>sheetName(g,(d
   return GG.map(e=>{e.sets.sort((p,q)=>p.m.t-q.m.t);e.t0=e.sets[0].m.t;e.t1=Math.max(...e.sets.map(x=>x.m.last||x.m.t));return e}).sort((p,q)=>p.t0-q.t0)}
 // rev159: win rate of every team on the chosen day (sets), above the list of matches
 function mxDayTable(d,team){let AL=[];try{AL=mxMatches(d,'')}catch(e){return ''}const T={},off=M.D.off;
-  const add=(t,w,l,tour,riv)=>{if(!t||!off.includes(t))return;const e=T[t]||(T[t]={t,w:0,l:0,tw:0,tl:0,riv:new Set(),m:0});e.w+=w;e.l+=l;e.m++;if(tour){e.tw+=w;e.tl+=l}if(riv)e.riv.add(riv)};
-  for(const e of AL){add(e.a,e.w,e.l,e.tour,e.b||'');add(e.b,e.l,e.w,e.tour,e.a||'')}
-  const R=Object.values(T).sort((a,b)=>b.w/(b.w+b.l||1)-a.w/(a.w+a.l||1)||(b.w+b.l)-(a.w+a.l));if(!R.length)return '';
+  // rev251: "All trios" also lists the trios that are not in Picks (by their 3 players); the region filter applies to the table too
+  const okReg=(t,tags)=>MXS.reg==='*'||(t?mxRegOf(t,null)===MXS.reg:[MXS.reg,''].includes(mxRegOf('',tags)));
+  const add=(t,tags,pp,w,l,tour,riv)=>{let k=t;if(t){if(!off.includes(t))return}else{if(!MXS.all||!tags||!tags.length)return;k=mxTrioKey(tags)}
+    if(!okReg(t,tags))return;const e=T[k]||(T[k]={t,k,pp:[...(pp||[])].slice(0,3),w:0,l:0,tw:0,tl:0,riv:new Set(),tr:0,m:0});e.w+=w;e.l+=l;e.m++;if(tour){e.tw+=w;e.tl+=l}if(riv)e.riv.add(riv);else e.tr++};
+  for(const e of AL){add(e.a,e.at,e.ap,e.w,e.l,e.tour,e.b||'');add(e.b,e.bt,e.bp,e.l,e.w,e.tour,e.a||'')}
+  // with the trios, a 1–0 does not jump above a 12–4: order by (wins+1)/(sets+2)
+  const sc=e=>MXS.all?(e.w+1)/(e.w+e.l+2):e.w/(e.w+e.l||1);
+  const R=Object.values(T).sort((a,b)=>sc(b)-sc(a)||(b.w+b.l)-(a.w+a.l));if(!R.length)return '';
   const pc=(w,n)=>n?Math.round(100*w/n)+'%':'–',cl=(w,n)=>{const v=n?w/n:.5;return v>=.6?'#4ade80':v>=.53?'#86efac':v>.47?'#facc15':v>.4?'#fca5a5':'#f87171'};
   const open=store.get('tvt:mxd')!=='0';
-  if(!open)return `<div class="mxd-wrap"><button type="button" class="mxd-tg" data-mxdtg>▸ Win rate on ${fmtDate(d)} · ${plural(R.length,'team')}</button></div>`;
-  return `<div class="mxd-wrap"><button type="button" class="mxd-tg on" data-mxdtg>▾ Win rate on ${fmtDate(d)} · ${plural(R.length,'team')}</button><table class="mxd"><thead><tr><th></th><th>Team</th><th class="num">Sets</th><th class="num">W–L</th><th class="num">Win rate</th><th class="num">Tournament</th><th>Played against</th></tr></thead><tbody>${R.map((e,i)=>{const n=e.w+e.l,tn=e.tw+e.tl;
-    return `<tr class="${e.t===team?'on':''}" data-mt="${e.t===team?'':esc(e.t)}" title="${e.t===team?'Show all the matches again':'Show only the matches of '+esc(e.t)}"><td class="rk">${i+1}</td><td><span class="mxd-t">${logo(e.t,'l28')}<b>${esc(e.t)}</b></span></td><td class="num">${n}</td><td class="num">${e.w}–${e.l}</td><td class="num"><b style="color:${cl(e.w,n)}">${pc(e.w,n)}</b></td><td class="num">${tn?`${e.tw}–${e.tl}`:'<small>–</small>'}</td><td class="mxd-r">${[...e.riv].map(r=>off.includes(r)?logo(r,'l20'):'').join('')||'<small>other rivals</small>'}</td></tr>`}).join('')}</tbody></table></div>`}
+  const nT=R.filter(e=>e.t).length,nR=R.length-nT,cnt=plural(nT,'team')+(nR?' · '+plural(nR,'trio'):'');
+  if(!open)return `<div class="mxd-wrap"><button type="button" class="mxd-tg" data-mxdtg>▸ Win rate on ${fmtDate(d)} · ${cnt}</button></div>`;
+  return `<div class="mxd-wrap"><button type="button" class="mxd-tg on" data-mxdtg>▾ Win rate on ${fmtDate(d)} · ${cnt}</button><table class="mxd"><thead><tr><th></th><th>Team</th><th class="num">Sets</th><th class="num">W–L</th><th class="num">Win rate</th><th class="num">Tournament</th><th>Played against</th></tr></thead><tbody>${R.map((e,i)=>{const n=e.w+e.l,tn=e.tw+e.tl;
+    if(!e.t)return `<tr class="mxd-trio"><td class="rk">${i+1}</td><td><span class="mxd-t"><span class="mx-pp">${esc(e.pp.join(' · ')||'Trio')}</span><small class="mxd-tag">TRIO</small></span></td><td class="num">${n}</td><td class="num">${e.w}–${e.l}</td><td class="num"><b style="color:${cl(e.w,n)}">${pc(e.w,n)}</b></td><td class="num">${tn?`${e.tw}–${e.tl}`:'<small>–</small>'}</td><td class="mxd-r">${[...e.riv].map(r=>off.includes(r)?logo(r,'l20'):'').join('')}${e.tr?`<small>${e.riv.size?'+ ':''}${plural(e.tr,'trio')}</small>`:''}${!e.riv.size&&!e.tr?'<small>other rivals</small>':''}</td></tr>`;
+    return `<tr class="${e.t===team?'on':''}" data-mt="${e.t===team?'':esc(e.t)}" title="${e.t===team?'Show all the matches again':'Show only the matches of '+esc(e.t)}"><td class="rk">${i+1}</td><td><span class="mxd-t">${logo(e.t,'l28')}<b>${esc(e.t)}</b></span></td><td class="num">${n}</td><td class="num">${e.w}–${e.l}</td><td class="num"><b style="color:${cl(e.w,n)}">${pc(e.w,n)}</b></td><td class="num">${tn?`${e.tw}–${e.tl}`:'<small>–</small>'}</td><td class="mxd-r">${[...e.riv].map(r=>off.includes(r)?logo(r,'l20'):'').join('')}${e.tr?`<small>${e.riv.size?'+ ':''}${plural(e.tr,'trio')}</small>`:''}${!e.riv.size&&!e.tr?'<small>other rivals</small>':''}</td></tr>`}).join('')}</tbody></table></div>`}
 document.addEventListener('click',e=>{if(!e.target.closest||!e.target.closest('[data-mxdtg]'))return;store.set('tvt:mxd',store.get('tvt:mxd')==='0'?'1':'0');renderDetail()});
 function datesTab(){
   const IX=msIndex(),dates=Object.keys(IX).sort().reverse().map(d=>({d,n:Object.keys(IX[d]).length,rivals:0}));
