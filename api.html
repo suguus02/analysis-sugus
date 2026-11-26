@@ -1284,7 +1284,7 @@ tr.gt-clk{cursor:pointer}tr.gt-clk:hover td{background:rgba(255,255,255,.06)}
 .mx-tr:hover td{background:#17161f}.mx-tr.on td{background:#1a1626;border-color:rgba(168,85,247,.55)}
 .mx-time{font-family:var(--mono,monospace);color:#b4b1c7!important;white-space:nowrap}
 .mx-ta,.mx-tb{white-space:nowrap}.mx-ta>*,.mx-tb>*{vertical-align:middle}.mx-ta img,.mx-tb img{margin-right:8px}
-.mx-pp{color:#cfcce0;font-size:12px}.pgr{display:flex;align-items:center;justify-content:center;gap:14px;margin:12px 0 4px}.pgr button{width:40px;height:34px;background:#121118;border:1px solid #3a3850;color:#e5e3f0;font:inherit;font-size:20px;font-weight:700;cursor:pointer;line-height:1}.pgr button:hover:not([disabled]){border-color:#a855f7;background:#24143a}.pgr button[disabled]{opacity:.3;cursor:default}.pgr span{font-weight:700;font-size:13px;color:#e5e3f0;min-width:90px;text-align:center}.pgr small{color:#8f8ba8;font-weight:500}.grpq{display:block;width:100%;box-sizing:border-box;margin:4px 0 8px;padding:7px 10px;background:#0d0c12;border:1px solid #3a3850;color:#e5e3f0;font:inherit;font-size:12.5px}.grpq:focus{outline:none;border-color:#a855f7}.uxchip[hidden]{display:none!important}.mxd-tag{margin-left:8px;padding:1px 5px;border:1px solid #3a3850;color:#8f8ba8;font-size:9.5px;font-weight:800;letter-spacing:.08em}.mxd th.mxd-s{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}.mxd th.mxd-s:hover,.mxd th.mxd-s.on{color:#c4b5fd}
+.mx-pp{color:#cfcce0;font-size:12px}.rs-vtl{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.rs-vtl span{display:inline-flex;align-items:center;gap:6px;padding:4px 4px 4px 9px;border:1px solid #3a3850;background:#121118;font-size:12px;font-weight:700;color:#e5e3f0}.rs-vtl button{background:none;border:0;color:#f87171;font:inherit;font-weight:800;cursor:pointer;padding:0 5px}.rs-vtl button:hover{color:#fff}.pgr{display:flex;align-items:center;justify-content:center;gap:14px;margin:12px 0 4px}.pgr button{width:40px;height:34px;background:#121118;border:1px solid #3a3850;color:#e5e3f0;font:inherit;font-size:20px;font-weight:700;cursor:pointer;line-height:1}.pgr button:hover:not([disabled]){border-color:#a855f7;background:#24143a}.pgr button[disabled]{opacity:.3;cursor:default}.pgr span{font-weight:700;font-size:13px;color:#e5e3f0;min-width:90px;text-align:center}.pgr small{color:#8f8ba8;font-weight:500}.grpq{display:block;width:100%;box-sizing:border-box;margin:4px 0 8px;padding:7px 10px;background:#0d0c12;border:1px solid #3a3850;color:#e5e3f0;font:inherit;font-size:12.5px}.grpq:focus{outline:none;border-color:#a855f7}.uxchip[hidden]{display:none!important}.mxd-tag{margin-left:8px;padding:1px 5px;border:1px solid #3a3850;color:#8f8ba8;font-size:9.5px;font-weight:800;letter-spacing:.08em}.mxd th.mxd-s{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}.mxd th.mxd-s:hover,.mxd th.mxd-s.on{color:#c4b5fd}
 .mx-sc{font:700 16px var(--mono,monospace);white-space:nowrap}.mx-sc b{color:#a8a4c8}.mx-sc .w,.mx-g.w{color:#4ade80}.mx-sc .l{color:#f87171}
 .mx-mm{width:20px;height:20px;object-fit:contain;margin-right:3px;vertical-align:middle}
 .mx-cc,.mx-ch{color:#8f8ba8}
@@ -5220,7 +5220,7 @@ function rsSbPaint(box){rsSegLoad();const C=rsCompute();const regs=C?rsVisible(C
   <div class="rs-t">SHOW</div>${seg('show',[['all','All'],['new','New'],['chg','Changes']])}
   <div class="rs-t">MIN. SETS TOGETHER</div>${seg('min',[[2,'2'],[5,'5'],[10,'10']])}
   <div class="rs-t">TEAMS</div>${seg('grp',[['all','All'],['league','League'],['chall','Chall.'],['unk','Unknown']])}
-  ${(()=>{const V=rsVT();return V.length?`<div class="rs-t">TRIOS IN TEAM STATS</div><p class="rs-hint">${V.length} trio${V.length>1?'s':''} added as temporary teams (only on this browser): ${V.map(v=>esc(v.name)).join(', ')}.</p><button type="button" class="rs-btn" style="margin-top:8px" data-rsvtclear="1">REMOVE THEM</button>`:''})()}
+  ${(()=>{const V=rsVT();return V.length?`<div class="rs-t">TRIOS IN TEAM STATS</div><p class="rs-hint">${V.length} trio${V.length>1?'s':''} added as temporary teams (only on this browser). Click ✕ to remove one.</p><div class="rs-vtl">${V.map(v=>`<span>${esc(v.name)}<button type="button" data-rsvtdel="${esc(v.name)}" title="Remove this temporary trio">✕</button></span>`).join('')}</div><button type="button" class="rs-btn" style="margin-top:8px" data-rsvtclear="1">REMOVE ALL</button>`:''})()}
   <p class="rs-hint">The period counts back from the last day with games. Region of a trio without team: its players (SEGUIMIENTO) or the rivals it plays.</p></div>`}
 function rsHTML(){rsSegLoad();const C=rsCompute();
   if(!C)return '<div class="nodata">NO DATA<small>The games are still loading.</small></div>';
@@ -5282,10 +5282,11 @@ function rsTrioStats(e){if(typeof FULL==='undefined'||!FULL)return;
   if(e.reg)REGION[name]=e.reg;
   if(!FULL.official[name]){FULL.official[name]=tags.slice();Engine.relabel(FULL,DB)}
   rsGoStats(name);build(FULL,custom)}
-function rsVTclear(){const V=rsVT();rsVTsave([]);if(typeof FULL!=='undefined'&&FULL&&FULL.official){let ch=false;for(const v of V)if(FULL.official[v.name]){delete FULL.official[v.name];ch=true}if(ch){Engine.relabel(FULL,DB);build(FULL,custom)}}
+function rsVTclear(only){const V0=rsVT(),V=only?V0.filter(v=>v.name===only):V0;rsVTsave(only?V0.filter(v=>v.name!==only):[]);if(typeof FULL!=='undefined'&&FULL&&FULL.official){let ch=false;for(const v of V)if(FULL.official[v.name]){delete FULL.official[v.name];ch=true}if(ch){Engine.relabel(FULL,DB);build(FULL,custom)}}
   try{ppSbPaint()}catch(e){}}
 document.addEventListener('click',e=>{const t=e.target;if(!t||!t.closest)return;
   const s=t.closest('[data-rsstats]');if(s){e.stopImmediatePropagation();rsSeeStats(s.dataset.rsstats);return}
+  const vd=t.closest('[data-rsvtdel]');if(vd){e.stopImmediatePropagation();rsVTclear(vd.dataset.rsvtdel);try{renderDetail()}catch(er){}return}
   if(t.closest('[data-rsvtclear]')){e.stopImmediatePropagation();rsVTclear()}},true);
 
 // rev233: add players / teams to the sheet from Rosters (SEGUIMIENTO and Picks), through the same web app as Draft prep
