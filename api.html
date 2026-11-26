@@ -2582,7 +2582,8 @@ function teamLabel(r,cls,size){ // named rival (with logo) or 'Mixed lineup' wit
 }
 function mapsFilter(){return statMaps.length?statMaps.slice():null}
 function filterLabel(){return !statMaps.length?'all maps':statMaps.length===1?statMaps[0]:plural(statMaps.length,'selected map')}
-const allTeams=()=>SELECTED?[...new Set([...SELECTED,...M.D.off.filter(t=>SELECTED.includes(t))])]:[...new Set([...LCQ,...WORLDS,...M.D.off])];
+// rev259: the temporary trios saved from Rosters also show in the team panels
+const allTeams=()=>SELECTED?[...new Set([...SELECTED,...M.D.off.filter(t=>SELECTED.includes(t)||(typeof rsVT==='function'&&rsVT().some(v=>v.name===t)))])]:[...new Set([...LCQ,...WORLDS,...M.D.off])];
 function curOne(){const off=M.D.off;selRestore();// rev152: a team missing for a moment (data still loading, another period…) no longer replaces the chosen team with TEAM HERETICS / the first team
   const T=allTeams();if(oneTeam&&T.includes(oneTeam))return oneTeam;
   return (oneTeam&&off.includes(oneTeam))?oneTeam:T.includes(sel.a)?sel.a:T.includes('TRIBE GAMING')?'TRIBE GAMING':(T[0]||off[0])}
