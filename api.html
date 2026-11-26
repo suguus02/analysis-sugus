@@ -1792,10 +1792,10 @@ function processRows(rows,db,opts){
 function relabel(ds,db){
   const tag2team=tagMap(ds.official),rk=ds.rank||null;
   const dbt=dbTagMap(db,ds.knownTags);ds.known=knownNames(db,ds.knownTags);
-  const alias=buildAlias(ds.matches.flatMap(m=>[[m.ta,m.ta.map(g=>ds.names[g]||'')],[m.tb,m.tb.map(g=>ds.names[g]||'')]]),tag2team,dbt,ds.official,rk);
+  const alias=buildAlias(ds.matches.flatMap(m=>[[m.ta,m.ta.map(g=>(ds._rawNames||ds.names)[g]||'')],[m.tb,m.tb.map(g=>(ds._rawNames||ds.names)[g]||'')]]),tag2team,dbt,ds.official,rk);
   for(const m of ds.matches){
-    m.a=sideTeam(m.ta,m.ta.map(g=>ds.names[g]||''),tag2team,dbt,ds.official,alias,rk);m.xa=LAST_AMB;
-    m.b=sideTeam(m.tb,m.tb.map(g=>ds.names[g]||''),tag2team,dbt,ds.official,alias,rk);m.xb=LAST_AMB;
+    m.a=sideTeam(m.ta,m.ta.map(g=>(ds._rawNames||ds.names)[g]||''),tag2team,dbt,ds.official,alias,rk);m.xa=LAST_AMB;
+    m.b=sideTeam(m.tb,m.tb.map(g=>(ds._rawNames||ds.names)[g]||''),tag2team,dbt,ds.official,alias,rk);m.xb=LAST_AMB;
   }
   return ds;
 }
@@ -5144,7 +5144,7 @@ function rsSave(){try{localStorage.setItem('tvt:rs',JSON.stringify({reg:RS.reg,d
 var RSEG=null,RSEGt=0,RSTREG={};   // RSTREG: region of every team of the TEAMS table of Picks   // SEGUIMIENTO tab: tag -> {name, raw region, region}
 async function rsSegLoad(){if(RSEG||RSEGt)return;RSEGt=1;
   try{const rows=await gviz('sheet=SEGUIMIENTO&range=A1:D5000&headers=0');const o={};
-    for(const r of rows||[]){const g=String(r[0]||'').trim().toUpperCase();if(!/^#[0-9A-Z]{3,}$/.test(g))continue;const raw=String(r[2]||'').trim();o[g]={name:String(r[1]||'').trim(),raw,reg:normReg(raw)}}RSEG=o}
+    for(const r of rows||[]){const g=String(r[0]||'').trim().toUpperCase();if(!/^#[0-9A-Z]{3,}$/.test(g))continue;const raw=String(r[2]||'').trim();o[g]={name:String(r[1]||'').trim(),raw,reg:normReg(raw)}}RSEG=o;try{if(FULL&&FULL.names){nmApply(FULL);renderDetail()}}catch(e){}}
   catch(e){RSEG={}}
   try{const rows=await gviz('sheet=Picks&range=B2:AD400&headers=0');const U=x=>String(x||'').trim().toUpperCase();let h=-1;for(let i=0;i<rows.length&&h<0;i++)if((rows[i]||[]).some(x=>U(x)==='TEAMS'))h=i;
     if(h>=0){const cab=rows[h].map(U),cT=cab.indexOf('TEAMS'),cR=cab.indexOf('REGION',cT+1);if(cT>=0&&cR>cT)for(let i=h+1;i<rows.length;i++){const n=U(rows[i][cT]),r=String(rows[i][cR]||'').trim();if(n&&r)RSTREG[n]=normReg(r)}}}catch(e){}
@@ -5270,7 +5270,13 @@ function rsVTsave(V){try{localStorage.setItem('tvt:vteams',JSON.stringify(V))}ca
 function rsVTinject(d){const V=rsVT();if(!d||!d.official||!V.length)return;let ch=false;
   for(const v of V){if(v.reg)REGION[v.name]=v.reg;if(!d.official[v.name]){d.official[v.name]=v.tags.slice();ch=true}}
   if(ch)Engine.relabel(d,DB)}
-{const _b=build;build=function(d,c){try{rsVTinject(d)}catch(e){}return _b(d,c)}}
+// rev268: player names everywhere = the name written in the sheet (Picks first, then SEGUIMIENTO), else the in-game name.
+// The in-game names are kept apart (_rawNames) because team detection uses them.
+function nmApply(d){if(!d||!d.names)return;if(!d._rawNames)d._rawNames=Object.assign({},d.names);const N=Object.assign({},d._rawNames);
+  if(typeof RSEG!=='undefined'&&RSEG)for(const g in RSEG)if(RSEG[g].name)N[g]=RSEG[g].name;
+  const pp=d.pickPlayers||{};for(const t in pp)for(const p of pp[t]||[])if(p&&p.name)for(const g of p.tags||[])N[g]=p.name;
+  d.names=N}
+{const _b=build;build=function(d,c){try{rsVTinject(d)}catch(e){}try{nmApply(d)}catch(e){}return _b(d,c)}}
 function rsGoStats(name){scope='one';oneTeam=name;try{store.set('tvt:selT',JSON.stringify([name]))}catch(e){}
   const b=[...document.querySelectorAll('#sheetbar [data-sb]')].find(x=>x.textContent.trim()==='Team Stats');if(b)b.click();else{tab='stats';renderDetail()}}
 function rsSeeStats(k){const C=_rsC,e=C&&C.TR[k];if(!e)return;rsTrioStats(e)}
