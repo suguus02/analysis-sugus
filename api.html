@@ -1284,7 +1284,7 @@ tr.gt-clk{cursor:pointer}tr.gt-clk:hover td{background:rgba(255,255,255,.06)}
 .mx-tr:hover td{background:#17161f}.mx-tr.on td{background:#1a1626;border-color:rgba(168,85,247,.55)}
 .mx-time{font-family:var(--mono,monospace);color:#b4b1c7!important;white-space:nowrap}
 .mx-ta,.mx-tb{white-space:nowrap}.mx-ta>*,.mx-tb>*{vertical-align:middle}.mx-ta img,.mx-tb img{margin-right:8px}
-.mx-pp{color:#cfcce0;font-size:12px}.grpq{display:block;width:100%;box-sizing:border-box;margin:4px 0 8px;padding:7px 10px;background:#0d0c12;border:1px solid #3a3850;color:#e5e3f0;font:inherit;font-size:12.5px}.grpq:focus{outline:none;border-color:#a855f7}.uxchip[hidden]{display:none!important}.mxd-tag{margin-left:8px;padding:1px 5px;border:1px solid #3a3850;color:#8f8ba8;font-size:9.5px;font-weight:800;letter-spacing:.08em}.mxd th.mxd-s{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}.mxd th.mxd-s:hover,.mxd th.mxd-s.on{color:#c4b5fd}
+.mx-pp{color:#cfcce0;font-size:12px}.pgr{display:flex;align-items:center;justify-content:center;gap:14px;margin:12px 0 4px}.pgr button{width:40px;height:34px;background:#121118;border:1px solid #3a3850;color:#e5e3f0;font:inherit;font-size:20px;font-weight:700;cursor:pointer;line-height:1}.pgr button:hover:not([disabled]){border-color:#a855f7;background:#24143a}.pgr button[disabled]{opacity:.3;cursor:default}.pgr span{font-weight:700;font-size:13px;color:#e5e3f0;min-width:90px;text-align:center}.pgr small{color:#8f8ba8;font-weight:500}.grpq{display:block;width:100%;box-sizing:border-box;margin:4px 0 8px;padding:7px 10px;background:#0d0c12;border:1px solid #3a3850;color:#e5e3f0;font:inherit;font-size:12.5px}.grpq:focus{outline:none;border-color:#a855f7}.uxchip[hidden]{display:none!important}.mxd-tag{margin-left:8px;padding:1px 5px;border:1px solid #3a3850;color:#8f8ba8;font-size:9.5px;font-weight:800;letter-spacing:.08em}.mxd th.mxd-s{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}.mxd th.mxd-s:hover,.mxd th.mxd-s.on{color:#c4b5fd}
 .mx-sc{font:700 16px var(--mono,monospace);white-space:nowrap}.mx-sc b{color:#a8a4c8}.mx-sc .w,.mx-g.w{color:#4ade80}.mx-sc .l{color:#f87171}
 .mx-mm{width:20px;height:20px;object-fit:contain;margin-right:3px;vertical-align:middle}
 .mx-cc,.mx-ch{color:#8f8ba8}
@@ -3561,6 +3561,13 @@ let msTeam=null,msTeamLbl='',_msK='',_msV=null;
 // every date with sets of listed teams: date -> team -> {n sets, rivals}
 // rev248: Match Selector options: region, and Picks teams only or every trio
 const MXS=(()=>{let o={};try{o=JSON.parse(store.get('tvt:mxs')||'{}')||{}}catch(e){}return Object.assign({reg:'*',all:false},o)})();
+// rev257: pages of 10 (‹ ›) for long lists; going back to page 1 when the list changes (filters, sort)
+const PG={};
+function pgSlice(id,arr,n){n=n||10;const f=arr[0]||{},sig=arr.length+'|'+(f.k||f.g||f.t||'');const st=PG[id]||(PG[id]={p:0,sig});if(st.sig!==sig){st.p=0;st.sig=sig}
+  const pages=Math.max(1,Math.ceil(arr.length/n));if(st.p>=pages)st.p=pages-1;if(st.p<0)st.p=0;const o=st.p*n;
+  return{items:arr.slice(o,o+n),off:o,ctl:arr.length>n?`<div class="pgr"><button type="button" data-pg="${id}" data-pgd="-1"${st.p?'':' disabled'} title="Previous ${n}">‹</button><span>${o+1}–${Math.min(arr.length,o+n)} <small>of ${arr.length}</small></span><button type="button" data-pg="${id}" data-pgd="1"${st.p<pages-1?'':' disabled'} title="Next ${n}">›</button></div>`:''}}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-pg]');if(!b||b.disabled)return;const st=PG[b.dataset.pg];if(!st)return;st.p+=+b.dataset.pgd;
+  const box=b.closest('.rs-box,.mxd-wrap');renderDetail();if(box){const id=b.dataset.pg,nb=document.querySelector(`[data-pg="${id}"]`);const bx=nb&&nb.closest('.rs-box,.mxd-wrap');if(bx&&bx.getBoundingClientRect().top<0)bx.scrollIntoView({block:'start'})}});
 // rev256: every team of the TEAMS table of Picks with its tags, also teams with only one player (a tryout like ZOULAN), so their players count as tracked
 function pkTagMap(F){const o=Object.assign({},(F&&F.knownTags)||{},(F&&F.official)||{}),pp=(F&&F.pickPlayers)||(FULL&&FULL.pickPlayers)||{};
   for(const t in pp)if(!o[t]){const g=[].concat(...(pp[t]||[]).map(p=>p.tags||[]));if(g.length)o[t]=g}return o}
@@ -3820,12 +3827,12 @@ function mxDayTable(d,team){let AL=[];try{AL=mxMatches(d,'')}catch(e){return ''}
   const R=Object.values(T).sort(by==='sets'?(a,b)=>nS(b)-nS(a)||sc(b)-sc(a):(a,b)=>sc(b)-sc(a)||nS(b)-nS(a));
   const sh=(k,t)=>`<th class="num mxd-s${by===k?' on':''}" data-mxdsort="${k}" title="Sort by ${k==='sets'?'sets played':'win rate'}">${t}${by===k?' ↓':''}</th>`;if(!R.length)return '';
   const pc=(w,n)=>n?Math.round(100*w/n)+'%':'–',cl=(w,n)=>{const v=n?w/n:.5;return v>=.6?'#4ade80':v>=.53?'#86efac':v>.47?'#facc15':v>.4?'#fca5a5':'#f87171'};
-  const open=store.get('tvt:mxd')!=='0';
+  const open=store.get('tvt:mxd')!=='0',PGd=pgSlice('mxd:'+d+':'+(MXS.all?1:0)+':'+MXS.reg+':'+(store.get('tvt:mxdsort')||''),R);
   const nT=R.filter(e=>e.t).length,nR=R.length-nT,cnt=plural(nT,'team')+(nR?' · '+plural(nR,'trio'):'');
   if(!open)return `<div class="mxd-wrap"><button type="button" class="mxd-tg" data-mxdtg>▸ Win rate on ${fmtDate(d)} · ${cnt}</button></div>`;
-  return `<div class="mxd-wrap"><button type="button" class="mxd-tg on" data-mxdtg>▾ Win rate on ${fmtDate(d)} · ${cnt}</button><table class="mxd"><thead><tr><th></th><th>Team</th>${sh('sets','Sets')}<th class="num">W–L</th>${sh('wr','Win rate')}<th class="num">Tournament</th><th>Played against</th></tr></thead><tbody>${R.map((e,i)=>{const n=e.w+e.l,tn=e.tw+e.tl;
+  return `<div class="mxd-wrap"><button type="button" class="mxd-tg on" data-mxdtg>▾ Win rate on ${fmtDate(d)} · ${cnt}</button><table class="mxd"><thead><tr><th></th><th>Team</th>${sh('sets','Sets')}<th class="num">W–L</th>${sh('wr','Win rate')}<th class="num">Tournament</th><th>Played against</th></tr></thead><tbody>${PGd.items.map((e,i0)=>{const i=PGd.off+i0,n=e.w+e.l,tn=e.tw+e.tl;
     if(!e.t)return `<tr class="mxd-trio${e.k===team?' on':''}" data-mt="${e.k===team?'':esc(e.k)}" data-mtl="${esc(e.pp.join(' · ')||'Trio')}" title="${e.k===team?'Show all the matches again':'Show only the matches of this trio'}"><td class="rk">${i+1}</td><td><span class="mxd-t"><span class="mx-pp">${esc(e.pp.join(' · ')||'Trio')}</span><small class="mxd-tag">TRIO</small></span></td><td class="num">${n}</td><td class="num">${e.w}–${e.l}</td><td class="num"><b style="color:${cl(e.w,n)}">${pc(e.w,n)}</b></td><td class="num">${tn?`${e.tw}–${e.tl}`:'<small>–</small>'}</td><td class="mxd-r">${[...e.riv].map(r=>off.includes(r)?logo(r,'l20'):'').join('')}${e.tr?`<small>${e.riv.size?'+ ':''}${plural(e.tr,'trio')}</small>`:''}${!e.riv.size&&!e.tr?'<small>other rivals</small>':''}</td></tr>`;
-    return `<tr class="${e.t===team?'on':''}" data-mt="${e.t===team?'':esc(e.t)}" title="${e.t===team?'Show all the matches again':'Show only the matches of '+esc(e.t)}"><td class="rk">${i+1}</td><td><span class="mxd-t">${logo(e.t,'l28')}<b>${esc(e.t)}</b></span></td><td class="num">${n}</td><td class="num">${e.w}–${e.l}</td><td class="num"><b style="color:${cl(e.w,n)}">${pc(e.w,n)}</b></td><td class="num">${tn?`${e.tw}–${e.tl}`:'<small>–</small>'}</td><td class="mxd-r">${[...e.riv].map(r=>off.includes(r)?logo(r,'l20'):'').join('')}${e.tr?`<small>${e.riv.size?'+ ':''}${plural(e.tr,'trio')}</small>`:''}${!e.riv.size&&!e.tr?'<small>other rivals</small>':''}</td></tr>`}).join('')}</tbody></table></div>`}
+    return `<tr class="${e.t===team?'on':''}" data-mt="${e.t===team?'':esc(e.t)}" title="${e.t===team?'Show all the matches again':'Show only the matches of '+esc(e.t)}"><td class="rk">${i+1}</td><td><span class="mxd-t">${logo(e.t,'l28')}<b>${esc(e.t)}</b></span></td><td class="num">${n}</td><td class="num">${e.w}–${e.l}</td><td class="num"><b style="color:${cl(e.w,n)}">${pc(e.w,n)}</b></td><td class="num">${tn?`${e.tw}–${e.tl}`:'<small>–</small>'}</td><td class="mxd-r">${[...e.riv].map(r=>off.includes(r)?logo(r,'l20'):'').join('')}${e.tr?`<small>${e.riv.size?'+ ':''}${plural(e.tr,'trio')}</small>`:''}${!e.riv.size&&!e.tr?'<small>other rivals</small>':''}</td></tr>`}).join('')}</tbody></table>${PGd.ctl}</div>`}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-mxdsort]');if(!b)return;store.set('tvt:mxdsort',b.dataset.mxdsort);renderDetail()});
 document.addEventListener('click',e=>{if(!e.target.closest||!e.target.closest('[data-mxdtg]'))return;store.set('tvt:mxd',store.get('tvt:mxd')==='0'?'1':'0');renderDetail()});
 function datesTab(){
@@ -5237,14 +5244,16 @@ function rsHTML(){rsSegLoad();const C=rsCompute();
   const det=e=>{const V=Object.entries(e.vs).sort((a,b)=>b[1].n-a[1].n),Mp=Object.entries(e.maps).sort((a,b)=>b[1].s-a[1].s||b[1].n-a[1].n);
     return `<tr class="rs-det"><td colspan="7"><div class="rs-dg"><div><div class="rs-t">SCRIMMED VS</div>${V.slice(0,12).map(([k,v])=>{const o=C.TR[k];return `<div class="rs-dl">${rsLogo(o&&o.team,'')}<span>${o?(o.team?esc(o.team):o.names.map(esc).join(' · ')):''}</span><b>${v.s} sets · ${v.n} games</b>${rsWr(v.s,v.sw)}</div>`}).join('')}</div>
       <div><div class="rs-t">MAPS</div>${Mp.slice(0,10).map(([m,v])=>`<div class="rs-dl"><span>${esc(m)}</span><b>${v.s} sets · ${v.n} games</b>${rsWr(v.s,v.sw)}</div>`).join('')}<button type="button" class="rs-btn" style="margin:10px 0 4px" data-rsstats="${esc(e.k)}">SEE ALL STATS IN TEAM STATS ›</button><p class="rs-hint">Win rates count sets; a loose single game is not a set. Tags: ${e.tags.map((g,i)=>esc(e.names[i])+' '+esc(g)).join(' · ')}</p></div></div></td></tr>`};
-  const rows=L.map(e=>`<tr class="rs-row${RS.open===e.k?' op':''}" data-rsopen="${esc(e.k)}"><td>${teamC(e)}</td><td>${pls(e)}</td><td class="rs-num">${e.s}<small>${e.n} games</small></td><td>${act(e)}<small class="rs-ld">since ${rsD(e.first)} · last ${rsD(e.last)}</small></td><td>${vsL(e)}</td><td>${rsWr(e.s,e.sw)}</td><td class="rs-bt"><button type="button" class="rs-btn" data-rsstats="${esc(e.k)}" title="Open Team Stats for this ${e.team?'team':'trio'}">SEE STATS</button>${e.team||!rsAdmin()?'':`<button type="button" class="rs-btn ghost" data-rspicks="${esc(e.k)}" title="Add this roster as a team in the Picks sheet">+ PICKS</button>`}</td></tr>${RS.form===e.k&&rsAdmin()?rsForm(e,C):RS.open===e.k?det(e):''}`).join('');
+  const PGr=pgSlice('rs',L);
+  const rows=PGr.items.map(e=>`<tr class="rs-row${RS.open===e.k?' op':''}" data-rsopen="${esc(e.k)}"><td>${teamC(e)}</td><td>${pls(e)}</td><td class="rs-num">${e.s}<small>${e.n} games</small></td><td>${act(e)}<small class="rs-ld">since ${rsD(e.first)} · last ${rsD(e.last)}</small></td><td>${vsL(e)}</td><td>${rsWr(e.s,e.sw)}</td><td class="rs-bt"><button type="button" class="rs-btn" data-rsstats="${esc(e.k)}" title="Open Team Stats for this ${e.team?'team':'trio'}">SEE STATS</button>${e.team||!rsAdmin()?'':`<button type="button" class="rs-btn ghost" data-rspicks="${esc(e.k)}" title="Add this roster as a team in the Picks sheet">+ PICKS</button>`}</td></tr>${RS.form===e.k&&rsAdmin()?rsForm(e,C):RS.open===e.k?det(e):''}`).join('');
   const tbl=`<div class="rs-box"><div class="rs-h">TRIOS PLAYING TOGETHER <small>${esc(tyTxt)} · ${esc({games:'most sets',last:'last day played',first:'date they started',wr:'set win rate'}[RS.sort]||'')} ${RS.dir>0?'↑':'↓'} · click a column to sort · click a trio to see its rivals and maps</small></div>
-    ${L.length?`<div class="tablewrap"><table class="rs-tb"><thead><tr><th>TEAM</th><th>PLAYERS</th>${rsTh('SETS','games')}<th>ACTIVITY ${rsTh('LAST','last',1)} ${rsTh('SINCE','first',1)}</th><th>VS</th>${rsTh('SET WR','wr')}<th></th></tr></thead><tbody>${rows}</tbody></table></div>`:'<p class="rs-hint" style="font-size:13px">No trio with these filters. Try a longer period, fewer minimum games or “Both”.</p>'}
+    ${L.length?`<div class="tablewrap"><table class="rs-tb"><thead><tr><th>TEAM</th><th>PLAYERS</th>${rsTh('SETS','games')}<th>ACTIVITY ${rsTh('LAST','last',1)} ${rsTh('SINCE','first',1)}</th><th>VS</th>${rsTh('SET WR','wr')}<th></th></tr></thead><tbody>${rows}</tbody></table></div>${PGr.ctl}`:'<p class="rs-hint" style="font-size:13px">No trio with these filters. Try a longer period, fewer minimum games or “Both”.</p>'}
     <div class="rs-leg"><span><i></i>tracked player (Picks or SEGUIMIENTO)</span><span><i class="no"></i>not tracked (seen as teammate or rival)</span><span><b style="color:#facc15">NEW</b> = new player in a Picks team</span><span>Activity: one square per day · lighter = 10+ games</span></div></div>`;
   const ch=all.filter(e=>e.st!=='same').sort((a,b)=>a.first<b.first?1:a.first>b.first?-1:b.n-a.n).slice(0,14).map(e=>`<div class="rs-ch"><span class="d">${rsD(e.first)}</span><div><b>${e.team?esc(e.team):e.names.map(esc).join(' · ')}</b> · ${e.st==='chg'?`${(e.outT||[]).map(g=>`<span class="o">− ${nmT(g)}</span>`).join(' ')} ${e.newT.map(g=>`<span class="n">+ ${nmT(g)}</span>`).join(' ')} · ${e.n} games together`:`<span class="n">new trio</span> · ${e.n} games${e.guess?' · '+esc(e.guess)+' tag':''}`}</div></div>`).join('');
   const chB=`<div class="rs-box"><div class="rs-h">ROSTER CHANGES <small>new trios and new players in Picks teams · newest first</small></div>${ch||'<p class="rs-hint">No changes in this period.</p>'}</div>`;
+  let PGdc=null;
   const rawReg=(()=>{for(const g in C.seg)if(C.seg[g].reg===RS.reg&&C.seg[g].raw)return C.seg[g].raw;return String(RS.reg).toUpperCase()})();
-  const dB=`<div class="rs-box"><div class="rs-h">PLAYERS DISCOVERED <small>players we don't track, seen in these trios</small></div>${D.slice(0,15).map(d=>`<div class="rs-dc"><b>${esc(d.name)}<small>${esc(d.g)}</small></b><span class="rs-num">${d.n}<small>games</small></span><span class="rs-mut">plays with ${Object.keys(d.w).slice(0,3).map(esc).join(', ')}</span>${rsAdmin()?`<button type="button" class="rs-btn" data-rsseg="1" data-rscopy="${esc(d.g+'\t'+d.name+'\t'+rawReg)}">+ SEGUIMIENTO</button>`:'<span></span>'}</div>`).join('')||'<p class="rs-hint">Everyone here is tracked already.</p>'}
+  const dB=`<div class="rs-box"><div class="rs-h">PLAYERS DISCOVERED <small>players we don't track, seen in these trios</small></div>${(PGdc=pgSlice('rsdc',D)).items.map(d=>`<div class="rs-dc"><b>${esc(d.name)}<small>${esc(d.g)}</small></b><span class="rs-num">${d.n}<small>games</small></span><span class="rs-mut">plays with ${Object.keys(d.w).slice(0,3).map(esc).join(', ')}</span>${rsAdmin()?`<button type="button" class="rs-btn" data-rsseg="1" data-rscopy="${esc(d.g+'\t'+d.name+'\t'+rawReg)}">+ SEGUIMIENTO</button>`:'<span></span>'}</div>`).join('')||'<p class="rs-hint">Everyone here is tracked already.</p>'}${PGdc.ctl}
     <p class="rs-hint">${rsAdmin()?'The button adds the player to the SEGUIMIENTO tab of the sheet (tag, name, region). If the sheet can\'t be reached, it copies them for you to paste.':'Only admins can add players and teams to the sheet.'}</p></div>`;
   return `<div class="rs">${kp}${tbl}<div class="rs-2">${chB}${dB}</div></div>`}
 document.addEventListener('click',e=>{const t=e.target;if(!t||!t.closest)return;
@@ -12988,5 +12997,53 @@ html body .tw-scale:not(#_):not(#__) #tc-tw .wr-bx h4{margin:0!important}
     if(!TABS[t].some(s=>vis(s.el())))return;
     start('tab:'+t,TABS[t],t.toUpperCase())},700);
   window.TQ={start:(k)=>k==='general'?start('general',GENERAL,'GENERAL TOUR'):TABS[k]&&start('tab:'+k,TABS[k],k.toUpperCase()),welcome,reset:()=>{Object.keys(localStorage).filter(k=>k.startsWith('tvt:tq:')).forEach(k=>localStorage.removeItem(k))}};
+})();
+</script>
+<script id="rev257mob">
+/* phones: the tab bar becomes one big button that opens a list of all the tabs (big rows, easy to tap);
+   and the page always leaves room for the tab bar and the filter bar, so nothing goes under them */
+(function(){
+var MQ=matchMedia('(max-width:760px)');
+var st=document.createElement('style');st.textContent=
+'@media (max-width:760px){#sheetbar.sbm>*:not(#sbMob){display:none!important}#sheetbar.sbm{justify-content:stretch!important;padding:0 10px!important;overflow:visible!important}'+
+'#sbMob{display:flex;align-items:center;gap:10px;width:100%;height:42px;padding:0 14px;background:#24143a;border:1px solid #a855f7;color:#fff;font:inherit;font-size:15px;font-weight:800;cursor:pointer}'+
+'#sbMob .ic{font-size:18px;line-height:1}#sbMob .car{margin-left:auto;font-size:12px;color:#c4b5fd}'+
+'#sbMenu{position:fixed;left:0;right:0;z-index:9995;max-height:78vh;overflow:auto;background:#0e0d14;border-bottom:2px solid #a855f7;box-shadow:0 18px 40px rgba(0,0,0,.6);padding:6px 10px 12px}'+
+'#sbMenu .g{font-size:10.5px;letter-spacing:.12em;font-weight:800;color:#8f8ba8;text-transform:uppercase;padding:12px 6px 4px}'+
+'#sbMenu button{display:flex;align-items:center;width:100%;min-height:48px;padding:0 14px;margin:2px 0;background:#151320;border:1px solid #24222f;color:#e5e3f0;font:inherit;font-size:15.5px;font-weight:600;text-align:left;cursor:pointer}'+
+'#sbMenu button.on{background:#24143a;border-color:#a855f7;color:#fff;font-weight:800}#sbMenu button.on::after{content:"●";margin-left:auto;color:#a855f7;font-size:10px}}'+
+'#sbMob{display:none}@media (max-width:760px){#sbMob{display:flex}}';
+document.head.appendChild(st);
+function bar(){return document.getElementById('sheetbar')}
+function items(){var s=bar();if(!s)return[];var was=s.classList.contains('sbm');s.classList.remove('sbm');var out=[],grp='';
+  [].forEach.call(s.children,function(c){if(c.id==='sbMob')return;
+    if(c.classList.contains('sb-grp')){var i=c.querySelector(':scope>i');var g=i?i.textContent.trim():'';[].forEach.call(c.querySelectorAll('.sb-t'),function(b){if(b.getClientRects().length)out.push({b:b,g:g})})}
+    else if(c.classList.contains('sb-t')&&c.getClientRects().length)out.push({b:c,g:''})});
+  if(was)s.classList.add('sbm');return out}
+function label(b){return (b.textContent||'').replace(/\s+/g,' ').trim()}
+function cur(){var L=items();for(var i=0;i<L.length;i++)if(L[i].b.classList.contains('on'))return L[i];return null}
+function paint(){var s=bar();if(!s)return;if(!MQ.matches){s.classList.remove('sbm');return}
+  s.classList.add('sbm');var m=document.getElementById('sbMob');if(!m){m=document.createElement('button');m.type='button';m.id='sbMob';s.insertBefore(m,s.firstChild)}
+  var c=cur(),t=c?label(c.b):'Tabs',h='<span class="ic">☰</span><span>'+(c&&c.g?'<small style="font-weight:600;color:#c4b5fd;margin-right:6px">'+c.g+' ·</small>':'')+t.replace(/</g,'&lt;')+'</span><span class="car">▼ all tabs</span>';
+  if(m.innerHTML!==h)m.innerHTML=h}
+function close(){var x=document.getElementById('sbMenu');if(x)x.remove()}
+function open(){close();var s=bar(),L=items(),d=document.createElement('div'),g=null,h='';d.id='sbMenu';d.style.top=(s.getBoundingClientRect().bottom)+'px';
+  L.forEach(function(x,i){if(x.g!==g){h+=x.g||g?'<div class="g">'+(x.g||'More')+'</div>':'';g=x.g}h+='<button type="button" data-sbmi="'+i+'"'+(x.b.classList.contains('on')?' class="on"':'')+'>'+label(x.b).replace(/</g,'&lt;')+'</button>'});
+  d.innerHTML=h;d._L=L;document.body.appendChild(d)}
+document.addEventListener('click',function(e){var t=e.target;
+  if(t.closest&&t.closest('#sbMob')){e.preventDefault();e.stopPropagation();if(document.getElementById('sbMenu'))close();else open();return}
+  var it=t.closest&&t.closest('#sbMenu [data-sbmi]');if(it){var m=document.getElementById('sbMenu'),x=m._L[+it.dataset.sbmi];close();if(x){x.b.click();window.scrollTo(0,0)}setTimeout(paint,50);return}
+  if(document.getElementById('sbMenu')&&!(t.closest&&t.closest('#sbMenu')))close()},true);
+// room for the fixed bars: the filter bar goes right under the tab bar and the page starts under both
+function room(){var s=bar(),c=document.getElementById('ctxbar');if(!s)return;var hs=s.getBoundingClientRect().height,vis=getComputedStyle(s).display!=='none';
+  if(c&&vis){c.style.setProperty('top',hs+'px','important')}
+  var hc=c&&getComputedStyle(c).display!=='none'?c.getBoundingClientRect().height:0;
+  if(vis)document.body.style.setProperty('padding-top',Math.round(hs+hc+22)+'px','important')}
+function tick(){paint();room()}
+var mo=new MutationObserver(function(){clearTimeout(tick._t);tick._t=setTimeout(tick,30)});
+function start(){var s=bar();if(s)mo.observe(s,{subtree:true,attributes:true,attributeFilter:['class','style'],childList:true});var c=document.getElementById('ctxbar');if(c)mo.observe(c,{childList:true,subtree:true});tick()}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
+setInterval(function(){var c=document.getElementById('ctxbar');if(c&&!c._mo){c._mo=1;mo.observe(c,{childList:true,subtree:true})}tick()},1500);
+MQ.addEventListener?MQ.addEventListener('change',tick):MQ.addListener(tick);addEventListener('resize',function(){close();tick()});
 })();
 </script>
