@@ -2922,7 +2922,7 @@ function compRows(items,team0){if(!items||!items.length)return '<p class="msg u-
     return `<div class="u-crow${x.s?' solo':''}" data-slk="${x.i}" data-slt="${esc(team)}" title="Click to open the set">
       <div class="u-cres ${r[0]}">${r[1]}<small>${esc(x.sc||'')}</small></div>${mimg(x.map,'u-cmi')}<div class="u-cmeta">${team0?'':`<span class="u-cteam">${logo(team,'l20')}${esc(team)}</span>`}<b>${esc(x.map)}</b><small>${fmtDate(x.d)}${x.ty==='tournament'?' · <i class="u-tt">Tournament</i>':''}</small></div>
       <div class="u-cside l"><span class="u-cbn">${bz(side(x,true))}</span><span class="u-cbr">${br(x.mine,x.myNames,x.myTags)}</span></div><div class="u-cvs">${c||'vs'}</div><div class="u-cside r"><span class="u-cbr">${br(x.theirs,x.opNames,x.opTags)}</span><span class="u-cbn">${bz(side(x,false))}</span></div>
-      <div class="u-copp">${logo(op||x.opp||'?','u-lg')}<b title="${esc(x.opp||'')}">${esc(op||x.opp||'')}</b></div></div>`}).join('')}</div>`}
+      <div class="u-copp">${op?logo(op,'u-lg'):''}<b title="${esc(x.opp||'')}">${esc(op||x.opp||'')}</b></div></div>`}).join('')}</div>`}
 function tsOne(team,cls,D,o){
   const its=(D.items0||[]).filter(x=>!x.s&&x.win!==.5),MI={};for(const m of ds.matches)MI[m.i]=m;
   const pc=(w,n)=>n?Math.round(100*w/n):0,col=p=>p>=60?'#4ade80':p>=53?'#86efac':p>47?'#facc15':p>40?'#fca5a5':'#f87171';
@@ -5202,7 +5202,7 @@ function rsTh(l,k,inl){const on=RS.sort===k,a=on?(RS.dir>0?' ↑':' ↓'):'';con
 function rsVis(n,g){const v=String(n||'').replace(/[\s\u3164\u115F\u1160\u2800\u200B-\u200F\u2060\uFEFF\uFFA0]/g,'');return v?String(n):g}
 const rsAdmin=()=>window.__ROLE==='Admin';
 function rsWr(s,w){if(!s)return '<span class="rs-mut">–</span>';const v=Math.round(100*w/s);return `<b style="color:${v>=55?'#4ade80':v<45?'#f87171':'#facc15'}">${v}%</b>`}
-function rsLogo(t,cls){return t?logo(t,cls||''):`<span class="rs-q ${cls||''}">?</span>`}
+function rsLogo(t,cls){return t?logo(t,cls||''):''}
 let RSQ='';
 function rsVisible(C){
   for(const e of C.E)if(!e.reg)e.reg='Unknown';
@@ -5238,10 +5238,11 @@ function rsHTML(){rsSegLoad();const C=rsCompute();
     <div class="rs-k"><s>NEW TRIOS</s><div style="color:#c9a6ff">${all.filter(e=>e.st==='new').length}<em>never seen before</em></div></div>
     <div class="rs-k"><s>ROSTER CHANGES</s><div style="color:#facc15">${all.filter(e=>e.st==='chg').length}<em>known team, new player</em></div></div>
     <div class="rs-k"><s>PLAYERS DISCOVERED</s><div>${D.length}<em>not tracked yet</em></div></div></div>`;
-  const tagB={new:'<span class="rs-tag new">NEW</span>',chg:'<span class="rs-tag chg">CHANGE</span>',same:'<span class="rs-tag">SAME</span>'};
-  const vsL=e=>{const V=Object.entries(e.vs).sort((a,b)=>b[1].n-a[1].n);return `<div class="rs-vs">${V.slice(0,2).map(([k])=>{const o=C.TR[k];return `<span title="${esc(o?(o.team||o.names.join(' · ')):'')}">${rsLogo(o&&o.team,'')}</span>`}).join('')}${V.length>2?`<small>+${V.length-2}</small>`:''}</div>`};
+  const tagB={new:'',chg:'',same:''};
+  const vsL=e=>{const V=Object.entries(e.vs).sort((a,b)=>b[1].n-a[1].n),K=V.filter(([k])=>C.TR[k]&&C.TR[k].team),U=V.length-K.length;
+  return `<div class="rs-vs">${K.slice(0,3).map(([k])=>`<span title="${esc(C.TR[k].team)}">${rsLogo(C.TR[k].team,'')}</span>`).join('')}${K.length>3?`<small>+${K.length-3}</small>`:''}${U?`<small title="rivals that are not Picks teams">${K.length?'+ ':''}${plural(U,'trio')}</small>`:''}</div>`};
   const act=e=>`<div class="rs-act d${RS.days}">${C.dayList.map(d=>{const n=e.days[d]||0;return `<b class="${n>=10?'hi':n?'on':''}" title="${rsD(d)} · ${n} games"></b>`}).join('')}</div>`;
-  const pls=e=>`<div class="rs-pl">${e.tags.map((g,i)=>{const nw=e.st==='chg'&&e.newT.includes(g);return `<span class="rs-p${nw?' nw':''}" title="${esc(g)}"><i class="${e.tracked[i]?'':'no'}"></i>${esc(e.names[i])}${nw?' <u>NEW</u>':''}</span>`}).join('')}</div>`;
+  const pls=e=>`<div class="rs-pl">${e.tags.map((g,i)=>{const nw=false;return `<span class="rs-p${nw?' nw':''}" title="${esc(g)}"><i class="${e.tracked[i]?'':'no'}"></i>${esc(e.names[i])}${nw?' <u>NEW</u>':''}</span>`}).join('')}</div>`;
   const nmT=g=>esc(rsVis(sheetName(g,C.NM[g]||g)||C.NM[g],g));
   const teamC=e=>{const sub=e.team?(e.st==='chg'?`${e.newT.map(nmT).join(', ')} in${e.outT&&e.outT.length?' · '+e.outT.map(nmT).join(', ')+' out':''}`:esc(TOUR[e.team]||'Picks team')):(e.guess?esc(e.guess)+' tag on 2+ players':(e.st==='new'?'first seen '+rsD(e.first):'seen before'));
     if(e.vt)return `<div class="rs-tm">${rsLogo('','')}<div>${esc(e.vt)}<small>${tagB[e.st]} temporary trio · only in this browser</small></div></div>`;
@@ -5250,10 +5251,10 @@ function rsHTML(){rsSegLoad();const C=rsCompute();
     return `<tr class="rs-det"><td colspan="7"><div class="rs-dg"><div><div class="rs-t">SCRIMMED VS</div>${V.slice(0,12).map(([k,v])=>{const o=C.TR[k];return `<div class="rs-dl">${rsLogo(o&&o.team,'')}<span>${o?(o.team?esc(o.team):o.names.map(esc).join(' · ')):''}</span><b>${v.s} sets · ${v.n} games</b>${rsWr(v.s,v.sw)}</div>`}).join('')}</div>
       <div><div class="rs-t">MAPS</div>${Mp.slice(0,10).map(([m,v])=>`<div class="rs-dl"><span>${esc(m)}</span><b>${v.s} sets · ${v.n} games</b>${rsWr(v.s,v.sw)}</div>`).join('')}<button type="button" class="rs-btn" style="margin:10px 0 4px" data-rsstats="${esc(e.k)}">SEE ALL STATS IN TEAM STATS ›</button><p class="rs-hint">Win rates count sets; a loose single game is not a set. Tags: ${e.tags.map((g,i)=>esc(e.names[i])+' '+esc(g)).join(' · ')}</p></div></div></td></tr>`};
   const PGr=pgSlice('rs',L);
-  const rows=PGr.items.map(e=>`<tr class="rs-row${RS.open===e.k?' op':''}" data-rsopen="${esc(e.k)}"><td>${teamC(e)}</td><td>${pls(e)}</td><td class="rs-num">${e.s}<small>${e.n} games</small></td><td>${act(e)}<small class="rs-ld">since ${rsD(e.first)} · last ${rsD(e.last)}</small></td><td>${vsL(e)}</td><td>${rsWr(e.s,e.sw)}</td><td class="rs-bt"><button type="button" class="rs-btn" data-rsstats="${esc(e.k)}" title="Open Team Stats for this ${e.team?'team':'trio'}">SEE STATS</button>${e.team||!rsAdmin()?'':`<button type="button" class="rs-btn ghost" data-rspicks="${esc(e.k)}" title="Add this roster as a team in the Picks sheet">+ PICKS</button>`}</td></tr>${RS.form===e.k&&rsAdmin()?rsForm(e,C):RS.open===e.k?det(e):''}`).join('');
+  const rows=PGr.items.map(e=>`<tr class="rs-row${RS.open===e.k?' op':''}" data-rsopen="${esc(e.k)}"><td>${teamC(e)}</td><td>${pls(e)}</td><td class="rs-num">${e.s}<small>${e.n} games</small></td><td class="rs-dt"><b>${rsD(e.last)}</b><small>since ${rsD(e.first)}</small></td><td>${vsL(e)}</td><td>${rsWr(e.s,e.sw)}</td><td class="rs-bt"><button type="button" class="rs-btn" data-rsstats="${esc(e.k)}" title="Open Team Stats for this ${e.team?'team':'trio'}">SEE STATS</button>${e.team||!rsAdmin()?'':`<button type="button" class="rs-btn ghost" data-rspicks="${esc(e.k)}" title="Add this roster as a team in the Picks sheet">+ PICKS</button>`}</td></tr>${RS.form===e.k&&rsAdmin()?rsForm(e,C):RS.open===e.k?det(e):''}`).join('');
   const tbl=`<div class="rs-box"><div class="rs-srch"><input type="search" id="rsQ" value="${esc(RSQ)}" placeholder="Search a player (name or tag) to see every trio they played in" autocomplete="off">${RSQ?`<span>${plural(L.length,'trio')} with “${esc(RSQ)}” · all regions</span><button type="button" data-rsq="1">Clear</button>`:''}</div><div class="rs-h">TRIOS PLAYING TOGETHER <small>${esc(tyTxt)} · ${esc({games:'most sets',last:'last day played',first:'date they started',wr:'set win rate'}[RS.sort]||'')} ${RS.dir>0?'↑':'↓'} · click a column to sort · click a trio to see its rivals and maps</small></div>
-    ${L.length?`<div class="tablewrap"><table class="rs-tb"><thead><tr><th>TEAM</th><th>PLAYERS</th>${rsTh('SETS','games')}<th>ACTIVITY ${rsTh('LAST','last',1)} ${rsTh('SINCE','first',1)}</th><th>VS</th>${rsTh('SET WR','wr')}<th></th></tr></thead><tbody>${rows}</tbody></table></div>${PGr.ctl}`:'<p class="rs-hint" style="font-size:13px">No trio with these filters. Try a longer period, fewer minimum games or “Both”.</p>'}
-    <div class="rs-leg"><span><i></i>tracked player (Picks or SEGUIMIENTO)</span><span><i class="no"></i>not tracked (seen as teammate or rival)</span><span><b style="color:#facc15">NEW</b> = new player in a Picks team</span><span>Activity: one square per day · lighter = 10+ games</span></div></div>`;
+    ${L.length?`<div class="tablewrap"><table class="rs-tb"><thead><tr><th>TEAM</th><th>PLAYERS</th>${rsTh('SETS','games')}<th>${rsTh('LAST PLAYED','last',1)} · ${rsTh('SINCE','first',1)}</th><th>VS</th>${rsTh('SET WR','wr')}<th></th></tr></thead><tbody>${rows}</tbody></table></div>${PGr.ctl}`:'<p class="rs-hint" style="font-size:13px">No trio with these filters. Try a longer period, fewer minimum games or “Both”.</p>'}
+    <div class="rs-leg"><span><i></i>tracked player (Picks or SEGUIMIENTO)</span><span><i class="no"></i>not tracked (seen as teammate or rival)</span></div></div>`;
   const ch=all.filter(e=>e.st!=='same').sort((a,b)=>a.first<b.first?1:a.first>b.first?-1:b.n-a.n).slice(0,14).map(e=>`<div class="rs-ch"><span class="d">${rsD(e.first)}</span><div><b>${e.team?esc(e.team):e.names.map(esc).join(' · ')}</b> · ${e.st==='chg'?`${(e.outT||[]).map(g=>`<span class="o">− ${nmT(g)}</span>`).join(' ')} ${e.newT.map(g=>`<span class="n">+ ${nmT(g)}</span>`).join(' ')} · ${e.n} games together`:`<span class="n">new trio</span> · ${e.n} games${e.guess?' · '+esc(e.guess)+' tag':''}`}</div></div>`).join('');
   const chB=`<div class="rs-box"><div class="rs-h">ROSTER CHANGES <small>new trios and new players in Picks teams · newest first</small></div>${ch||'<p class="rs-hint">No changes in this period.</p>'}</div>`;
   let PGdc=null;
@@ -13091,6 +13092,15 @@ html body .mxd-tg:hover{color:#c4b5fd}
 html body .mx-lbl{font-size:12.5px!important;font-weight:800!important;letter-spacing:.14em!important;color:#e5e3f0!important;margin:4px 0 14px!important;text-transform:uppercase}
 html body .mxd tr.lo td{opacity:.45}
 html body .fs-lo{opacity:.4}
+/* rev273: Rosters table compact: columns sized to their content, no stretching on wide screens */
+html body .rs-tb:not(#_){width:100%!important}
+@media (min-width:1650px){html body .rs-tb:not(#_):not(#__){width:auto!important}}
+html body .rs-tb td:not(#_),html body .rs-tb th:not(#_){padding-left:6px;padding-right:8px}
+@media (min-width:1650px){html body .rs-tb td:not(#_):not(#__),html body .rs-tb th:not(#_):not(#__){padding-left:10px;padding-right:16px}}
+html body .rs-box:not(#_){overflow-x:auto}
+html body .rs-tb .rs-pl:not(#_){flex-wrap:wrap;max-width:330px}
+html body .rs-dt b{display:block;font-size:12.5px;color:#e5e3f0;white-space:nowrap}html body .rs-dt small{color:#8f8ba8;font-size:11px;white-space:nowrap}
+html body .rs-vs small{font-size:11px;color:#8f8ba8;white-space:nowrap;margin-left:4px}
 html body .rs-srch{display:flex;align-items:center;gap:10px;margin:0 0 14px;flex-wrap:wrap}
 html body .rs-srch input{flex:1 1 320px;padding:9px 12px;background:#0d0c12;border:1px solid #3a3850;color:#e5e3f0;font:inherit;font-size:13px}
 html body .rs-srch input:focus{outline:none;border-color:#a855f7}
@@ -13115,6 +13125,13 @@ html body .rs-q{display:flex;align-items:center;gap:12px;margin:0 0 14px;flex-wr
  html body .u-cbn .u-sb:not(#_):not(#__){width:30px;height:30px}
 }
 html body .u-crow .u-cbr:not(#_){min-width:0;max-width:100%}
+/* rev273: comps rows keep everything on one line; when the row is wider than the screen the list scrolls sideways */
+@media (min-width:761px){
+ html body .u-crows:not(#_){overflow-x:auto}
+ html body .u-crow:not(#_):not(#__):not(#___){width:max-content;min-width:100%;grid-template-columns:52px 34px 118px auto 20px auto auto!important}
+ html body .u-crow .u-copp:not(#_):not(#__) b,html body .u-crow .u-copp:not(#_):not(#__)>:last-child{white-space:nowrap!important;overflow:visible!important;text-overflow:clip!important}
+ html body .u-cbn .u-sb:not(#_):not(#__):not(#___){width:36px;height:36px}
+}
 
 /* page tools hide while a window (team picker, overlays) is open, so they never cover its buttons */
 body:has(.dr-ov) #tqTheme,body:has(.dr-ov) #tqZoom,body:has(.dr-ov) #tqHelp,body:has(.dr-ov) #tqTh,body:has(.dr-ov) #tqZm{visibility:hidden}
