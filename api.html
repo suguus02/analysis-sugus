@@ -13081,6 +13081,12 @@ html body .mxd-tg:hover{color:#c4b5fd}
 html body .mx-lbl{font-size:12.5px!important;font-weight:800!important;letter-spacing:.14em!important;color:#e5e3f0!important;margin:4px 0 14px!important;text-transform:uppercase}
 html body .mxd tr.lo td{opacity:.45}
 html body .fs-lo{opacity:.4}
+/* Comps: bigger bans, always on their own line above the picks (no overlap) */
+html body .u-crow .u-cside:not(#_):not(#__):not(#___){flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:6px!important}
+html body .u-crow .u-cside .u-cbn:not(#_):not(#__):not(#___){order:-1!important;align-self:center!important;margin-top:0!important;gap:5px}
+html body .u-crow .u-cbr:not(#_){min-width:0;max-width:100%}
+html body .u-cbn .u-sb:not(#_):not(#__){width:34px;height:34px}
+@media (max-width:760px){html body .u-cbn .u-sb:not(#_):not(#__){width:30px;height:30px}}
 /* Draft: boxed titles become the same plain titles as everywhere */
 html body h2.ttl,html body .dr-hd .ttl,html body h3.ttl,html body .panel>.ttl,html body section.panel>h2{border:0!important;background:none!important;padding:0!important;font-family:inherit!important;font-size:12.5px!important;font-weight:800!important;letter-spacing:.14em!important;text-transform:uppercase!important;color:#e5e3f0!important;margin:6px 0 14px!important;width:auto!important;text-align:left!important}
 html body details>summary{font-size:13px;font-weight:600}
@@ -13126,7 +13132,11 @@ html body .hmc.e{background:transparent;border-color:transparent;color:#4a4760}
  html body #tqTh{top:92px;bottom:auto;right:108px}
 }
 @media (max-width:760px){
- html body #sbMob{width:calc(100% - 150px)!important;flex:none}
+ html body #sbMob{width:calc(100% - 150px)!important;flex:none;white-space:nowrap;overflow:hidden;font-size:14px;padding:0 10px;gap:8px}
+ html body #sbMob>span:nth-child(2){overflow:hidden;text-overflow:ellipsis;min-width:0}
+ html body #sbMob>span:nth-child(2) small{display:none}
+ html body #ctxbar:not(#_):not(#__){height:auto!important;min-height:0;flex-wrap:wrap;row-gap:4px;padding-top:5px!important;padding-bottom:5px!important}
+ html body #sbMob .car{font-size:0}html body #sbMob .car::after{content:'▼';font-size:11px}
  html body #tqHelp,html body #tqZoom,html body #tqTheme{top:9px;bottom:auto;height:36px}
  html body #tqHelp{right:10px;width:36px}
  html body #tqZoom{right:50px;min-width:50px;padding:0 6px;font-size:12px}
