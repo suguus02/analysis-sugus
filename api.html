@@ -3046,15 +3046,15 @@ function tsWeekMaps(items,team){const its=(items||[]).filter(x=>!x.s&&x.win!==.5
   const W=[...new Set(its.map(x=>dwMon(x.d)))].sort().slice(-6),pool=(MODELIST||[]).flatMap(([md,ms])=>ms.map(m=>[m,md])),C={},T={};
   its.forEach(x=>{const w=dwMon(x.d);const t=T[x.map]||(T[x.map]={n:0,w:0});t.n++;t.w+=x.win===1?1:0;if(!W.includes(w))return;const k=x.map+'|'+w,e=C[k]||(C[k]={n:0,w:0});e.n++;e.w+=x.win===1?1:0});
   const rows=pool.filter(([m])=>T[m]&&T[m].n);if(!rows.length)return '';
-  const bg=v=>v>=.65?'#22c55e':v>=.55?'#86efac':v>=.45?'#fde047':v>=.38?'#fca5a5':'#ef4444';
-  const body=rows.map(([m,md])=>{const cells=W.map(w=>{const e=C[m+'|'+w];return e?`<td><div class="hmc" style="background:${bg(e.w/e.n)}" title="${esc(m)} · week of ${fmtDate(w)} · ${e.w}W ${e.n-e.w}L">${Math.round(100*e.w/e.n)}%<small>${e.n}</small></div></td>`:'<td><div class="hmc e">–</div></td>'}).join('');
+  const bg=v=>v>=.65?'#4ade80':v>=.55?'#86efac':v>=.45?'#facc15':v>=.38?'#fca5a5':'#f87171';
+  const body=rows.map(([m,md])=>{const cells=W.map(w=>{const e=C[m+'|'+w];return e?`<td><div class="hmc${e.n<3?' lo':''}" style="color:${bg(e.w/e.n)}" title="${esc(m)} · week of ${fmtDate(w)} · ${e.w}W ${e.n-e.w}L${e.n<3?' · few sets':''}">${Math.round(100*e.w/e.n)}%<small>${e.n}</small></div></td>`:'<td><div class="hmc e">–</div></td>'}).join('');
     const vs=W.map(w=>C[m+'|'+w]).filter(Boolean),d=vs.length>=2?Math.round(100*(vs[vs.length-1].w/vs[vs.length-1].n-vs[0].w/vs[0].n)):null;
     return `<tr><td class="hmm">${mimg(m,'hmi')}<div>${esc(m)}<span>${esc(md)} · ${T[m].w}W ${T[m].n-T[m].w}L</span></div></td>${cells}<td class="hmt" style="color:${d==null?'#8f8ba8':d>3?'#4ade80':d<-3?'#f87171':'#bfbcd2'}">${d==null?'–':(d>3?'▲ +':d<-3?'▼ ':'= ')+d}</td></tr>`}).join('');
   // weak spots: 3 lowest maps with 4+ sets, and how Draft prep is for them (General page)
   const weak=Object.entries(T).filter(([m,e])=>e.n>=4).sort((a,b)=>a[1].w/a[1].n-b[1].w/b[1].n).slice(0,3);
   const lvT=['NOT PREPARED','HALF DONE','PREPARED'];
   const wk=weak.map(([m,e])=>{let l=0;try{l=p3Level(p3Get(P3K(m,'')))}catch(er){}return `<div class="wsp">${mimg(m,'wsi')}<div><b>${esc(m)} · <span style="color:${bg(e.w/e.n)}">${Math.round(100*e.w/e.n)}%</span></b><span>${esc(modeOfMap(m)||'')} · ${e.n} sets</span></div><div class="wss s${l}">● ${lvT[l]}<button type="button" data-wsprep="${esc(m)}">Open in Draft prep →</button></div></div>`}).join('');
-  return `<div class="u-grid2 wm2"><section class="u-panel"><header><span class="u-hd">Maps week by week</span><small>set win rate per week (weeks start on Monday) · small number = sets</small></header>
+  return `<div class="u-grid2 wm2"><section class="u-panel"><header><span class="u-hd">Maps week by week</span><small>set win rate per week (weeks start on Monday) · small number = sets · faded = fewer than 3 sets</small></header>
     <div class="hmw"><table class="hmt2"><tr><th>MAP</th>${W.map(w=>`<th>Wk ${fmtDate(w).replace(/ \d{4}$/,'')}</th>`).join('')}<th>TREND</th></tr>${body}</table></div></section>
     <section class="u-panel"><header><span class="u-hd">Our weak spots</span><small>our 3 lowest maps in the period (4+ sets)</small></header>${wk||'<p class="msg">Not enough sets.</p>'}</section></div>`}
 document.addEventListener('click',e=>{const t=e.target;if(!t.closest)return;const b=t.closest('[data-dwm]');if(b){DWM=b.dataset.dwm;store.set('tvt:dwm',DWM);renderDetail();return}
@@ -3272,8 +3272,8 @@ function dwChart(items,team,small){const its=(items||[]).filter(x=>!x.s&&x.win!=
   let g='';for(const v of [0,.25,.5,.75,1])g+=`<line x1="${pl}" x2="${W-pr}" y1="${y(v)}" y2="${y(v)}" stroke="${v===.5?'#3b2a52':'#1d1b27'}"${v===.5?' stroke-dasharray="5 5"':''}/><text x="${pl-8}" y="${y(v)+4}" fill="#6e6a85" font-size="12" text-anchor="end">${v*100}%</text>`;
   const tw=its.filter(x=>x.win===1).length,avg=tw/its.length;
   const bars=L.map((e,i)=>{const x=pl+cw*i,p=e.w/e.n,bw=Math.min(34,cw*.62);
-    return `<g class="dw-b"${wk?'':` data-dwd="${e.d}"`} data-dwt="${esc(team||'')}"><rect x="${x}" y="${pt-10}" width="${cw}" height="${H-pt+10}" fill="transparent"/><rect class="dw-r" x="${x+cw/2-bw/2}" y="${y(p)}" width="${bw}" height="${Math.max(2,H-pb-y(p))}" rx="5" fill="${col(p)}"/>
-      <text x="${x+cw/2}" y="${y(p)-7}" fill="${col(p)}" font-size="${fs+.5}" font-weight="800" text-anchor="middle">${Math.round(100*p)}%</text>
+    return `<g class="dw-b"${wk?'':` data-dwd="${e.d}"`} data-dwt="${esc(team||'')}"><rect x="${x}" y="${pt-10}" width="${cw}" height="${H-pt+10}" fill="transparent"/><rect class="dw-r" x="${x+cw/2-bw/2}" y="${y(p)}" width="${bw}" height="${Math.max(2,H-pb-y(p))}" fill="${col(p)}"${e.n<3?' opacity=".35"':''}/>
+      <text x="${x+cw/2}" y="${y(p)-7}"${e.n<3?' opacity=".45"':''} fill="${col(p)}" font-size="${fs+.5}" font-weight="800" text-anchor="middle">${Math.round(100*p)}%</text>
       <text x="${x+cw/2}" y="${H-pb+18}" fill="#cfcce0" font-size="${fs}" font-weight="600" text-anchor="middle">${wk?'Wk ':''}${fmtDate(e.d).replace(/ \d{4}$/,'')}</text><text x="${x+cw/2}" y="${H-pb+34}" fill="#6e6a85" font-size="${fs-1}" text-anchor="middle">${e.n} sets</text>
       <title>${wk?'Week of ':''}${fmtDate(e.d)} · ${e.w}W ${e.n-e.w}L (${Math.round(100*p)}%)${wk?'':' · click to open this day in Match Selector'}</title></g>`}).join('');
   const PT=dwPatches(),pat=PT.filter(d=>L.length&&d>=L[0].d&&d<=(wk?addDays(L[L.length-1].d,6):L[L.length-1].d)).map(d=>{let i=L.findIndex(e=>e.d>=(wk?dwMon(d):d));if(i<0)i=L.length-1;const x=pl+cw*i+(wk?cw/2:2);return `<line x1="${x}" x2="${x}" y1="${pt-14}" y2="${H-pb}" stroke="#c9a6ff" stroke-width="1.5" stroke-dasharray="4 4" opacity=".8"/><text x="${x+4}" y="${pt-4}" fill="#c9a6ff" font-size="10.5" font-weight="700">patch ${fmtDate(d).replace(/ \d{4}$/,'')}</text>`}).join('');
@@ -10016,7 +10016,7 @@ table.rank thead th{background:linear-gradient(90deg,rgba(168,85,247,.10),transp
 .u-tiles{grid-column:1/-1;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
 .u-tile{background:#0d0c12;border:1px solid #24222f;border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:3px;min-width:0}.u-tile small{font-size:11px;color:#a8a4c8;text-transform:uppercase;letter-spacing:.06em}.u-tile b{font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px;color:#fff}.u-tile b span{overflow:hidden;text-overflow:ellipsis}.u-tile i{font-style:normal;font-size:11.5px;color:#b4b1c7}.u-ti{width:24px!important;height:24px!important;border-radius:5px;flex:none}
 .u-lus{grid-column:1/-1;min-width:0}
-.u-sub{display:flex;gap:6px;flex-wrap:wrap;scroll-margin-top:10px}.u-sub button{padding:9px 18px;border-radius:999px;font:600 13px inherit;color:#b4b1c7;border:1px solid #2a2838;background:#121118;cursor:pointer}.u-sub button:hover{color:#fff;border-color:#a855f7}.u-sub button.on{background:#a855f7;border-color:#a855f7;color:#fff}
+.u-sub{display:flex;gap:6px;flex-wrap:wrap;scroll-margin-top:10px}.u-sub button{padding:9px 18px;border-radius:999px;font-family:inherit;font-weight:600;font-size:13px;color:#b4b1c7;border:1px solid #2a2838;background:#121118;cursor:pointer}.u-sub button:hover{color:#fff;border-color:#a855f7}.u-sub button.on{background:#a855f7;border-color:#a855f7;color:#fff}
 .u-grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
 .u-panel{background:#121118;border:1px solid #24222f;border-radius:16px;overflow:hidden;min-width:0}
 .u-panel header{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid #24222f;font-weight:700;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#e5e3f0;background:linear-gradient(90deg,rgba(168,85,247,.10),transparent)}.u-panel header small{color:#a8a4c8;text-transform:none;letter-spacing:0;font-weight:500;font-size:11.5px;text-align:right}
@@ -13049,3 +13049,38 @@ setInterval(function(){var c=document.getElementById('ctxbar');if(c&&!c._mo){c._
 MQ.addEventListener?MQ.addEventListener('change',tick):MQ.addListener(tick);addEventListener('resize',function(){close();tick()});
 })();
 </script>
+<style id="uxguide">
+/* rev262 · style guide: one look for every tab
+   titles: uppercase 12.5px/800 spaced · buttons: one secondary style · percentages: coloured text only · few sets: faded */
+html body .u-panel>header{font-size:12.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#e5e3f0}
+html body .u-panel>header>*:not(.u-hd){text-transform:none;letter-spacing:0;font-weight:500}
+html body .u-panel>header .u-hd,html body .u-panel .u-hd{white-space:nowrap!important;font-size:12.5px!important;font-weight:800!important;letter-spacing:.14em!important;text-transform:uppercase!important;color:#e5e3f0}
+html body .nx-sum .k{font-size:12.5px;letter-spacing:.14em}
+html body .u-sub button,html body .nx-more,html body .u-ddb{border-radius:0;font-family:inherit;font-size:13px;font-weight:600;color:#cfcce0;border:1px solid #3a3850;background:#121118;padding:8px 16px}
+html body .u-sub button:hover,html body .nx-more:hover{border-color:#a855f7;color:#fff}
+html body .u-sub button.on{background:#a855f7;border-color:#a855f7;color:#fff}
+html body .hmc{background:#16151f;border:1px solid #24222f;color:#e5e3f0;font-size:12px}
+html body .hmc small{color:#8f8ba8;opacity:1}
+html body .hmc.lo{opacity:.45}
+html body .hmc.e{background:transparent;border-color:transparent;color:#4a4760}
+/* page tools (theme · zoom · help) live in the filter bar row, so they never cover the page */
+@media (min-width:761px){
+ html body #ctxbar{padding-right:230px!important;box-sizing:border-box}
+ html body #tqHelp,html body #tqZoom,html body #tqTheme{top:59px;bottom:auto;height:28px;font-size:12px}
+ html body #tqHelp{right:12px;width:28px;font-size:14px}
+ html body #tqZoom{right:46px;min-width:54px;padding:0 8px}
+ html body #tqTheme{right:108px;padding:0 10px}
+ html body #tqZm{top:92px;bottom:auto;right:46px}
+ html body #tqTh{top:92px;bottom:auto;right:108px}
+}
+@media (max-width:760px){
+ html body #sbMob{width:calc(100% - 150px)!important;flex:none}
+ html body #tqHelp,html body #tqZoom,html body #tqTheme{top:9px;bottom:auto;height:36px}
+ html body #tqHelp{right:10px;width:36px}
+ html body #tqZoom{right:50px;min-width:50px;padding:0 6px;font-size:12px}
+ html body #tqTheme{right:104px;width:40px;padding:0;justify-content:center;font-size:0}
+ html body #tqTheme i{width:14px;height:14px}
+ html body #tqZm{top:52px;bottom:auto;right:50px}
+ html body #tqTh{top:52px;bottom:auto;right:10px}
+}
+</style>
