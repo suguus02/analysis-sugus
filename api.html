@@ -5203,12 +5203,15 @@ function rsVis(n,g){const v=String(n||'').replace(/[\s\u3164\u115F\u1160\u2800\u
 const rsAdmin=()=>window.__ROLE==='Admin';
 function rsWr(s,w){if(!s)return '<span class="rs-mut">–</span>';const v=Math.round(100*w/s);return `<b style="color:${v>=55?'#4ade80':v<45?'#f87171':'#facc15'}">${v}%</b>`}
 function rsLogo(t,cls){return t?logo(t,cls||''):`<span class="rs-q ${cls||''}">?</span>`}
+let RSQ='';
 function rsVisible(C){
   for(const e of C.E)if(!e.reg)e.reg='Unknown';
   const regs=[...new Set(C.E.map(e=>e.reg).filter(Boolean))].sort((a,b)=>C.E.filter(e=>e.reg===b).length-C.E.filter(e=>e.reg===a).length);
   if(!RS.reg||!regs.includes(RS.reg))RS.reg=regs.includes('South America')?'South America':(regs[0]||'');
   const gOf=e=>{if(!e.team)return 'unk';const v=String(TOUR[e.team]||'').toUpperCase();return /CHALL/.test(v)?'chall':/LEAG|LIGA/.test(v)?'league':'other'};
-  const L=C.E.filter(e=>e.reg===RS.reg&&e.s>=RS.min&&(RS.show==='all'||e.st===RS.show)&&(RS.grp==='all'||gOf(e)===RS.grp)).sort((a,b)=>b.n-a.n);
+  // rev272: player search: every trio with that player (name or tag), in any region and status; period and min. sets still apply
+  const q=String(RSQ||'').trim().toLowerCase(),hit=e=>(e.names||[]).some(n=>String(n).toLowerCase().includes(q))||e.tags.some(g=>g.toLowerCase().includes(q.replace(/^#?/,'#'))||g.toLowerCase().includes(q))||String(e.team||e.vt||'').toLowerCase().includes(q);
+  const L=C.E.filter(e=>q?(e.s>=Math.min(RS.min,2)&&hit(e)):(e.reg===RS.reg&&e.s>=RS.min&&(RS.show==='all'||e.st===RS.show)&&(RS.grp==='all'||gOf(e)===RS.grp))).sort((a,b)=>b.n-a.n);
   const sv={games:e=>e.s*1e4+e.n,last:e=>e.last,first:e=>e.first,wr:e=>e.s?e.sw/e.s:-1}[RS.sort]||(e=>e.n);
   L.sort((a,b)=>{const x=sv(a),y=sv(b);return (x<y?-1:x>y?1:0)*(RS.dir||-1)||b.n-a.n});
   return {regs,L}}
@@ -5248,7 +5251,7 @@ function rsHTML(){rsSegLoad();const C=rsCompute();
       <div><div class="rs-t">MAPS</div>${Mp.slice(0,10).map(([m,v])=>`<div class="rs-dl"><span>${esc(m)}</span><b>${v.s} sets · ${v.n} games</b>${rsWr(v.s,v.sw)}</div>`).join('')}<button type="button" class="rs-btn" style="margin:10px 0 4px" data-rsstats="${esc(e.k)}">SEE ALL STATS IN TEAM STATS ›</button><p class="rs-hint">Win rates count sets; a loose single game is not a set. Tags: ${e.tags.map((g,i)=>esc(e.names[i])+' '+esc(g)).join(' · ')}</p></div></div></td></tr>`};
   const PGr=pgSlice('rs',L);
   const rows=PGr.items.map(e=>`<tr class="rs-row${RS.open===e.k?' op':''}" data-rsopen="${esc(e.k)}"><td>${teamC(e)}</td><td>${pls(e)}</td><td class="rs-num">${e.s}<small>${e.n} games</small></td><td>${act(e)}<small class="rs-ld">since ${rsD(e.first)} · last ${rsD(e.last)}</small></td><td>${vsL(e)}</td><td>${rsWr(e.s,e.sw)}</td><td class="rs-bt"><button type="button" class="rs-btn" data-rsstats="${esc(e.k)}" title="Open Team Stats for this ${e.team?'team':'trio'}">SEE STATS</button>${e.team||!rsAdmin()?'':`<button type="button" class="rs-btn ghost" data-rspicks="${esc(e.k)}" title="Add this roster as a team in the Picks sheet">+ PICKS</button>`}</td></tr>${RS.form===e.k&&rsAdmin()?rsForm(e,C):RS.open===e.k?det(e):''}`).join('');
-  const tbl=`<div class="rs-box"><div class="rs-h">TRIOS PLAYING TOGETHER <small>${esc(tyTxt)} · ${esc({games:'most sets',last:'last day played',first:'date they started',wr:'set win rate'}[RS.sort]||'')} ${RS.dir>0?'↑':'↓'} · click a column to sort · click a trio to see its rivals and maps</small></div>
+  const tbl=`<div class="rs-box"><div class="rs-srch"><input type="search" id="rsQ" value="${esc(RSQ)}" placeholder="Search a player (name or tag) to see every trio they played in" autocomplete="off">${RSQ?`<span>${plural(L.length,'trio')} with “${esc(RSQ)}” · all regions</span><button type="button" data-rsq="1">Clear</button>`:''}</div><div class="rs-h">TRIOS PLAYING TOGETHER <small>${esc(tyTxt)} · ${esc({games:'most sets',last:'last day played',first:'date they started',wr:'set win rate'}[RS.sort]||'')} ${RS.dir>0?'↑':'↓'} · click a column to sort · click a trio to see its rivals and maps</small></div>
     ${L.length?`<div class="tablewrap"><table class="rs-tb"><thead><tr><th>TEAM</th><th>PLAYERS</th>${rsTh('SETS','games')}<th>ACTIVITY ${rsTh('LAST','last',1)} ${rsTh('SINCE','first',1)}</th><th>VS</th>${rsTh('SET WR','wr')}<th></th></tr></thead><tbody>${rows}</tbody></table></div>${PGr.ctl}`:'<p class="rs-hint" style="font-size:13px">No trio with these filters. Try a longer period, fewer minimum games or “Both”.</p>'}
     <div class="rs-leg"><span><i></i>tracked player (Picks or SEGUIMIENTO)</span><span><i class="no"></i>not tracked (seen as teammate or rival)</span><span><b style="color:#facc15">NEW</b> = new player in a Picks team</span><span>Activity: one square per day · lighter = 10+ games</span></div></div>`;
   const ch=all.filter(e=>e.st!=='same').sort((a,b)=>a.first<b.first?1:a.first>b.first?-1:b.n-a.n).slice(0,14).map(e=>`<div class="rs-ch"><span class="d">${rsD(e.first)}</span><div><b>${e.team?esc(e.team):e.names.map(esc).join(' · ')}</b> · ${e.st==='chg'?`${(e.outT||[]).map(g=>`<span class="o">− ${nmT(g)}</span>`).join(' ')} ${e.newT.map(g=>`<span class="n">+ ${nmT(g)}</span>`).join(' ')} · ${e.n} games together`:`<span class="n">new trio</span> · ${e.n} games${e.guess?' · '+esc(e.guess)+' tag':''}`}</div></div>`).join('');
@@ -6695,7 +6698,7 @@ function csvParse(t){const rows=[];let r=[],f='',q=false;for(let i=0;i<t.length;
 let GVZ_APP=true;
 async function gvizApp(params){const u=(typeof DRAFT_API!=='undefined'&&DRAFT_API.url)||store.get('tvt:drurl')||'';let ses='';try{ses=localStorage.getItem('tvt:sess')||''}catch(e){}
   if(!GVZ_APP||!u||!ses)return null;const P=new URLSearchParams(params);
-  const body={action:'read',token:(typeof DRAFT_API!=='undefined'&&DRAFT_API.token)||'',session:ses,id:SHEET.id,sheet:P.get('sheet')||'',range:P.get('range')||'',headers:P.get('headers')||'0',tq:P.get('tq')||''};
+  const body={action:'read',token:(typeof DRAFT_API!=='undefined'&&DRAFT_API.token)||'',session:ses,id:P.get('_id')||SHEET.id,sheet:P.get('sheet')||'',range:P.get('range')||'',headers:P.get('headers')||'0',tq:P.get('tq')||''};
   for(let k=0;k<3;k++){let j=null;try{const r=await fetch(u,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});j=await r.json()}catch(e){if(k<2){await new Promise(r=>setTimeout(r,1200*(k+1)));continue}throw {code:'gviz_net',message:String(e&&e.message||e)}}
     if(j&&j.ok)return j.rows||[];
     const er=j&&j.error||'';if(er==='unknown action'||er==='token'){GVZ_APP=false;return null}   // the Apps Script is not updated yet: use the public link
@@ -6705,7 +6708,7 @@ async function gvizApp(params){const u=(typeof DRAFT_API!=='undefined'&&DRAFT_AP
 window.__gvizRows=params=>gviz(params);
 async function gviz(params){
   const ap=await gvizApp(params);if(ap)return ap;
-  const url='https://docs.google.com/spreadsheets/d/'+SHEET.id+'/gviz/tq?tqx=out:csv&'+params;
+  const _o=new URLSearchParams(params).get('_id');const url='https://docs.google.com/spreadsheets/d/'+(_o||SHEET.id)+'/gviz/tq?tqx=out:csv&'+params;
   let res;try{res=await fetch(url,{cache:'no-store'})}catch(e){throw {code:'gviz_net',message:String(e&&e.message||e)}}
   const txt=await res.text();
   if(!res.ok||/^\s*</.test(txt))throw {code:'gviz_private',message:'HTTP '+res.status}
@@ -7003,6 +7006,10 @@ async function drLoad(){
       DR.list=body.filter(r=>!String(r[0]).startsWith(OVR_ID)).map(drFromRow);store.set('tvt:drafts',JSON.stringify(DR.list));
       ovrFromRows(body.filter(r=>String(r[0]).startsWith(OVR_ID)))}
     else DR.list=[];
+    // rev272: in the current season, the drafts of 2026 (DRAFTS tab of the API PARTIDAS 2026 file) are shown too, read-only
+    const old=window.SEASONS&&window.SEASONS['2026'];
+    if(old&&window.SEASON===window.SEASON_NOW&&old!==SHEET.id){try{const R=await gviz('_id='+old+'&sheet=DRAFTS&headers=1&tq='+encodeURIComponent('select *'));
+      if(R.length&&R[0][0]==='Id'){const have=new Set(DR.list.map(d=>d.id));const O=R.slice(1).filter(r=>r[0]&&!String(r[0]).startsWith(OVR_ID)&&!have.has(String(r[0]))).map(drFromRow);O.forEach(d=>d.old=1);DR.list=DR.list.concat(O)}}catch(e){}}
     DR.err=''}
   catch(e){DR.err=e.code==='gviz_private'?'The DRAFTS tab could not be read (it may not exist yet, or your session ended: reload the page).':'Could not reach Google Sheets to load drafts.'}
   DR.loaded=true;drRefreshViews()}
@@ -7547,6 +7554,8 @@ document.addEventListener('change',e=>{if(!DR.sim)return;const t=e.target;
 document.addEventListener('keydown',e=>{const t=e.target;if(e.key!=='Enter'||!DR.sim||!DS.d||!(t.matches&&t.matches('[data-dsq]')))return;e.preventDefault();clearTimeout(_dsT);
   const q=t.value.trim().toLowerCase(),u=drUsedMap(DS.d),L=drNames().filter(n=>(!q||n.toLowerCase().includes(q))&&!u[mkey(n)]&&!(DS.phase==='bans'&&DS.myBans.includes(n)));
   const n=L.find(x=>x.toLowerCase()===q)||L.find(x=>x.toLowerCase().startsWith(q))||L[0];if(!n)return;DS.pop=false;DS.q='';dsClick(n);if(DS.d)drRender()});
+let _rsqT=0;document.addEventListener('input',e=>{const i=e.target;if(i.id!=='rsQ')return;clearTimeout(_rsqT);_rsqT=setTimeout(()=>{RSQ=i.value;const st=i.selectionStart;renderDetail();const n=document.getElementById('rsQ');if(n){n.focus();try{n.setSelectionRange(st,st)}catch(er){}}},250)});
+document.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('[data-rsq]')){RSQ='';renderDetail()}});
 let _dsT=0;document.addEventListener('input',e=>{const t=e.target;if(!DR.sim||!(t.matches&&t.matches('[data-dsq]')))return;DS.q=t.value;clearTimeout(_dsT);_dsT=setTimeout(()=>{const p=t.selectionStart;drRender();const n=document.querySelector('[data-dsq]');if(n){n.focus();try{n.setSelectionRange(p,p)}catch(_){}}},200)});
 
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&DS.pop){DS.pop=false;drRender()}});
@@ -13082,13 +13091,23 @@ html body .mxd-tg:hover{color:#c4b5fd}
 html body .mx-lbl{font-size:12.5px!important;font-weight:800!important;letter-spacing:.14em!important;color:#e5e3f0!important;margin:4px 0 14px!important;text-transform:uppercase}
 html body .mxd tr.lo td{opacity:.45}
 html body .fs-lo{opacity:.4}
+html body .rs-srch{display:flex;align-items:center;gap:10px;margin:0 0 14px;flex-wrap:wrap}
+html body .rs-srch input{flex:1 1 320px;padding:9px 12px;background:#0d0c12;border:1px solid #3a3850;color:#e5e3f0;font:inherit;font-size:13px}
+html body .rs-srch input:focus{outline:none;border-color:#a855f7}
+html body .rs-srch span{font-size:12.5px;color:#cfcce0;font-weight:600}
+html body .rs-srch button{background:#121118;border:1px solid #3a3850;color:#cfcce0;font:inherit;font-size:12.5px;padding:7px 12px;cursor:pointer}
+html body .rs-q{display:flex;align-items:center;gap:12px;margin:0 0 14px;flex-wrap:wrap}html body .rs-q input{flex:1 1 320px;min-width:0;padding:9px 12px;background:#0d0c12;border:1px solid #3a3850;color:#e5e3f0;font:inherit;font-size:13.5px}html body .rs-q input:focus{outline:none;border-color:#a855f7}html body .rs-q span{font-size:12.5px;color:#c4b5fd;font-weight:700}html body .rs-q button{background:#121118;border:1px solid #3a3850;color:#cfcce0;font:inherit;font-size:12.5px;padding:7px 12px;cursor:pointer}
 /* Comps: bigger bans, always on their own line above the picks (no overlap) */
 /* desktop: bans in a small column right beside the picks (outside edge); phones: bans on a line above the picks */
 @media (min-width:761px){
- html body .u-crow:not(#_):not(#__){grid-template-columns:62px 36px 140px minmax(0,1fr) 26px minmax(0,1fr) 150px!important;gap:10px}
- html body .u-crow .u-cside:not(#_):not(#__):not(#___){flex-direction:row!important;align-items:center!important;gap:10px!important}
- html body .u-crow .u-cside .u-cbn:not(#_):not(#__):not(#___){flex-direction:column;align-self:center!important;margin-top:0!important;gap:4px}
- html body .u-cbn .u-sb:not(#_):not(#__){width:30px;height:30px}
+ html body .u-crow:not(#_):not(#__){grid-template-columns:56px 32px 118px minmax(0,1fr) 20px minmax(0,1fr) 118px!important;gap:8px;padding-left:12px;padding-right:12px}
+ html body .u-crow .u-cside:not(#_):not(#__):not(#___){flex-direction:row!important;align-items:center!important;gap:8px!important}
+ html body .u-crow .u-cside .u-cbn:not(#_):not(#__):not(#___){flex-direction:row;align-self:center!important;margin-top:0!important;gap:3px;flex:none}
+ html body .u-cbn .u-sb:not(#_):not(#__){width:26px;height:26px}
+ html body .u-crow .u-cbr:not(#_):not(#__){gap:3px!important;flex:none}
+ html body .u-crow .u-cb:not(#_){width:52px;min-width:0}
+ html body .u-crow .u-cb small:not(#_){display:block;max-width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ html body .u-crow .u-copp:not(#_){min-width:0}html body .u-crow .u-copp>:last-child{white-space:normal;line-height:1.2}
 }
 @media (max-width:760px){
  html body .u-crow .u-cside:not(#_):not(#__):not(#___){flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:6px!important}
@@ -13096,7 +13115,7 @@ html body .fs-lo{opacity:.4}
  html body .u-cbn .u-sb:not(#_):not(#__){width:30px;height:30px}
 }
 html body .u-crow .u-cbr:not(#_){min-width:0;max-width:100%}
-html body .u-crow .u-cside:not(#_):not(#__):not(#___):not(#____){gap:14px!important}
+
 /* page tools hide while a window (team picker, overlays) is open, so they never cover its buttons */
 body:has(.dr-ov) #tqTheme,body:has(.dr-ov) #tqZoom,body:has(.dr-ov) #tqHelp,body:has(.dr-ov) #tqTh,body:has(.dr-ov) #tqZm{visibility:hidden}
 /* Draft: boxed titles become the same plain titles as everywhere */
