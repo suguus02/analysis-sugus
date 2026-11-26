@@ -2917,11 +2917,11 @@ function compRows(items,team0){if(!items||!items.length)return '<p class="msg u-
   const br=(L,N,T)=>[0,1,2].map(k=>{const p=N&&(N[k]||T&&T[k])?nm(N[k],T&&T[k]):'';return L[k]?`<span class="u-cb" title="${esc(L[k])}${p?' · '+p:''}">${bimg(L[k],'u-ic')}<small>${p||'&nbsp;'}</small></span>`:'<span class="u-cb"><span class="u-cb0"></span><small>&nbsp;</small></span>'}).join('');
   let team=team0;
   const side=(x,mine)=>{if((mine?x.myBans:x.opBans)&&(mine?x.myBans:x.opBans).some(Boolean))return mine?x.myBans:x.opBans;const m=mOfI(x.i);if(!m)return null;const B=setBans(m);if(!B.src)return null;const mineA=m.a===team||(m.b!==team&&brKey(m.ba)===brKey(x.mine));return (mineA===mine)?B.a:B.b};
-  const coin=x=>{const m=mOfI(x.i);if(!m)return '';const I=setInfo(m);if(!I.first)return '';const mineA=m.a===team||(m.b!==team&&brKey(m.ba)===brKey(x.mine));const f=(I.first==='a')===mineA;return coinI(f,'u-coin')+coinI(!f,'u-coin')};
+  const coin=x=>{const m=mOfI(x.i);if(!m)return '';const I=setInfo(m);if(!I.first)return '';const mineA=m.a===team||(m.b!==team&&brKey(m.ba)===brKey(x.mine));const f=(I.first==='a')===mineA;return `<span class="u-pk">${coinI(f,'u-coin')}${f?'1st pick':'Last pick'}</span>`};
   return `<div class="u-crows">${items.map(x=>{team=team0||x.team||x.myTeam||'';const r=x.win===1?['w','WIN']:x.win===0?['l','LOSS']:['d','DRAW'],c=coin(x),op=x.opTeam||'';
     return `<div class="u-crow${x.s?' solo':''}" data-slk="${x.i}" data-slt="${esc(team)}" title="Click to open the set">
-      <div class="u-cres ${r[0]}">${r[1]}<small>${esc(x.sc||'')}</small></div>${mimg(x.map,'u-cmi')}<div class="u-cmeta">${team0?'':`<span class="u-cteam">${logo(team,'l20')}${esc(team)}</span>`}<b>${esc(x.map)}</b><small>${fmtDate(x.d)}${x.ty==='tournament'?' · <i class="u-tt">Tournament</i>':''}</small></div>
-      <div class="u-cside l"><span class="u-cbn">${bz(side(x,true))}</span><span class="u-cbr">${br(x.mine,x.myNames,x.myTags)}</span></div><div class="u-cvs">${c||'vs'}</div><div class="u-cside r"><span class="u-cbr">${br(x.theirs,x.opNames,x.opTags)}</span><span class="u-cbn">${bz(side(x,false))}</span></div>
+      <div class="u-cres ${r[0]}">${r[1]}<small>${esc(x.sc||'')}</small></div>${mimg(x.map,'u-cmi')}<div class="u-cmeta">${team0?'':`<span class="u-cteam">${logo(team,'l20')}${esc(team)}</span>`}<b>${esc(x.map)}</b><small>${fmtDate(x.d)}${x.ty==='tournament'?' · <i class="u-tt">Tournament</i>':''}</small>${c}</div>
+      <div class="u-cside l"><span class="u-cbn">${bz(side(x,true))}</span><span class="u-cbr">${br(x.mine,x.myNames,x.myTags)}</span></div><div class="u-cvs">vs</div><div class="u-cside r"><span class="u-cbr">${br(x.theirs,x.opNames,x.opTags)}</span><span class="u-cbn">${bz(side(x,false))}</span></div>
       <div class="u-copp">${op?logo(op,'u-lg'):''}<b title="${esc(x.opp||'')}">${esc(op||x.opp||'')}</b></div></div>`}).join('')}</div>`}
 function tsOne(team,cls,D,o){
   const its=(D.items0||[]).filter(x=>!x.s&&x.win!==.5),MI={};for(const m of ds.matches)MI[m.i]=m;
@@ -5261,7 +5261,7 @@ function rsHTML(){rsSegLoad();const C=rsCompute();
   const rawReg=(()=>{for(const g in C.seg)if(C.seg[g].reg===RS.reg&&C.seg[g].raw)return C.seg[g].raw;return String(RS.reg).toUpperCase()})();
   const dB=`<div class="rs-box"><div class="rs-h">PLAYERS DISCOVERED <small>players we don't track, seen in these trios</small></div>${(PGdc=pgSlice('rsdc',D)).items.map(d=>`<div class="rs-dc"><b>${esc(d.name)}<small>${esc(d.g)}</small></b><span class="rs-num">${d.n}<small>games</small></span><span class="rs-mut">plays with ${Object.keys(d.w).slice(0,3).map(esc).join(', ')}</span>${rsAdmin()?`<button type="button" class="rs-btn" data-rsseg="1" data-rscopy="${esc(d.g+'\t'+d.name+'\t'+rawReg)}">+ SEGUIMIENTO</button>`:'<span></span>'}</div>`).join('')||'<p class="rs-hint">Everyone here is tracked already.</p>'}${PGdc.ctl}
     <p class="rs-hint">${rsAdmin()?'The button adds the player to the SEGUIMIENTO tab of the sheet (tag, name, region). If the sheet can\'t be reached, it copies them for you to paste.':'Only admins can add players and teams to the sheet.'}</p></div>`;
-  return `<div class="rs">${kp}${tbl}<div class="rs-2">${chB}${dB}</div></div>`}
+  return `<div class="rs">${kp}<div class="rs-main">${tbl}${dB}</div>${chB}</div>`}
 document.addEventListener('click',e=>{const t=e.target;if(!t||!t.closest)return;
   const b=t.closest('[data-rs]');if(b){const k=b.dataset.rs,v=b.dataset.v;RS[k]=(k==='days'||k==='min')?+v:v;RS.open='';rsSave();renderDetail();try{ppSbPaint()}catch(er){}return}
   const cp=t.closest('[data-rscopy]');if(cp){const txt=cp.dataset.rscopy;const done=()=>{cp.textContent='COPIED ✓';setTimeout(()=>{cp.textContent='+ SEGUIMIENTO'},1800)};
@@ -13092,6 +13092,9 @@ html body .mxd-tg:hover{color:#c4b5fd}
 html body .mx-lbl{font-size:12.5px!important;font-weight:800!important;letter-spacing:.14em!important;color:#e5e3f0!important;margin:4px 0 14px!important;text-transform:uppercase}
 html body .mxd tr.lo td{opacity:.45}
 html body .fs-lo{opacity:.4}
+html body .rs-main .rs-dc:not(#_):not(#__){grid-template-columns:minmax(0,1fr) auto;grid-template-areas:'n g' 'w w' 'b b';row-gap:4px;padding:10px 0}
+html body .rs-main .rs-dc>b{grid-area:n}html body .rs-main .rs-dc>.rs-num{grid-area:g;text-align:right}html body .rs-main .rs-dc>.rs-mut{grid-area:w;display:block!important;color:#8f8ba8}html body .rs-main .rs-dc>:last-child{grid-area:b;justify-self:start}
+html body .rs-main{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px;align-items:start}html body .rs-main>.rs-box{margin:0}@media (max-width:1100px){html body .rs-main{grid-template-columns:1fr}}
 /* rev273: Rosters table compact: columns sized to their content, no stretching on wide screens */
 html body .rs-tb:not(#_){width:100%!important}
 @media (min-width:1650px){html body .rs-tb:not(#_):not(#__){width:auto!important}}
@@ -13128,7 +13131,9 @@ html body .u-crow .u-cbr:not(#_){min-width:0;max-width:100%}
 /* rev273: comps rows keep everything on one line; when the row is wider than the screen the list scrolls sideways */
 @media (min-width:761px){
  html body .u-crows:not(#_){overflow-x:auto}
- html body .u-crow:not(#_):not(#__):not(#___){width:max-content;min-width:100%;grid-template-columns:52px 34px 118px auto 20px auto auto!important}
+ html body .u-crow:not(#_):not(#__):not(#___){width:100%;min-width:max-content;grid-template-columns:52px 34px 140px minmax(max-content,1fr) 30px minmax(max-content,1fr) minmax(170px,max-content)!important}
+ html body .u-crow .u-cside.l:not(#_):not(#__):not(#___):not(#____),html body .u-crow .u-cside.r:not(#_):not(#__):not(#___):not(#____){justify-content:center!important}
+ html body .u-pk{display:flex;align-items:center;gap:5px;font-size:11px;color:#8f8ba8;margin-top:3px}html body .u-pk .u-coin{width:14px;height:14px}
  html body .u-crow .u-copp:not(#_):not(#__) b,html body .u-crow .u-copp:not(#_):not(#__)>:last-child{white-space:nowrap!important;overflow:visible!important;text-overflow:clip!important}
  html body .u-cbn .u-sb:not(#_):not(#__):not(#___){width:36px;height:36px}
 }
