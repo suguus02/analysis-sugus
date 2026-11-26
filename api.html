@@ -4975,7 +4975,7 @@ const NMK=r=>'nm|'+(r==null?NM.riv:r);
 function nmObj(){const k=NMK();if(!PP.data[k]||!PP.data[k].obj||PP.data[k].obj.notes==null)PP.data[k]={obj:{when:'',bo:'5',side:'A',notes:''},upd:'',by:'',fresh:1};return PP.data[k].obj}
 const nmPc=(w,n)=>n?Math.round(100*w/n):null;
 const nmCol=v=>v==null?'#8f8ba8':v>=55?'#4ade80':v<45?'#f87171':'#facc15';
-const nmP=(w,n)=>{const v=nmPc(w,n);return v==null?'<b class="nd">–</b>':`<b style="color:${nmCol(v)}">${v}%</b>`};
+const nmP=(w,n)=>{const v=nmPc(w,n);return v==null?'<b class="nd">–</b>':`<b class="${n<3?'fs-lo':''}" style="color:${nmCol(v)}">${v}%</b>`};
 // sets of one team: {m, side:'a'|'b', win:0/1, opp}
 function nmSets(team,from){return (ds.matches||[]).filter(m=>!m.s&&(m.y===1||m.y===0)&&(m.a===team||m.b===team)&&(!from||m.d>=from)).map(m=>({m,side:m.a===team?'a':'b',win:m.a===team?m.y:1-m.y,opp:m.a===team?m.b:m.a}))}
 // matches = sets of the same two teams on the same day
@@ -5005,7 +5005,7 @@ function nmHTML(){
   const tag=m=>{const s=score(m);if(theirs.has(m))return '<span class="nmtag t">THEIRS</span>';if(s.na>=3&&s.d>=.1)return '<span class="nmtag p">PICK</span>';if(s.na+s.nb>=4&&s.d<=-.1)return '<span class="nmtag a">AVOID</span>';return ''};
   const lv=m=>p3Level(p3Get(P3K(m,R)))||p3Level(p3Get(P3K(m,'')));
   const mapsH=pool.map(([md,ms])=>{const ic=IMGS['mode'+mkey(md)];return `<div class="nmmd"><div class="nmmh">${ic?`<img src="${ic}" alt="">`:''}${esc(md.toUpperCase())}</div>${ms.map(m=>{const a=ME[m]||{n:0,w:0},b=MT[m]||{n:0,w:0};
-    return `<div class="nmmp" data-nmprep="${esc(m)}" title="Open Draft prep vs ${esc(R)} on ${esc(m)}">${mimg(m,'nmmi')}<div class="n">${esc(m)}<span>Us ${nmP(a.w,a.n)} <i>${a.n}</i> · <u>Them</u> ${nmP(b.w,b.n)} <i>${b.n}</i></span></div><div class="rt">${tag(m)}<i class="p3dot l${lv(m)}"></i></div></div>`}).join('')}</div>`}).join('');
+    return `<div class="nmmp" data-nmprep="${esc(m)}" title="Open Draft prep vs ${esc(R)} on ${esc(m)}">${mimg(m,'nmmi')}<div class="n">${esc(m)}<span class="nm-us"><em>Us</em> ${nmP(a.w,a.n)} <i>${a.n} sets</i></span><span class="nm-th"><em>Them</em> ${nmP(b.w,b.n)} <i>${b.n} sets</i></span></div><div class="rt">${tag(m)}<i class="p3dot l${lv(m)}"></i></div></div>`}).join('')}</div>`}).join('');
   // likely map draft: Team A picks maps 1 and 3, Team B 2 and 4; 5 = decider (the mode nobody picked)
   const A=o.side!=='B',left=pool.slice(),pick=(who)=>{let best=null;left.forEach(([md,ms],i)=>ms.forEach(m=>{const s=score(m),v=who==='us'?s.d:-s.d;if(!best||v>best.v)best={v,m,md,i}}));if(!best)return null;left.splice(best.i,1);return best};
   const order=A?['us','them','us','them']:['them','us','them','us'];const LMD=order.map(w=>{const p=pick(w);return p?{who:w,...p}:null}).filter(Boolean);
@@ -13067,10 +13067,19 @@ html body .mxd-tg:hover{color:#c4b5fd}
 html body .mx-lbl{font-size:12.5px!important;font-weight:800!important;letter-spacing:.14em!important;color:#e5e3f0!important;margin:4px 0 14px!important;text-transform:uppercase}
 html body .mxd tr.lo td{opacity:.45}
 html body .fs-lo{opacity:.4}
+html body .nmmp .n span.nm-us,html body .nmmp .n span.nm-th{display:block;white-space:nowrap}
+html body .nmmp .n em{font-style:normal;display:inline-block;width:40px;color:#8f8ba8;font-size:11px}
+html body .nmmp .n span.nm-th em{color:#fca5a5}
+html body .nmmp .n i{color:#8f8ba8;font-style:normal;font-size:10.5px;margin-left:3px}
+html body .nmpl .pb{grid-template-columns:28px minmax(0,1fr) auto;grid-template-rows:auto auto;row-gap:0}
+html body .nmpl .pb>img,html body .nmpl .pb>:first-child{grid-row:1/3;grid-column:1}
+html body .nmpl .pb span{grid-column:2;grid-row:1;white-space:normal;overflow:visible;font-weight:700}
+html body .nmpl .pb i{grid-column:2;grid-row:2}
+html body .nmpl .pb b{grid-column:3;grid-row:1/3;font-size:13px}
 html body .hmc.e{background:transparent;border-color:transparent;color:#4a4760}
 /* page tools (theme · zoom · help) live in the filter bar row, so they never cover the page */
 @media (min-width:761px){
- html body #ctxbar{padding-right:230px!important;box-sizing:border-box}
+ html body #ctxbar:not(#_):not(#__){padding:4px 230px 4px 18px!important;box-sizing:border-box;height:auto!important;min-height:34px;flex-wrap:wrap;row-gap:4px}
  html body #tqHelp,html body #tqZoom,html body #tqTheme{top:59px;bottom:auto;height:28px;font-size:12px}
  html body #tqHelp{right:12px;width:28px;font-size:14px}
  html body #tqZoom{right:46px;min-width:54px;padding:0 8px}
