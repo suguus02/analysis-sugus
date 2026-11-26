@@ -2230,7 +2230,8 @@ const tnTile=t=>{const n=tryNames(t);return n.length?`<em class="tn3 only" title
 let drawTilesFn=null;
 function grpOrder(teams,W){
   const allT=teams;teams=allT.filter(t=>stOf(t)===0);
-  const wr=t=>{const e=W&&W[t];return e&&e.n?e.w/e.n:-1},srt=l=>l.slice().sort((a,b)=>wr(b)-wr(a)||a.localeCompare(b));
+  // rev271: inside each group, by region (EMEA, North America, South America, APAC, China, others) and then A-Z
+  const RO=['EMEA','North America','South America','APAC','China'],ro=t=>{const i=RO.indexOf(normReg(REGION[t]||''));return i<0?9:i},srt=l=>l.slice().sort((a,b)=>ro(a)-ro(b)||a.localeCompare(b));
   const base=SELECTED||[...LCQ,...WORLDS,...teams];
   const lab=g=>/team/i.test(g)?g:g+' teams';
   const order=[];for(const t of base){const g=TOUR[t];if(g&&!order.includes(g))order.push(g)}
@@ -2626,7 +2627,7 @@ function logTable(items,o){
   const bnm=L=>`<td class="lbn">${(L||[]).some(Boolean)?`<span class="bz-bans">${L.filter(Boolean).map(b=>`<span class="bz-b" title="Ban: ${esc(b)}">${bimg(b,'mx-bni')}</span>`).join('')}</span>`:''}</td>`;
   const lbans=(x,mine)=>{if((mine?x.myBans:x.opBans)&&(mine?x.myBans:x.opBans).some(Boolean))return mine?x.myBans:x.opBans;const m=mOfI(x.i);if(!m)return null;const B=setBans(m);if(!B.src)return null;const tm=x.myTeam||x.team,mineA=m.a===tm||(m.b!==tm&&brKey(m.ba)===brKey(x.mine));return (mineA===mine)?B.a:B.b};
   const fst=x=>{const m=mOfI(x.i);if(!m)return '';const I=setInfo(m);if(!I.first)return '';const tm=x.myTeam||x.team,mineA=m.a===tm||(m.b!==tm&&brKey(m.ba)===brKey(x.mine));const f=(I.first==='a')===mineA;return `<span class="lg-coins">${coinI(f,'lg-coin')}${coinI(!f,'lg-coin')}</span>`};
-  const rows=items.map(x=>`<tr class="${x.s?'solo':''} lg-clk" data-slk="${x.i}" data-slt="${esc(x.myTeam||x.team||'')}" title="Click to open the set"><td>${ic(x.win)}</td><td class="sc">${esc(x.sc||'')}</td><td class="dt">${fmtDate(x.d)}</td><td class="mpn"${(()=>{const md=modeOfMap(x.map),c=md&&MODE_COL[mkey(md)];return c?` style="color:${c}"`:''})()}>${esc(x.map)}${x.s?'<small>single game</small>':''}</td>${o.team?`<td class="pn">${esc(x.team||'')}</td>`:''}${pl(x.myNames,x.myTags,x.myTeam||x.team)}${bnm(lbans(x,true))}${br(x.mine)}<td class="vsx">${fst(x)||'vs'}</td>${br(x.theirs)}${bnm(lbans(x,false))}${pl(x.opNames,x.opTags,x.opTeam||o.opTeam)}${o.opp?`<td class="op">${esc(x.opp||'')}</td>`:''}<td class="gty">${x.ty==='tournament'?'<span class="tg tt">Tournament</span>':x.ty==='friendly'?'<span class="tg tf">Friendly</span>':''}</td></tr>`).join('');
+  const rows=items.map(x=>`<tr class="${x.s?'solo':''} lg-clk" data-slk="${x.i}" data-slt="${esc(x.myTeam||x.team||'')}" title="Click to open the set"><td>${ic(x.win)}</td><td class="sc">${esc(x.sc||'')}</td><td class="dt">${fmtDate(x.d)}</td><td class="mpn"${(()=>{const md=modeOfMap(x.map),c=md&&MODE_COL[mkey(md)];return c?` style="color:${c}"`:''})()}>${esc(x.map)}</td>${o.team?`<td class="pn">${esc(x.team||'')}</td>`:''}${pl(x.myNames,x.myTags,x.myTeam||x.team)}${bnm(lbans(x,true))}${br(x.mine)}<td class="vsx">${fst(x)||'vs'}</td>${br(x.theirs)}${bnm(lbans(x,false))}${pl(x.opNames,x.opTags,x.opTeam||o.opTeam)}${o.opp?`<td class="op">${esc(x.opp||'')}</td>`:''}<td class="gty">${x.ty==='tournament'?'<span class="tg tt">Tournament</span>':x.ty==='friendly'?'<span class="tg tf">Friendly</span>':''}</td></tr>`).join('');
   return `<div class="mbox"><div class="scrollx" style="${o.tall?'':'max-height:none'}"><table class="ltbl"><thead><tr><th></th><th>Score</th><th>Date</th><th>Map</th>${o.team?'<th>Team</th>':''}<th colspan="3">Players</th><th>Bans</th><th colspan="3">Brawlers</th><th></th><th colspan="3">Brawlers</th><th>Bans</th><th colspan="3">Players</th>${o.opp?'<th>Opponent</th>':''}<th>Type</th></tr></thead><tbody>${rows||'<tr><td colspan="21">No sets</td></tr>'}</tbody></table></div></div>`;
 }
 function compareHTML(){
@@ -2919,7 +2920,7 @@ function compRows(items,team0){if(!items||!items.length)return '<p class="msg u-
   const coin=x=>{const m=mOfI(x.i);if(!m)return '';const I=setInfo(m);if(!I.first)return '';const mineA=m.a===team||(m.b!==team&&brKey(m.ba)===brKey(x.mine));const f=(I.first==='a')===mineA;return coinI(f,'u-coin')+coinI(!f,'u-coin')};
   return `<div class="u-crows">${items.map(x=>{team=team0||x.team||x.myTeam||'';const r=x.win===1?['w','WIN']:x.win===0?['l','LOSS']:['d','DRAW'],c=coin(x),op=x.opTeam||'';
     return `<div class="u-crow${x.s?' solo':''}" data-slk="${x.i}" data-slt="${esc(team)}" title="Click to open the set">
-      <div class="u-cres ${r[0]}">${r[1]}<small>${esc(x.sc||'')}</small></div>${mimg(x.map,'u-cmi')}<div class="u-cmeta">${team0?'':`<span class="u-cteam">${logo(team,'l20')}${esc(team)}</span>`}<b>${esc(x.map)}</b><small>${fmtDate(x.d)}${x.s?' · single game':''}${x.ty==='tournament'?' · <i class="u-tt">Tournament</i>':''}</small></div>
+      <div class="u-cres ${r[0]}">${r[1]}<small>${esc(x.sc||'')}</small></div>${mimg(x.map,'u-cmi')}<div class="u-cmeta">${team0?'':`<span class="u-cteam">${logo(team,'l20')}${esc(team)}</span>`}<b>${esc(x.map)}</b><small>${fmtDate(x.d)}${x.ty==='tournament'?' · <i class="u-tt">Tournament</i>':''}</small></div>
       <div class="u-cside l"><span class="u-cbn">${bz(side(x,true))}</span><span class="u-cbr">${br(x.mine,x.myNames,x.myTags)}</span></div><div class="u-cvs">${c||'vs'}</div><div class="u-cside r"><span class="u-cbr">${br(x.theirs,x.opNames,x.opTags)}</span><span class="u-cbn">${bz(side(x,false))}</span></div>
       <div class="u-copp">${logo(op||x.opp||'?','u-lg')}<b title="${esc(x.opp||'')}">${esc(op||x.opp||'')}</b></div></div>`}).join('')}</div>`}
 function tsOne(team,cls,D,o){
@@ -13082,11 +13083,22 @@ html body .mx-lbl{font-size:12.5px!important;font-weight:800!important;letter-sp
 html body .mxd tr.lo td{opacity:.45}
 html body .fs-lo{opacity:.4}
 /* Comps: bigger bans, always on their own line above the picks (no overlap) */
-html body .u-crow .u-cside:not(#_):not(#__):not(#___){flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:6px!important}
-html body .u-crow .u-cside .u-cbn:not(#_):not(#__):not(#___){order:-1!important;align-self:center!important;margin-top:0!important;gap:5px}
+/* desktop: bans in a small column right beside the picks (outside edge); phones: bans on a line above the picks */
+@media (min-width:761px){
+ html body .u-crow:not(#_):not(#__){grid-template-columns:62px 36px 140px minmax(0,1fr) 26px minmax(0,1fr) 150px!important;gap:10px}
+ html body .u-crow .u-cside:not(#_):not(#__):not(#___){flex-direction:row!important;align-items:center!important;gap:10px!important}
+ html body .u-crow .u-cside .u-cbn:not(#_):not(#__):not(#___){flex-direction:column;align-self:center!important;margin-top:0!important;gap:4px}
+ html body .u-cbn .u-sb:not(#_):not(#__){width:30px;height:30px}
+}
+@media (max-width:760px){
+ html body .u-crow .u-cside:not(#_):not(#__):not(#___){flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:6px!important}
+ html body .u-crow .u-cside .u-cbn:not(#_):not(#__):not(#___){order:-1!important;align-self:center!important;margin-top:0!important;gap:5px}
+ html body .u-cbn .u-sb:not(#_):not(#__){width:30px;height:30px}
+}
 html body .u-crow .u-cbr:not(#_){min-width:0;max-width:100%}
-html body .u-cbn .u-sb:not(#_):not(#__){width:34px;height:34px}
-@media (max-width:760px){html body .u-cbn .u-sb:not(#_):not(#__){width:30px;height:30px}}
+html body .u-crow .u-cside:not(#_):not(#__):not(#___):not(#____){gap:14px!important}
+/* page tools hide while a window (team picker, overlays) is open, so they never cover its buttons */
+body:has(.dr-ov) #tqTheme,body:has(.dr-ov) #tqZoom,body:has(.dr-ov) #tqHelp,body:has(.dr-ov) #tqTh,body:has(.dr-ov) #tqZm{visibility:hidden}
 /* Draft: boxed titles become the same plain titles as everywhere */
 html body h2.ttl,html body .dr-hd .ttl,html body h3.ttl,html body .panel>.ttl,html body section.panel>h2{border:0!important;background:none!important;padding:0!important;font-family:inherit!important;font-size:12.5px!important;font-weight:800!important;letter-spacing:.14em!important;text-transform:uppercase!important;color:#e5e3f0!important;margin:6px 0 14px!important;width:auto!important;text-align:left!important}
 html body details>summary{font-size:13px;font-weight:600}
