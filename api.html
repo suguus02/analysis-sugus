@@ -4901,7 +4901,7 @@ function p3HTML(){
   </div>
   <aside class="p3pick">${p3Picker(ST)}</aside></div>`}
 function p3Idea(sec,i,ST,first){const pre='%:'+sec.id+':'+i.id,P=x=>pre.replace('%',x),del=P3.delIdea===i.id;
-  const big=i.p?`<div class="p3big${first?'':' th'}" data-p3chip="${esc(P('p')+'#0')}">${bimg(i.p.b,'p3bi')}<b>${esc(i.p.b)}</b>${(()=>{const e=(first?ST.u:ST.t)[i.p.b];return P3.data?`<em>${first?'':'<u>THEM</u> '}${e&&e.n?`<b style="color:${p3Col(e.w,e.n)}">${Math.round(100*e.w/e.n)}%</b> · ${e.n} sets`:'–'}</em>`:''})()}${i.p.c?`<i class="flag m${i.p.c}"></i>`:''}${P3.menu===P('p')+'#0'?p3Menu(P('p')+'#0',i.p.b):''}</div>`
+  const big=i.p?`<div class="p3big${first?'':' th'}" data-p3chip="${esc(P('p')+'#0')}">${bimg(i.p.b,'p3bi')}<b>${esc(i.p.b)}</b>${(()=>{const e=(first?ST.u:ST.t)[i.p.b];return P3.data?`<em>${first?'':'<u>THEM</u> '}${e&&e.n?`<b class="${e.n<3?'fs-lo':''}" style="color:${p3Col(e.w,e.n)}">${Math.round(100*e.w/e.n)}%</b> · ${e.n} sets`:'–'}</em>`:''})()}${i.p.c?`<i class="flag m${i.p.c}"></i>`:''}${P3.menu===P('p')+'#0'?p3Menu(P('p')+'#0',i.p.b):''}</div>`
     :`<div class="p3big empty">${P3.add===P('p')?`<input class="p3in" data-p3type="${esc(P('p'))}" list="p3DL" placeholder="type…" autocomplete="off">`:`<button type="button" data-p3add="${esc(P('p'))}">+ ${first?'our 1st pick':'their 1st pick'}</button>`}</div>`;
   const rows=first?`<div class="lb rv">THEY ANSWER (2-3)</div>${p3Row(i.t||[],P('t'),'t',ST)}<div class="lb">WE GO (4-5)</div>${p3Row(i.u||[],P('u'),'u',ST)}`
     :`<div class="lb">WE ANSWER (2-3)</div>${p3Row(i.u||[],P('u'),'u',ST)}<div class="lb rv">THEY GO (4-5)</div>${p3Row(i.t||[],P('t'),'t',ST)}<div class="lb">OUR LAST PICK (6)</div>${p3Row(i.l6||[],P('l6'),'u',ST)}`;
@@ -4912,8 +4912,8 @@ function p3Picker(ST){const types=TYPE_ORDER.slice(),f=new Set(P3.filt||[]),q=St
   return `<h4>BRAWLERS<small>${P3.add?'click one to add it':'first click a + on the left'}</small></h4>
   <input class="p3q" data-p3q placeholder="🔍 type a name…" value="${esc(P3.q||'')}">
   <div class="p3flt">${types.map(t=>`<button type="button" class="${f.has(t)?'on':''}" data-p3f="${esc(t)}">${esc(t)}</button>`).join('')}</div>
-  <div class="p3hint">${f.size?'Showing: '+[...f].map(x=>x.toLowerCase()).join(' + '):'All brawlers'} · our win rate on this map · most played first</div>
-  <div class="p3grid">${L.map(b=>{const x=e(b);return `<button type="button" class="p3pb${P3.add?'':' off'}" data-p3pick="${esc(b)}" title="${esc(b)}">${bimg(b,'p3i')}<span>${esc(b)}</span>${x&&x.n?`<b style="color:${p3Col(x.w,x.n)}">${Math.round(100*x.w/x.n)}%</b>`:'<b class="nd">–</b>'}</button>`}).join('')}</div>`}
+  <div class="p3hint">${f.size?'Showing: '+[...f].map(x=>x.toLowerCase()).join(' + '):'All brawlers'} · our win rate on this map · most played first · faded = fewer than 3 sets</div>
+  <div class="p3grid">${L.map(b=>{const x=e(b);return `<button type="button" class="p3pb${P3.add?'':' off'}" data-p3pick="${esc(b)}" title="${esc(b)}">${bimg(b,'p3i')}<span>${esc(b)}</span>${x&&x.n?`<b class="${x.n<3?'fs-lo':''}" style="color:${p3Col(x.w,x.n)}" title="${x.w}W ${x.n-x.w}L · ${x.n} set${x.n>1?'s':''}">${Math.round(100*x.w/x.n)}%</b>`:'<b class="nd">–</b>'}</button>`}).join('')}</div>`}
 // ---- maps + pages in the side panel
 function p3SbPaint(box){const pages=m=>{const R=new Set();Object.keys(PP.data).forEach(k=>{const p=k.split('|');if(p[0]==='v3'&&p[1]===m&&p[2]&&p3Get(k))R.add(p[2])});if(m===P3.map&&P3.riv)R.add(P3.riv);return [...R].sort()};
   const off=(M&&M.D&&M.D.off)||[];
@@ -13066,6 +13066,7 @@ html body .mxd-tg{font-size:12.5px;font-weight:800;letter-spacing:.14em;color:#e
 html body .mxd-tg:hover{color:#c4b5fd}
 html body .mx-lbl{font-size:12.5px!important;font-weight:800!important;letter-spacing:.14em!important;color:#e5e3f0!important;margin:4px 0 14px!important;text-transform:uppercase}
 html body .mxd tr.lo td{opacity:.45}
+html body .fs-lo{opacity:.4}
 html body .hmc.e{background:transparent;border-color:transparent;color:#4a4760}
 /* page tools (theme · zoom · help) live in the filter bar row, so they never cover the page */
 @media (min-width:761px){
