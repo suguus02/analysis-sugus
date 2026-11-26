@@ -3421,7 +3421,7 @@ const PLAYER_NAMES={};
 let _pnMap=null,_pnSrc=null;
 function sheetName(tag,fb){ // name as written in the Picks sheet for this tag, else the in-game name
   const src=FULL&&FULL.pickPlayers;if(src!==_pnSrc){_pnSrc=src;_pnMap={};if(src)for(const t in src)for(const p of src[t])for(const g of p.tags)if(p.name)_pnMap[g]=p.name}
-  return cleanName((tag&&_pnMap&&_pnMap[tag])||(tag&&typeof RSEG!=='undefined'&&RSEG&&RSEG[tag]&&RSEG[tag].name)||fb||'')}
+  return cleanName((tag&&typeof NOMB!=='undefined'&&NOMB&&NOMB[tag])||(tag&&_pnMap&&_pnMap[tag])||(tag&&typeof RSEG!=='undefined'&&RSEG&&RSEG[tag]&&RSEG[tag].name)||fb||'')}
 let _rgSrc=null,_rgSrc2=null,_rgMap={};
 function regTags(team){
   if(!team)return null;const F=FULL||{};
@@ -5275,7 +5275,15 @@ function rsVTinject(d){const V=rsVT();if(!d||!d.official||!V.length)return;let c
 function nmApply(d){if(!d||!d.names)return;if(!d._rawNames)d._rawNames=Object.assign({},d.names);const N=Object.assign({},d._rawNames);
   if(typeof RSEG!=='undefined'&&RSEG)for(const g in RSEG)if(RSEG[g].name)N[g]=RSEG[g].name;
   const pp=d.pickPlayers||{};for(const t in pp)for(const p of pp[t]||[])if(p&&p.name)for(const g of p.tags||[])N[g]=p.name;
+  if(NOMB)for(const g in NOMB)N[g]=NOMB[g];
   d.names=N}
+// rev269: NOMBRES tab of the sheet (TAG | NAME): the name to show for each tag, above Picks and SEGUIMIENTO
+var NOMB=null,NOMBt=0;
+async function nombLoad(){if(NOMB||NOMBt)return;NOMBt=1;
+  try{const rows=await gviz('sheet=NOMBRES&range=A1:B5000&headers=0');const o={};
+    for(const r of rows||[]){let g=String(r[0]||'').trim().toUpperCase().replace(/O/g,'0');if(g&&g[0]!=='#')g='#'+g;const n=String(r[1]||'').trim();if(/^#[0-9A-Z]{3,}$/.test(g)&&n)o[g]=n}
+    NOMB=o;if(typeof FULL!=='undefined'&&FULL&&FULL.names){nmApply(FULL);_pnSrc=null;renderDetail()}}catch(e){NOMB={}}}
+(function w(){try{if(typeof FULL!=='undefined'&&FULL&&FULL.matches){nombLoad();return}}catch(e){}setTimeout(w,1500)})();
 {const _b=build;build=function(d,c){try{rsVTinject(d)}catch(e){}try{nmApply(d)}catch(e){}return _b(d,c)}}
 function rsGoStats(name){scope='one';oneTeam=name;try{store.set('tvt:selT',JSON.stringify([name]))}catch(e){}
   const b=[...document.querySelectorAll('#sheetbar [data-sb]')].find(x=>x.textContent.trim()==='Team Stats');if(b)b.click();else{tab='stats';renderDetail()}}
