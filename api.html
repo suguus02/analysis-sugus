@@ -13199,3 +13199,10 @@ html body .hmc.e{background:transparent;border-color:transparent;color:#4a4760}
  html body #tqTh{top:52px;bottom:auto;right:10px}
 }
 </style>
+<script id="vodlink">
+/* rev274: link to the VOD review tool (separate page, same account) next to Draft and Rosters */
+(function(){function go(){const sb=document.getElementById('sheetbar');if(!sb||!sb.querySelector('.sb-grp'))return false;if(document.getElementById('sbVod'))return true;
+  const r=[...sb.querySelectorAll('.sb-t')].find(b=>b.textContent.trim()==='Rosters');const a=document.createElement('a');a.id='sbVod';a.className='sb-t';a.href='vod.html';a.textContent='VOD review';a.setAttribute('data-tip','Review videos: mark pushes, errors and rotations, draw on the image and write notes for the team');a.style.textDecoration='none';
+  (r&&r.parentNode||sb).appendChild(a);return true}
+ const t=setInterval(()=>{if(go())clearInterval(t)},300)})();
+</script>
