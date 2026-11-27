@@ -1734,9 +1734,12 @@ function processRows(rows,db,opts){
   const TIME=/^\d{1,2}:\d\d(:\d\d)?$/,DATE2=/^\d{1,2}-\d{1,2}-\d{4}$/;
   const t=s=>(s||'').trim();
   const secs=x=>{const p=x.split(':').map(Number);return p[0]*3600+p[1]*60+(p[2]||0)};
+  window.__MIRROR=0;
   for(const r of rows){
     idx++;
     if(r.length<22)continue;
+    // rev275: a game where both teams played the same brawler does not count anywhere (as if it never happened)
+    {const A=new Set([t(r[10]),t(r[11]),t(r[12])].map(x=>x.toUpperCase()).filter(Boolean));if([t(r[19]),t(r[20]),t(r[21])].some(x=>x&&A.has(x.toUpperCase()))){window.__MIRROR++;continue}}
     let tm='',ds0=t(r[0]);
     if(TIME.test(t(r[0]))&&DATE2.test(t(r[1]))){tm=t(r[0]);ds0=t(r[1]);newFmt=true}
     else if(!t(r[0])&&DATE2.test(t(r[1]))){ds0=t(r[1]);anyNoTime=true}
